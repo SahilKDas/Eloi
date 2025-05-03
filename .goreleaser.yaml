@@ -11,8 +11,6 @@ before:
   hooks:
     - go mod tidy
 
-# export GITTREE=`git rev-list HEAD | wc -l | tr -d '[[:space:]]'`
-
 builds:
   - main: ./cmd/turochamp
     id: "turochamp"
@@ -26,7 +24,7 @@ builds:
       - darwin_arm64
       - windows_amd64
     ldflags:
-      - -s -w -X "github.com/seekerror/build.GitTree={{.Env.GITTREE}}" -X "github.com/seekerror/build.GitHash={{.ShortCommit}}"
+      - -s -w -X "github.com/seekerror/build.GitHash={{.ShortCommit}}"
 
   - main: ./cmd/sargon
     id: "sargon"
@@ -40,7 +38,7 @@ builds:
       - darwin_arm64
       - windows_amd64
     ldflags:
-      - -s -w -X "github.com/seekerror/build.GitTree={{.Env.GITTREE}}" -X "github.com/seekerror/build.GitHash={{.ShortCommit}}"
+      - -s -w -X "github.com/seekerror/build.GitHash={{.ShortCommit}}"
 
   - main: ./cmd/bernstein
     id: "bernstein"
@@ -54,7 +52,7 @@ builds:
       - darwin_arm64
       - windows_amd64
     ldflags:
-      - -s -w -X "github.com/seekerror/build.GitTree={{.Env.GITTREE}}" -X "github.com/seekerror/build.GitHash={{.ShortCommit}}"
+      - -s -w -X "github.com/seekerror/build.GitHash={{.ShortCommit}}"
 
   - main: ./cmd/livechess-uci
     id: "livechess-uci"
@@ -68,7 +66,7 @@ builds:
       - darwin_arm64
       - windows_amd64
     ldflags:
-      - -s -w -X "github.com/seekerror/build.GitTree={{.Env.GITTREE}}" -X "github.com/seekerror/build.GitHash={{.ShortCommit}}"
+      - -s -w -X "github.com/seekerror/build.GitHash={{.ShortCommit}}"
 
 archives:
   - format: tar.gz

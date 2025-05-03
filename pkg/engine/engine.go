@@ -14,7 +14,7 @@ import (
 	"sync"
 )
 
-var version = build.NewVersion(0, 91, 1)
+var version = build.NewVersion(0, 91, 2)
 
 // Options are search creation options.
 type Options struct {
@@ -79,7 +79,7 @@ func New(ctx context.Context, name, author string, root search.Search, opts ...O
 		name:     name,
 		author:   author,
 		launcher: &searchctl.Iterative{Root: root},
-		factory:  search.NewTranspositionTable,
+		factory:  nil, // TODO(herohde) 5/3/2025: undo when TT fixed search.NewTranspositionTable,
 	}
 	for _, fn := range opts {
 		fn(e)
@@ -162,7 +162,7 @@ func (e *Engine) Reset(ctx context.Context, position string) error {
 	e.b = board.NewBoard(e.zt, pos, turn, noprogress, fullmoves)
 
 	e.tt = search.NoTranspositionTable{}
-	if e.opts.Hash > 0 {
+	if e.factory != nil && e.opts.Hash > 0 {
 		e.tt = e.factory(ctx, uint64(e.opts.Hash)<<20)
 	}
 	e.noise = eval.Random{}
