@@ -3,6 +3,8 @@ package engine
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/herohde/morlock/pkg/board"
 	"github.com/herohde/morlock/pkg/board/fen"
 	"github.com/herohde/morlock/pkg/eval"
@@ -11,10 +13,9 @@ import (
 	"github.com/seekerror/build"
 	"github.com/seekerror/logw"
 	"github.com/seekerror/stdlib/pkg/lang"
-	"sync"
 )
 
-var version = build.NewVersion(0, 91, 2)
+var version = build.NewVersion(0, 91, 3)
 
 // Options are search creation options.
 type Options struct {

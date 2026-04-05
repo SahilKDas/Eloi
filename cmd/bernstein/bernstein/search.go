@@ -2,6 +2,7 @@ package bernstein
 
 import (
 	"context"
+
 	"github.com/herohde/morlock/pkg/board"
 	"github.com/herohde/morlock/pkg/search"
 )
@@ -32,7 +33,7 @@ func truncate[T any](list []T, limit int) []T {
 //	(3) Is castling possible?
 //	(4) Can minor pieces be developed?
 //	(5) Can key squares be occupied? Key squares are those squares which are controlled
-//	    by diagonally connected pawns.)
+//	    by diagonally connected pawns.
 //	(6) Can open files be occupied or invaded?
 //	(7) Can pawns be moved?
 //	(8) Can pieces be moved?
@@ -45,16 +46,13 @@ func truncate[T any](list []T, limit int) []T {
 // whenever castling is possible no other alternatives except for material exchanges
 // are given, and eventually, when there are no exchanges or pieces to be gotten
 // out of attack, the program is forced to castle."
-//
-// As a special case, the initial position generates center pawn moves even
-// tough all pawn moves are otherwise considered equally.
 func FindPlausibleMoves(b *board.Board) []board.Move {
 	pos := b.Position()
 	side := b.Turn()
 
 	// NOTE(herohde) 11/24/2023: not mentioned, but probably not under-promoting. Based on the
 	// Table 1 presentation, it is not clear whether the program can handle 2 queens at all.
-	// Also no explicit allowance for mating moves.
+	// Also, no explicit allowance for mating moves.
 
 	moves := board.FindMoves(pos.LegalMoves(side), board.Move.IsNotUnderPromotion)
 	board.SortByPriority(moves, TA1(side)) // square order
@@ -139,8 +137,12 @@ func FindPlausibleMoves(b *board.Board) []board.Move {
 	//	(7) Can pawns be moved?
 	//	(8) Can pieces be moved?
 
-	pawns := pos.Piece(side, board.Pawn)
-	key := board.PawnCaptureboard(side, board.PawnCaptureboard(side, pawns)&pawns)
+	own := pos.Piece(side, board.Pawn)
+	defended := board.PawnCaptureboard(side, own) & own
+	defending := board.PawnCaptureboard(side.Opponent(), defended) & own
+	key := board.PawnCaptureboard(side, defended|defending)
+
+	pawns := own | pos.Piece(side.Opponent(), board.Pawn)
 
 	// TODO(herohde) 11/25/2023: randomize "any move"? If not, Table1 ordering severely hampers
 	// exploration -- notably if ahead: a "free" King can take up 8 moves. Then there is no driver

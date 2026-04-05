@@ -2,9 +2,9 @@ package bernstein
 
 import (
 	"context"
+
 	"github.com/herohde/morlock/pkg/board"
 	"github.com/herohde/morlock/pkg/eval"
-	"github.com/seekerror/stdlib/pkg/util/mathx"
 )
 
 // Eval implements the evaluation heuristic: the value, or score, is measured
@@ -22,9 +22,9 @@ import (
 //
 // These criteria are parametrized for easy variation. so that different values
 // may be given to center squares, or to the squares around the king. At present
-// criteria 1, 2, and 3 are added together while 4 is multiplied by a large factor
+// criteria 1, 2, and 3 are added together, while 4 is multiplied by a large factor
 // before adding it to the total. This prevents the machine from sacrificing
-// material, and encourages it to exchange when it is ahead, as it considers the
+// material and encourages it to exchange when it is ahead, as it considers the
 // ratio of its own and opponent's scores"
 type Eval struct {
 	Factor int
@@ -54,13 +54,7 @@ func Evaluate(pos *board.Position, factor int, side board.Color) int {
 	material := Material(pos, side)
 
 	score := mobility + control + defense + factor*material
-
-	// NOTE(herohde) 11/19/2023: as a technicality, we don't return zero for a side with
-	// no moves, no pieces and no control (= a potential stalemate position). There is no
-	// precise description of what "control" means, so it is possible it never happened
-	// in the original program.
-
-	return mathx.Max(1, score)
+	return max(1, score) // ensure non-zero score to not divide by zero
 }
 
 // Material returns the nominal material values for the side, ignoring the king.
@@ -96,30 +90,22 @@ func Mobility(pos *board.Position, side board.Color) int {
 	return len(pos.LegalMoves(side))
 }
 
-// Control returns the number of squares defended by the given side, but with no opponent
-// attackers. Populated squares included.
+// Control returns the number of squares controlled by the given side.
 func Control(pos *board.Position, side board.Color) int {
 	ret := 0
 	for sq := board.ZeroSquare; sq < board.NumSquares; sq++ {
-		if pos.IsDefended(side, sq) && !pos.IsAttacked(side, sq) {
+		if pos.NumDefenders(side, sq) > pos.NumAttackers(side, sq) {
 			ret++
 		}
 	}
 	return ret
 }
 
-// KingDefense returns the number of squares around the king defended by the given side, but
-// with no opponent attackers. Populated squares included. If empty, ignore the King.
+// KingDefense returns the number of squares around the king controlled by the given side.
 func KingDefense(pos *board.Position, side board.Color) int {
 	ret := 0
 	for _, sq := range board.KingAttackboard(pos.KingSquare(side)).ToSquares() {
-		if pos.IsEmpty(sq) {
-			if pos.IsDefendedBy(side, sq, board.QueenRookKnightBishopPawn) && !pos.IsAttacked(side, sq) {
-				ret++
-			}
-			continue
-		}
-		if pos.IsDefended(side, sq) && !pos.IsAttacked(side, sq) {
+		if pos.NumDefenders(side, sq) > pos.NumAttackers(side, sq) {
 			ret++
 		}
 	}

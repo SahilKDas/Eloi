@@ -167,11 +167,6 @@ func (p *Position) IsDefended(c Color, sq Square) bool {
 	return p.IsAttacked(c.Opponent(), sq)
 }
 
-// IsDefendedBy returns true iff the square is defended by pieces of the color.
-func (p *Position) IsDefendedBy(c Color, sq Square, list []Piece) bool {
-	return p.IsAttackedBy(c.Opponent(), sq, list)
-}
-
 // IsAttacked returns true iff the square is attacked by the opposing color. Does not include en passant.
 func (p *Position) IsAttacked(c Color, sq Square) bool {
 	return p.IsAttackedBy(c, sq, AllPieces)
@@ -193,6 +188,33 @@ func (p *Position) IsAttackedBy(c Color, sq Square, list []Piece) bool {
 		}
 	}
 	return false
+}
+
+// NumAttackers returns the number of attackers of the opposing color. Does not include en passant.
+func (p *Position) NumAttackers(c Color, sq Square) int {
+	return p.numAttackersBy(c, sq, AllPieces)
+}
+
+// NumDefenders returns the number of defenders of the given color.
+func (p *Position) NumDefenders(c Color, sq Square) int {
+	return p.numAttackersBy(c.Opponent(), sq, AllPieces)
+}
+
+// numAttackersBy returns the number of attackers by the given pieces of the color. Does not include en passant.
+func (p *Position) numAttackersBy(c Color, sq Square, list []Piece) int {
+	opp := c.Opponent()
+
+	count := 0
+	for _, piece := range list {
+		if piece == Pawn {
+			count += (PawnCaptureboard(opp, p.pieces[opp][Pawn]) & BitMask(sq)).PopCount()
+			continue
+		}
+		if pieces := p.pieces[opp][piece]; pieces != 0 {
+			count += (Attackboard(p.rotated, sq, piece) & pieces).PopCount()
+		}
+	}
+	return count
 }
 
 // IsChecked returns true iff the color is in check. Convenient for IsAttacked(King).
