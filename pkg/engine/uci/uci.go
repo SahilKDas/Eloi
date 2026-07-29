@@ -367,7 +367,10 @@ func (d *Driver) process(ctx context.Context, in <-chan string) {
 
 					moves := strings.TrimSpace(strings.TrimPrefix(line, d.lastPosition))
 					for _, arg := range strings.Split(moves, " ") {
-						if arg == "moves" {
+						// strings.Split("", " ") is []string{""}, so a position line
+						// identical to the last one arrives here as a single empty
+						// move and ends the driver below.
+						if arg == "" || arg == "moves" {
 							continue
 						}
 
@@ -398,7 +401,7 @@ func (d *Driver) process(ctx context.Context, in <-chan string) {
 						move = true
 						continue
 					}
-					if !move {
+					if !move || arg == "" {
 						continue
 					}
 
