@@ -9,7 +9,6 @@
 #include <random>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 namespace morlock {
@@ -19,6 +18,10 @@ inline constexpr std::string_view initial_fen =
 inline constexpr int maximum_search_depth = 40;
 inline constexpr int nnue_hidden_size = 64;
 using NnueAccumulator = std::array<std::int32_t, nnue_hidden_size>;
+struct NnueState {
+  std::array<NnueAccumulator, 2> perspective{};
+  bool operator==(const NnueState&) const = default;
+};
 
 enum class Color : std::uint8_t { white, black };
 enum class Piece : std::uint8_t { none, pawn, bishop, knight, rook, queen, king };
@@ -70,10 +73,11 @@ struct Position {
   std::optional<Position> apply(const Move& move) const;
 };
 
-NnueAccumulator nnue_refresh(const Position& position);
-void nnue_update(NnueAccumulator& accumulator, const Position& before,
+NnueState nnue_refresh(const Position& position);
+void nnue_update(NnueState& accumulator, const Position& before,
                  const Position& after);
-int nnue_evaluate(const NnueAccumulator& accumulator, Color side_to_move);
+int nnue_evaluate(const NnueState& accumulator, Color side_to_move);
+std::uint64_t position_key(const Position& position, Color turn);
 
 struct Board {
   struct Snapshot {
@@ -83,7 +87,8 @@ struct Board {
     int fullmove{1};
     Move move{};
     std::array<bool, 2> has_castled{};
-    NnueAccumulator nnue{};
+    NnueState nnue{};
+    std::uint64_t key{};
   };
 
   Position position;
@@ -91,7 +96,8 @@ struct Board {
   int halfmove{0};
   int fullmove{1};
   std::array<bool, 2> has_castled{};
-  NnueAccumulator nnue{};
+  NnueState nnue{};
+  std::uint64_t key{};
   std::vector<Snapshot> history;
 
   std::vector<Move> legal_moves() const;
@@ -138,6 +144,9 @@ struct SearchResult {
   int score_cp{0};
   int mate{0};
   std::uint64_t nodes{0};
+  std::uint64_t qnodes{0};
+  std::uint64_t tt_hits{0};
+  std::uint64_t beta_cutoffs{0};
   std::uint64_t lmr_reductions{0};
   std::chrono::milliseconds elapsed{};
   std::vector<Move> pv;
@@ -150,15 +159,29 @@ class Searcher {
                          const std::function<void(const SearchResult&)>& info = {});
 
  private:
-  struct TTEntry { int depth; int score; int flag; Move best; };
+  struct TTEntry {
+    std::uint64_t key{};
+    Move best{};
+    std::int32_t score{};
+    std::int16_t depth{-1};
+    std::int8_t flag{};
+    std::uint8_t generation{};
+  };
+  struct TTBucket { std::array<TTEntry, 4> entries{}; };
   EngineConfig config_;
   std::atomic_bool& stopped_;
   std::uint64_t nodes_{0};
+  std::uint64_t qnodes_{0};
+  std::uint64_t tt_hits_{0};
+  std::uint64_t beta_cutoffs_{0};
   std::uint64_t lmr_reductions_{0};
   SearchLimits limits_;
   std::chrono::steady_clock::time_point started_{};
   std::mt19937 random_{0};
-  std::unordered_map<std::uint64_t, TTEntry> table_;
+  std::vector<TTBucket> table_;
+  std::uint8_t generation_{1};
+  std::array<std::array<Move, 2>, maximum_search_depth + 32> killers_{};
+  std::array<std::array<int, 64>, 64> history_scores_{};
 
   bool halted();
   int evaluate(const Board& board);
@@ -169,17 +192,27 @@ class Searcher {
   int quiescence(Board& board, int alpha, int beta, int ply);
   int negamax(Board& board, int depth, int alpha, int beta, int ply,
               std::vector<Move>& pv);
-  std::vector<Move> ordered_moves(const Board& board) const;
-  std::uint64_t hash(const Board& board) const;
+  std::vector<Move> ordered_moves(const Board& board, const Move* tt_move,
+                                  int ply) const;
+  TTEntry* probe(std::uint64_t key);
+  void store(std::uint64_t key, int depth, int score, int flag,
+             const Move& best);
 };
 
 std::uint64_t perft(Position position, Color side, int depth,
                     std::vector<std::pair<Move, std::uint64_t>>* divide = nullptr);
 
-std::optional<Move> opening_move(const EngineConfig& config, const Board& board);
+struct BookMove {
+  Move move{};
+  std::string_view family;
+};
+
+std::optional<BookMove> opening_move(const EngineConfig& config,
+                                     const Board& board);
 EngineConfig default_config(EngineKind kind);
 int run_engine(EngineConfig config, int argc, char** argv);
 int run_perft(int argc, char** argv);
+int run_benchmark(int argc, char** argv);
 int run_livechess_adapter(int argc, char** argv);
 int run_gui(int argc, char** argv);
 

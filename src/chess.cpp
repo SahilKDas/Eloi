@@ -374,6 +374,17 @@ std::vector<Move> Board::legal_moves() const { return position.legal(turn); }
 
 namespace {
 
+constexpr std::uint64_t splitmix64(std::uint64_t value) {
+  value += 0x9e3779b97f4a7c15ULL;
+  value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
+  value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
+  return value ^ (value >> 31);
+}
+
+constexpr std::uint64_t zobrist_value(std::uint64_t index) {
+  return splitmix64(0xE101C0265A17ULL + index * 0x9e3779b97f4a7c15ULL);
+}
+
 int effective_en_passant(const Position& position, Color turn) {
   if (position.en_passant < 0) return -1;
   for (const Move& move : position.pseudo_legal(turn)) {
@@ -394,10 +405,29 @@ bool same_repetition_position(const Position& left, Color left_turn,
 
 }  // namespace
 
+std::uint64_t position_key(const Position& position, Color turn) {
+  std::uint64_t key = 0;
+  for (int square = 0; square < 64; ++square) {
+    const auto cell = position.cells[square];
+    if (!cell) continue;
+    const int color = cell < 0 ? 1 : 0;
+    const int piece = std::abs(static_cast<int>(cell)) - 1;
+    key ^= zobrist_value(static_cast<std::uint64_t>(
+        (color * 6 + piece) * 64 + square));
+  }
+  for (int bit = 0; bit < 4; ++bit)
+    if (position.castling & (1U << bit)) key ^= zobrist_value(768 + bit);
+  if (turn == Color::black) key ^= zobrist_value(772);
+  const int ep = effective_en_passant(position, turn);
+  if (ep >= 0) key ^= zobrist_value(773 + file_of(ep));
+  return key;
+}
+
 bool Board::push(const Move& move) {
   auto next = position.apply(move);
   if (!next) return false;
-  history.push_back({position, turn, halfmove, fullmove, move, has_castled, nnue});
+  history.push_back({position, turn, halfmove, fullmove, move, has_castled,
+                     nnue, key});
   const Position before = position;
   position = *next;
   nnue_update(nnue, before, position);
@@ -405,6 +435,7 @@ bool Board::push(const Move& move) {
   halfmove = (move.piece == Piece::pawn || move.is_capture() || move.is_castle()) ? 0 : halfmove + 1;
   if (turn == Color::black) ++fullmove;
   turn = opponent(turn);
+  key = position_key(position, turn);
   return true;
 }
 
@@ -421,6 +452,7 @@ bool Board::pop() {
   auto state = history.back(); history.pop_back();
   position = state.position; turn = state.turn; halfmove = state.halfmove;
   fullmove = state.fullmove; has_castled = state.has_castled; nnue = state.nnue;
+  key = state.key;
   return true;
 }
 
@@ -442,7 +474,8 @@ bool Board::has_moved_from(int square) const {
 int Board::repetition_count() const {
   int count = 1;
   for (const Snapshot& state : history) {
-    if (same_repetition_position(position, turn, state.position, state.turn))
+    if (state.key == key &&
+        same_repetition_position(position, turn, state.position, state.turn))
       ++count;
   }
   return count;
@@ -524,6 +557,7 @@ std::optional<Board> parse_fen(std::string_view fen, std::string* error) {
     board.fullmove = std::stoi(fields[5], &used); if (used != fields[5].size() || board.fullmove < 1) throw 0;
   } catch (...) { return fail("invalid move counters"); }
   board.nnue = nnue_refresh(board.position);
+  board.key = position_key(board.position, board.turn);
   return board;
 }
 
