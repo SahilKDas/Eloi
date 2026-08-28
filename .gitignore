@@ -18,3 +18,9 @@ bin/
 # vendor/
 
 dist/
+/build/
+/build-*/
+/.deps/
+*.o
+*.obj
+*.a
