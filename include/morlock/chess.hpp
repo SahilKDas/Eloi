@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -54,6 +55,37 @@ struct Move {
   std::string describe() const;
 };
 
+class MoveList {
+ public:
+  static constexpr std::size_t capacity = 256;
+  using iterator = std::array<Move, capacity>::iterator;
+  using const_iterator = std::array<Move, capacity>::const_iterator;
+
+  iterator begin() { return moves_.begin(); }
+  iterator end() { return moves_.begin() + static_cast<std::ptrdiff_t>(size_); }
+  const_iterator begin() const { return moves_.begin(); }
+  const_iterator end() const { return moves_.begin() + static_cast<std::ptrdiff_t>(size_); }
+  bool empty() const { return size_ == 0; }
+  std::size_t size() const { return size_; }
+  Move& front() { return moves_.front(); }
+  const Move& front() const { return moves_.front(); }
+  Move& operator[](std::size_t index) { return moves_[index]; }
+  const Move& operator[](std::size_t index) const { return moves_[index]; }
+  void reserve(std::size_t) {}
+  void push_back(const Move& move) {
+    if (size_ < capacity) moves_[size_++] = move;
+  }
+  void resize(std::size_t size) { size_ = std::min(size, capacity); }
+  iterator erase(iterator first, iterator last) {
+    size_ -= static_cast<std::size_t>(last - first);
+    return first;
+  }
+
+ private:
+  std::array<Move, capacity> moves_{};
+  std::size_t size_{};
+};
+
 struct Position {
   // Positive entries are white pieces, negative entries are black pieces.
   std::array<std::int8_t, 64> cells{};
@@ -68,8 +100,8 @@ struct Position {
   int attackers(Color side, int square) const;
   bool in_check(Color side) const;
   bool insufficient_material() const;
-  std::vector<Move> pseudo_legal(Color side) const;
-  std::vector<Move> legal(Color side) const;
+  MoveList pseudo_legal(Color side) const;
+  MoveList legal(Color side) const;
   std::optional<Position> apply(const Move& move) const;
 };
 
@@ -81,14 +113,16 @@ std::uint64_t position_key(const Position& position, Color turn);
 
 struct Board {
   struct Snapshot {
-    Position position;
     Color turn{Color::white};
     int halfmove{0};
     int fullmove{1};
     Move move{};
     std::array<bool, 2> has_castled{};
-    NnueState nnue{};
+    std::uint8_t castling{};
+    std::int8_t en_passant{-1};
+    std::int8_t effective_en_passant{-1};
     std::uint64_t key{};
+    std::array<std::uint64_t, 4> packed_cells{};
   };
 
   Position position;
@@ -100,7 +134,7 @@ struct Board {
   std::uint64_t key{};
   std::vector<Snapshot> history;
 
-  std::vector<Move> legal_moves() const;
+  MoveList legal_moves() const;
   bool push(const Move& move);
   bool push_uci(std::string_view text);
   bool pop();
@@ -150,6 +184,7 @@ struct SearchResult {
   std::uint64_t lmr_reductions{0};
   std::chrono::milliseconds elapsed{};
   std::vector<Move> pv;
+  std::string opening_family;
 };
 
 class Searcher {
@@ -192,8 +227,8 @@ class Searcher {
   int quiescence(Board& board, int alpha, int beta, int ply);
   int negamax(Board& board, int depth, int alpha, int beta, int ply,
               std::vector<Move>& pv);
-  std::vector<Move> ordered_moves(const Board& board, const Move* tt_move,
-                                  int ply) const;
+  MoveList ordered_moves(const Board& board, const Move* tt_move,
+                         int ply) const;
   TTEntry* probe(std::uint64_t key);
   void store(std::uint64_t key, int depth, int score, int flag,
              const Move& best);
@@ -209,6 +244,8 @@ struct BookMove {
 
 std::optional<BookMove> opening_move(const EngineConfig& config,
                                      const Board& board);
+std::size_t opening_book_size();
+std::size_t opening_book_node_count();
 EngineConfig default_config(EngineKind kind);
 int run_engine(EngineConfig config, int argc, char** argv);
 int run_perft(int argc, char** argv);

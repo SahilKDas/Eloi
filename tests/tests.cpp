@@ -1,4 +1,5 @@
 #include "morlock/chess.hpp"
+#include "tactical_data.hpp"
 
 #include <atomic>
 #include <cstdlib>
@@ -133,14 +134,121 @@ int main() {
 
   {
     auto board = *parse_fen(initial_fen);
+    const auto config = default_config(EngineKind::morlock);
+    expect(opening_book_size() >= 8000,
+           "the embedded general repertoire contains at least 8,000 choices");
+    expect(opening_book_node_count() >= 3000,
+           "the opening graph merges thousands of transposing positions");
+    auto book = opening_move(config, board);
+    expect(book && book->move.uci() == "e2e4",
+           "Eloi forces 1.e4 as White");
+    expect(book && book->family == "Italian Game",
+           "White opening personality is the Italian Game");
+    expect(board.push_uci("e2e4") && board.push_uci("e7e5"),
+           "Italian setup begins legally");
+    book = opening_move(config, board);
+    expect(book && book->move.uci() == "g1f3", "Eloi forces 2.Nf3");
+    expect(board.push_uci("g1f3") && board.push_uci("b8c6"),
+           "Italian setup reaches move three");
+    book = opening_move(config, board);
+    expect(book && book->move.uci() == "f1c4", "Eloi forces 3.Bc4");
+  }
+
+  {
+    auto board = *parse_fen(initial_fen);
+    const auto config = default_config(EngineKind::morlock);
+    expect(board.push_uci("d2d4"), "Nimzo setup starts with 1.d4");
+    auto book = opening_move(config, board);
+    expect(book && book->move.uci() == "g8f6", "Eloi forces 1...Nf6");
+    expect(book && book->family == "Nimzo-Indian Defense",
+           "Black opening personality is the Nimzo-Indian");
+    expect(board.push_uci("g8f6") && board.push_uci("c2c4"),
+           "Nimzo setup reaches Black's second move");
+    book = opening_move(config, board);
+    expect(book && book->move.uci() == "e7e6", "Eloi forces 2...e6");
+    expect(board.push_uci("e7e6") && board.push_uci("b1c3"),
+           "Nimzo setup reaches Black's third move");
+    book = opening_move(config, board);
+    expect(book && book->move.uci() == "f8b4", "Eloi forces 3...Bb4");
+  }
+
+  {
+    auto board = *parse_fen(initial_fen);
+    expect(board.push_uci("g1f3") && board.push_uci("b8c6") &&
+           board.push_uci("e2e4") && board.push_uci("e7e5"),
+           "Italian transposition is legal");
+    const auto book = opening_move(default_config(EngineKind::morlock), board);
+    expect(book && book->move.uci() == "f1c4",
+           "Italian personality recognizes a transposition");
+    auto disabled = default_config(EngineKind::morlock);
+    disabled.own_book = false;
+    expect(!opening_move(disabled, board), "OwnBook=false disables the repertoire");
+  }
+
+  {
+    auto board = *parse_fen(initial_fen);
+    constexpr std::array moves{"e2e4", "c7c5", "g1f3", "d7d6",
+                               "d2d4", "c5d4", "f3d4"};
+    for (const auto move : moves) {
+      expect(board.push_uci(move), std::string("key test move ") + move);
+      expect(board.key == position_key(board.position, board.turn),
+             "incremental Zobrist key matches full refresh");
+    }
+  }
+
+  {
+    auto board = *parse_fen(initial_fen);
     std::atomic_bool stopped{false};
     SearchLimits limits; limits.depth = 4;
-    Searcher searcher(default_config(EngineKind::morlock), stopped);
+    auto config = default_config(EngineKind::morlock);
+    config.own_book = false;
+    Searcher searcher(config, stopped);
     auto result = searcher.iterative(board, limits);
     expect(result.depth == 4, "iterative search reaches requested depth");
     expect(result.lmr_reductions > 0, "late move reductions are exercised");
     expect(!result.pv.empty(), "search returns a principal variation");
     if (!result.pv.empty()) expect(board.push(result.pv.front()), "search best move is legal");
+  }
+
+  {
+    auto solve = [](const tactical_data::Case& tactic, int depth) {
+      auto board = *parse_fen(tactic.fen);
+      auto config = default_config(EngineKind::morlock);
+      config.own_book = false; config.hash_mb = 4;
+      std::atomic_bool stopped{false};
+      SearchLimits limits; limits.depth = depth;
+      Searcher searcher(config, stopped);
+      return std::pair{board, searcher.iterative(board, limits)};
+    };
+    int mate_one = 0;
+    for (const auto& tactic : tactical_data::mateIn1) {
+      auto [board, result] = solve(tactic, 2);
+      if (result.pv.empty() || !board.push(result.pv.front())) continue;
+      if (board.legal_moves().empty() && board.position.in_check(board.turn))
+        ++mate_one;
+    }
+    expect(mate_one == static_cast<int>(tactical_data::mateIn1.size()),
+           "all CC0 mate-in-one positions are solved");
+
+    int mate_two = 0;
+    for (const auto& tactic : tactical_data::mateIn2) {
+      auto [board, result] = solve(tactic, 4);
+      if (!result.pv.empty() && result.pv.front().uci() == tactic.best &&
+          result.mate == 2) ++mate_two;
+    }
+    expect(mate_two * 100 >=
+               static_cast<int>(tactical_data::mateIn2.size()) * 95,
+           "at least 95% of CC0 mate-in-two positions are solved exactly");
+
+    int mate_three = 0;
+    for (const auto& tactic : tactical_data::mateIn3) {
+      auto [board, result] = solve(tactic, 6);
+      if (!result.pv.empty() && result.pv.front().uci() == tactic.best &&
+          result.mate == 3) ++mate_three;
+    }
+    expect(mate_three * 4 >=
+               static_cast<int>(tactical_data::mateIn3.size()) * 3,
+           "at least 75% of CC0 mate-in-three positions are solved exactly");
   }
 
   if (failures) {

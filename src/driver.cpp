@@ -30,6 +30,8 @@ std::optional<int> integer(std::string_view text) {
 
 void print_info(const SearchResult& result, std::mutex& output) {
   std::lock_guard lock(output);
+  if (!result.opening_family.empty())
+    std::cout << "info string opening " << result.opening_family << '\n';
   std::cout << "info depth " << result.depth << " score ";
   if (result.mate) std::cout << "mate " << result.mate;
   else std::cout << "cp " << result.score_cp;
@@ -40,7 +42,11 @@ void print_info(const SearchResult& result, std::mutex& output) {
     std::cout << " pv";
     for (const Move& move : result.pv) std::cout << ' ' << move.uci();
   }
-  std::cout << std::endl;
+  std::cout << '\n'
+            << "info string search qnodes " << result.qnodes
+            << " tthits " << result.tt_hits
+            << " cutoffs " << result.beta_cutoffs
+            << " lmr " << result.lmr_reductions << std::endl;
 }
 
 void usage(const EngineConfig& config, const char* program) {
@@ -152,13 +158,10 @@ int run_engine(EngineConfig config, int argc, char** argv) {
     stop_worker(); stopped = false; active = true;
     Board snapshot = board; EngineConfig current = config;
     worker = std::thread([&, snapshot=std::move(snapshot), current=std::move(current), limits]() mutable {
-      SearchResult result;
-      if (auto book = opening_move(current, snapshot)) {
-        result.depth=0; result.nodes=1; result.pv.push_back(*book);
-      } else {
-        Searcher searcher(current, stopped);
-        result = searcher.iterative(snapshot, limits, [&](const SearchResult& info){ print_info(info, output); });
-      }
+      Searcher searcher(current, stopped);
+      SearchResult result = searcher.iterative(
+          snapshot, limits,
+          [&](const SearchResult& info){ print_info(info, output); });
       {
         std::lock_guard lock(output);
         std::cout << "bestmove " << (result.pv.empty() ? "0000" : result.pv.front().uci()) << std::endl;
@@ -241,6 +244,51 @@ int run_perft(int argc, char** argv) {
     auto us=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-start).count();
     std::cout<<"perft,"<<fen<<','<<d<<','<<nodes<<','<<us<<"us\n";
   }
+  return 0;
+}
+
+int run_benchmark(int argc, char** argv) {
+  int depth = 6;
+  for (int i = 1; i + 1 < argc; ++i)
+    if (std::string_view(argv[i]) == "--depth")
+      depth = std::clamp(integer(argv[++i]).value_or(depth), 1,
+                         maximum_search_depth);
+  constexpr std::array positions{
+      initial_fen,
+      std::string_view{"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"},
+      std::string_view{"2r2rk1/pp1bqppp/2n1pn2/1B1p4/3P4/2N1PN2/PPQ2PPP/2RR2K1 w - - 3 14"},
+      std::string_view{"8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1"}};
+  auto config = default_config(EngineKind::morlock);
+  config.own_book = false;
+  config.depth = depth;
+  std::atomic_bool stopped{false};
+  std::uint64_t nodes = 0, qnodes = 0, hits = 0, cutoffs = 0, lmr = 0;
+  std::chrono::milliseconds elapsed{};
+  std::uint64_t checksum = 0;
+  for (std::string_view fen : positions) {
+    auto board = parse_fen(fen);
+    if (!board) return 2;
+    Searcher searcher(config, stopped);
+    SearchLimits limits; limits.depth = depth;
+    const auto result = searcher.iterative(*board, limits);
+    nodes += result.nodes; qnodes += result.qnodes; hits += result.tt_hits;
+    cutoffs += result.beta_cutoffs; lmr += result.lmr_reductions;
+    elapsed += result.elapsed;
+    checksum = checksum * 1315423911ULL +
+        static_cast<std::uint64_t>(result.score_cp + 32000);
+    if (!result.pv.empty())
+      checksum ^= static_cast<std::uint64_t>(result.pv.front().from * 64 +
+                                             result.pv.front().to);
+    std::cout << "bench depth " << result.depth << " nodes " << result.nodes
+              << " time " << result.elapsed.count() << " bestmove "
+              << (result.pv.empty() ? "0000" : result.pv.front().uci()) << '\n';
+  }
+  const auto milliseconds = std::max<std::int64_t>(1, elapsed.count());
+  std::cout << "bench summary depth " << depth << " nodes " << nodes
+            << " qnodes " << qnodes << " time " << elapsed.count()
+            << " nps " << nodes * 1000 / static_cast<std::uint64_t>(milliseconds)
+            << " tthits " << hits << " cutoffs " << cutoffs
+            << " lmr " << lmr << " checksum " << checksum << '\n';
   return 0;
 }
 

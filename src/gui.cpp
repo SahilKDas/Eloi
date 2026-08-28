@@ -623,7 +623,9 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
 
   text(canvas, "LAST SEARCH", layout.panel_left + 24, 398, 12, muted, true);
   const std::string stats = app.last_result.depth == 0
-      ? "No search yet"
+      ? (app.last_result.opening_family.empty()
+             ? "No search yet"
+             : std::format("Book · {}", app.last_result.opening_family))
       : std::format("d{}  ·  {} nodes  ·  {:+.2f}",
                     app.last_result.depth, app.last_result.nodes,
                     app.last_result.score_cp / 100.0);
@@ -789,7 +791,9 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
           const Move move = result->pv.front();
           const std::int8_t moving_cell = app->board.position.cells[move.from];
           if (app->board.push(move)) {
-            app->status = "Eloi moved";
+            app->status = result->opening_family.empty()
+                ? "Eloi moved"
+                : std::format("Eloi · {}", result->opening_family);
             begin_animation(*app, move, moving_cell,
                             App::AnimationAfter::finish_engine);
           }

@@ -1,112 +1,104 @@
 #include "morlock/chess.hpp"
 
+#include "morlock/nnue_weights.hpp"
+
 #include <algorithm>
-#include <array>
 #include <cstdlib>
-#include <cstdint>
 
 namespace morlock {
 namespace {
 
-constexpr int feature_count = 12 * 64;
 constexpr int quantization = 8;
 
-struct QuantizedNetwork {
-  std::array<std::array<std::int16_t, nnue_hidden_size>, feature_count> input{};
-  std::array<std::int32_t, nnue_hidden_size> bias{};
-  std::array<std::int16_t, nnue_hidden_size> output{};
-  std::int32_t output_bias{0};
-};
+int perspective_index(Color side) { return side == Color::white ? 0 : 1; }
 
-std::uint32_t mix(std::uint32_t value) {
-  value ^= value >> 16;
-  value *= 0x7feb352dU;
-  value ^= value >> 15;
-  value *= 0x846ca68bU;
-  return value ^ (value >> 16);
+int oriented_square(int square, Color perspective) {
+  return perspective == Color::white ? square : square ^ 56;
 }
 
-const QuantizedNetwork& network() {
-  static const QuantizedNetwork value = [] {
-    QuantizedNetwork net;
-
-    // Eloi's embedded quantized Piece-Square NNUE. The first twelve neurons
-    // carry the dominant learned material channels; the remaining neurons
-    // form deterministic positional channels. Keeping the weights embedded
-    // makes the evaluator reproducible and lets Board update its accumulator
-    // by adding/removing only the changed piece features.
-    for (int feature = 0; feature < feature_count; ++feature) {
-      for (int hidden = 12; hidden < nnue_hidden_size; ++hidden) {
-        const auto random = mix(static_cast<std::uint32_t>(feature * 131 + hidden * 977 + 0xE101U));
-        net.input[feature][hidden] = static_cast<std::int16_t>(static_cast<int>(random % 7) - 3);
-      }
-      const int plane = feature / 64;
-      net.input[feature][plane] += 24;
-
-      const int square = feature % 64;
-      const int file = file_of(square);
-      const int rank = rank_of(square);
-      const int center = 6 - std::abs(file * 2 - 7) - std::abs(rank * 2 - 7);
-      net.input[feature][12 + (plane % 6)] += static_cast<std::int16_t>(center);
-      net.input[feature][18 + (plane / 6)] += static_cast<std::int16_t>(rank - 3);
-    }
-
-    constexpr std::array<int, 6> material{33, 105, 105, 166, 300, 0};
-    for (int piece = 0; piece < 6; ++piece) {
-      net.output[piece] = static_cast<std::int16_t>(material[piece]);
-      net.output[6 + piece] = static_cast<std::int16_t>(-material[piece]);
-    }
-    for (int hidden = 12; hidden < nnue_hidden_size; ++hidden) {
-      const auto random = mix(static_cast<std::uint32_t>(hidden * 811 + 0xC0DE26U));
-      net.output[hidden] = static_cast<std::int16_t>(static_cast<int>(random % 5) - 2);
-    }
-    return net;
-  }();
-  return value;
+int king_bucket(const Position& position, Color perspective) {
+  const int king = position.king_square(perspective);
+  if (king < 0) return 0;
+  const int square = oriented_square(king, perspective);
+  return (file_of(square) >= 4 ? 1 : 0) + 2 * (rank_of(square) / 2);
 }
 
-int feature_of(std::int8_t cell, int square) {
-  if (cell == 0) return -1;
-  const int color = cell < 0 ? 1 : 0;
+int feature_of(std::int8_t cell, int square, int bucket,
+               Color perspective) {
+  if (!cell) return -1;
+  const Color piece_color = cell > 0 ? Color::white : Color::black;
+  const int relative_color = piece_color == perspective ? 0 : 1;
   const int piece = std::abs(static_cast<int>(cell)) - 1;
-  return (color * 6 + piece) * 64 + square;
+  const int plane = relative_color * 6 + piece;
+  return (bucket * 12 + plane) * 64 + oriented_square(square, perspective);
 }
 
 void add_feature(NnueAccumulator& accumulator, int feature, int sign) {
   if (feature < 0) return;
-  const auto& weights = network().input[feature];
+  const std::size_t offset = static_cast<std::size_t>(feature) * nnue_hidden_size;
   for (int hidden = 0; hidden < nnue_hidden_size; ++hidden)
-    accumulator[hidden] += sign * weights[hidden];
+    accumulator[hidden] += sign * nnue_weights::input[offset + hidden];
+}
+
+NnueAccumulator refresh_perspective(const Position& position,
+                                    Color perspective) {
+  NnueAccumulator result{};
+  for (int hidden = 0; hidden < nnue_hidden_size; ++hidden)
+    result[hidden] = nnue_weights::bias[hidden];
+  const int bucket = king_bucket(position, perspective);
+  for (int square = 0; square < 64; ++square)
+    add_feature(result,
+                feature_of(position.cells[square], square, bucket, perspective),
+                1);
+  return result;
+}
+
+std::int64_t activate(const NnueAccumulator& accumulator) {
+  std::int64_t sum = 0;
+  for (int hidden = 0; hidden < nnue_hidden_size; ++hidden) {
+    const int value = std::clamp(accumulator[hidden], 0, 127);
+    sum += static_cast<std::int64_t>(value) * nnue_weights::output[hidden];
+  }
+  return sum;
 }
 
 }  // namespace
 
-NnueAccumulator nnue_refresh(const Position& position) {
-  NnueAccumulator accumulator = network().bias;
-  for (int square = 0; square < 64; ++square)
-    add_feature(accumulator, feature_of(position.cells[square], square), 1);
-  return accumulator;
+NnueState nnue_refresh(const Position& position) {
+  NnueState state;
+  state.perspective[0] = refresh_perspective(position, Color::white);
+  state.perspective[1] = refresh_perspective(position, Color::black);
+  return state;
 }
 
-void nnue_update(NnueAccumulator& accumulator, const Position& before,
+void nnue_update(NnueState& state, const Position& before,
                  const Position& after) {
-  for (int square = 0; square < 64; ++square) {
-    if (before.cells[square] == after.cells[square]) continue;
-    add_feature(accumulator, feature_of(before.cells[square], square), -1);
-    add_feature(accumulator, feature_of(after.cells[square], square), 1);
+  for (Color perspective : {Color::white, Color::black}) {
+    const int index = perspective_index(perspective);
+    const int before_bucket = king_bucket(before, perspective);
+    const int after_bucket = king_bucket(after, perspective);
+    if (before_bucket != after_bucket) {
+      state.perspective[index] = refresh_perspective(after, perspective);
+      continue;
+    }
+    for (int square = 0; square < 64; ++square) {
+      if (before.cells[square] == after.cells[square]) continue;
+      add_feature(state.perspective[index],
+                  feature_of(before.cells[square], square, before_bucket,
+                             perspective), -1);
+      add_feature(state.perspective[index],
+                  feature_of(after.cells[square], square, after_bucket,
+                             perspective), 1);
+    }
   }
 }
 
-int nnue_evaluate(const NnueAccumulator& accumulator, Color side_to_move) {
-  const auto& net = network();
-  std::int64_t sum = net.output_bias;
-  for (int hidden = 0; hidden < nnue_hidden_size; ++hidden) {
-    const int activated = std::clamp(accumulator[hidden], 0, 127);
-    sum += static_cast<std::int64_t>(activated) * net.output[hidden];
-  }
-  int score = static_cast<int>(sum / quantization);
+int nnue_evaluate(const NnueState& state, Color side_to_move) {
+  const std::int64_t white_score = activate(state.perspective[0]);
+  const std::int64_t black_score = activate(state.perspective[1]);
+  int score = static_cast<int>((white_score - black_score) / quantization);
   if (side_to_move == Color::black) score = -score;
-  return score + 10;  // Small side-to-move tempo term.
+  return score + 10;
 }
 
 }  // namespace morlock

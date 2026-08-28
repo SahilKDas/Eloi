@@ -1,16 +1,25 @@
 # Eloi
 
 Eloi is a C++26 chess engine and native Windows chess application. The
-production build creates one main executable, `Eloi.exe`, with three runtime
+production build creates one main executable, `Eloi.exe`, with four runtime
 modes:
 
 - no arguments or `--gui`: the Skia GUI
 - `--uci`: UCI mode for chess tools and Lichess bot bridges
 - `--perft`: legal move-generator validation
+- `--bench`: deterministic search benchmark
 
-The engine uses iterative deepening, alpha-beta negamax, quiescence search,
-transposition-table ordering, late move reductions (LMR), and an incrementally
-updated quantized NNUE evaluator.
+The engine uses iterative deepening, aspiration-window PVS/alpha-beta,
+quiescence search, a compact four-way transposition table, killer/history and
+static-exchange move ordering, guarded null-move and futility pruning, late
+move reductions (LMR), and an incrementally updated quantized NNUE evaluator.
+
+Eloi has a deliberate opening personality. As White it forces the Italian
+Game with `1.e4 e5 2.Nf3 Nc6 3.Bc4` whenever Black permits it. As Black it
+forces the Nimzo-Indian with `1.d4 Nf6 2.c4 e6 3.Nc3 Bb4` whenever White
+permits it. An embedded position graph with 8,000-plus weighted edges across
+ECO A00-E99 supplies sound fallbacks and variations; transpositions merge into
+shared nodes instead of duplicating branches. No runtime database is needed.
 
 ## Hard 40-ply limit
 
@@ -22,7 +31,8 @@ cannot become the engine's configured search depth.
 ## Windows build
 
 Requirements are CMake, Ninja, a MinGW UCRT C++ compiler with C++26
-(`-std=c++2c`) support, and PowerShell. Go is not used.
+(`-std=c++2c`) support, and PowerShell. No Go source, module, toolchain, or
+release configuration remains in the Eloi repository.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-windows.ps1
@@ -63,7 +73,9 @@ automatically, so wrappers that invoke the executable directly remain
 compatible.
 
 The UCI `Depth` option advertises `max 40`; attempts to assign 41 or above
-are explicitly ignored. `go depth` is likewise capped at 40 plies.
+are explicitly ignored. `go depth` is likewise capped at 40 plies. `OwnBook`
+defaults to `true` and can be disabled for analysis. The compact fixed hash
+table defaults to 32 MB and remains configurable through `Hash`.
 
 ## Validation
 
@@ -73,13 +85,29 @@ cmake --build build-tests --target eloi_tests -j
 ctest --test-dir build-tests --output-on-failure
 
 .\build\Eloi.exe --perft --depth 4
+.\build\Eloi.exe --bench --depth 6
 .\build\Eloi.exe --screenshot .\build\eloi-gui.bmp
+
+python .\scripts\selfplay_gauntlet.py --candidate .\build\Eloi.exe `
+  --baseline C:\path\to\baseline\Eloi.exe --games 200 --nodes 2000
 ```
 
 Tests cover standard perft positions, en passant, both castling sides, every
 promotion choice, checkmate, stalemate, threefold repetition and undo, the
-fifty-move rule, FEN round trips, search, incremental NNUE state, and LMR
-activity.
+fifty-move rule, FEN round trips, incremental Zobrist and NNUE state, Italian
+and Nimzo personality/transpositions, an 8,000-entry minimum repertoire,
+mate-in-two tactics, search, and LMR activity.
+
+The development-only gauntlet runner uses eight neutral opening seeds, plays
+every seed with colours exchanged, disables both opening books, and returns a
+failure status unless the candidate's score exceeds 55% by default.
+
+The pinned pre-upgrade comparison (`7c1ee72`, Windows Release, books off)
+needed 35,708 nodes and 222 ms to complete depth six from the initial position.
+This build completed the same search in 7,161 nodes and 55 ms. In the mirrored
+200-game, 1,000-node gauntlet it scored 84.75% (151 wins, 37 draws, 12 losses),
+passing the required 55% gate. The default transposition-table allocation also
+fell from 128 MB to 32 MB.
 
 ## Artwork and licenses
 
@@ -90,3 +118,7 @@ See [the asset attribution](assets/chess_maestro_bw/ATTRIBUTION.md).
 
 NanoSVG is used under its zlib license in the ignored dependency cache. Skia is
 used under its BSD 3-Clause license.
+
+The embedded opening and NNUE tables were generated from CC0 Lichess data.
+See [DATA_SOURCES.md](DATA_SOURCES.md) for pinned provenance and reproduction
+details.

@@ -62,7 +62,20 @@ int nominal(Piece p) {
   }
 }
 
-void add_move(const Position& pos, Color side, std::vector<Move>& out, int from, int to,
+int static_exchange_score(const Position& position, Color side,
+                          const Move& move) {
+  if (!move.is_capture()) return 0;
+  int score = nominal(move.capture);
+  const Piece landing = move.is_promotion() ? move.promotion : move.piece;
+  if (move.is_promotion()) score += nominal(move.promotion) - nominal(Piece::pawn);
+  if (position.attackers(opponent(side), move.to) > 0) {
+    score -= nominal(landing);
+    if (position.attackers(side, move.to) > 1) score += nominal(landing) / 2;
+  }
+  return score;
+}
+
+void add_move(const Position& pos, Color side, MoveList& out, int from, int to,
               Piece piece, MoveType quiet = MoveType::normal) {
   if (!inside(file_of(to), rank_of(to))) return;
   const auto target = pos.color_at(to);
@@ -222,8 +235,8 @@ bool Position::insufficient_material() const {
   return knights == 0 && same_bishop_color;
 }
 
-std::vector<Move> Position::pseudo_legal(Color side) const {
-  std::vector<Move> out;
+MoveList Position::pseudo_legal(Color side) const {
+  MoveList out;
   out.reserve(64);
   constexpr int knight_steps[8][2] = {
       {1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2}};
@@ -364,13 +377,13 @@ std::optional<Position> Position::apply(const Move& move) const {
   return next;
 }
 
-std::vector<Move> Position::legal(Color side) const {
-  std::vector<Move> result;
+MoveList Position::legal(Color side) const {
+  MoveList result;
   for (const Move& move : pseudo_legal(side)) if (apply(move)) result.push_back(move);
   return result;
 }
 
-std::vector<Move> Board::legal_moves() const { return position.legal(turn); }
+MoveList Board::legal_moves() const { return position.legal(turn); }
 
 namespace {
 
@@ -394,13 +407,40 @@ int effective_en_passant(const Position& position, Color turn) {
   return -1;
 }
 
-bool same_repetition_position(const Position& left, Color left_turn,
-                              const Position& right, Color right_turn) {
-  if (left_turn != right_turn || left.cells != right.cells ||
-      left.castling != right.castling)
-    return false;
-  return effective_en_passant(left, left_turn) ==
-         effective_en_passant(right, right_turn);
+std::array<std::uint64_t, 4> pack_cells(const Position& position) {
+  std::array<std::uint64_t, 4> packed{};
+  for (int square = 0; square < 64; ++square) {
+    const auto value = static_cast<std::uint64_t>(position.cells[square] + 6);
+    packed[square / 16] |= value << ((square % 16) * 4);
+  }
+  return packed;
+}
+
+std::uint64_t cell_key(std::int8_t cell, int square) {
+  if (!cell) return 0;
+  const int color = cell < 0 ? 1 : 0;
+  const int piece = std::abs(static_cast<int>(cell)) - 1;
+  return zobrist_value(static_cast<std::uint64_t>(
+      (color * 6 + piece) * 64 + square));
+}
+
+std::uint64_t updated_position_key(std::uint64_t key,
+                                   const Position& before, Color before_turn,
+                                   const Position& after, Color after_turn) {
+  for (int square = 0; square < 64; ++square) {
+    if (before.cells[square] == after.cells[square]) continue;
+    key ^= cell_key(before.cells[square], square);
+    key ^= cell_key(after.cells[square], square);
+  }
+  const unsigned changed_rights = before.castling ^ after.castling;
+  for (int bit = 0; bit < 4; ++bit)
+    if (changed_rights & (1U << bit)) key ^= zobrist_value(768 + bit);
+  if (before_turn != after_turn) key ^= zobrist_value(772);
+  const int before_ep = effective_en_passant(before, before_turn);
+  const int after_ep = effective_en_passant(after, after_turn);
+  if (before_ep >= 0) key ^= zobrist_value(773 + file_of(before_ep));
+  if (after_ep >= 0) key ^= zobrist_value(773 + file_of(after_ep));
+  return key;
 }
 
 }  // namespace
@@ -426,16 +466,20 @@ std::uint64_t position_key(const Position& position, Color turn) {
 bool Board::push(const Move& move) {
   auto next = position.apply(move);
   if (!next) return false;
-  history.push_back({position, turn, halfmove, fullmove, move, has_castled,
-                     nnue, key});
+  history.push_back({turn, halfmove, fullmove, move, has_castled,
+                     position.castling,
+                     static_cast<std::int8_t>(position.en_passant),
+                     static_cast<std::int8_t>(effective_en_passant(position, turn)),
+                     key, pack_cells(position)});
   const Position before = position;
   position = *next;
   nnue_update(nnue, before, position);
   if (move.is_castle()) has_castled[color_index(turn)] = true;
   halfmove = (move.piece == Piece::pawn || move.is_capture() || move.is_castle()) ? 0 : halfmove + 1;
   if (turn == Color::black) ++fullmove;
+  const Color previous_turn = turn;
   turn = opponent(turn);
-  key = position_key(position, turn);
+  key = updated_position_key(key, before, previous_turn, position, turn);
   return true;
 }
 
@@ -450,8 +494,34 @@ bool Board::push_uci(std::string_view text) {
 bool Board::pop() {
   if (history.empty()) return false;
   auto state = history.back(); history.pop_back();
-  position = state.position; turn = state.turn; halfmove = state.halfmove;
-  fullmove = state.fullmove; has_castled = state.has_castled; nnue = state.nnue;
+  const Position after = position;
+  const int sign = state.turn == Color::white ? 1 : -1;
+  const Move& move = state.move;
+  position.cells[move.from] = static_cast<std::int8_t>(
+      sign * static_cast<int>(move.piece));
+  position.cells[move.to] = move.capture == Piece::none
+      ? 0
+      : static_cast<std::int8_t>(-sign * static_cast<int>(move.capture));
+  if (move.type == MoveType::en_passant) {
+    position.cells[move.to] = 0;
+    const int victim = move.to + (state.turn == Color::white ? -8 : 8);
+    position.cells[victim] = static_cast<std::int8_t>(
+        -sign * static_cast<int>(Piece::pawn));
+  } else if (move.is_castle()) {
+    const int rank = state.turn == Color::white ? 0 : 7;
+    const int rook_from = square_of(
+        move.type == MoveType::king_castle ? 7 : 0, rank);
+    const int rook_to = square_of(
+        move.type == MoveType::king_castle ? 5 : 3, rank);
+    position.cells[rook_from] = static_cast<std::int8_t>(
+        sign * static_cast<int>(Piece::rook));
+    position.cells[rook_to] = 0;
+  }
+  position.castling = state.castling;
+  position.en_passant = state.en_passant;
+  turn = state.turn; halfmove = state.halfmove;
+  fullmove = state.fullmove; has_castled = state.has_castled;
+  nnue_update(nnue, after, position);
   key = state.key;
   return true;
 }
@@ -473,9 +543,12 @@ bool Board::has_moved_from(int square) const {
 
 int Board::repetition_count() const {
   int count = 1;
+  const auto packed = pack_cells(position);
+  const int ep = effective_en_passant(position, turn);
   for (const Snapshot& state : history) {
-    if (state.key == key &&
-        same_repetition_position(position, turn, state.position, state.turn))
+    if (state.key == key && state.turn == turn &&
+        state.castling == position.castling &&
+        state.effective_en_passant == ep && state.packed_cells == packed)
       ++count;
   }
   return count;
@@ -609,7 +682,14 @@ std::string board_ascii(const Board& board) {
 }
 
 Searcher::Searcher(EngineConfig config, std::atomic_bool& stopped)
-    : config_(std::move(config)), stopped_(stopped) {}
+    : config_(std::move(config)), stopped_(stopped) {
+  if (config_.hash_mb > 0) {
+    const std::size_t requested = static_cast<std::size_t>(config_.hash_mb) *
+                                  1024 * 1024 / sizeof(TTBucket);
+    const std::size_t buckets = std::bit_floor(std::max<std::size_t>(1, requested));
+    table_.resize(buckets);
+  }
+}
 
 bool Searcher::halted() {
   if (stopped_.load(std::memory_order_relaxed)) return true;
@@ -736,11 +816,22 @@ int Searcher::evaluate(const Board& board) {
   return score;
 }
 
-std::vector<Move> Searcher::ordered_moves(const Board& board) const {
+MoveList Searcher::ordered_moves(const Board& board, const Move* tt_move,
+                                 int ply) const {
   auto moves = board.legal_moves();
   auto priority = [&](const Move& move) {
-    int p = move.is_capture() ? 100 * nominal(move.capture) - nominal(move.piece) : 0;
-    if (move.is_promotion()) p += nominal(move.promotion);
+    int p = 0;
+    if (tt_move && move.same_coordinates(*tt_move)) p += 2'000'000;
+    if (move.is_capture())
+      p += 1'000'000 + 100 * nominal(move.capture) - nominal(move.piece) +
+           static_exchange_score(board.position, board.turn, move);
+    if (move.is_promotion()) p += 900'000 + nominal(move.promotion);
+    if (!move.is_capture() && !move.is_promotion() &&
+        ply >= 0 && ply < static_cast<int>(killers_.size())) {
+      if (move.same_coordinates(killers_[ply][0])) p += 800'000;
+      else if (move.same_coordinates(killers_[ply][1])) p += 700'000;
+      p += history_scores_[move.from][move.to];
+    }
     if (config_.kind == EngineKind::bernstein) {
       if (move.is_castle()) p += 200000;
       if (move.piece == Piece::bishop || move.piece == Piece::knight) {
@@ -766,29 +857,60 @@ std::vector<Move> Searcher::ordered_moves(const Board& board) const {
   return moves;
 }
 
-std::uint64_t Searcher::hash(const Board& board) const {
-  std::uint64_t h = 1469598103934665603ULL;
-  for (auto cell : board.position.cells) { h ^= static_cast<std::uint8_t>(cell + 8); h *= 1099511628211ULL; }
-  h ^= board.position.castling; h *= 1099511628211ULL;
-  h ^= static_cast<std::uint64_t>(board.position.en_passant + 1); h *= 1099511628211ULL;
-  h ^= static_cast<int>(board.turn);
-  return h;
+Searcher::TTEntry* Searcher::probe(std::uint64_t key) {
+  if (table_.empty()) return nullptr;
+  TTBucket& bucket = table_[key & (table_.size() - 1)];
+  for (TTEntry& entry : bucket.entries) {
+    if (entry.key == key && entry.depth >= 0) {
+      ++tt_hits_;
+      return &entry;
+    }
+  }
+  return nullptr;
+}
+
+void Searcher::store(std::uint64_t key, int depth, int score, int flag,
+                     const Move& best) {
+  if (table_.empty()) return;
+  TTBucket& bucket = table_[key & (table_.size() - 1)];
+  TTEntry* replacement = &bucket.entries[0];
+  for (TTEntry& entry : bucket.entries) {
+    if (entry.key == key) { replacement = &entry; break; }
+    const int entry_value = entry.depth - (entry.generation == generation_ ? 0 : 8);
+    const int replacement_value = replacement->depth -
+        (replacement->generation == generation_ ? 0 : 8);
+    if (entry_value < replacement_value) replacement = &entry;
+  }
+  if (replacement->key == key && replacement->depth > depth && flag != 0)
+    return;
+  *replacement = {key, best, score, static_cast<std::int16_t>(depth),
+                  static_cast<std::int8_t>(flag), generation_};
 }
 
 int Searcher::quiescence(Board& board, int alpha, int beta, int ply) {
   if (halted()) return 0;
-  ++nodes_;
-  int stand = evaluate(board);
-  if (stand >= beta) return beta;
-  alpha = std::max(alpha, stand);
-  if (ply >= 16) return alpha;
-  for (const auto& move : ordered_moves(board)) {
-    if (!move.is_capture() && !move.is_promotion()) continue;
+  ++nodes_; ++qnodes_;
+  if (board.is_fifty_move_draw() || board.is_threefold_repetition() ||
+      board.position.insufficient_material()) return 0;
+  const bool in_check = board.position.in_check(board.turn);
+  int stand = -infinity;
+  if (!in_check) {
+    stand = evaluate(board);
+    if (stand >= beta) return beta;
+    alpha = std::max(alpha, stand);
+  }
+  if (ply >= 20) return in_check ? evaluate(board) : alpha;
+  const auto moves = ordered_moves(board, nullptr, ply);
+  if (moves.empty()) return in_check ? -mate_score + ply : 0;
+  for (const auto& move : moves) {
+    if (!in_check && !move.is_capture() && !move.is_promotion()) continue;
+    if (!in_check && !move.is_promotion() &&
+        stand + nominal(move.capture) + 140 < alpha) continue;
     board.push(move);
     int score = -quiescence(board, -beta, -alpha, ply + 1);
     board.pop();
     if (halted()) return 0;
-    if (score >= beta) return beta;
+    if (score >= beta) { ++beta_cutoffs_; return beta; }
     alpha = std::max(alpha, score);
   }
   return alpha;
@@ -804,57 +926,117 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
                   board.is_threefold_repetition() ||
                   board.position.insufficient_material()))
     return 0;
-  auto moves = ordered_moves(board);
-  if (moves.empty()) return board.position.in_check(board.turn) ? -mate_score + ply : 0;
+  alpha = std::max(alpha, -mate_score + ply);
+  beta = std::min(beta, mate_score - ply - 1);
+  if (alpha >= beta) return alpha;
+
+  const bool in_check = board.position.in_check(board.turn);
+  if (in_check && ply + depth < maximum_search_depth) ++depth;
   if (depth <= 0) {
-    if (config_.kind == EngineKind::sargon && board.position.in_check(board.turn) && ply < 32) depth = 1;
-    else if (config_.kind == EngineKind::turochamp) return quiescence(board, alpha, beta, 0);
-    else return evaluate(board);
+    if (config_.kind == EngineKind::bernstein || config_.kind == EngineKind::sargon)
+      return evaluate(board);
+    return quiescence(board, alpha, beta, 0);
   }
+
   const int original_alpha = alpha;
   Move best;
-  std::uint64_t key = hash(board);
-  auto found = table_.find(key);
-  if (found != table_.end() && found->second.depth >= depth) {
-    const auto& e = found->second;
+  TTEntry* found = probe(board.key);
+  if (found && found->depth >= depth) {
+    const auto& e = *found;
     if (e.flag == 0) return e.score;
     if (e.flag < 0 && e.score <= alpha) return e.score;
     if (e.flag > 0 && e.score >= beta) return e.score;
   }
+
+  if (!in_check && depth >= 3 && ply > 0) {
+    bool non_pawn_material = false;
+    for (int square = 0; square < 64; ++square) {
+      if (board.position.color_at(square) != board.turn) continue;
+      const Piece piece = board.position.piece_at(square);
+      if (piece != Piece::pawn && piece != Piece::king) {
+        non_pawn_material = true; break;
+      }
+    }
+    if (non_pawn_material) {
+      const Color saved_turn = board.turn;
+      const int saved_en_passant = board.position.en_passant;
+      const int saved_halfmove = board.halfmove;
+      const std::uint64_t saved_key = board.key;
+      board.turn = opponent(board.turn);
+      board.position.en_passant = -1;
+      ++board.halfmove;
+      board.key = position_key(board.position, board.turn);
+      std::vector<Move> ignored;
+      const int reduction = 2 + depth / 5;
+      const int score = -negamax(board, depth - 1 - reduction,
+                                 -beta, -beta + 1, ply + 1, ignored);
+      board.turn = saved_turn;
+      board.position.en_passant = saved_en_passant;
+      board.halfmove = saved_halfmove;
+      board.key = saved_key;
+      if (score >= beta) { ++beta_cutoffs_; return beta; }
+    }
+  }
+
+  auto moves = ordered_moves(board, found ? &found->best : nullptr, ply);
+  if (moves.empty()) return in_check ? -mate_score + ply : 0;
   int best_score = -infinity;
   int move_index = 0;
-  const bool in_check = board.position.in_check(board.turn);
+  const int static_score = !in_check && depth <= 2 ? evaluate(board) : 0;
   for (const auto& move : moves) {
+    const bool quiet = !move.is_capture() && !move.is_promotion() && !move.is_castle();
+    if (move_index > 0 && depth == 1 && quiet && !in_check &&
+        static_score + 110 <= alpha) {
+      ++move_index;
+      continue;
+    }
     board.push(move);
     std::vector<Move> child;
     int score;
-    const bool quiet = !move.is_capture() && !move.is_promotion() && !move.is_castle();
-    const bool reduce = depth >= 3 && move_index >= 4 && quiet && !in_check;
+    const bool gives_check = board.position.in_check(board.turn);
+    const bool reduce = depth >= 3 && move_index >= 3 && quiet &&
+                        !in_check && !gives_check;
+    int child_depth = depth - 1;
     if (reduce) {
-      const int reduction = 1 + (depth >= 6 && move_index >= 10 ? 1 : 0);
+      const int reduction = 1 + (depth >= 6 && move_index >= 8 ? 1 : 0);
       ++lmr_reductions_;
-      score = -negamax(board, std::max(0, depth - 1 - reduction),
+      score = -negamax(board, std::max(0, child_depth - reduction),
                        -alpha - 1, -alpha, ply + 1, child);
-      if (score > alpha && score < beta) {
+      if (score > alpha) {
         child.clear();
-        score = -negamax(board, depth - 1, -beta, -alpha, ply + 1, child);
+        score = -negamax(board, child_depth, -alpha - 1, -alpha,
+                         ply + 1, child);
       }
+    } else if (move_index > 0) {
+      score = -negamax(board, child_depth, -alpha - 1, -alpha,
+                       ply + 1, child);
     } else {
-      score = -negamax(board, depth - 1, -beta, -alpha, ply + 1, child);
+      score = -negamax(board, child_depth, -beta, -alpha, ply + 1, child);
+    }
+    if (move_index > 0 && score > alpha && score < beta) {
+      child.clear();
+      score = -negamax(board, child_depth, -beta, -alpha, ply + 1, child);
     }
     board.pop();
     if (halted()) return 0;
     if (score > best_score) { best_score = score; best = move; }
     if (score > alpha) { alpha = score; pv = {move}; pv.insert(pv.end(), child.begin(), child.end()); }
-    if (alpha >= beta) break;
+    if (alpha >= beta) {
+      ++beta_cutoffs_;
+      if (quiet && ply < static_cast<int>(killers_.size())) {
+        if (!move.same_coordinates(killers_[ply][0])) {
+          killers_[ply][1] = killers_[ply][0];
+          killers_[ply][0] = move;
+        }
+        history_scores_[move.from][move.to] = std::min(
+            200'000, history_scores_[move.from][move.to] + depth * depth * 16);
+      }
+      break;
+    }
     ++move_index;
   }
   int flag = best_score <= original_alpha ? -1 : (best_score >= beta ? 1 : 0);
-  if (config_.hash_mb > 0) {
-    std::size_t cap = static_cast<std::size_t>(config_.hash_mb) * 1024 * 1024 / 40;
-    if (table_.size() >= cap && cap) table_.clear();
-    table_[key] = {depth, best_score, flag, best};
-  }
+  store(board.key, depth, best_score, flag, best);
   return best_score;
 }
 
@@ -862,14 +1044,38 @@ SearchResult Searcher::iterative(Board board, SearchLimits limits,
                                  const std::function<void(const SearchResult&)>& info) {
   limits_ = limits;
   limits_.depth = std::clamp(limits_.depth, 0, maximum_search_depth);
-  nodes_ = 0; lmr_reductions_ = 0; table_.clear(); started_ = std::chrono::steady_clock::now();
+  nodes_ = qnodes_ = tt_hits_ = beta_cutoffs_ = lmr_reductions_ = 0;
+  killers_ = {}; history_scores_ = {};
+  if (++generation_ == 0) generation_ = 1;
+  started_ = std::chrono::steady_clock::now();
   SearchResult last;
+  if (auto book = opening_move(config_, board)) {
+    last.nodes = 1;
+    last.pv.push_back(book->move);
+    last.opening_family = std::string(book->family);
+    if (info) info(last);
+    return last;
+  }
   int max_depth = limits_.depth > 0 ? limits_.depth : maximum_search_depth;
   for (int depth = 1; depth <= max_depth && !halted(); ++depth) {
     std::vector<Move> pv;
-    int score = negamax(board, depth, -infinity, infinity, 0, pv);
+    int window = depth >= 4 ? 35 : infinity;
+    int alpha = depth >= 4 ? std::max(-infinity, last.score_cp - window) : -infinity;
+    int beta = depth >= 4 ? std::min(infinity, last.score_cp + window) : infinity;
+    int score = 0;
+    for (;;) {
+      pv.clear();
+      score = negamax(board, depth, alpha, beta, 0, pv);
+      if (halted() || (score > alpha && score < beta)) break;
+      window = std::min(infinity, window * 2);
+      alpha = std::max(-infinity, score - window);
+      beta = std::min(infinity, score + window);
+      if (window == infinity) { alpha = -infinity; beta = infinity; }
+    }
     if (halted() && pv.empty()) break;
     last.depth = depth; last.score_cp = score; last.nodes = nodes_;
+    last.qnodes = qnodes_; last.tt_hits = tt_hits_;
+    last.beta_cutoffs = beta_cutoffs_;
     last.lmr_reductions = lmr_reductions_; last.pv = std::move(pv);
     last.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started_);
     if (std::abs(score) >= mate_score - 1000)
@@ -894,25 +1100,6 @@ std::uint64_t perft(Position position, Color side, int depth,
   return total;
 }
 
-std::optional<Move> opening_move(const EngineConfig& config, const Board& board) {
-  if (!config.own_book) return std::nullopt;
-  auto choose = [&](std::string_view uci) -> std::optional<Move> {
-    auto parsed = parse_uci_move(uci); if (!parsed) return std::nullopt;
-    for (const auto& move : board.legal_moves()) if (move.same_coordinates(*parsed)) return move;
-    return std::nullopt;
-  };
-  if (board.history.empty() && board.turn == Color::white) {
-    return config.kind == EngineKind::bernstein ? choose("e2e4") : choose("d2d4");
-  }
-  if (config.kind == EngineKind::sargon && board.history.size() == 1 && board.turn == Color::black) {
-    const Move first = board.history.front().move;
-    bool king_side_response = first.piece == Piece::pawn &&
-      (file_of(first.from) == 0 || file_of(first.from) == 1 || file_of(first.from) == 2 || file_of(first.from) == 4);
-    return choose(king_side_response ? "e7e5" : "d7d5");
-  }
-  return std::nullopt;
-}
-
 EngineConfig default_config(EngineKind kind) {
   EngineConfig config; config.kind = kind;
   switch (kind) {
@@ -928,7 +1115,8 @@ EngineConfig default_config(EngineKind kind) {
       config.depth = 4; config.branch = 7; config.noise_millipawns = 0; config.hash_mb = 0; config.own_book = true; break;
     default:
       config.name = "Eloi"; config.author = "Sahil Das";
-      config.depth = 8; config.hash_mb = 128; config.noise_millipawns = 0;
+      config.depth = 8; config.hash_mb = 32; config.noise_millipawns = 0;
+      config.own_book = true;
       break;
   }
   return config;
