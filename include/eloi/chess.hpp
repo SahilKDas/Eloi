@@ -57,6 +57,12 @@ struct Move {
   std::string describe() const;
 };
 
+using PackedMove = std::uint16_t;
+PackedMove pack_move(const Move& move);
+Move unpack_move(PackedMove move);
+int score_to_tt(int score, int ply);
+int score_from_tt(int score, int ply);
+
 class MoveList {
  public:
   static constexpr std::size_t capacity = 256;
@@ -127,6 +133,21 @@ struct Board {
     std::array<std::uint64_t, 4> packed_cells{};
   };
 
+  struct SearchUndo {
+    Color turn{Color::white};
+    int halfmove{0};
+    int fullmove{1};
+    std::array<bool, 2> has_castled{};
+    std::uint8_t castling{};
+    std::int8_t en_passant{-1};
+    std::uint64_t key{};
+    Move move{};
+    std::array<std::uint8_t, 4> squares{};
+    std::array<std::int8_t, 4> cells{};
+    std::uint8_t changed{};
+    bool null_move{false};
+  };
+
   Position position;
   Color turn{Color::white};
   int halfmove{0};
@@ -140,6 +161,9 @@ struct Board {
   bool push(const Move& move);
   bool push_uci(std::string_view text);
   bool pop();
+  bool make_search_move(const Move& move, SearchUndo& undo);
+  void unmake_search_move(const SearchUndo& undo);
+  void make_null_move(SearchUndo& undo);
   std::optional<Move> last_move() const;
   std::optional<Move> second_last_move() const;
   bool has_moved_from(int square) const;
@@ -193,6 +217,12 @@ struct SearchResult {
   std::uint64_t beta_cutoffs{0};
   std::uint64_t lmr_reductions{0};
   std::uint64_t quiet_checks{0};
+  std::uint64_t null_cutoffs{0};
+  std::uint64_t probcut_cutoffs{0};
+  std::uint64_t singular_extensions{0};
+  std::uint64_t late_move_prunes{0};
+  std::uint64_t history_hits{0};
+  std::uint64_t countermove_hits{0};
   int allocated_ms{0};
   int volatility{0};
   int root_score_gap{0};
@@ -211,9 +241,10 @@ class Searcher {
  private:
   struct TTEntry {
     std::uint64_t key{};
-    Move best{};
     std::int32_t score{};
+    std::int16_t static_eval{};
     std::int16_t depth{-1};
+    PackedMove best{};
     std::int8_t flag{};
     std::uint8_t generation{};
   };
@@ -226,14 +257,27 @@ class Searcher {
   std::uint64_t beta_cutoffs_{0};
   std::uint64_t lmr_reductions_{0};
   std::uint64_t quiet_checks_{0};
+  std::uint64_t null_cutoffs_{0};
+  std::uint64_t probcut_cutoffs_{0};
+  std::uint64_t singular_extensions_{0};
+  std::uint64_t late_move_prunes_{0};
+  std::uint64_t history_hits_{0};
+  std::uint64_t countermove_hits_{0};
   SearchLimits limits_;
   std::chrono::steady_clock::time_point started_{};
   std::mt19937 random_{0};
   std::vector<TTBucket> table_;
   std::uint8_t generation_{1};
   std::vector<std::array<Move, 2>> killers_;
-  std::array<std::array<int, 64>, 64> history_scores_{};
+  std::array<std::array<std::array<std::int16_t, 64>, 64>, 2>
+      history_scores_{};
+  std::array<std::array<std::array<Move, 64>, 64>, 2> countermoves_{};
+  std::array<std::array<std::array<std::int16_t, 7>, 64>, 7>
+      capture_history_{};
+  std::array<std::int16_t, 16'384> continuation_history_{};
   std::vector<std::pair<Move, int>> root_scores_;
+  std::vector<std::uint64_t> repetition_keys_;
+  Move root_best_{};
 
   bool halted();
   int evaluate(const Board& board);
@@ -247,12 +291,21 @@ class Searcher {
                               const Move& move) const;
   int quiescence(Board& board, int alpha, int beta, int ply, int qply);
   int negamax(Board& board, int depth, int alpha, int beta, int ply,
-              std::vector<Move>& pv);
-  MoveList ordered_moves(const Board& board, const Move* tt_move,
-                         int ply) const;
+              bool pv_node, const Move& previous, int extensions,
+              PackedMove excluded = 0, bool allow_null = true);
+  MoveList ordered_moves(const Board& board, PackedMove tt_move,
+                         int ply, const Move& previous);
+  std::vector<Move> reconstruct_pv(Board board, const Move& root,
+                                   std::size_t maximum = 128) const;
+  bool search_draw(const Board& board, int ply) const;
+  void update_quiet_history(Color side, const Move& move,
+                            const Move& previous, int bonus);
+  int quiet_history(Color side, const Move& move,
+                    const Move& previous) const;
   TTEntry* probe(std::uint64_t key);
-  void store(std::uint64_t key, int depth, int score, int flag,
-             const Move& best);
+  const TTEntry* find(std::uint64_t key) const;
+  void store(std::uint64_t key, int depth, int score, int static_eval,
+             int flag, const Move& best, int ply);
 };
 
 std::uint64_t perft(Position position, Color side, int depth,

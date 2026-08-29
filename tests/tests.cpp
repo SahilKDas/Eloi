@@ -27,6 +27,45 @@ void expect_perft(std::string_view fen, int depth, std::uint64_t expected) {
   expect(actual == expected, "perft depth " + std::to_string(depth) + ": expected " +
                             std::to_string(expected) + ", got " + std::to_string(actual));
 }
+
+void expect_search_round_trip(std::string_view fen, std::string_view uci) {
+  auto board = parse_fen(fen);
+  expect(board.has_value(), "parse search round-trip FEN");
+  if (!board) return;
+  const auto parsed = parse_uci_move(uci);
+  expect(parsed.has_value(), "parse search round-trip move");
+  if (!parsed) return;
+  Move legal;
+  bool matched = false;
+  for (const Move& move : board->legal_moves())
+    if (move.same_coordinates(*parsed)) {
+      legal = move;
+      matched = true;
+      break;
+    }
+  expect(matched, std::string(uci) + " is legal for search round trip");
+  if (!matched) return;
+  const std::string before_fen = to_fen(*board);
+  const auto before_nnue = board->nnue;
+  const auto before_key = board->key;
+  const auto before_castled = board->has_castled;
+  const auto history_size = board->history.size();
+  Board::SearchUndo undo;
+  expect(board->make_search_move(legal, undo),
+         std::string(uci) + " makes in place");
+  expect(board->history.size() == history_size,
+         "search move does not modify public history");
+  expect(board->key == position_key(board->position, board->turn),
+         "search move keeps the incremental Zobrist key exact");
+  expect(board->nnue == nnue_refresh(board->position),
+         "search move keeps the incremental NNUE accumulator exact");
+  board->unmake_search_move(undo);
+  expect(to_fen(*board) == before_fen,
+         std::string(uci) + " restores the complete board state");
+  expect(board->nnue == before_nnue && board->key == before_key &&
+             board->has_castled == before_castled,
+         std::string(uci) + " restores NNUE, key, and castling state");
+}
 }  // namespace
 
 int main() {
@@ -36,6 +75,29 @@ int main() {
                 "Eloi's GUI maximum must remain exactly 200 plies");
   static_assert(maximum_search_depth == 17'697,
                 "Eloi's ultimate limit matches the longest legal chess game");
+  static_assert(sizeof(PackedMove) == 2, "TT moves remain exactly 16 bits");
+  {
+    for (Piece promotion : {Piece::none, Piece::queen, Piece::rook,
+                            Piece::bishop, Piece::knight}) {
+      Move move;
+      move.from = *parse_square("a7");
+      move.to = *parse_square("a8");
+      move.promotion = promotion;
+      const Move unpacked = unpack_move(pack_move(move));
+      expect(unpacked.same_coordinates(move),
+             "packed move preserves coordinates and promotion");
+    }
+    expect(pack_move({}) == 0 && unpack_move(0).from < 0,
+           "zero is the packed no-move sentinel");
+    expect(score_to_tt(321, 9) == 321 && score_from_tt(321, 3) == 321,
+           "ordinary TT evaluations are ply independent");
+    const int stored_win = score_to_tt(30'000 - 7, 7);
+    const int stored_loss = score_to_tt(-30'000 + 7, 7);
+    expect(score_from_tt(stored_win, 3) == 30'000 - 3,
+           "winning TT mate distance normalizes across plies");
+    expect(score_from_tt(stored_loss, 3) == -30'000 + 3,
+           "losing TT mate distance normalizes across plies");
+  }
   {
     std::string error;
     auto board = parse_fen(initial_fen, &error);
@@ -59,6 +121,34 @@ int main() {
            "en-passant setup moves are legal");
     expect(board.push_uci("e5d6"), "en-passant capture is legal");
     expect(board.position.empty(*parse_square("d5")), "en-passant removes captured pawn");
+  }
+
+
+  expect_search_round_trip(initial_fen, "e2e4");
+  expect_search_round_trip(
+      "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", "e1g1");
+  expect_search_round_trip(
+      "7k/8/8/3pP3/8/8/8/7K w - d6 0 1", "e5d6");
+  expect_search_round_trip(
+      "1r5k/P7/8/8/8/8/8/7K w - - 0 1", "a7b8n");
+
+  {
+    auto board = *parse_fen("7k/8/8/3pP3/8/8/8/7K w - d6 37 20");
+    const std::string before_fen = to_fen(board);
+    const auto before_nnue = board.nnue;
+    const auto before_key = board.key;
+    Board::SearchUndo undo;
+    board.make_null_move(undo);
+    expect(board.turn == Color::black && board.position.en_passant < 0,
+           "null move flips the side and clears en passant");
+    expect(board.key == position_key(board.position, board.turn),
+           "null move updates the Zobrist key exactly");
+    expect(board.nnue == before_nnue,
+           "null move leaves piece-based NNUE accumulators unchanged");
+    board.unmake_search_move(undo);
+    expect(to_fen(board) == before_fen && board.key == before_key &&
+               board.nnue == before_nnue,
+           "null move unmake restores the complete position");
   }
 
   {
@@ -212,6 +302,55 @@ int main() {
     expect(result.lmr_reductions > 0, "late move reductions are exercised");
     expect(!result.pv.empty(), "search returns a principal variation");
     if (!result.pv.empty()) expect(board.push(result.pv.front()), "search best move is legal");
+  }
+
+  {
+    auto board = *parse_fen(
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+    auto config = default_config(EngineKind::eloi);
+    config.own_book = false;
+    std::atomic_bool stopped{false};
+    SearchLimits limits; limits.depth = 6;
+    Searcher searcher(config, stopped);
+    const auto result = searcher.iterative(board, limits);
+    expect(result.null_cutoffs > 0,
+           "verified null-move pruning is exercised");
+    expect(result.probcut_cutoffs > 0,
+           "SEE-guarded ProbCut is exercised");
+    expect(result.singular_extensions > 0,
+           "true singular extensions are exercised");
+    expect(result.late_move_prunes > 0,
+           "late-move pruning is exercised");
+    expect(result.history_hits > 0 && result.countermove_hits > 0,
+           "history and countermove ordering are exercised");
+  }
+
+  {
+    auto board = *parse_fen(
+        "4k3/8/8/2qR4/4P3/8/8/4K3 b - - 0 1");
+    expect(board.push_uci("c5d5"),
+           "recapture regression records the preceding capture");
+    auto config = default_config(EngineKind::eloi);
+    config.own_book = false;
+    std::atomic_bool stopped{false};
+    SearchLimits limits; limits.depth = 3;
+    Searcher searcher(config, stopped);
+    const auto result = searcher.iterative(board, limits);
+    expect(!result.pv.empty() && result.pv.front().uci() == "e4d5",
+           "recapture extension preserves the winning queen recapture");
+  }
+
+  {
+    auto board = *parse_fen(
+        "1r5k/P7/8/8/8/8/8/7K w - - 0 1");
+    auto config = default_config(EngineKind::eloi);
+    config.own_book = false;
+    std::atomic_bool stopped{false};
+    SearchLimits limits; limits.depth = 4;
+    Searcher searcher(config, stopped);
+    const auto result = searcher.iterative(board, limits);
+    expect(!result.pv.empty() && result.pv.front().uci() == "a7b8q",
+           "selective pruning never removes the winning capture-promotion");
   }
 
   {

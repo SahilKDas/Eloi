@@ -48,6 +48,12 @@ void print_info(const SearchResult& result, std::mutex& output) {
             << " cutoffs " << result.beta_cutoffs
             << " lmr " << result.lmr_reductions
             << " quietchecks " << result.quiet_checks
+            << " nullcuts " << result.null_cutoffs
+            << " probcuts " << result.probcut_cutoffs
+            << " singular " << result.singular_extensions
+            << " lmp " << result.late_move_prunes
+            << " historyhits " << result.history_hits
+            << " counterhits " << result.countermove_hits
             << " volatility " << result.volatility
             << " allocation " << result.allocated_ms << "ms"
             << " rootgap " << result.root_score_gap
@@ -294,6 +300,8 @@ int run_benchmark(int argc, char** argv) {
   config.depth = depth;
   std::atomic_bool stopped{false};
   std::uint64_t nodes = 0, qnodes = 0, hits = 0, cutoffs = 0, lmr = 0;
+  std::uint64_t nullcuts = 0, probcuts = 0, singular = 0, lmp = 0;
+  std::uint64_t historyhits = 0, counterhits = 0;
   std::chrono::milliseconds elapsed{};
   std::uint64_t checksum = 0;
   for (std::string_view fen : positions) {
@@ -304,6 +312,12 @@ int run_benchmark(int argc, char** argv) {
     const auto result = searcher.iterative(*board, limits);
     nodes += result.nodes; qnodes += result.qnodes; hits += result.tt_hits;
     cutoffs += result.beta_cutoffs; lmr += result.lmr_reductions;
+    nullcuts += result.null_cutoffs;
+    probcuts += result.probcut_cutoffs;
+    singular += result.singular_extensions;
+    lmp += result.late_move_prunes;
+    historyhits += result.history_hits;
+    counterhits += result.countermove_hits;
     elapsed += result.elapsed;
     checksum = checksum * 1315423911ULL +
         static_cast<std::uint64_t>(result.score_cp + 32000);
@@ -319,7 +333,11 @@ int run_benchmark(int argc, char** argv) {
             << " qnodes " << qnodes << " time " << elapsed.count()
             << " nps " << nodes * 1000 / static_cast<std::uint64_t>(milliseconds)
             << " tthits " << hits << " cutoffs " << cutoffs
-            << " lmr " << lmr << " checksum " << checksum << '\n';
+            << " lmr " << lmr << " nullcuts " << nullcuts
+            << " probcuts " << probcuts << " singular " << singular
+            << " lmp " << lmp << " historyhits " << historyhits
+            << " counterhits " << counterhits
+            << " checksum " << checksum << '\n';
   return 0;
 }
 

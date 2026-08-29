@@ -10,9 +10,13 @@ modes:
 - `--bench`: deterministic search benchmark
 
 The engine uses iterative deepening, aspiration-window PVS/alpha-beta,
-quiescence search, a compact four-way transposition table, killer/history and
-static-exchange move ordering, guarded null-move and futility pruning, late
-move reductions (LMR), and an incrementally updated quantized NNUE evaluator.
+TT-backed quiescence, a compact four-way table with packed moves and normalized
+mate scores, reversible in-place search moves, and TT-reconstructed principal
+variations. Move ordering combines killer, butterfly, capture, continuation,
+and countermove history with static exchange evaluation. Guarded verified null
+move, ProbCut, razoring, futility and late-move pruning, singular/selective
+extensions, volatility-aware LMR, and an incrementally updated quantized NNUE
+complete the single-threaded search.
 
 Eloi has a deliberate opening personality. As White it forces the Italian
 Game with `1.e4 e5 2.Nf3 Nc6 3.Bc4` whenever Black permits it. As Black it
@@ -100,18 +104,20 @@ Tests cover standard perft positions, en passant, both castling sides, every
 promotion choice, checkmate, stalemate, threefold repetition and undo, the
 fifty-move rule, FEN round trips, incremental Zobrist and NNUE state, Italian
 and Nimzo personality/transpositions, an 8,000-entry minimum repertoire,
-mate-in-two tactics, search, and LMR activity.
+mate-in-one/two/three tactics, packed TT moves and mate scores, exact search
+make/unmake and null-move restoration, search pruning exemptions, and activity
+from null move, ProbCut, singular extensions, LMR, LMP, and history ordering.
 
 The development-only gauntlet runner uses eight neutral opening seeds, plays
 every seed with colours exchanged, disables both opening books, and returns a
 failure status unless the candidate's score exceeds 55% by default.
 
-The pinned pre-upgrade comparison (`7c1ee72`, Windows Release, books off)
-needed 35,708 nodes and 222 ms to complete depth six from the initial position.
-This build completed the same search in 7,161 nodes and 55 ms. In the mirrored
-200-game, 1,000-node gauntlet it scored 84.75% (151 wins, 37 draws, 12 losses),
-passing the required 55% gate. The default transposition-table allocation also
-fell from 128 MB to 32 MB.
+Against the pinned `dad44d4` Windows Release baseline, five deterministic
+depth-six benchmark runs reduced the median from 2,181 ms and 194,320 nodes to
+803 ms and 103,560 nodes. The candidate checksum was identical on every run.
+In the mirrored 200-game, 2,000-node gauntlet it scored 66.00% (100 wins,
+64 draws, 36 losses), passing the required 55% strength gate. The default
+transposition-table allocation remains 32 MB.
 
 ## Artwork and licenses
 
