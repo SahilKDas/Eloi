@@ -7,16 +7,14 @@
 bin/
 .DS_Store
 
-# Test and profiling output
+# Test, coverage, and profiling output
 *.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Editors
 .idea/
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
+# Generated builds and dependency caches
 dist/
 /build/
 /build-*/

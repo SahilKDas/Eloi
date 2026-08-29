@@ -4,7 +4,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $depsRoot = Join-Path $projectRoot '.deps'
 $packageCache = Join-Path $depsRoot 'packages'
 $skiaRoot = Join-Path $depsRoot 'skia108'
-$runtimeRoot = Join-Path $depsRoot 'skia'
+$runtimeRoot = Join-Path $depsRoot 'runtime'
 $nanoSvgRoot = Join-Path $depsRoot 'nanosvg'
 $repository = 'https://repo.msys2.org/mingw/ucrt64'
 

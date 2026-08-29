@@ -26,7 +26,8 @@ int main(int argc, char** argv) {
                    "  Eloi.exe --perft ... run move-generation validation\n"
                    "  Eloi.exe --bench [--depth N]  run deterministic search benchmark\n"
                    "  Eloi.exe --screenshot FILE.bmp  render a GUI test frame\n"
-                   "Search depth is permanently limited to 40 plies.\n";
+                   "Depths above 40 plies are experimental and may take hours or days.\n"
+                   "GUI maximum: 200 plies; engine/UCI maximum: 17697 plies.\n";
       return 0;
     }
   }

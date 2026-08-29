@@ -16,7 +16,9 @@ namespace eloi {
 
 inline constexpr std::string_view initial_fen =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-inline constexpr int maximum_search_depth = 40;
+inline constexpr int recommended_search_depth = 40;
+inline constexpr int maximum_gui_search_depth = 200;
+inline constexpr int maximum_search_depth = 17'697;
 inline constexpr int nnue_hidden_size = 64;
 using NnueAccumulator = std::array<std::int32_t, nnue_hidden_size>;
 struct NnueState {
@@ -154,6 +156,9 @@ std::string to_fen(const Board& board);
 std::string board_ascii(const Board& board);
 
 enum class EngineKind { eloi, turochamp, sargon, bernstein };
+enum class ExactEndgame { none, draw, white_win, black_win };
+
+ExactEndgame probe_exact_endgame(const Board& board);
 
 struct EngineConfig {
   EngineKind kind{EngineKind::eloi};
@@ -187,6 +192,7 @@ struct SearchResult {
   std::uint64_t tt_hits{0};
   std::uint64_t beta_cutoffs{0};
   std::uint64_t lmr_reductions{0};
+  std::uint64_t quiet_checks{0};
   int allocated_ms{0};
   int volatility{0};
   int root_score_gap{0};
@@ -219,12 +225,13 @@ class Searcher {
   std::uint64_t tt_hits_{0};
   std::uint64_t beta_cutoffs_{0};
   std::uint64_t lmr_reductions_{0};
+  std::uint64_t quiet_checks_{0};
   SearchLimits limits_;
   std::chrono::steady_clock::time_point started_{};
   std::mt19937 random_{0};
   std::vector<TTBucket> table_;
   std::uint8_t generation_{1};
-  std::array<std::array<Move, 2>, maximum_search_depth + 32> killers_{};
+  std::vector<std::array<Move, 2>> killers_;
   std::array<std::array<int, 64>, 64> history_scores_{};
   std::vector<std::pair<Move, int>> root_scores_;
 
@@ -238,7 +245,7 @@ class Searcher {
                  int evaluation_swing = 0) const;
   bool qualifying_quiet_check(const Board& board_after,
                               const Move& move) const;
-  int quiescence(Board& board, int alpha, int beta, int ply);
+  int quiescence(Board& board, int alpha, int beta, int ply, int qply);
   int negamax(Board& board, int depth, int alpha, int beta, int ply,
               std::vector<Move>& pv);
   MoveList ordered_moves(const Board& board, const Move* tt_move,

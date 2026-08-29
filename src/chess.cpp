@@ -1008,7 +1008,8 @@ std::string board_ascii(const Board& board) {
 }
 
 Searcher::Searcher(EngineConfig config, std::atomic_bool& stopped)
-    : config_(std::move(config)), stopped_(stopped) {
+    : config_(std::move(config)), stopped_(stopped),
+      killers_(maximum_search_depth + 32) {
   if (config_.hash_mb > 0) {
     const std::size_t requested = static_cast<std::size_t>(config_.hash_mb) *
                                   1024 * 1024 / sizeof(TTBucket);
@@ -1127,6 +1128,20 @@ int Searcher::bernstein_eval(const Board& board) const {
   return self > opp ? self * 10000 / opp : -opp * 10000 / self;
 }
 
+ExactEndgame probe_exact_endgame(const Board& board) {
+  if (board.position.insufficient_material() ||
+      wrong_bishop_rook_pawn_draw(board.position))
+    return ExactEndgame::draw;
+  const auto kpk = kpk_win(board);
+  if (!kpk) return ExactEndgame::none;
+  if (!*kpk) return ExactEndgame::draw;
+  for (int square = 0; square < 64; ++square)
+    if (board.position.piece_at(square) == Piece::pawn)
+      return board.position.color_at(square) == Color::white
+          ? ExactEndgame::white_win : ExactEndgame::black_win;
+  return ExactEndgame::none;
+}
+
 int Searcher::evaluate(const Board& board) {
   int score = 0;
   switch (config_.kind) {
@@ -1134,17 +1149,12 @@ int Searcher::evaluate(const Board& board) {
     case EngineKind::sargon: score = sargon_eval(board); break;
     case EngineKind::bernstein: score = bernstein_eval(board); break;
     default: {
-      if (const auto exact = kpk_win(board)) {
-        if (!*exact) return 0;
-        Color pawn_side = Color::white;
-        for (int square = 0; square < 64; ++square)
-          if (board.position.piece_at(square) == Piece::pawn) {
-            pawn_side = *board.position.color_at(square);
-            break;
-          }
-        return board.turn == pawn_side ? 1800 : -1800;
-      }
-      if (wrong_bishop_rook_pawn_draw(board.position)) return 0;
+      const ExactEndgame exact = probe_exact_endgame(board);
+      if (exact == ExactEndgame::draw) return 0;
+      if (exact == ExactEndgame::white_win)
+        return board.turn == Color::white ? 1800 : -1800;
+      if (exact == ExactEndgame::black_win)
+        return board.turn == Color::black ? 1800 : -1800;
       score = nnue_evaluate(board.nnue, board.turn) + endgame_knowledge(board);
       if (opposite_colored_bishops(board.position)) score = score * 55 / 100;
       break;
@@ -1309,7 +1319,8 @@ void Searcher::store(std::uint64_t key, int depth, int score, int flag,
                   static_cast<std::int8_t>(flag), generation_};
 }
 
-int Searcher::quiescence(Board& board, int alpha, int beta, int ply) {
+int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
+                         int qply) {
   if (halted()) return 0;
   ++nodes_; ++qnodes_;
   if (board.is_fifty_move_draw() || board.is_threefold_repetition() ||
@@ -1321,13 +1332,14 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply) {
     if (stand >= beta) return beta;
     alpha = std::max(alpha, stand);
   }
-  if (ply >= 20) return in_check ? evaluate(board) : alpha;
+  if (qply >= 20 || ply >= maximum_search_depth)
+    return in_check ? evaluate(board) : alpha;
   const auto moves = ordered_moves(board, nullptr, ply);
   if (moves.empty()) return in_check ? -mate_score + ply : 0;
   int quiet_checks = 0;
   for (const auto& move : moves) {
     const bool quiet = !move.is_capture() && !move.is_promotion();
-    if (!in_check && quiet && (ply > 10 || quiet_checks >= 3)) continue;
+    if (!in_check && quiet && (qply > 10 || quiet_checks >= 3)) continue;
     if (!in_check && !move.is_promotion() &&
         !quiet && stand + nominal(move.capture) + 140 < alpha) continue;
     board.push(move);
@@ -1337,8 +1349,9 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply) {
         continue;
       }
       ++quiet_checks;
+      ++quiet_checks_;
     }
-    int score = -quiescence(board, -beta, -alpha, ply + 1);
+    int score = -quiescence(board, -beta, -alpha, ply + 1, qply + 1);
     board.pop();
     if (halted()) return 0;
     if (score >= beta) { ++beta_cutoffs_; return beta; }
@@ -1366,7 +1379,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   if (depth <= 0) {
     if (config_.kind == EngineKind::bernstein || config_.kind == EngineKind::sargon)
       return evaluate(board);
-    return quiescence(board, alpha, beta, 0);
+    return quiescence(board, alpha, beta, ply, 0);
   }
 
   const int original_alpha = alpha;
@@ -1422,6 +1435,8 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   const int static_score = !in_check && depth <= 2 ? evaluate(board) : 0;
   for (const auto& move : moves) {
     const bool quiet = !move.is_capture() && !move.is_promotion() && !move.is_castle();
+    const int capture_see = move.is_capture()
+        ? static_exchange_score(board.position, board.turn, move) : 0;
     const int futility_margin = node_volatility >= 55 ? 180
         : (node_volatility <= 22 ? 70 : 110);
     if (move_index > 0 && depth == 1 && quiet && !in_check &&
@@ -1444,12 +1459,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     const bool dangerous_passer = move.piece == Piece::pawn &&
         relative_rank >= 6 && passed_pawn(board.position, opponent(board.turn),
                                           move.to);
-    const bool forcing_capture = node_volatility >= 70 && move.is_capture() &&
-        static_exchange_score(board.history.back().packed_cells ==
-                                      std::array<std::uint64_t, 4>{}
-                                  ? board.position
-                                  : board.position,
-                              opponent(board.turn), move) >= 200;
+    const bool forcing_capture = node_volatility >= 70 && capture_see >= 200;
     if ((singular_reply || dangerous_passer || forcing_capture) &&
         ply + child_depth + 1 < maximum_search_depth)
       ++child_depth;
@@ -1509,7 +1519,10 @@ SearchResult Searcher::iterative(Board board, SearchLimits limits,
   limits_ = limits;
   limits_.depth = std::clamp(limits_.depth, 0, maximum_search_depth);
   nodes_ = qnodes_ = tt_hits_ = beta_cutoffs_ = lmr_reductions_ = 0;
-  killers_ = {}; history_scores_ = {};
+  quiet_checks_ = 0;
+  std::fill(killers_.begin(), killers_.end(),
+            std::array<Move, 2>{});
+  history_scores_ = {};
   if (++generation_ == 0) generation_ = 1;
   started_ = std::chrono::steady_clock::now();
   SearchResult last;
@@ -1520,15 +1533,58 @@ SearchResult Searcher::iterative(Board board, SearchLimits limits,
     if (info) info(last);
     return last;
   }
+
+  int base_budget_ms = 0;
+  int soft_budget_ms = 0;
+  int hard_budget_ms = 0;
+  const bool adaptive_clock = limits_.remaining_ms > 0 && !limits_.deadline;
+  if (adaptive_clock) {
+    int non_pawn_material = 0;
+    for (int square = 0; square < 64; ++square) {
+      const Piece piece = board.position.piece_at(square);
+      if (piece != Piece::none && piece != Piece::pawn && piece != Piece::king)
+        non_pawn_material += nominal(piece);
+    }
+    const int phase_moves = non_pawn_material >= 5000 ? 28
+        : (non_pawn_material >= 2200 ? 22 : 16);
+    const int horizon = limits_.moves_to_go > 0
+        ? std::clamp(limits_.moves_to_go, 1, 60) : phase_moves;
+    const int reserve = std::max(limits_.move_overhead_ms,
+                                 limits_.remaining_ms / 40);
+    const int usable = std::max(1, limits_.remaining_ms - reserve);
+    base_budget_ms = usable / horizon + limits_.increment_ms * 3 / 4;
+    base_budget_ms = std::clamp(base_budget_ms, 1, usable);
+    soft_budget_ms = base_budget_ms;
+    hard_budget_ms = std::clamp(base_budget_ms * 3, base_budget_ms, usable);
+    limits_.deadline = started_ + std::chrono::milliseconds(hard_budget_ms);
+    last.allocated_ms = soft_budget_ms;
+  } else if (limits_.deadline) {
+    last.allocated_ms = static_cast<int>(std::max<std::int64_t>(
+        1, std::chrono::duration_cast<std::chrono::milliseconds>(
+               *limits_.deadline - started_).count()));
+  }
+
+  Move previous_best;
+  bool have_previous_best = false;
+  int stable_iterations = 0;
+  int previous_score = 0;
+  int evaluation_swing = 0;
   int max_depth = limits_.depth > 0 ? limits_.depth : maximum_search_depth;
   for (int depth = 1; depth <= max_depth && !halted(); ++depth) {
     std::vector<Move> pv;
-    int window = depth >= 4 ? 35 : infinity;
+    const std::size_t root_legal_count = board.legal_moves().size();
+    const int root_volatility = volatility(board, root_legal_count,
+                                           evaluation_swing);
+    int window = depth >= 4
+        ? std::clamp(28 + root_volatility / 2 + evaluation_swing / 3,
+                     28, 180)
+        : infinity;
     int alpha = depth >= 4 ? std::max(-infinity, last.score_cp - window) : -infinity;
     int beta = depth >= 4 ? std::min(infinity, last.score_cp + window) : infinity;
     int score = 0;
     for (;;) {
       pv.clear();
+      root_scores_.clear();
       score = negamax(board, depth, alpha, beta, 0, pv);
       if (halted() || (score > alpha && score < beta)) break;
       window = std::min(infinity, window * 2);
@@ -1537,16 +1593,63 @@ SearchResult Searcher::iterative(Board board, SearchLimits limits,
       if (window == infinity) { alpha = -infinity; beta = infinity; }
     }
     if (halted() && pv.empty()) break;
+    evaluation_swing = depth > 1 ? std::abs(score - previous_score) : 0;
+    previous_score = score;
+
+    std::stable_sort(root_scores_.begin(), root_scores_.end(),
+                     [](const auto& a, const auto& b) {
+                       return a.second > b.second;
+                     });
+    int root_gap = 0;
+    int credible_alternatives = 0;
+    if (root_scores_.size() >= 2) {
+      root_gap = std::max(0, root_scores_[0].second - root_scores_[1].second);
+      for (std::size_t i = 1; i < root_scores_.size(); ++i)
+        if (root_scores_[0].second - root_scores_[i].second <= 80)
+          ++credible_alternatives;
+    }
+    if (!pv.empty() && have_previous_best &&
+        pv.front().same_coordinates(previous_best))
+      ++stable_iterations;
+    else
+      stable_iterations = 0;
+    if (!pv.empty()) { previous_best = pv.front(); have_previous_best = true; }
+
+    const int completed_volatility = volatility(
+        board, root_legal_count, evaluation_swing);
+    if (adaptive_clock) {
+      int time_factor = 90 + completed_volatility / 2;
+      if (evaluation_swing >= 120) time_factor += 35;
+      else if (evaluation_swing >= 60) time_factor += 18;
+      if (credible_alternatives >= 3) time_factor += 25;
+      else if (credible_alternatives >= 1) time_factor += 10;
+      if (root_gap >= 180) time_factor -= 25;
+      else if (root_gap >= 100) time_factor -= 12;
+      if (stable_iterations >= 3) time_factor -= 28;
+      else if (stable_iterations >= 2) time_factor -= 14;
+      time_factor = std::clamp(time_factor, 45, 240);
+      soft_budget_ms = std::clamp(base_budget_ms * time_factor / 100,
+                                  std::max(1, base_budget_ms / 2),
+                                  hard_budget_ms);
+    }
     last.depth = depth; last.score_cp = score; last.nodes = nodes_;
     last.qnodes = qnodes_; last.tt_hits = tt_hits_;
     last.beta_cutoffs = beta_cutoffs_;
-    last.lmr_reductions = lmr_reductions_; last.pv = std::move(pv);
+    last.lmr_reductions = lmr_reductions_;
+    last.quiet_checks = quiet_checks_;
+    last.pv = std::move(pv);
+    last.allocated_ms = adaptive_clock ? soft_budget_ms : last.allocated_ms;
+    last.volatility = completed_volatility;
+    last.root_score_gap = root_gap;
+    last.credible_alternatives = credible_alternatives;
     last.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started_);
     if (std::abs(score) >= mate_score - 1000)
       last.mate = score > 0 ? (mate_score - score + 1) / 2 : -(mate_score + score + 1) / 2;
     if (info) info(last);
     if (limits_.depth > 0 && depth >= limits_.depth) break;
     if (last.mate != 0) break;
+    if (adaptive_clock && depth >= 2 &&
+        last.elapsed.count() >= soft_budget_ms) break;
   }
   return last;
 }

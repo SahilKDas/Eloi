@@ -21,12 +21,13 @@ permits it. An embedded position graph with 8,000-plus weighted edges across
 ECO A00-E99 supplies sound fallbacks and variations; transpositions merge into
 shared nodes instead of duplicating branches. No runtime database is needed.
 
-## Hard 40-ply limit
+## Search-depth limits
 
-`maximum_search_depth` is a compile-time constant set to **40 plies**. Search
-requests are clamped or rejected at that boundary throughout the GUI,
-command-line parser, searcher, and UCI `Depth` option. A value of 41 or higher
-cannot become the engine's configured search depth.
+Eloi recommends at most **40 plies** for interactive play and warns when a
+larger value is selected because a single-threaded search can take hours or
+days. The GUI permits up to **200 plies**. UCI and command-line analysis have
+an absolute maximum of **17,697 plies**, the proven maximum length of a legal
+game under the automatic FIDE draw rules ([Yim, 2026](https://arxiv.org/abs/2608.14762)).
 
 ## Windows build
 
@@ -48,8 +49,9 @@ Double-click `build\Eloi.exe` to play. The GUI supports legal-move
 highlighting, smooth animated moves (including the rook during castling), a
 queen/rook/bishop/knight promotion picker, play as either color, undo, board
 flipping, a chess.com-style captured-piece material counter with a live +N
-advantage, a 1–40-ply depth control, and live NNUE/search/LMR statistics. The
-board and interface are drawn in code with Skia.
+advantage, a 1–200-ply depth control with a warning above 40, and live
+NNUE/search/LMR statistics. The board and interface are drawn in code with
+Skia.
 
 Eloi implements legal castling (including attacked-square restrictions), en
 passant, every underpromotion, checkmate, stalemate, threefold repetition, the
@@ -73,15 +75,16 @@ Point a UCI-compatible Lichess bridge (for example, a bot-account runner) at
 automatically, so wrappers that invoke the executable directly remain
 compatible.
 
-The UCI `Depth` option advertises `max 40`; attempts to assign 41 or above
-are explicitly ignored. `go depth` is likewise capped at 40 plies. `OwnBook`
+The UCI `Depth` option advertises `max 17697`; requests above 40 emit a clear
+performance warning, while requests above 17,697 are rejected. `OwnBook`
 defaults to `true` and can be disabled for analysis. The compact fixed hash
 table defaults to 32 MB and remains configurable through `Hash`.
 
 ## Validation
 
 ```powershell
-cmake -S . -B build-tests -G Ninja -DCMAKE_BUILD_TYPE=Release -DELOI_BUILD_TESTS=ON
+cmake -S . -B build-tests -G Ninja -DCMAKE_BUILD_TYPE=Release `
+  -DELOI_BUILD_TESTS=ON -DELOI_BUILD_APP=OFF
 cmake --build build-tests --target eloi_tests -j
 ctest --test-dir build-tests --output-on-failure
 
@@ -109,50 +112,6 @@ This build completed the same search in 7,161 nodes and 55 ms. In the mirrored
 200-game, 1,000-node gauntlet it scored 84.75% (151 wins, 37 draws, 12 losses),
 passing the required 55% gate. The default transposition-table allocation also
 fell from 128 MB to 32 MB.
-
-## Emergency restart handoff (2026-08-28)
-
-The repository was reduced from about 1.66 GiB to about **155 MiB** before an
-emergency restart. The cleanup removed only ignored, reproducible caches: the
-private compiler toolchain, duplicate Skia trees, downloaded NNUE/training
-datasets, package archives, and `build-tests`. It retained the configured
-`.deps/lichess-bot` bridge, `.deps/skia108`, `.deps/nanosvg`, Git history,
-source, artwork, and the working `build-release/Eloi.exe` package.
-
-The last verified feature is the GUI's chess.com-style captured-piece material
-counter. It renders the actual piece SVGs, reports `EVEN` or `WHITE/BLACK +N`,
-values promoted material correctly, follows en-passant captures, and rewinds
-with undo. The Release build and complete test suite passed before cache
-cleanup.
-
-An engine-strength pass was interrupted after source edits began and **has not
-been built or tested**. Its work-in-progress is in `src/chess.cpp`,
-`src/driver.cpp`, and `include/eloi/chess.hpp`; inspect the diff first and
-either complete those edits or surgically remove only those hunks. Do not
-regenerate datasets yet. The next pass should proceed in this order:
-
-1. Restore only the compiler/runtime files required for a C++26 build, without
-   restoring duplicate SDKs or the training corpora. Update CMake so packaged
-   runtime DLLs come from one compact dependency root.
-2. Finish adaptive clock allocation using best-move stability, evaluation
-   swings, root-score gaps, credible alternatives, game phase, increment, and
-   configurable network/move overhead.
-3. Finish and validate lightweight endgame knowledge: exact KPK, opposition
-   and corresponding squares, wrong-bishop rook-pawn draws, Lucena/Philidor,
-   fortresses, insufficient winning material, opposite-bishop scaling, and the
-   rule of the square.
-4. Add carefully filtered quiet checks for double attacks, king restriction,
-   undefended major pieces, and continuing mating nets.
-5. Finish the volatility classifier (hanging pieces, exposed kings, forcing
-   moves, advanced passers, evaluation swings, and singular replies), then use
-   it to tune LMR, aspiration windows, pruning, and selective extensions.
-6. Rebuild Release and tests, run tactical/perft/clock regressions and a
-   benchmark, refresh the executable staged in lichess-bot, then delete the
-   temporary build/toolchain cache again.
-
-The existing Release executable remains runnable after restart. A new build
-will require rehydrating the removed compiler and Skia runtime/import-library
-cache; those files are intentionally not part of Git.
 
 ## Artwork and licenses
 

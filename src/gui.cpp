@@ -281,7 +281,7 @@ void start_engine(App& app) {
   if (app.worker.joinable()) app.worker.join();
 
   const Board root = app.board;
-  const int depth = std::clamp(app.depth, 1, maximum_search_depth);
+  const int depth = std::clamp(app.depth, 1, maximum_gui_search_depth);
   app.stop.store(false);
   app.thinking.store(true);
   const auto generation = app.search_generation.fetch_add(1) + 1;
@@ -699,7 +699,14 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
   text(canvas, "SEARCH DEPTH", layout.panel_left + 24, 276, 12, muted, true);
   text(canvas, std::format("{} plies", app.depth),
        layout.panel_left + 80, 325, 25, ink, true);
-  text(canvas, "Hard ceiling: 40 plies", layout.panel_left + 24, 360, 13, muted);
+  text(canvas,
+       app.depth > recommended_search_depth
+           ? "Warning: 40+ may take hours or days"
+           : "Recommended limit: 40 plies",
+       layout.panel_left + 24, 360, 13,
+       app.depth > recommended_search_depth
+           ? SkColorSetRGB(255, 205, 92) : muted,
+       app.depth > recommended_search_depth);
   button(canvas, layout.depth_minus, "−");
   button(canvas, layout.depth_plus, "+");
 
@@ -812,7 +819,10 @@ void on_click(App& app, float x, float y) {
   if (layout.depth_minus.contains(x, y)) {
     app.depth = std::max(1, app.depth - 1);
   } else if (layout.depth_plus.contains(x, y)) {
-    app.depth = std::min(maximum_search_depth, app.depth + 1);
+    app.depth = std::min(maximum_gui_search_depth, app.depth + 1);
+    if (app.depth > recommended_search_depth)
+      app.status = std::format("Warning · depth {} may take a very long time",
+                               app.depth);
   } else if (layout.new_game.contains(x, y)) {
     reset_game(app, app.human);
     return;

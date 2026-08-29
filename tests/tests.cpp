@@ -30,8 +30,12 @@ void expect_perft(std::string_view fen, int depth, std::uint64_t expected) {
 }  // namespace
 
 int main() {
-  static_assert(maximum_search_depth == 40,
-                "Eloi's hard search ceiling must remain exactly 40 plies");
+  static_assert(recommended_search_depth == 40,
+                "Eloi warns above exactly 40 plies");
+  static_assert(maximum_gui_search_depth == 200,
+                "Eloi's GUI maximum must remain exactly 200 plies");
+  static_assert(maximum_search_depth == 17'697,
+                "Eloi's ultimate limit matches the longest legal chess game");
   {
     std::string error;
     auto board = parse_fen(initial_fen, &error);
@@ -211,6 +215,63 @@ int main() {
   }
 
   {
+    const auto win = *parse_fen("7k/P7/2K5/8/8/8/8/8 w - - 0 1");
+    const auto draw = *parse_fen("k7/P7/2K5/8/8/8/8/8 w - - 0 1");
+    const auto black_win = *parse_fen("8/8/8/8/8/2k5/p7/7K b - - 0 1");
+    const auto wrong_bishop =
+        *parse_fen("k7/P7/2K5/8/8/8/8/2B5 w - - 0 1");
+    expect(probe_exact_endgame(win) == ExactEndgame::white_win,
+           "KPK bitbase recognizes a White win");
+    expect(probe_exact_endgame(draw) == ExactEndgame::draw,
+           "KPK bitbase recognizes a rook-pawn draw");
+    expect(probe_exact_endgame(black_win) == ExactEndgame::black_win,
+           "KPK bitbase mirrors Black wins exactly");
+    expect(probe_exact_endgame(wrong_bishop) == ExactEndgame::draw,
+           "wrong-colored bishop and rook pawn is recognized as a draw");
+  }
+
+  {
+    auto timed_search = [](std::string_view fen, int increment,
+                           int overhead) {
+      auto board = *parse_fen(fen);
+      auto config = default_config(EngineKind::eloi);
+      config.own_book = false;
+      std::atomic_bool stopped{false};
+      SearchLimits limits;
+      limits.depth = 1;
+      limits.remaining_ms = 12'000;
+      limits.increment_ms = increment;
+      limits.moves_to_go = 0;
+      limits.move_overhead_ms = overhead;
+      Searcher searcher(config, stopped);
+      return searcher.iterative(board, limits);
+    };
+    const auto opening = timed_search(initial_fen, 0, 50);
+    const auto incremented = timed_search(initial_fen, 1'000, 50);
+    const auto high_overhead = timed_search(initial_fen, 0, 500);
+    const auto endgame = timed_search(
+        "7r/8/8/8/8/2k5/6R1/4K3 w - - 0 1", 0, 50);
+    expect(opening.allocated_ms > 0 && opening.allocated_ms < 12'000,
+           "adaptive clock produces a bounded allocation");
+    expect(incremented.allocated_ms > opening.allocated_ms,
+           "increment increases the move allocation");
+    expect(high_overhead.allocated_ms < opening.allocated_ms,
+           "network/move overhead reduces the move allocation");
+    expect(endgame.allocated_ms > opening.allocated_ms,
+           "game phase allocates a larger share in the endgame");
+
+    auto forced = *parse_fen("7k/6Q1/6K1/8/8/8/8/8 b - - 0 1");
+    auto config = default_config(EngineKind::eloi);
+    config.own_book = false;
+    std::atomic_bool stopped{false};
+    SearchLimits limits; limits.depth = 1;
+    Searcher searcher(config, stopped);
+    const auto volatile_result = searcher.iterative(forced, limits);
+    expect(volatile_result.volatility > opening.volatility,
+           "checks and singular replies make a position more volatile");
+  }
+
+  {
     auto solve = [](const tactical_data::Case& tactic, int depth) {
       auto board = *parse_fen(tactic.fen);
       auto config = default_config(EngineKind::eloi);
@@ -241,14 +302,26 @@ int main() {
            "at least 95% of CC0 mate-in-two positions are solved exactly");
 
     int mate_three = 0;
+    int quiet_check_searches = 0;
     for (const auto& tactic : tactical_data::mateIn3) {
       auto [board, result] = solve(tactic, 6);
+      if (result.quiet_checks > 0) ++quiet_check_searches;
       if (!result.pv.empty() && result.pv.front().uci() == tactic.best &&
-          result.mate == 3) ++mate_three;
+          result.mate == 3) {
+        ++mate_three;
+      } else {
+        std::cerr << "mate-in-three miss: expected " << tactic.best
+                  << ", got "
+                  << (result.pv.empty() ? "0000" : result.pv.front().uci())
+                  << ", mate " << result.mate << ", score "
+                  << result.score_cp << '\n';
+      }
     }
     expect(mate_three * 4 >=
                static_cast<int>(tactical_data::mateIn3.size()) * 3,
            "at least 75% of CC0 mate-in-three positions are solved exactly");
+    expect(quiet_check_searches > 0,
+           "filtered quiet checks are exercised by the tactical corpus");
   }
 
   if (failures) {

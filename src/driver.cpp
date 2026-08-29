@@ -46,13 +46,18 @@ void print_info(const SearchResult& result, std::mutex& output) {
             << "info string search qnodes " << result.qnodes
             << " tthits " << result.tt_hits
             << " cutoffs " << result.beta_cutoffs
-            << " lmr " << result.lmr_reductions << std::endl;
+            << " lmr " << result.lmr_reductions
+            << " quietchecks " << result.quiet_checks
+            << " volatility " << result.volatility
+            << " allocation " << result.allocated_ms << "ms"
+            << " rootgap " << result.root_score_gap
+            << " alternatives " << result.credible_alternatives << std::endl;
 }
 
 void usage(const EngineConfig& config, const char* program) {
   std::cerr << "usage: " << program << " [options]\n\n"
             << config.name << " C++26 NNUE chess engine. Send 'uci' or 'console' on stdin.\n"
-            << "  --ply N       default search depth (0-40; 0 searches up to 40)\n"
+            << "  --ply N       default depth (0-17697; 40+ may be extremely slow)\n"
             << "  --noise N     evaluation noise in millipawns\n"
             << "  --hash N      transposition table size in MB\n"
             << "  --move-overhead N  clock/network safety margin in ms\n";
@@ -79,6 +84,8 @@ void parse_engine_options(EngineConfig& config, int argc, char** argv) {
     }
   }
   config.depth = std::clamp(config.depth, 0, maximum_search_depth);
+  if (config.depth > recommended_search_depth)
+    std::cerr << "warning: depths above 40 plies may take hours or days\n";
   config.move_overhead_ms = std::clamp(config.move_overhead_ms, 0, 5000);
 }
 
@@ -98,6 +105,8 @@ int run_console(EngineConfig config, Board board) {
       if (args.size() > 1)
         if (auto n = integer(args[1]))
           config.depth = std::clamp(*n, 0, maximum_search_depth);
+      if (config.depth > recommended_search_depth)
+        std::cout << "warning: depths above 40 plies may take hours or days\n";
     }
     else if (cmd == "noise") { if (args.size() > 1) if (auto n=integer(args[1])) config.noise_millipawns=*n; }
     else if (cmd == "hash") { if (args.size() > 1) if (auto n=integer(args[1])) config.hash_mb=*n; }
@@ -190,8 +199,12 @@ int run_engine(EngineConfig config, int argc, char** argv) {
         if(auto n=integer(val)) {
           if(key=="Depth") {
             if(*n < 0 || *n > maximum_search_depth)
-              std::cout << "info string Depth must be between 0 and 40; request ignored" << std::endl;
-            else config.depth=*n;
+              std::cout << "info string Depth must be between 0 and 17697; request ignored" << std::endl;
+            else {
+              config.depth=*n;
+              if(*n > recommended_search_depth)
+                std::cout << "info string warning depth above 40 may take hours or days" << std::endl;
+            }
           } else if(key=="Hash")config.hash_mb=*n;
           else if(key=="Move Overhead")config.move_overhead_ms=std::clamp(*n,0,5000);
           else if(key=="Noise")config.noise_millipawns=*n;
@@ -220,7 +233,12 @@ int run_engine(EngineConfig config, int argc, char** argv) {
       int movetime=0,wtime=0,btime=0,winc=0,binc=0,moves_to_go=0;
       for(std::size_t i=1;i<args.size();++i) {
         auto take=[&](){if(i+1<args.size())return integer(args[++i]).value_or(0);return 0;};
-        if(args[i]=="depth")limits.depth=std::clamp(take(),1,maximum_search_depth); else if(args[i]=="nodes")limits.nodes=static_cast<std::uint64_t>(std::max(0,take()));
+        if(args[i]=="depth") {
+          const int requested=take();
+          limits.depth=std::clamp(requested,1,maximum_search_depth);
+          if(requested>recommended_search_depth)
+            std::cout<<"info string warning depth above 40 may take hours or days"<<std::endl;
+        } else if(args[i]=="nodes")limits.nodes=static_cast<std::uint64_t>(std::max(0,take()));
         else if(args[i]=="movetime")movetime=take(); else if(args[i]=="wtime")wtime=take();
         else if(args[i]=="btime")btime=take(); else if(args[i]=="movestogo")moves_to_go=take();
         else if(args[i]=="winc")winc=take(); else if(args[i]=="binc")binc=take();
