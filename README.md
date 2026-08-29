@@ -47,7 +47,8 @@ and image-codec DLLs plus the piece assets are copied beside `Eloi.exe`.
 Double-click `build\Eloi.exe` to play. The GUI supports legal-move
 highlighting, smooth animated moves (including the rook during castling), a
 queen/rook/bishop/knight promotion picker, play as either color, undo, board
-flipping, a 1–40-ply depth control, and live NNUE/search/LMR statistics. The
+flipping, a chess.com-style captured-piece material counter with a live +N
+advantage, a 1–40-ply depth control, and live NNUE/search/LMR statistics. The
 board and interface are drawn in code with Skia.
 
 Eloi implements legal castling (including attacked-square restrictions), en

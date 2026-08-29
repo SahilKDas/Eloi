@@ -75,6 +75,332 @@ int static_exchange_score(const Position& position, Color side,
   return score;
 }
 
+int king_distance(int a, int b) {
+  return std::max(std::abs(file_of(a) - file_of(b)),
+                  std::abs(rank_of(a) - rank_of(b)));
+}
+
+bool pawn_attacks(Color side, int from, int target) {
+  const int step = side == Color::white ? 1 : -1;
+  return rank_of(target) - rank_of(from) == step &&
+         std::abs(file_of(target) - file_of(from)) == 1;
+}
+
+bool piece_attacks_square(const Position& position, Color side, int from,
+                          Piece piece, int target) {
+  const int df = file_of(target) - file_of(from);
+  const int dr = rank_of(target) - rank_of(from);
+  if (piece == Piece::pawn) return pawn_attacks(side, from, target);
+  if (piece == Piece::knight)
+    return (std::abs(df) == 1 && std::abs(dr) == 2) ||
+           (std::abs(df) == 2 && std::abs(dr) == 1);
+  if (piece == Piece::king) return std::max(std::abs(df), std::abs(dr)) == 1;
+  const bool diagonal = std::abs(df) == std::abs(dr) && df != 0;
+  const bool straight = (df == 0) != (dr == 0);
+  if ((piece == Piece::bishop && !diagonal) ||
+      (piece == Piece::rook && !straight) ||
+      (piece == Piece::queen && !diagonal && !straight)) return false;
+  if (piece != Piece::bishop && piece != Piece::rook && piece != Piece::queen)
+    return false;
+  const int sf = (df > 0) - (df < 0), sr = (dr > 0) - (dr < 0);
+  for (int f = file_of(from) + sf, r = rank_of(from) + sr;
+       f != file_of(target) || r != rank_of(target); f += sf, r += sr)
+    if (!position.empty(square_of(f, r))) return false;
+  return true;
+}
+
+// Exact KPK knowledge. The table is solved as a win/draw reachability graph at
+// first use; it occupies one byte per normalized state (512 KiB) and needs no
+// runtime file or dependency.
+class KpkBitbase {
+ public:
+  static constexpr std::size_t state_count = 2 * 64 * 64 * 64;
+
+  KpkBitbase() {
+    for (int turn = 0; turn < 2; ++turn)
+      for (int pawn = 8; pawn < 56; ++pawn)
+        for (int white_king = 0; white_king < 64; ++white_king)
+          for (int black_king = 0; black_king < 64; ++black_king)
+            valid_[index(turn, pawn, white_king, black_king)] =
+                valid(turn, pawn, white_king, black_king);
+
+    bool changed = true;
+    while (changed) {
+      changed = false;
+      for (int turn = 0; turn < 2; ++turn)
+        for (int pawn = 8; pawn < 56; ++pawn)
+          for (int white_king = 0; white_king < 64; ++white_king)
+            for (int black_king = 0; black_king < 64; ++black_king) {
+              const std::size_t state = index(turn, pawn, white_king, black_king);
+              if (!valid_[state] || wins_[state]) continue;
+              const KpkMoves moves = successors(turn, pawn, white_king, black_king);
+              bool is_win = false;
+              if (turn == 0) {
+                is_win = moves.terminal_win;
+                for (int i = 0; i < moves.count && !is_win; ++i)
+                  is_win = wins_[moves.next[i]] != 0;
+              } else if (moves.count == 0) {
+                is_win = moves.in_check;
+              } else if (!moves.terminal_draw) {
+                is_win = true;
+                for (int i = 0; i < moves.count && is_win; ++i)
+                  is_win = wins_[moves.next[i]] != 0;
+              }
+              if (is_win) { wins_[state] = 1; changed = true; }
+            }
+    }
+  }
+
+  bool win(int turn, int pawn, int white_king, int black_king) const {
+    const std::size_t state = index(turn, pawn, white_king, black_king);
+    return valid_[state] && wins_[state];
+  }
+
+ private:
+  struct KpkMoves {
+    std::array<std::size_t, 10> next{};
+    int count{0};
+    bool terminal_win{false};
+    bool terminal_draw{false};
+    bool in_check{false};
+  };
+  std::array<std::uint8_t, state_count> wins_{};
+  std::array<std::uint8_t, state_count> valid_{};
+
+  static constexpr std::size_t index(int turn, int pawn, int white_king,
+                                     int black_king) {
+    return (((static_cast<std::size_t>(turn) * 64 + pawn) * 64 + white_king) *
+            64 + black_king);
+  }
+
+  static bool valid(int turn, int pawn, int white_king, int black_king) {
+    if (pawn == white_king || pawn == black_king ||
+        white_king == black_king || king_distance(white_king, black_king) <= 1)
+      return false;
+    if (rank_of(pawn) < 1 || rank_of(pawn) > 6) return false;
+    return turn != 0 || !pawn_attacks(Color::white, pawn, black_king);
+  }
+
+  KpkMoves successors(int turn, int pawn, int white_king,
+                      int black_king) const {
+    KpkMoves result;
+    result.in_check = pawn_attacks(Color::white, pawn, black_king);
+    auto add = [&](int next_turn, int next_pawn, int next_white_king,
+                   int next_black_king) {
+      const std::size_t state =
+          index(next_turn, next_pawn, next_white_king, next_black_king);
+      if (valid_[state]) result.next[result.count++] = state;
+    };
+    if (turn == 0) {
+      for (int df = -1; df <= 1; ++df)
+        for (int dr = -1; dr <= 1; ++dr) {
+          if ((!df && !dr) || !inside(file_of(white_king) + df,
+                                      rank_of(white_king) + dr)) continue;
+          const int to = square_of(file_of(white_king) + df,
+                                   rank_of(white_king) + dr);
+          if (to == pawn || to == black_king ||
+              king_distance(to, black_king) <= 1) continue;
+          add(1, pawn, to, black_king);
+        }
+      const int one = pawn + 8;
+      if (one != black_king && one != white_king) {
+        if (rank_of(one) == 7) {
+          if (king_distance(black_king, one) > 1 ||
+              king_distance(white_king, one) <= 1)
+            result.terminal_win = true;
+          else
+            result.terminal_draw = true;
+        } else {
+          add(1, one, white_king, black_king);
+          const int two = pawn + 16;
+          if (rank_of(pawn) == 1 && two != black_king && two != white_king)
+            add(1, two, white_king, black_king);
+        }
+      }
+    } else {
+      for (int df = -1; df <= 1; ++df)
+        for (int dr = -1; dr <= 1; ++dr) {
+          if ((!df && !dr) || !inside(file_of(black_king) + df,
+                                      rank_of(black_king) + dr)) continue;
+          const int to = square_of(file_of(black_king) + df,
+                                   rank_of(black_king) + dr);
+          if (to == white_king || king_distance(to, white_king) <= 1 ||
+              pawn_attacks(Color::white, pawn, to)) continue;
+          if (to == pawn) {
+            result.terminal_draw = true;
+            continue;
+          }
+          add(0, pawn, white_king, to);
+        }
+    }
+    return result;
+  }
+};
+
+std::optional<bool> kpk_win(const Board& board) {
+  int pawn_square = -1, pawn_count = 0, other = 0;
+  Color pawn_side = Color::white;
+  for (int square = 0; square < 64; ++square) {
+    const Piece piece = board.position.piece_at(square);
+    if (piece == Piece::none || piece == Piece::king) continue;
+    if (piece != Piece::pawn) { ++other; continue; }
+    ++pawn_count;
+    pawn_square = square;
+    pawn_side = *board.position.color_at(square);
+  }
+  if (pawn_count != 1 || other != 0) return std::nullopt;
+  int pawn_king = board.position.king_square(pawn_side);
+  int defender_king = board.position.king_square(opponent(pawn_side));
+  if (pawn_side == Color::black) {
+    auto flip = [](int square) {
+      return square_of(file_of(square), 7 - rank_of(square));
+    };
+    pawn_square = flip(pawn_square);
+    pawn_king = flip(pawn_king);
+    defender_king = flip(defender_king);
+  }
+  static const KpkBitbase bitbase;
+  return bitbase.win(board.turn == pawn_side ? 0 : 1, pawn_square,
+                     pawn_king, defender_king);
+}
+
+bool wrong_bishop_rook_pawn_draw(const Position& position) {
+  for (Color attacker : {Color::white, Color::black}) {
+    int bishop = -1, defender_non_king = 0, attacker_other = 0;
+    std::vector<int> pawns;
+    for (int square = 0; square < 64; ++square) {
+      const auto color = position.color_at(square);
+      if (!color) continue;
+      const Piece piece = position.piece_at(square);
+      if (*color == attacker) {
+        if (piece == Piece::bishop && bishop < 0) bishop = square;
+        else if (piece == Piece::pawn) pawns.push_back(square);
+        else if (piece != Piece::king) ++attacker_other;
+      } else if (piece != Piece::king) {
+        ++defender_non_king;
+      }
+    }
+    if (bishop < 0 || pawns.empty() || attacker_other || defender_non_king)
+      continue;
+    const int file = file_of(pawns.front());
+    if ((file != 0 && file != 7) ||
+        !std::all_of(pawns.begin(), pawns.end(),
+                     [&](int square) { return file_of(square) == file; }))
+      continue;
+    const int corner = square_of(file, attacker == Color::white ? 7 : 0);
+    if (((file_of(bishop) + rank_of(bishop)) & 1) ==
+        ((file_of(corner) + rank_of(corner)) & 1)) continue;
+    if (king_distance(position.king_square(opponent(attacker)), corner) <= 1)
+      return true;
+  }
+  return false;
+}
+
+bool opposite_colored_bishops(const Position& position) {
+  std::array<int, 2> bishops{-1, -1};
+  for (int square = 0; square < 64; ++square) {
+    const Piece piece = position.piece_at(square);
+    if (piece == Piece::none || piece == Piece::king || piece == Piece::pawn)
+      continue;
+    if (piece != Piece::bishop) return false;
+    const int side = color_index(*position.color_at(square));
+    if (bishops[side] >= 0) return false;
+    bishops[side] = square;
+  }
+  return bishops[0] >= 0 && bishops[1] >= 0 &&
+         ((file_of(bishops[0]) + rank_of(bishops[0])) & 1) !=
+         ((file_of(bishops[1]) + rank_of(bishops[1])) & 1);
+}
+
+bool passed_pawn(const Position& position, Color side, int square) {
+  const int direction = side == Color::white ? 1 : -1;
+  for (int file = std::max(0, file_of(square) - 1);
+       file <= std::min(7, file_of(square) + 1); ++file)
+    for (int rank = rank_of(square) + direction; inside(file, rank);
+         rank += direction) {
+      const int target = square_of(file, rank);
+      if (position.color_at(target) == opponent(side) &&
+          position.piece_at(target) == Piece::pawn) return false;
+    }
+  return true;
+}
+
+int endgame_knowledge(const Board& board) {
+  const Position& position = board.position;
+  int adjustment = 0;
+  std::array<int, 2> non_pawn_material{};
+  std::array<int, 2> rooks{};
+  std::array<int, 2> pawns{};
+  std::array<int, 2> rook_square{-1, -1};
+  std::array<int, 2> pawn_square{-1, -1};
+  for (int square = 0; square < 64; ++square) {
+    const auto color = position.color_at(square);
+    if (!color) continue;
+    const int side = color_index(*color);
+    const Piece piece = position.piece_at(square);
+    if (piece == Piece::pawn) {
+      ++pawns[side];
+      pawn_square[side] = square;
+      if (passed_pawn(position, *color, square)) {
+        const int advance = *color == Color::white ? rank_of(square)
+                                                   : 7 - rank_of(square);
+        const int promotion = square_of(file_of(square),
+                                        *color == Color::white ? 7 : 0);
+        int moves = 7 - advance;
+        if (board.turn == *color && advance == 1) --moves;
+        const bool outside_square =
+            king_distance(position.king_square(opponent(*color)), promotion) >
+            moves;
+        int bonus = advance * 12 + (outside_square ? 90 : 0);
+        adjustment += board.turn == *color ? bonus : -bonus;
+      }
+    } else if (piece != Piece::king) {
+      non_pawn_material[side] += nominal(piece);
+      if (piece == Piece::rook) { ++rooks[side]; rook_square[side] = square; }
+    }
+  }
+
+  // Direct and distant opposition/corresponding-square guidance matters most
+  // when only kings and pawns remain.
+  if (non_pawn_material[0] == 0 && non_pawn_material[1] == 0) {
+    const int white_king = position.king_square(Color::white);
+    const int black_king = position.king_square(Color::black);
+    const int df = std::abs(file_of(white_king) - file_of(black_king));
+    const int dr = std::abs(rank_of(white_king) - rank_of(black_king));
+    if ((df == 0 && dr == 2) || (dr == 0 && df == 2) ||
+        (df == dr && df > 0 && (df & 1) == 0))
+      adjustment -= 35;  // The side not to move owns the opposition.
+  }
+
+  // Compact Lucena/Philidor classifiers for the canonical KRPKR geometry.
+  for (Color attacker : {Color::white, Color::black}) {
+    const int a = color_index(attacker), d = 1 - a;
+    if (rooks[a] != 1 || rooks[d] != 1 || pawns[a] != 1 || pawns[d] != 0 ||
+        non_pawn_material[a] != 500 || non_pawn_material[d] != 500) continue;
+    const int relative_pawn_rank = attacker == Color::white
+        ? rank_of(pawn_square[a]) : 7 - rank_of(pawn_square[a]);
+    const int promotion = square_of(file_of(pawn_square[a]),
+                                    attacker == Color::white ? 7 : 0);
+    const bool lucena = relative_pawn_rank == 6 &&
+        king_distance(position.king_square(attacker), promotion) <= 1 &&
+        king_distance(position.king_square(opponent(attacker)), promotion) > 1;
+    const int defender_rook_relative_rank = attacker == Color::white
+        ? rank_of(rook_square[d]) : 7 - rank_of(rook_square[d]);
+    const bool philidor = relative_pawn_rank <= 4 &&
+        defender_rook_relative_rank == 5 &&
+        file_of(position.king_square(opponent(attacker))) ==
+            file_of(pawn_square[a]) &&
+        (attacker == Color::white
+             ? rank_of(position.king_square(opponent(attacker))) >
+                   rank_of(pawn_square[a])
+             : rank_of(position.king_square(opponent(attacker))) <
+                   rank_of(pawn_square[a]));
+    const int knowledge = lucena ? 260 : (philidor ? -220 : 0);
+    adjustment += board.turn == attacker ? knowledge : -knowledge;
+  }
+  return adjustment;
+}
+
 void add_move(const Position& pos, Color side, MoveList& out, int from, int to,
               Piece piece, MoveType quiet = MoveType::normal) {
   if (!inside(file_of(to), rank_of(to))) return;
@@ -807,13 +1133,109 @@ int Searcher::evaluate(const Board& board) {
     case EngineKind::turochamp: score = turochamp_eval(board); break;
     case EngineKind::sargon: score = sargon_eval(board); break;
     case EngineKind::bernstein: score = bernstein_eval(board); break;
-    default: score = nnue_evaluate(board.nnue, board.turn); break;
+    default: {
+      if (const auto exact = kpk_win(board)) {
+        if (!*exact) return 0;
+        Color pawn_side = Color::white;
+        for (int square = 0; square < 64; ++square)
+          if (board.position.piece_at(square) == Piece::pawn) {
+            pawn_side = *board.position.color_at(square);
+            break;
+          }
+        return board.turn == pawn_side ? 1800 : -1800;
+      }
+      if (wrong_bishop_rook_pawn_draw(board.position)) return 0;
+      score = nnue_evaluate(board.nnue, board.turn) + endgame_knowledge(board);
+      if (opposite_colored_bishops(board.position)) score = score * 55 / 100;
+      break;
+    }
   }
   if (config_.noise_millipawns > 0) {
     std::uniform_int_distribution<int> noise(-config_.noise_millipawns, config_.noise_millipawns);
     score += noise(random_) / 10;
   }
   return score;
+}
+
+int Searcher::volatility(const Board& board, std::size_t legal_count,
+                         int evaluation_swing) const {
+  int result = std::min(30, std::abs(evaluation_swing) / 4);
+  if (board.position.in_check(board.turn)) result += 28;
+  if (legal_count == 1) result += 24;
+  else if (legal_count <= 3) result += 10;
+
+  for (int square = 0; square < 64; ++square) {
+    const auto side = board.position.color_at(square);
+    if (!side) continue;
+    const Piece piece = board.position.piece_at(square);
+    if (piece != Piece::king && piece != Piece::pawn &&
+        board.position.attackers(opponent(*side), square) > 0 &&
+        (board.position.attackers(*side, square) == 0 ||
+         board.position.attackers(opponent(*side), square) >
+             board.position.attackers(*side, square)))
+      result += std::min(12, nominal(piece) / 75);
+    if (piece == Piece::pawn && passed_pawn(board.position, *side, square)) {
+      const int advance = *side == Color::white ? rank_of(square)
+                                                : 7 - rank_of(square);
+      if (advance >= 5) result += 10 + (advance - 5) * 8;
+    }
+  }
+
+  for (Color side : {Color::white, Color::black}) {
+    const int king = board.position.king_square(side);
+    if (king < 0) continue;
+    int hostile_ring = 0, shield = 0;
+    for (int df = -1; df <= 1; ++df)
+      for (int dr = -1; dr <= 1; ++dr) {
+        const int file = file_of(king) + df, rank = rank_of(king) + dr;
+        if (!inside(file, rank)) continue;
+        const int square = square_of(file, rank);
+        hostile_ring += board.position.attackers(opponent(side), square);
+        if (board.position.color_at(square) == side &&
+            board.position.piece_at(square) == Piece::pawn) ++shield;
+      }
+    result += std::min(18, hostile_ring * 3);
+    if (shield == 0) result += 5;
+  }
+  return std::clamp(result, 0, 100);
+}
+
+bool Searcher::qualifying_quiet_check(const Board& board_after,
+                                      const Move& move) const {
+  const Color defender = board_after.turn;
+  const Color attacker = opponent(defender);
+  if (!board_after.position.in_check(defender)) return false;
+  int king_moves = 0;
+  for (const Move& reply : board_after.legal_moves())
+    if (reply.piece == Piece::king) ++king_moves;
+  if (king_moves <= 2) return true;
+
+  const Piece moved = move.is_promotion() ? move.promotion : move.piece;
+  int secondary_targets = 0;
+  bool undefended_major = false;
+  for (int square = 0; square < 64; ++square) {
+    if (board_after.position.color_at(square) != defender ||
+        square == board_after.position.king_square(defender)) continue;
+    const Piece victim = board_after.position.piece_at(square);
+    if (!piece_attacks_square(board_after.position, attacker, move.to, moved,
+                              square)) continue;
+    if (nominal(victim) >= 300) ++secondary_targets;
+    if ((victim == Piece::rook || victim == Piece::queen) &&
+        board_after.position.attackers(defender, square) == 0)
+      undefended_major = true;
+  }
+  if (secondary_targets > 0 || undefended_major) return true;
+
+  const int king = board_after.position.king_square(defender);
+  int mating_net_pressure = 0;
+  for (int df = -1; df <= 1; ++df)
+    for (int dr = -1; dr <= 1; ++dr) {
+      const int file = file_of(king) + df, rank = rank_of(king) + dr;
+      if (inside(file, rank))
+        mating_net_pressure +=
+            board_after.position.attackers(attacker, square_of(file, rank));
+    }
+  return mating_net_pressure >= 5 && king_moves <= 3;
 }
 
 MoveList Searcher::ordered_moves(const Board& board, const Move* tt_move,
@@ -902,11 +1324,20 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply) {
   if (ply >= 20) return in_check ? evaluate(board) : alpha;
   const auto moves = ordered_moves(board, nullptr, ply);
   if (moves.empty()) return in_check ? -mate_score + ply : 0;
+  int quiet_checks = 0;
   for (const auto& move : moves) {
-    if (!in_check && !move.is_capture() && !move.is_promotion()) continue;
+    const bool quiet = !move.is_capture() && !move.is_promotion();
+    if (!in_check && quiet && (ply > 10 || quiet_checks >= 3)) continue;
     if (!in_check && !move.is_promotion() &&
-        stand + nominal(move.capture) + 140 < alpha) continue;
+        !quiet && stand + nominal(move.capture) + 140 < alpha) continue;
     board.push(move);
+    if (!in_check && quiet) {
+      if (!qualifying_quiet_check(board, move)) {
+        board.pop();
+        continue;
+      }
+      ++quiet_checks;
+    }
     int score = -quiescence(board, -beta, -alpha, ply + 1);
     board.pop();
     if (halted()) return 0;
@@ -948,7 +1379,11 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     if (e.flag > 0 && e.score >= beta) return e.score;
   }
 
-  if (!in_check && depth >= 3 && ply > 0) {
+  const int base_volatility = depth >= 3
+      ? volatility(board, 4)
+      : (in_check ? 65 : 20);
+
+  if (!in_check && depth >= 3 && ply > 0 && base_volatility < 68) {
     bool non_pawn_material = false;
     for (int square = 0; square < 64; ++square) {
       if (board.position.color_at(square) != board.turn) continue;
@@ -980,13 +1415,17 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
 
   auto moves = ordered_moves(board, found ? &found->best : nullptr, ply);
   if (moves.empty()) return in_check ? -mate_score + ply : 0;
+  const int node_volatility = std::clamp(
+      base_volatility + (moves.size() == 1 ? 24 : 0), 0, 100);
   int best_score = -infinity;
   int move_index = 0;
   const int static_score = !in_check && depth <= 2 ? evaluate(board) : 0;
   for (const auto& move : moves) {
     const bool quiet = !move.is_capture() && !move.is_promotion() && !move.is_castle();
+    const int futility_margin = node_volatility >= 55 ? 180
+        : (node_volatility <= 22 ? 70 : 110);
     if (move_index > 0 && depth == 1 && quiet && !in_check &&
-        static_score + 110 <= alpha) {
+        static_score + futility_margin <= alpha) {
       ++move_index;
       continue;
     }
@@ -997,13 +1436,37 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     const bool reduce = depth >= 3 && move_index >= 3 && quiet &&
                         !in_check && !gives_check;
     int child_depth = depth - 1;
+    const int relative_rank = move.piece == Piece::pawn
+        ? (opponent(board.turn) == Color::white ? rank_of(move.to)
+                                                : 7 - rank_of(move.to))
+        : 0;
+    const bool singular_reply = moves.size() == 1 && depth >= 2;
+    const bool dangerous_passer = move.piece == Piece::pawn &&
+        relative_rank >= 6 && passed_pawn(board.position, opponent(board.turn),
+                                          move.to);
+    const bool forcing_capture = node_volatility >= 70 && move.is_capture() &&
+        static_exchange_score(board.history.back().packed_cells ==
+                                      std::array<std::uint64_t, 4>{}
+                                  ? board.position
+                                  : board.position,
+                              opponent(board.turn), move) >= 200;
+    if ((singular_reply || dangerous_passer || forcing_capture) &&
+        ply + child_depth + 1 < maximum_search_depth)
+      ++child_depth;
     if (reduce) {
-      const int reduction = 1 + (depth >= 6 && move_index >= 8 ? 1 : 0);
-      ++lmr_reductions_;
-      score = -negamax(board, std::max(0, child_depth - reduction),
-                       -alpha - 1, -alpha, ply + 1, child);
-      if (score > alpha) {
-        child.clear();
+      int reduction = 1 + (depth >= 6 && move_index >= 8 ? 1 : 0);
+      if (node_volatility >= 55) --reduction;
+      if (node_volatility <= 22 && depth >= 5 && move_index >= 6) ++reduction;
+      if (reduction > 0) {
+        ++lmr_reductions_;
+        score = -negamax(board, std::max(0, child_depth - reduction),
+                         -alpha - 1, -alpha, ply + 1, child);
+        if (score > alpha) {
+          child.clear();
+          score = -negamax(board, child_depth, -alpha - 1, -alpha,
+                           ply + 1, child);
+        }
+      } else {
         score = -negamax(board, child_depth, -alpha - 1, -alpha,
                          ply + 1, child);
       }
@@ -1019,6 +1482,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     }
     board.pop();
     if (halted()) return 0;
+    if (ply == 0) root_scores_.push_back({move, score});
     if (score > best_score) { best_score = score; best = move; }
     if (score > alpha) { alpha = score; pv = {move}; pv.insert(pv.end(), child.begin(), child.end()); }
     if (alpha >= beta) {

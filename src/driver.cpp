@@ -54,7 +54,8 @@ void usage(const EngineConfig& config, const char* program) {
             << config.name << " C++26 NNUE chess engine. Send 'uci' or 'console' on stdin.\n"
             << "  --ply N       default search depth (0-40; 0 searches up to 40)\n"
             << "  --noise N     evaluation noise in millipawns\n"
-            << "  --hash N      transposition table size in MB\n";
+            << "  --hash N      transposition table size in MB\n"
+            << "  --move-overhead N  clock/network safety margin in ms\n";
   if (config.kind == EngineKind::bernstein)
     std::cerr << "  --branch N    plausible-move branch limit\n"
               << "  --material N  material evaluation multiplier\n";
@@ -69,6 +70,7 @@ void parse_engine_options(EngineConfig& config, int argc, char** argv) {
     if (arg == "--ply" || arg == "-ply") take(config.depth);
     else if (arg == "--noise" || arg == "-noise") take(config.noise_millipawns);
     else if (arg == "--hash" || arg == "-hash") take(config.hash_mb);
+    else if (arg == "--move-overhead") take(config.move_overhead_ms);
     else if (arg == "--branch" || arg == "-branch") take(config.branch);
     else if (arg == "--material" || arg == "-material") take(config.material_factor);
     else if (arg == "--help" || arg == "-h" || arg == "-help") {
@@ -77,6 +79,7 @@ void parse_engine_options(EngineConfig& config, int argc, char** argv) {
     }
   }
   config.depth = std::clamp(config.depth, 0, maximum_search_depth);
+  config.move_overhead_ms = std::clamp(config.move_overhead_ms, 0, 5000);
 }
 
 int run_console(EngineConfig config, Board board) {
@@ -142,6 +145,7 @@ int run_engine(EngineConfig config, int argc, char** argv) {
             << "id author " << config.author << "\n"
             << "option name Depth type spin default " << config.depth << " min 0 max " << maximum_search_depth << "\n"
             << "option name Hash type spin default " << config.hash_mb << " min 0 max 16384\n"
+            << "option name Move Overhead type spin default " << config.move_overhead_ms << " min 0 max 5000\n"
             << "option name Noise type spin default " << config.noise_millipawns << " min 0 max 10000\n";
   if (config.own_book) std::cout << "option name OwnBook type check default true\n";
   std::cout << "uciok" << std::endl;
@@ -188,7 +192,9 @@ int run_engine(EngineConfig config, int argc, char** argv) {
             if(*n < 0 || *n > maximum_search_depth)
               std::cout << "info string Depth must be between 0 and 40; request ignored" << std::endl;
             else config.depth=*n;
-          } else if(key=="Hash")config.hash_mb=*n; else if(key=="Noise")config.noise_millipawns=*n;
+          } else if(key=="Hash")config.hash_mb=*n;
+          else if(key=="Move Overhead")config.move_overhead_ms=std::clamp(*n,0,5000);
+          else if(key=="Noise")config.noise_millipawns=*n;
         }
         if(key=="OwnBook") config.own_book=(val=="true"||val=="1");
       }
@@ -211,17 +217,24 @@ int run_engine(EngineConfig config, int argc, char** argv) {
     }
     if (cmd == "go") {
       SearchLimits limits; limits.depth=config.depth;
-      int movetime=0,wtime=0,btime=0,moves_to_go=0;
+      int movetime=0,wtime=0,btime=0,winc=0,binc=0,moves_to_go=0;
       for(std::size_t i=1;i<args.size();++i) {
         auto take=[&](){if(i+1<args.size())return integer(args[++i]).value_or(0);return 0;};
         if(args[i]=="depth")limits.depth=std::clamp(take(),1,maximum_search_depth); else if(args[i]=="nodes")limits.nodes=static_cast<std::uint64_t>(std::max(0,take()));
         else if(args[i]=="movetime")movetime=take(); else if(args[i]=="wtime")wtime=take();
         else if(args[i]=="btime")btime=take(); else if(args[i]=="movestogo")moves_to_go=take();
+        else if(args[i]=="winc")winc=take(); else if(args[i]=="binc")binc=take();
         else if(args[i]=="infinite")limits.depth=0;
       }
-      int budget=movetime;
-      if(!budget&&(wtime||btime)){int remaining=board.turn==Color::white?wtime:btime;budget=remaining/std::max(1,moves_to_go?moves_to_go:20);}
-      if(budget>0) limits.deadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(std::max(1,budget-5));
+      limits.move_overhead_ms=config.move_overhead_ms;
+      if(movetime>0) {
+        limits.deadline=std::chrono::steady_clock::now()+
+            std::chrono::milliseconds(std::max(1,movetime-config.move_overhead_ms));
+      } else if(wtime||btime) {
+        limits.remaining_ms=board.turn==Color::white?wtime:btime;
+        limits.increment_ms=board.turn==Color::white?winc:binc;
+        limits.moves_to_go=moves_to_go;
+      }
       launch(limits); continue;
     }
   }

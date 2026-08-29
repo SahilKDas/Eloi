@@ -164,6 +164,7 @@ struct EngineConfig {
   int material_factor{20};
   int noise_millipawns{0};
   int hash_mb{64};
+  int move_overhead_ms{50};
   bool own_book{false};
 };
 
@@ -171,6 +172,10 @@ struct SearchLimits {
   int depth{0};
   std::uint64_t nodes{0};
   std::optional<std::chrono::steady_clock::time_point> deadline;
+  int remaining_ms{0};
+  int increment_ms{0};
+  int moves_to_go{0};
+  int move_overhead_ms{50};
 };
 
 struct SearchResult {
@@ -182,6 +187,10 @@ struct SearchResult {
   std::uint64_t tt_hits{0};
   std::uint64_t beta_cutoffs{0};
   std::uint64_t lmr_reductions{0};
+  int allocated_ms{0};
+  int volatility{0};
+  int root_score_gap{0};
+  int credible_alternatives{0};
   std::chrono::milliseconds elapsed{};
   std::vector<Move> pv;
   std::string opening_family;
@@ -217,6 +226,7 @@ class Searcher {
   std::uint8_t generation_{1};
   std::array<std::array<Move, 2>, maximum_search_depth + 32> killers_{};
   std::array<std::array<int, 64>, 64> history_scores_{};
+  std::vector<std::pair<Move, int>> root_scores_;
 
   bool halted();
   int evaluate(const Board& board);
@@ -224,6 +234,10 @@ class Searcher {
   int turochamp_eval(const Board& board) const;
   int sargon_eval(const Board& board) const;
   int bernstein_eval(const Board& board) const;
+  int volatility(const Board& board, std::size_t legal_count,
+                 int evaluation_swing = 0) const;
+  bool qualifying_quiet_check(const Board& board_after,
+                              const Move& move) const;
   int quiescence(Board& board, int alpha, int beta, int ply);
   int negamax(Board& board, int depth, int alpha, int beta, int ply,
               std::vector<Move>& pv);

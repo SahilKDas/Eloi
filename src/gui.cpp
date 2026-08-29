@@ -437,6 +437,86 @@ void render_piece(SkCanvas& canvas, App& app, std::int8_t cell,
   canvas.restore();
 }
 
+constexpr int material_points(Piece piece) {
+  switch (piece) {
+    case Piece::pawn: return 1;
+    case Piece::bishop:
+    case Piece::knight: return 3;
+    case Piece::rook: return 5;
+    case Piece::queen: return 9;
+    default: return 0;
+  }
+}
+
+struct MaterialDisplay {
+  // First index is the side that made the capture; second is the piece type.
+  std::array<std::array<int, 7>, 2> captured{};
+  std::array<int, 2> remaining{};
+};
+
+MaterialDisplay material_display(const Board& board) {
+  MaterialDisplay result;
+  for (const std::int8_t cell : board.position.cells) {
+    if (!cell) continue;
+    const int side = cell > 0 ? 0 : 1;
+    result.remaining[side] += material_points(
+        static_cast<Piece>(std::abs(static_cast<int>(cell))));
+  }
+  for (const Board::Snapshot& state : board.history) {
+    if (state.move.capture == Piece::none) continue;
+    const int capturer = state.turn == Color::white ? 0 : 1;
+    ++result.captured[capturer][static_cast<std::size_t>(state.move.capture)];
+  }
+  return result;
+}
+
+void render_material(SkCanvas& canvas, App& app, float left, float right) {
+  const MaterialDisplay material = material_display(app.board);
+  const int balance = material.remaining[0] - material.remaining[1];
+  text(canvas, "MATERIAL", left, 204, 11, muted, true);
+  const std::string balance_text = balance == 0
+      ? "EVEN"
+      : std::format("{} +{}", balance > 0 ? "WHITE" : "BLACK",
+                    std::abs(balance));
+  text(canvas, balance_text,
+       right - static_cast<float>(balance_text.size()) * 7.0f,
+       204, 11, balance == 0 ? muted : mint, true);
+
+  SkPaint divider;
+  divider.setColor(SkColorSetARGB(90, 93, 101, 128));
+  divider.setStrokeWidth(1.0f);
+  canvas.drawLine(left, 211, right, 211, divider);
+
+  constexpr std::array order{
+      Piece::pawn, Piece::knight, Piece::bishop, Piece::rook, Piece::queen};
+  auto row = [&](Color capturer, float top) {
+    const int side = capturer == Color::white ? 0 : 1;
+    text(canvas, capturer == Color::white ? "WHITE" : "BLACK",
+         left, top + 16, 10, ink, true);
+    float x = left + 55;
+    int icons = 0;
+    const int victim_sign = capturer == Color::white ? -1 : 1;
+    for (const Piece piece : order) {
+      const int count = material.captured[side][static_cast<std::size_t>(piece)];
+      for (int i = 0; i < count; ++i) {
+        render_piece(canvas, app,
+                     static_cast<std::int8_t>(victim_sign *
+                                              static_cast<int>(piece)),
+                     x, top, 22);
+        x += 11.5f;
+        ++icons;
+      }
+    }
+    if (!icons) text(canvas, "—", x + 2, top + 16, 11, muted);
+    const int advantage = side == 0 ? balance : -balance;
+    if (advantage > 0)
+      text(canvas, std::format("+{}", advantage), right - 25,
+           top + 16, 12, mint, true);
+  };
+  row(Color::black, 214);
+  row(Color::white, 237);
+}
+
 SkPoint square_origin(const App& app, const Layout& layout, int square) {
   const int display_file = app.flipped ? 7 - file_of(square) : file_of(square);
   const int display_rank = app.flipped ? rank_of(square) : 7 - rank_of(square);
@@ -614,7 +694,9 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
   text(canvas, app.board.turn == Color::white ? "White to move" : "Black to move",
        layout.panel_left + 24, 180, 14, muted);
 
-  text(canvas, "SEARCH DEPTH", layout.panel_left + 24, 251, 12, muted, true);
+  render_material(canvas, app, layout.panel_left + 24, panel_right - 24);
+
+  text(canvas, "SEARCH DEPTH", layout.panel_left + 24, 276, 12, muted, true);
   text(canvas, std::format("{} plies", app.depth),
        layout.panel_left + 80, 325, 25, ink, true);
   text(canvas, "Hard ceiling: 40 plies", layout.panel_left + 24, 360, 13, muted);
