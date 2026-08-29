@@ -110,6 +110,50 @@ This build completed the same search in 7,161 nodes and 55 ms. In the mirrored
 passing the required 55% gate. The default transposition-table allocation also
 fell from 128 MB to 32 MB.
 
+## Emergency restart handoff (2026-08-28)
+
+The repository was reduced from about 1.66 GiB to about **155 MiB** before an
+emergency restart. The cleanup removed only ignored, reproducible caches: the
+private compiler toolchain, duplicate Skia trees, downloaded NNUE/training
+datasets, package archives, and `build-tests`. It retained the configured
+`.deps/lichess-bot` bridge, `.deps/skia108`, `.deps/nanosvg`, Git history,
+source, artwork, and the working `build-release/Eloi.exe` package.
+
+The last verified feature is the GUI's chess.com-style captured-piece material
+counter. It renders the actual piece SVGs, reports `EVEN` or `WHITE/BLACK +N`,
+values promoted material correctly, follows en-passant captures, and rewinds
+with undo. The Release build and complete test suite passed before cache
+cleanup.
+
+An engine-strength pass was interrupted after source edits began and **has not
+been built or tested**. Its work-in-progress is in `src/chess.cpp`,
+`src/driver.cpp`, and `include/eloi/chess.hpp`; inspect the diff first and
+either complete those edits or surgically remove only those hunks. Do not
+regenerate datasets yet. The next pass should proceed in this order:
+
+1. Restore only the compiler/runtime files required for a C++26 build, without
+   restoring duplicate SDKs or the training corpora. Update CMake so packaged
+   runtime DLLs come from one compact dependency root.
+2. Finish adaptive clock allocation using best-move stability, evaluation
+   swings, root-score gaps, credible alternatives, game phase, increment, and
+   configurable network/move overhead.
+3. Finish and validate lightweight endgame knowledge: exact KPK, opposition
+   and corresponding squares, wrong-bishop rook-pawn draws, Lucena/Philidor,
+   fortresses, insufficient winning material, opposite-bishop scaling, and the
+   rule of the square.
+4. Add carefully filtered quiet checks for double attacks, king restriction,
+   undefended major pieces, and continuing mating nets.
+5. Finish the volatility classifier (hanging pieces, exposed kings, forcing
+   moves, advanced passers, evaluation swings, and singular replies), then use
+   it to tune LMR, aspiration windows, pruning, and selective extensions.
+6. Rebuild Release and tests, run tactical/perft/clock regressions and a
+   benchmark, refresh the executable staged in lichess-bot, then delete the
+   temporary build/toolchain cache again.
+
+The existing Release executable remains runnable after restart. A new build
+will require rehydrating the removed compiler and Skia runtime/import-library
+cache; those files are intentionally not part of Git.
+
 ## Artwork and licenses
 
 Eloi's source is MIT-licensed; see `LICENSE`. The twelve files under
