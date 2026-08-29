@@ -63,6 +63,12 @@ fifty-move rule, and dead-position draws from insufficient material. Repetition
 identity includes side to move, castling rights, and an en-passant target only
 when a legal en-passant capture exists.
 
+Chess960 is supported through Shredder/X-FEN rook-file castling rights and the
+standard `UCI_Chess960` option. Castling handles every legal overlap case and
+uses UCI's king-to-rook notation when Chess960 is active. Eloi disables its
+orthodox Italian/Nimzo opening book in Chess960 positions. Pondering is
+deliberately not advertised or enabled yet.
+
 ## UCI and Lichess
 
 ```text
@@ -83,6 +89,21 @@ The UCI `Depth` option advertises `max 17697`; requests above 40 emit a clear
 performance warning, while requests above 17,697 are rejected. `OwnBook`
 defaults to `true` and can be disabled for analysis. The compact fixed hash
 table defaults to 32 MB and remains configurable through `Hash`.
+
+With `Depth` set to zero, Eloi uses a fail-safe adaptive clock policy. It
+protects a reserve before searching, budgets conservatively across the
+expected remaining game phase, credits only a bounded share of increment, and
+adjusts the soft stop using best-move stability, evaluation swings, root score
+gaps, credible alternatives, and tactical volatility. Pressure, emergency,
+and panic modes impose progressively smaller hard deadlines below 120, 60,
+and 20 seconds. If a deadline interrupts an iteration, Eloi plays the last
+fully completed result (or a guaranteed legal fallback) rather than trusting
+partial work.
+
+The staged Lichess bridge is configured to accept only challenges whose base
+clock is at least four minutes. Increment is deliberately ignored for this
+eligibility check, so `3+30` is rejected while `4+0` is accepted. It accepts
+both standard chess and Chess960 while keeping `ponder: false`.
 
 ## Validation
 
@@ -107,6 +128,11 @@ and Nimzo personality/transpositions, an 8,000-entry minimum repertoire,
 mate-in-one/two/three tactics, packed TT moves and mate scores, exact search
 make/unmake and null-move restoration, search pruning exemptions, and activity
 from null move, ProbCut, singular extensions, LMR, LMP, and history ordering.
+Chess960 tests cover rook-file FEN rights, UCI notation, attacked transit
+squares, non-corner rights loss, and king/rook origin/destination overlaps.
+Clock tests cover five-minute allocation, protected reserve, increment and
+overhead bounds, phase scaling, every pressure mode, hard ceilings, and legal
+fallback under a near-expired deadline.
 
 The development-only gauntlet runner uses eight neutral opening seeds, plays
 every seed with colours exchanged, disables both opening books, and returns a

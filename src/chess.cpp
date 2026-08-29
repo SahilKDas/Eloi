@@ -606,6 +606,84 @@ bool Position::insufficient_material() const {
   return knights == 0 && same_bishop_color;
 }
 
+namespace {
+
+int castling_slot(Color side, bool king_side) {
+  return (side == Color::white ? 0 : 2) + (king_side ? 0 : 1);
+}
+
+std::uint8_t castling_right(Color side, bool king_side) {
+  return static_cast<std::uint8_t>(1U << castling_slot(side, king_side));
+}
+
+int castling_king_destination(Color side, bool king_side) {
+  return square_of(king_side ? 6 : 2, side == Color::white ? 0 : 7);
+}
+
+int castling_rook_destination(Color side, bool king_side) {
+  return square_of(king_side ? 5 : 3, side == Color::white ? 0 : 7);
+}
+
+bool castling_path_clear(const Position& position, int king_from,
+                         int rook_from, int king_to, int rook_to) {
+  auto clear_segment = [&](int from, int to) {
+    const int first = std::min(file_of(from), file_of(to));
+    const int last = std::max(file_of(from), file_of(to));
+    const int rank = rank_of(from);
+    for (int file = first; file <= last; ++file) {
+      const int square = square_of(file, rank);
+      if (square != king_from && square != rook_from &&
+          !position.empty(square)) return false;
+    }
+    return true;
+  };
+  return rank_of(king_from) == rank_of(rook_from) &&
+         rank_of(king_from) == rank_of(king_to) &&
+         rank_of(king_from) == rank_of(rook_to) &&
+         clear_segment(king_from, king_to) &&
+         clear_segment(rook_from, rook_to);
+}
+
+bool castling_king_path_safe(const Position& position, Color side,
+                             int king_from, int rook_from, int king_to) {
+  if (position.in_check(side)) return false;
+  Position probe = position;
+  probe.cells[king_from] = 0;
+  probe.cells[rook_from] = 0;
+  const int step = (file_of(king_to) > file_of(king_from)) -
+                   (file_of(king_to) < file_of(king_from));
+  if (!step) return true;
+  for (int file = file_of(king_from) + step;; file += step) {
+    const int square = square_of(file, rank_of(king_from));
+    probe.cells[square] = static_cast<std::int8_t>(
+        (side == Color::white ? 1 : -1) * static_cast<int>(Piece::king));
+    const bool attacked = probe.attacked_by(opponent(side), square);
+    probe.cells[square] = 0;
+    if (attacked) return false;
+    if (file == file_of(king_to)) break;
+  }
+  return true;
+}
+
+void clear_castling_rights(Position& position, const Move& move,
+                           Piece moving, Color side) {
+  auto lose = [&](std::uint8_t rights) {
+    position.castling &= static_cast<std::uint8_t>(~rights);
+  };
+  if (moving == Piece::king)
+    lose(side == Color::white ? white_king | white_queen
+                              : black_king | black_queen);
+  for (int slot = 0; slot < 4; ++slot) {
+    const std::uint8_t right = static_cast<std::uint8_t>(1U << slot);
+    if ((position.castling & right) &&
+        (move.from == position.castling_rooks[slot] ||
+         move.to == position.castling_rooks[slot]))
+      lose(right);
+  }
+}
+
+}  // namespace
+
 MoveList Position::pseudo_legal(Color side) const {
   MoveList out;
   out.reserve(64);
@@ -670,19 +748,22 @@ MoveList Position::pseudo_legal(Color side) const {
         int nf = f + s[0], nr = r + s[1];
         if (inside(nf, nr)) add_move(*this, side, out, from, square_of(nf, nr), piece);
       }
-      int home_rank = side == Color::white ? 0 : 7;
-      std::uint8_t king_right = side == Color::white ? white_king : black_king;
-      std::uint8_t queen_right = side == Color::white ? white_queen : black_queen;
-      if (from == square_of(4, home_rank)) {
-        if ((castling & king_right) && empty(square_of(5, home_rank)) &&
-            empty(square_of(6, home_rank)) && color_at(square_of(7, home_rank)) == side &&
-            piece_at(square_of(7, home_rank)) == Piece::rook)
-          out.push_back({MoveType::king_castle, from, square_of(6, home_rank), piece});
-        if ((castling & queen_right) && empty(square_of(1, home_rank)) &&
-            empty(square_of(2, home_rank)) && empty(square_of(3, home_rank)) &&
-            color_at(square_of(0, home_rank)) == side &&
-            piece_at(square_of(0, home_rank)) == Piece::rook)
-          out.push_back({MoveType::queen_castle, from, square_of(2, home_rank), piece});
+      const int home_rank = side == Color::white ? 0 : 7;
+      if (rank_of(from) == home_rank) {
+        for (const bool king_side : {true, false}) {
+          const int slot = castling_slot(side, king_side);
+          const std::uint8_t right = castling_right(side, king_side);
+          const int rook_from = castling_rooks[slot];
+          const int king_to = castling_king_destination(side, king_side);
+          const int rook_to = castling_rook_destination(side, king_side);
+          if ((castling & right) && rook_from >= 0 && rook_from < 64 &&
+              color_at(rook_from) == side &&
+              piece_at(rook_from) == Piece::rook &&
+              castling_path_clear(*this, from, rook_from, king_to, rook_to))
+            out.push_back({king_side ? MoveType::king_castle
+                                     : MoveType::queen_castle,
+                           from, king_to, piece});
+        }
       }
       continue;
     }
@@ -712,16 +793,35 @@ std::optional<Position> Position::apply(const Move& move) const {
   if (move.from < 0 || move.from >= 64 || move.to < 0 || move.to >= 64 || empty(move.from))
     return std::nullopt;
   const Color side = *color_at(move.from);
-  if (color_at(move.to) == side) return std::nullopt;
-  Position next = *this;
   const int sign = side == Color::white ? 1 : -1;
   const Piece moving = piece_at(move.from);
   if (move.is_castle()) {
-    int rank = side == Color::white ? 0 : 7;
-    int transit = square_of(move.type == MoveType::king_castle ? 5 : 3, rank);
-    if (in_check(side) || attacked_by(opponent(side), transit) ||
-        attacked_by(opponent(side), move.to)) return std::nullopt;
+    const bool king_side = move.type == MoveType::king_castle;
+    const int slot = castling_slot(side, king_side);
+    const std::uint8_t right = castling_right(side, king_side);
+    const int rook_from = castling_rooks[slot];
+    const int king_to = castling_king_destination(side, king_side);
+    const int rook_to = castling_rook_destination(side, king_side);
+    if (moving != Piece::king || !(castling & right) || move.to != king_to ||
+        rook_from < 0 || rook_from >= 64 || color_at(rook_from) != side ||
+        piece_at(rook_from) != Piece::rook ||
+        !castling_path_clear(*this, move.from, rook_from, king_to, rook_to) ||
+        !castling_king_path_safe(*this, side, move.from, rook_from, king_to))
+      return std::nullopt;
+    Position next = *this;
+    next.cells[move.from] = 0;
+    next.cells[rook_from] = 0;
+    next.cells[king_to] = static_cast<std::int8_t>(
+        sign * static_cast<int>(Piece::king));
+    next.cells[rook_to] = static_cast<std::int8_t>(
+        sign * static_cast<int>(Piece::rook));
+    next.en_passant = -1;
+    clear_castling_rights(next, move, moving, side);
+    if (next.in_check(side)) return std::nullopt;
+    return next;
   }
+  if (color_at(move.to) == side) return std::nullopt;
+  Position next = *this;
   next.cells[move.from] = 0;
   if (move.type == MoveType::en_passant) {
     int victim = move.to + (side == Color::white ? -8 : 8);
@@ -729,21 +829,8 @@ std::optional<Position> Position::apply(const Move& move) const {
   }
   Piece placed = move.is_promotion() ? move.promotion : moving;
   next.cells[move.to] = static_cast<std::int8_t>(sign * static_cast<int>(placed));
-  if (move.type == MoveType::king_castle || move.type == MoveType::queen_castle) {
-    int rank = side == Color::white ? 0 : 7;
-    int rook_from = square_of(move.type == MoveType::king_castle ? 7 : 0, rank);
-    int rook_to = square_of(move.type == MoveType::king_castle ? 5 : 3, rank);
-    next.cells[rook_to] = next.cells[rook_from];
-    next.cells[rook_from] = 0;
-  }
   next.en_passant = move.type == MoveType::jump ? (move.from + move.to) / 2 : -1;
-  auto lose = [&](std::uint8_t rights) { next.castling &= static_cast<std::uint8_t>(~rights); };
-  if (moving == Piece::king) lose(side == Color::white ? white_king | white_queen
-                                                       : black_king | black_queen);
-  if (move.from == square_of(0, 0) || move.to == square_of(0, 0)) lose(white_queen);
-  if (move.from == square_of(7, 0) || move.to == square_of(7, 0)) lose(white_king);
-  if (move.from == square_of(0, 7) || move.to == square_of(0, 7)) lose(black_queen);
-  if (move.from == square_of(7, 7) || move.to == square_of(7, 7)) lose(black_king);
+  clear_castling_rights(next, move, moving, side);
   if (next.in_check(side)) return std::nullopt;
   return next;
 }
@@ -787,12 +874,32 @@ std::array<std::uint64_t, 4> pack_cells(const Position& position) {
   return packed;
 }
 
+void unpack_cells(Position& position,
+                  const std::array<std::uint64_t, 4>& packed) {
+  for (int square = 0; square < 64; ++square) {
+    const auto value = static_cast<std::int8_t>(
+        (packed[square / 16] >> ((square % 16) * 4)) & 0x0fU);
+    position.cells[square] = static_cast<std::int8_t>(value - 6);
+  }
+}
+
 std::uint64_t cell_key(std::int8_t cell, int square) {
   if (!cell) return 0;
   const int color = cell < 0 ? 1 : 0;
   const int piece = std::abs(static_cast<int>(cell)) - 1;
   return zobrist_value(static_cast<std::uint64_t>(
       (color * 6 + piece) * 64 + square));
+}
+
+std::uint64_t castling_key(const Position& position, int bit) {
+  const int file = file_of(position.castling_rooks[bit]);
+  const int orthodox_file = (bit & 1) ? 0 : 7;
+  // Preserve all historical standard-chess keys because the embedded opening
+  // table is keyed with them. Nonstandard rook origins use disjoint space.
+  const std::uint64_t index = file == orthodox_file
+      ? 768 + bit
+      : 781 + bit * 8 + file;
+  return zobrist_value(index);
 }
 
 std::uint64_t updated_position_key(std::uint64_t key,
@@ -803,9 +910,12 @@ std::uint64_t updated_position_key(std::uint64_t key,
     key ^= cell_key(before.cells[square], square);
     key ^= cell_key(after.cells[square], square);
   }
-  const unsigned changed_rights = before.castling ^ after.castling;
-  for (int bit = 0; bit < 4; ++bit)
-    if (changed_rights & (1U << bit)) key ^= zobrist_value(768 + bit);
+  for (int bit = 0; bit < 4; ++bit) {
+    if (before.castling & (1U << bit))
+      key ^= castling_key(before, bit);
+    if (after.castling & (1U << bit))
+      key ^= castling_key(after, bit);
+  }
   if (before_turn != after_turn) key ^= zobrist_value(772);
   const int before_ep = effective_en_passant(before, before_turn);
   const int after_ep = effective_en_passant(after, after_turn);
@@ -827,7 +937,8 @@ std::uint64_t position_key(const Position& position, Color turn) {
         (color * 6 + piece) * 64 + square));
   }
   for (int bit = 0; bit < 4; ++bit)
-    if (position.castling & (1U << bit)) key ^= zobrist_value(768 + bit);
+    if (position.castling & (1U << bit))
+      key ^= castling_key(position, bit);
   if (turn == Color::black) key ^= zobrist_value(772);
   const int ep = effective_en_passant(position, turn);
   if (ep >= 0) key ^= zobrist_value(773 + file_of(ep));
@@ -839,6 +950,7 @@ bool Board::push(const Move& move) {
   if (!next) return false;
   history.push_back({turn, halfmove, fullmove, move, has_castled,
                      position.castling,
+                     position.castling_rooks,
                      static_cast<std::int8_t>(position.en_passant),
                      static_cast<std::int8_t>(effective_en_passant(position, turn)),
                      key, pack_cells(position)});
@@ -857,8 +969,15 @@ bool Board::push(const Move& move) {
 bool Board::push_uci(std::string_view text) {
   auto parsed = parse_uci_move(text);
   if (!parsed) return false;
-  for (const Move& move : legal_moves())
+  for (const Move& move : legal_moves()) {
     if (move.same_coordinates(*parsed)) return push(move);
+    if (chess960 && move.is_castle() && parsed->from == move.from) {
+      const bool king_side = move.type == MoveType::king_castle;
+      const int rook_from = position.castling_rooks[
+          castling_slot(turn, king_side)];
+      if (parsed->to == rook_from) return push(move);
+    }
+  }
   return false;
 }
 
@@ -866,29 +985,9 @@ bool Board::pop() {
   if (history.empty()) return false;
   auto state = history.back(); history.pop_back();
   const Position after = position;
-  const int sign = state.turn == Color::white ? 1 : -1;
-  const Move& move = state.move;
-  position.cells[move.from] = static_cast<std::int8_t>(
-      sign * static_cast<int>(move.piece));
-  position.cells[move.to] = move.capture == Piece::none
-      ? 0
-      : static_cast<std::int8_t>(-sign * static_cast<int>(move.capture));
-  if (move.type == MoveType::en_passant) {
-    position.cells[move.to] = 0;
-    const int victim = move.to + (state.turn == Color::white ? -8 : 8);
-    position.cells[victim] = static_cast<std::int8_t>(
-        -sign * static_cast<int>(Piece::pawn));
-  } else if (move.is_castle()) {
-    const int rank = state.turn == Color::white ? 0 : 7;
-    const int rook_from = square_of(
-        move.type == MoveType::king_castle ? 7 : 0, rank);
-    const int rook_to = square_of(
-        move.type == MoveType::king_castle ? 5 : 3, rank);
-    position.cells[rook_from] = static_cast<std::int8_t>(
-        sign * static_cast<int>(Piece::rook));
-    position.cells[rook_to] = 0;
-  }
+  unpack_cells(position, state.packed_cells);
   position.castling = state.castling;
+  position.castling_rooks = state.castling_rooks;
   position.en_passant = state.en_passant;
   turn = state.turn; halfmove = state.halfmove;
   fullmove = state.fullmove; has_castled = state.has_castled;
@@ -899,7 +998,8 @@ bool Board::pop() {
 
 bool Board::make_search_move(const Move& move, SearchUndo& undo) {
   if (move.from < 0 || move.from >= 64 || move.to < 0 || move.to >= 64 ||
-      position.color_at(move.from) != turn || position.color_at(move.to) == turn)
+      position.color_at(move.from) != turn ||
+      (!move.is_castle() && position.color_at(move.to) == turn))
     return false;
 
   undo = {};
@@ -908,6 +1008,7 @@ bool Board::make_search_move(const Move& move, SearchUndo& undo) {
   undo.fullmove = fullmove;
   undo.has_castled = has_castled;
   undo.castling = position.castling;
+  undo.castling_rooks = position.castling_rooks;
   undo.en_passant = static_cast<std::int8_t>(position.en_passant);
   undo.key = key;
   undo.move = move;
@@ -924,62 +1025,36 @@ bool Board::make_search_move(const Move& move, SearchUndo& undo) {
 
   const Color side = turn;
   const Piece moving = position.piece_at(move.from);
-  if (move.is_castle()) {
-    const int rank = side == Color::white ? 0 : 7;
-    const int transit = square_of(
-        move.type == MoveType::king_castle ? 5 : 3, rank);
-    if (position.in_check(side) ||
-        position.attacked_by(opponent(side), transit) ||
-        position.attacked_by(opponent(side), move.to))
-      return false;
-  }
-
   const Position before = position;
   const int sign = side == Color::white ? 1 : -1;
-  remember(move.from);
-  remember(move.to);
-  position.cells[move.from] = 0;
-  if (move.type == MoveType::en_passant) {
-    const int victim = move.to + (side == Color::white ? -8 : 8);
-    remember(victim);
-    position.cells[victim] = 0;
-  }
-  const Piece placed = move.is_promotion() ? move.promotion : moving;
-  position.cells[move.to] = static_cast<std::int8_t>(
-      sign * static_cast<int>(placed));
   if (move.is_castle()) {
-    const int rank = side == Color::white ? 0 : 7;
-    const int rook_from = square_of(
-        move.type == MoveType::king_castle ? 7 : 0, rank);
-    const int rook_to = square_of(
-        move.type == MoveType::king_castle ? 5 : 3, rank);
-    remember(rook_from);
-    remember(rook_to);
-    position.cells[rook_to] = position.cells[rook_from];
-    position.cells[rook_from] = 0;
+    const auto next = position.apply(move);
+    if (!next) return false;
+    for (int square = 0; square < 64; ++square)
+      if (position.cells[square] != next->cells[square]) remember(square);
+    position = *next;
+  } else {
+    remember(move.from);
+    remember(move.to);
+    position.cells[move.from] = 0;
+    if (move.type == MoveType::en_passant) {
+      const int victim = move.to + (side == Color::white ? -8 : 8);
+      remember(victim);
+      position.cells[victim] = 0;
+    }
+    const Piece placed = move.is_promotion() ? move.promotion : moving;
+    position.cells[move.to] = static_cast<std::int8_t>(
+        sign * static_cast<int>(placed));
+    position.en_passant = move.type == MoveType::jump
+        ? (move.from + move.to) / 2 : -1;
+    clear_castling_rights(position, move, moving, side);
   }
-
-  position.en_passant = move.type == MoveType::jump
-      ? (move.from + move.to) / 2 : -1;
-  auto lose = [&](std::uint8_t rights) {
-    position.castling &= static_cast<std::uint8_t>(~rights);
-  };
-  if (moving == Piece::king)
-    lose(side == Color::white ? white_king | white_queen
-                              : black_king | black_queen);
-  if (move.from == square_of(0, 0) || move.to == square_of(0, 0))
-    lose(white_queen);
-  if (move.from == square_of(7, 0) || move.to == square_of(7, 0))
-    lose(white_king);
-  if (move.from == square_of(0, 7) || move.to == square_of(0, 7))
-    lose(black_queen);
-  if (move.from == square_of(7, 7) || move.to == square_of(7, 7))
-    lose(black_king);
 
   if (position.in_check(side)) {
     for (int index = 0; index < undo.changed; ++index)
       position.cells[undo.squares[index]] = undo.cells[index];
     position.castling = undo.castling;
+    position.castling_rooks = undo.castling_rooks;
     position.en_passant = undo.en_passant;
     return false;
   }
@@ -999,6 +1074,7 @@ void Board::unmake_search_move(const SearchUndo& undo) {
   for (int index = 0; index < undo.changed; ++index)
     position.cells[undo.squares[index]] = undo.cells[index];
   position.castling = undo.castling;
+  position.castling_rooks = undo.castling_rooks;
   position.en_passant = undo.en_passant;
   turn = undo.turn;
   halfmove = undo.halfmove;
@@ -1015,6 +1091,7 @@ void Board::make_null_move(SearchUndo& undo) {
   undo.fullmove = fullmove;
   undo.has_castled = has_castled;
   undo.castling = position.castling;
+  undo.castling_rooks = position.castling_rooks;
   undo.en_passant = static_cast<std::int8_t>(position.en_passant);
   undo.key = key;
   undo.null_move = true;
@@ -1047,6 +1124,7 @@ int Board::repetition_count() const {
   for (const Snapshot& state : history) {
     if (state.key == key && state.turn == turn &&
         state.castling == position.castling &&
+        state.castling_rooks == position.castling_rooks &&
         state.effective_en_passant == ep && state.packed_cells == packed)
       ++count;
   }
@@ -1085,6 +1163,18 @@ std::optional<Move> parse_uci_move(std::string_view text) {
   return result;
 }
 
+std::string uci_move(const Move& move, const Position& position,
+                     bool chess960) {
+  if (!chess960 || !move.is_castle()) return move.uci();
+  const auto side = position.color_at(move.from);
+  if (!side) return move.uci();
+  const bool king_side = move.type == MoveType::king_castle;
+  const int rook_from = position.castling_rooks[
+      castling_slot(*side, king_side)];
+  if (rook_from < 0 || rook_from >= 64) return move.uci();
+  return square_name(move.from) + square_name(rook_from);
+}
+
 std::optional<Board> parse_fen(std::string_view fen, std::string* error) {
   auto fail = [&](std::string message) -> std::optional<Board> {
     if (error) *error = std::move(message);
@@ -1110,13 +1200,62 @@ std::optional<Board> parse_fen(std::string_view fen, std::string* error) {
   else if (fields[1] == "b") board.turn = Color::black;
   else return fail("invalid active color");
   if (fields[2] != "-") for (char c : fields[2]) {
-    switch (c) {
-      case 'K': board.position.castling |= white_king; break;
-      case 'Q': board.position.castling |= white_queen; break;
-      case 'k': board.position.castling |= black_king; break;
-      case 'q': board.position.castling |= black_queen; break;
-      default: return fail("invalid castling rights");
+    const bool white = std::isupper(static_cast<unsigned char>(c));
+    const Color side = white ? Color::white : Color::black;
+    const char lower = static_cast<char>(
+        std::tolower(static_cast<unsigned char>(c)));
+    const int home_rank = white ? 0 : 7;
+    const int king = board.position.king_square(side);
+    if (king < 0 || rank_of(king) != home_rank)
+      return fail("castling right requires a king on its home rank");
+
+    bool king_side = false;
+    int rook_file = -1;
+    if (lower == 'k' || lower == 'q') {
+      king_side = lower == 'k';
+      if (king_side) {
+        for (int candidate = 7; candidate > file_of(king); --candidate) {
+          const int square = square_of(candidate, home_rank);
+          if (board.position.color_at(square) == side &&
+              board.position.piece_at(square) == Piece::rook) {
+            rook_file = candidate;
+            break;
+          }
+        }
+      } else {
+        for (int candidate = 0; candidate < file_of(king); ++candidate) {
+          const int square = square_of(candidate, home_rank);
+          if (board.position.color_at(square) == side &&
+              board.position.piece_at(square) == Piece::rook) {
+            rook_file = candidate;
+            break;
+          }
+        }
+      }
+      if (rook_file < 0) rook_file = king_side ? 7 : 0;
+    } else if (lower >= 'a' && lower <= 'h') {
+      rook_file = lower - 'a';
+      const int rook = square_of(rook_file, home_rank);
+      if (board.position.color_at(rook) != side ||
+          board.position.piece_at(rook) != Piece::rook ||
+          rook_file == file_of(king))
+        return fail("Chess960 castling right does not name a valid rook");
+      king_side = rook_file > file_of(king);
+      board.chess960 = true;
+    } else {
+      return fail("invalid castling rights");
     }
+
+    const int slot = castling_slot(side, king_side);
+    const std::uint8_t right = castling_right(side, king_side);
+    if (board.position.castling & right)
+      return fail("duplicate castling right on one side of the king");
+    board.position.castling |= right;
+    board.position.castling_rooks[slot] = static_cast<std::int8_t>(
+        square_of(rook_file, home_rank));
+    const int orthodox_rook_file = king_side ? 7 : 0;
+    if (file_of(king) != 4 || rook_file != orthodox_rook_file)
+      board.chess960 = true;
   }
   board.position.en_passant = -1;
   if (fields[3] != "-") {
@@ -1151,10 +1290,19 @@ std::string to_fen(const Board& board) {
   out << (board.turn == Color::white ? " w " : " b ");
   if (!board.position.castling) out << '-';
   else {
-    if (board.position.castling & white_king) out << 'K';
-    if (board.position.castling & white_queen) out << 'Q';
-    if (board.position.castling & black_king) out << 'k';
-    if (board.position.castling & black_queen) out << 'q';
+    for (int slot = 0; slot < 4; ++slot) {
+      if (!(board.position.castling & (1U << slot))) continue;
+      if (board.chess960) {
+        char right = static_cast<char>(
+            'a' + file_of(board.position.castling_rooks[slot]));
+        if (slot < 2) right = static_cast<char>(
+            std::toupper(static_cast<unsigned char>(right)));
+        out << right;
+      } else {
+        constexpr char orthodox[4] = {'K', 'Q', 'k', 'q'};
+        out << orthodox[slot];
+      }
+    }
   }
   out << ' ' << (board.position.en_passant < 0 ? "-" : square_name(board.position.en_passant));
   out << ' ' << board.halfmove << ' ' << board.fullmove;
@@ -1946,6 +2094,94 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   return best_score;
 }
 
+std::string_view clock_mode_name(ClockMode mode) {
+  switch (mode) {
+    case ClockMode::normal: return "normal";
+    case ClockMode::pressure: return "pressure";
+    case ClockMode::emergency: return "emergency";
+    case ClockMode::panic: return "panic";
+    default: return "none";
+  }
+}
+
+TimeBudget plan_time_budget(const Board& board, const SearchLimits& limits) {
+  TimeBudget budget;
+  if (limits.remaining_ms <= 0 || limits.deadline) return budget;
+
+  const int remaining = std::max(1, limits.remaining_ms);
+  const int overhead = std::clamp(limits.move_overhead_ms, 0, 5'000);
+  int non_pawn_material = 0;
+  for (int square = 0; square < 64; ++square) {
+    const Piece piece = board.position.piece_at(square);
+    if (piece != Piece::none && piece != Piece::pawn && piece != Piece::king)
+      non_pawn_material += nominal(piece);
+  }
+
+  int horizon = non_pawn_material >= 5'000 ? 64
+      : (non_pawn_material >= 2'200 ? 52 : 36);
+  if (limits.moves_to_go > 0)
+    horizon = std::clamp(limits.moves_to_go, 8, 80);
+
+  int reserve_floor = 5'000;
+  int reserve_divisor = 16;
+  int increment_percent = 70;
+  int hard_cap = 12'000;
+  int hard_divisor = 24;
+  int hard_multiplier = 200;
+  if (remaining <= 20'000) {
+    budget.mode = ClockMode::panic;
+    horizon = std::max(horizon, 128);
+    reserve_floor = 750;
+    reserve_divisor = 4;
+    increment_percent = 10;
+    hard_cap = 250;
+    hard_divisor = 48;
+    hard_multiplier = 180;
+  } else if (remaining <= 60'000) {
+    budget.mode = ClockMode::emergency;
+    horizon = std::max(horizon, 96);
+    reserve_floor = 2'000;
+    reserve_divisor = 6;
+    increment_percent = 25;
+    hard_cap = 1'200;
+    hard_divisor = 24;
+    hard_multiplier = 190;
+  } else if (remaining <= 120'000) {
+    budget.mode = ClockMode::pressure;
+    horizon = std::max(horizon, 72);
+    reserve_floor = 4'000;
+    reserve_divisor = 10;
+    increment_percent = 50;
+    hard_cap = 4'000;
+    hard_divisor = 20;
+    hard_multiplier = 200;
+  } else {
+    budget.mode = ClockMode::normal;
+  }
+
+  const int network_reserve = overhead * 6 + 250;
+  budget.reserve_ms = std::max({reserve_floor,
+                                remaining / reserve_divisor,
+                                network_reserve});
+  budget.reserve_ms = std::clamp(budget.reserve_ms, 0,
+                                 std::max(0, remaining - 1));
+  const int usable = std::max(1, remaining - budget.reserve_ms);
+  const int increment_credit = std::min(
+      std::max(0, limits.increment_ms) * increment_percent / 100,
+      usable / 8);
+  budget.base_ms = std::clamp(usable / horizon + increment_credit, 1, usable);
+
+  const int proportional_hard_cap = std::max(1, usable / hard_divisor);
+  const int effective_hard_cap = std::max(
+      1, std::min(hard_cap, proportional_hard_cap + increment_credit));
+  budget.base_ms = std::min(budget.base_ms, effective_hard_cap);
+  budget.hard_ms = std::clamp(
+      budget.base_ms * hard_multiplier / 100,
+      budget.base_ms, std::min(usable, effective_hard_cap));
+  budget.soft_ms = std::min(budget.base_ms, budget.hard_ms);
+  return budget;
+}
+
 SearchResult Searcher::iterative(Board board, SearchLimits limits,
                                  const std::function<void(const SearchResult&)>& info) {
   limits_ = limits;
@@ -1976,30 +2212,28 @@ SearchResult Searcher::iterative(Board board, SearchLimits limits,
     return last;
   }
 
+  const MoveList fallback_moves = board.legal_moves();
+  if (fallback_moves.empty()) {
+    last.volatility = volatility(board, 0, 0);
+    return last;
+  }
+  last.pv.push_back(fallback_moves.front());
+
   int base_budget_ms = 0;
   int soft_budget_ms = 0;
   int hard_budget_ms = 0;
+  TimeBudget clock_budget;
   const bool adaptive_clock = limits_.remaining_ms > 0 && !limits_.deadline;
   if (adaptive_clock) {
-    int non_pawn_material = 0;
-    for (int square = 0; square < 64; ++square) {
-      const Piece piece = board.position.piece_at(square);
-      if (piece != Piece::none && piece != Piece::pawn && piece != Piece::king)
-        non_pawn_material += nominal(piece);
-    }
-    const int phase_moves = non_pawn_material >= 5000 ? 28
-        : (non_pawn_material >= 2200 ? 22 : 16);
-    const int horizon = limits_.moves_to_go > 0
-        ? std::clamp(limits_.moves_to_go, 1, 60) : phase_moves;
-    const int reserve = std::max(limits_.move_overhead_ms,
-                                 limits_.remaining_ms / 40);
-    const int usable = std::max(1, limits_.remaining_ms - reserve);
-    base_budget_ms = usable / horizon + limits_.increment_ms * 3 / 4;
-    base_budget_ms = std::clamp(base_budget_ms, 1, usable);
-    soft_budget_ms = base_budget_ms;
-    hard_budget_ms = std::clamp(base_budget_ms * 3, base_budget_ms, usable);
+    clock_budget = plan_time_budget(board, limits_);
+    base_budget_ms = clock_budget.base_ms;
+    soft_budget_ms = clock_budget.soft_ms;
+    hard_budget_ms = clock_budget.hard_ms;
     limits_.deadline = started_ + std::chrono::milliseconds(hard_budget_ms);
     last.allocated_ms = soft_budget_ms;
+    last.hard_limit_ms = hard_budget_ms;
+    last.clock_reserve_ms = clock_budget.reserve_ms;
+    last.clock_mode = clock_budget.mode;
   } else if (limits_.deadline) {
     last.allocated_ms = static_cast<int>(std::max<std::int64_t>(
         1, std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -2035,7 +2269,13 @@ SearchResult Searcher::iterative(Board board, SearchLimits limits,
       beta = std::min(infinity, score + window);
       if (window == infinity) { alpha = -infinity; beta = infinity; }
     }
-    if (halted() && root_best_.from < 0) break;
+    if (halted()) {
+      if (last.depth == 0 && root_best_.from >= 0)
+        last.pv.assign(1, root_best_);
+      last.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::steady_clock::now() - started_);
+      break;
+    }
     std::vector<Move> pv = reconstruct_pv(board, root_best_);
     evaluation_swing = depth > 1 ? std::abs(score - previous_score) : 0;
     previous_score = score;
@@ -2071,9 +2311,20 @@ SearchResult Searcher::iterative(Board board, SearchLimits limits,
       else if (root_gap >= 100) time_factor -= 12;
       if (stable_iterations >= 3) time_factor -= 28;
       else if (stable_iterations >= 2) time_factor -= 14;
-      time_factor = std::clamp(time_factor, 45, 240);
+      int minimum_factor = 40;
+      int maximum_factor = 180;
+      switch (clock_budget.mode) {
+        case ClockMode::pressure:
+          minimum_factor = 30; maximum_factor = 120; break;
+        case ClockMode::emergency:
+          minimum_factor = 20; maximum_factor = 85; break;
+        case ClockMode::panic:
+          minimum_factor = 10; maximum_factor = 60; break;
+        default: break;
+      }
+      time_factor = std::clamp(time_factor, minimum_factor, maximum_factor);
       soft_budget_ms = std::clamp(base_budget_ms * time_factor / 100,
-                                  std::max(1, base_budget_ms / 2),
+                                  std::max(1, base_budget_ms * minimum_factor / 100),
                                   hard_budget_ms);
     }
     last.depth = depth; last.score_cp = score; last.nodes = nodes_;
@@ -2089,6 +2340,10 @@ SearchResult Searcher::iterative(Board board, SearchLimits limits,
     last.countermove_hits = countermove_hits_;
     last.pv = std::move(pv);
     last.allocated_ms = adaptive_clock ? soft_budget_ms : last.allocated_ms;
+    last.hard_limit_ms = adaptive_clock ? hard_budget_ms : last.hard_limit_ms;
+    last.clock_reserve_ms = adaptive_clock
+        ? clock_budget.reserve_ms : last.clock_reserve_ms;
+    last.clock_mode = adaptive_clock ? clock_budget.mode : last.clock_mode;
     last.volatility = completed_volatility;
     last.root_score_gap = root_gap;
     last.credible_alternatives = credible_alternatives;

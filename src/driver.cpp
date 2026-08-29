@@ -28,7 +28,8 @@ std::optional<int> integer(std::string_view text) {
   return std::nullopt;
 }
 
-void print_info(const SearchResult& result, std::mutex& output) {
+void print_info(const SearchResult& result, std::mutex& output,
+                const Board& root, bool chess960) {
   std::lock_guard lock(output);
   if (!result.opening_family.empty())
     std::cout << "info string opening " << result.opening_family << '\n';
@@ -40,7 +41,11 @@ void print_info(const SearchResult& result, std::mutex& output) {
     std::cout << " nps " << result.nodes * 1000 / static_cast<std::uint64_t>(result.elapsed.count());
   if (!result.pv.empty()) {
     std::cout << " pv";
-    for (const Move& move : result.pv) std::cout << ' ' << move.uci();
+    Board pv_board = root;
+    for (const Move& move : result.pv) {
+      std::cout << ' ' << uci_move(move, pv_board.position, chess960);
+      if (!pv_board.push(move)) break;
+    }
   }
   std::cout << '\n'
             << "info string search qnodes " << result.qnodes
@@ -56,6 +61,9 @@ void print_info(const SearchResult& result, std::mutex& output) {
             << " counterhits " << result.countermove_hits
             << " volatility " << result.volatility
             << " allocation " << result.allocated_ms << "ms"
+            << " hardlimit " << result.hard_limit_ms << "ms"
+            << " reserve " << result.clock_reserve_ms << "ms"
+            << " clockmode " << clock_mode_name(result.clock_mode)
             << " rootgap " << result.root_score_gap
             << " alternatives " << result.credible_alternatives << std::endl;
 }
@@ -151,6 +159,7 @@ int run_engine(EngineConfig config, int argc, char** argv) {
   auto initial = parse_fen(initial_fen);
   if (!initial) return 2;
   Board board = *initial;
+  bool uci_chess960 = false;
   std::string first;
   if (!std::getline(std::cin, first)) { usage(config, argv[0]); return 2; }
   if (first == "console") return run_console(config, board);
@@ -161,7 +170,8 @@ int run_engine(EngineConfig config, int argc, char** argv) {
             << "option name Depth type spin default " << config.depth << " min 0 max " << maximum_search_depth << "\n"
             << "option name Hash type spin default " << config.hash_mb << " min 0 max 16384\n"
             << "option name Move Overhead type spin default " << config.move_overhead_ms << " min 0 max 5000\n"
-            << "option name Noise type spin default " << config.noise_millipawns << " min 0 max 10000\n";
+            << "option name Noise type spin default " << config.noise_millipawns << " min 0 max 10000\n"
+            << "option name UCI_Chess960 type check default false\n";
   if (config.own_book) std::cout << "option name OwnBook type check default true\n";
   std::cout << "uciok" << std::endl;
 
@@ -175,15 +185,28 @@ int run_engine(EngineConfig config, int argc, char** argv) {
   };
   auto launch = [&](SearchLimits limits) {
     stop_worker(); stopped = false; active = true;
-    Board snapshot = board; EngineConfig current = config;
-    worker = std::thread([&, snapshot=std::move(snapshot), current=std::move(current), limits]() mutable {
+    Board snapshot = board;
+    const bool chess960_mode = uci_chess960 || snapshot.chess960;
+    snapshot.chess960 = chess960_mode;
+    EngineConfig current = config;
+    if (chess960_mode) current.own_book = false;
+    worker = std::thread([&, snapshot=std::move(snapshot),
+                          current=std::move(current), limits,
+                          chess960_mode]() mutable {
       Searcher searcher(current, stopped);
       SearchResult result = searcher.iterative(
           snapshot, limits,
-          [&](const SearchResult& info){ print_info(info, output); });
+          [&](const SearchResult& info){
+            print_info(info, output, snapshot, chess960_mode);
+          });
       {
         std::lock_guard lock(output);
-        std::cout << "bestmove " << (result.pv.empty() ? "0000" : result.pv.front().uci()) << std::endl;
+        std::cout << "bestmove "
+                  << (result.pv.empty()
+                          ? "0000"
+                          : uci_move(result.pv.front(), snapshot.position,
+                                     chess960_mode))
+                  << std::endl;
       }
       active = false;
     });
@@ -196,7 +219,12 @@ int run_engine(EngineConfig config, int argc, char** argv) {
     if (cmd == "quit") { stop_worker(); break; }
     if (cmd == "isready") { std::lock_guard lock(output); std::cout << "readyok" << std::endl; continue; }
     if (cmd == "stop") { stop_worker(); continue; }
-    if (cmd == "ucinewgame") { stop_worker(); board=*initial; continue; }
+    if (cmd == "ucinewgame") {
+      stop_worker();
+      board=*initial;
+      board.chess960=uci_chess960;
+      continue;
+    }
     if (cmd == "setoption") {
       stop_worker();
       auto name=std::find(args.begin(),args.end(),"name"), value=std::find(args.begin(),args.end(),"value");
@@ -216,17 +244,25 @@ int run_engine(EngineConfig config, int argc, char** argv) {
           else if(key=="Noise")config.noise_millipawns=*n;
         }
         if(key=="OwnBook") config.own_book=(val=="true"||val=="1");
+        if(key=="UCI_Chess960") {
+          uci_chess960=(val=="true"||val=="1");
+          board.chess960=uci_chess960;
+        }
       }
       continue;
     }
     if (cmd == "position") {
       stop_worker(); std::size_t index=1;
-      if(index<args.size()&&args[index]=="startpos") {board=*initial;++index;}
+      if(index<args.size()&&args[index]=="startpos") {
+        board=*initial; board.chess960=uci_chess960; ++index;
+      }
       else if(index<args.size()&&args[index]=="fen"&&index+6<args.size()) {
         std::string fen; for(int i=0;i<6;++i){if(i)fen+=' ';fen+=args[index+1+i];}
         std::string error; auto parsed=parse_fen(fen,&error);
         if(!parsed){std::lock_guard lock(output);std::cout<<"info string invalid FEN: "<<error<<std::endl;continue;}
-        board=*parsed; index+=7;
+        board=*parsed;
+        board.chess960=board.chess960||uci_chess960;
+        index+=7;
       }
       if(index<args.size()&&args[index]=="moves")++index;
       for(;index<args.size();++index) if(!board.push_uci(args[index])) {

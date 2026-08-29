@@ -98,6 +98,11 @@ struct Position {
   // Positive entries are white pieces, negative entries are black pieces.
   std::array<std::int8_t, 64> cells{};
   std::uint8_t castling{white_king | white_queen | black_king | black_queen};
+  // Rook origins for WK, WQ, BK, BQ rights. Chess960 castling always ends
+  // with the king on g/c and rook on f/d, regardless of their start squares.
+  std::array<std::int8_t, 4> castling_rooks{
+      square_of(7, 0), square_of(0, 0),
+      square_of(7, 7), square_of(0, 7)};
   int en_passant{-1};
 
   Piece piece_at(int square) const;
@@ -127,6 +132,7 @@ struct Board {
     Move move{};
     std::array<bool, 2> has_castled{};
     std::uint8_t castling{};
+    std::array<std::int8_t, 4> castling_rooks{};
     std::int8_t en_passant{-1};
     std::int8_t effective_en_passant{-1};
     std::uint64_t key{};
@@ -139,6 +145,7 @@ struct Board {
     int fullmove{1};
     std::array<bool, 2> has_castled{};
     std::uint8_t castling{};
+    std::array<std::int8_t, 4> castling_rooks{};
     std::int8_t en_passant{-1};
     std::uint64_t key{};
     Move move{};
@@ -153,6 +160,7 @@ struct Board {
   int halfmove{0};
   int fullmove{1};
   std::array<bool, 2> has_castled{};
+  bool chess960{false};
   NnueState nnue{};
   std::uint64_t key{};
   std::vector<Snapshot> history;
@@ -175,6 +183,8 @@ struct Board {
 std::optional<int> parse_square(std::string_view text);
 std::string square_name(int square);
 std::optional<Move> parse_uci_move(std::string_view text);
+std::string uci_move(const Move& move, const Position& position,
+                     bool chess960);
 std::optional<Board> parse_fen(std::string_view fen, std::string* error = nullptr);
 std::string to_fen(const Board& board);
 std::string board_ascii(const Board& board);
@@ -207,6 +217,25 @@ struct SearchLimits {
   int move_overhead_ms{50};
 };
 
+enum class ClockMode {
+  none,
+  normal,
+  pressure,
+  emergency,
+  panic,
+};
+
+struct TimeBudget {
+  int base_ms{0};
+  int soft_ms{0};
+  int hard_ms{0};
+  int reserve_ms{0};
+  ClockMode mode{ClockMode::none};
+};
+
+std::string_view clock_mode_name(ClockMode mode);
+TimeBudget plan_time_budget(const Board& board, const SearchLimits& limits);
+
 struct SearchResult {
   int depth{0};
   int score_cp{0};
@@ -224,6 +253,9 @@ struct SearchResult {
   std::uint64_t history_hits{0};
   std::uint64_t countermove_hits{0};
   int allocated_ms{0};
+  int hard_limit_ms{0};
+  int clock_reserve_ms{0};
+  ClockMode clock_mode{ClockMode::none};
   int volatility{0};
   int root_score_gap{0};
   int credible_alternatives{0};
