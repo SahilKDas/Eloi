@@ -1,4 +1,4 @@
-#include "morlock/chess.hpp"
+#include "eloi/chess.hpp"
 #include "tactical_data.hpp"
 
 #include <atomic>
@@ -6,7 +6,7 @@
 #include <iostream>
 #include <string>
 
-using namespace morlock;
+using namespace eloi;
 
 namespace {
 int failures = 0;
@@ -134,7 +134,7 @@ int main() {
 
   {
     auto board = *parse_fen(initial_fen);
-    const auto config = default_config(EngineKind::morlock);
+    const auto config = default_config(EngineKind::eloi);
     expect(opening_book_size() >= 8000,
            "the embedded general repertoire contains at least 8,000 choices");
     expect(opening_book_node_count() >= 3000,
@@ -156,7 +156,7 @@ int main() {
 
   {
     auto board = *parse_fen(initial_fen);
-    const auto config = default_config(EngineKind::morlock);
+    const auto config = default_config(EngineKind::eloi);
     expect(board.push_uci("d2d4"), "Nimzo setup starts with 1.d4");
     auto book = opening_move(config, board);
     expect(book && book->move.uci() == "g8f6", "Eloi forces 1...Nf6");
@@ -177,10 +177,10 @@ int main() {
     expect(board.push_uci("g1f3") && board.push_uci("b8c6") &&
            board.push_uci("e2e4") && board.push_uci("e7e5"),
            "Italian transposition is legal");
-    const auto book = opening_move(default_config(EngineKind::morlock), board);
+    const auto book = opening_move(default_config(EngineKind::eloi), board);
     expect(book && book->move.uci() == "f1c4",
            "Italian personality recognizes a transposition");
-    auto disabled = default_config(EngineKind::morlock);
+    auto disabled = default_config(EngineKind::eloi);
     disabled.own_book = false;
     expect(!opening_move(disabled, board), "OwnBook=false disables the repertoire");
   }
@@ -200,7 +200,7 @@ int main() {
     auto board = *parse_fen(initial_fen);
     std::atomic_bool stopped{false};
     SearchLimits limits; limits.depth = 4;
-    auto config = default_config(EngineKind::morlock);
+    auto config = default_config(EngineKind::eloi);
     config.own_book = false;
     Searcher searcher(config, stopped);
     auto result = searcher.iterative(board, limits);
@@ -213,7 +213,7 @@ int main() {
   {
     auto solve = [](const tactical_data::Case& tactic, int depth) {
       auto board = *parse_fen(tactic.fen);
-      auto config = default_config(EngineKind::morlock);
+      auto config = default_config(EngineKind::eloi);
       config.own_book = false; config.hash_mb = 4;
       std::atomic_bool stopped{false};
       SearchLimits limits; limits.depth = depth;

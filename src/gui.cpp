@@ -1,4 +1,4 @@
-#include "morlock/chess.hpp"
+#include "eloi/chess.hpp"
 
 #ifdef _WIN32
 
@@ -34,7 +34,7 @@
 #include <thread>
 #include <vector>
 
-namespace morlock {
+namespace eloi {
 namespace {
 
 constexpr UINT engine_finished_message = WM_APP + 26;
@@ -289,7 +289,7 @@ void start_engine(App& app) {
   InvalidateRect(app.window, nullptr, FALSE);
 
   app.worker = std::thread([&app, root, depth, generation] {
-    auto config = default_config(EngineKind::morlock);
+    auto config = default_config(EngineKind::eloi);
     config.depth = depth;
     Searcher searcher(config, app.stop);
     SearchLimits limits;
@@ -895,12 +895,12 @@ int run_gui(int argc, char** argv) {
   return static_cast<int>(message.wParam);
 }
 
-}  // namespace morlock
+}  // namespace eloi
 
 #else
 
-namespace morlock {
+namespace eloi {
 int run_gui(int, char**) { return 1; }
-}  // namespace morlock
+}  // namespace eloi
 
 #endif

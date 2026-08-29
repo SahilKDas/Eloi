@@ -1,4 +1,4 @@
-#include "morlock/chess.hpp"
+#include "eloi/chess.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -9,7 +9,7 @@
 #include <sstream>
 #include <thread>
 
-namespace morlock {
+namespace eloi {
 namespace {
 
 constexpr int infinity = 32000;
@@ -1122,4 +1122,4 @@ EngineConfig default_config(EngineKind kind) {
   return config;
 }
 
-}  // namespace morlock
+}  // namespace eloi

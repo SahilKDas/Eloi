@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-namespace morlock {
+namespace eloi {
 
 inline constexpr std::string_view initial_fen =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -153,11 +153,11 @@ std::optional<Board> parse_fen(std::string_view fen, std::string* error = nullpt
 std::string to_fen(const Board& board);
 std::string board_ascii(const Board& board);
 
-enum class EngineKind { morlock, turochamp, sargon, bernstein };
+enum class EngineKind { eloi, turochamp, sargon, bernstein };
 
 struct EngineConfig {
-  EngineKind kind{EngineKind::morlock};
-  std::string name{"morlock"};
+  EngineKind kind{EngineKind::eloi};
+  std::string name{"Eloi"};
   std::string author{"herohde"};
   int depth{0};
   int branch{0};
@@ -253,4 +253,4 @@ int run_benchmark(int argc, char** argv);
 int run_livechess_adapter(int argc, char** argv);
 int run_gui(int argc, char** argv);
 
-}  // namespace morlock
+}  // namespace eloi

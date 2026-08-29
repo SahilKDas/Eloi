@@ -1,4 +1,4 @@
-#include "morlock/chess.hpp"
+#include "eloi/chess.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -9,7 +9,7 @@
 #include <sstream>
 #include <thread>
 
-namespace morlock {
+namespace eloi {
 namespace {
 
 std::vector<std::string> words(std::string_view line) {
@@ -258,7 +258,7 @@ int run_benchmark(int argc, char** argv) {
       std::string_view{"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"},
       std::string_view{"2r2rk1/pp1bqppp/2n1pn2/1B1p4/3P4/2N1PN2/PPQ2PPP/2RR2K1 w - - 3 14"},
       std::string_view{"8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1"}};
-  auto config = default_config(EngineKind::morlock);
+  auto config = default_config(EngineKind::eloi);
   config.own_book = false;
   config.depth = depth;
   std::atomic_bool stopped{false};
@@ -340,4 +340,4 @@ int run_livechess_adapter(int argc, char** argv) {
   return 0;
 }
 
-}  // namespace morlock
+}  // namespace eloi

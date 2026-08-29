@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace morlock::opening_data {
+namespace eloi::opening_data {
 struct Node { std::uint64_t key; std::uint32_t first; std::uint16_t count; };
 struct Edge { std::uint16_t move; std::uint16_t weight; std::uint8_t family; };
 inline constexpr std::string_view source_commit = "4b8622759e7ae6f93f011cc6c83a3823401ab45e";
@@ -13584,4 +13584,4 @@ inline constexpr std::array<Edge, 8092> edges{{
   {0x08bd, 4, 0},
   {0x0af3, 6, 0},
 }};
-}  // namespace morlock::opening_data
+}  // namespace eloi::opening_data

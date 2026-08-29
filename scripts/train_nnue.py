@@ -132,7 +132,7 @@ def write_header(path, weights, bias, output, eval_count, puzzle_count, themes):
     bias = np.rint(bias).astype(np.int16); output = np.rint(output).astype(np.int16)
     with path.open("w", encoding="utf-8", newline="\n") as out:
         out.write("#pragma once\n\n#include <array>\n#include <cstdint>\n#include <string_view>\n\n")
-        out.write("namespace morlock::nnue_weights {\n")
+        out.write("namespace eloi::nnue_weights {\n")
         out.write(f"inline constexpr int feature_count = {FEATURES};\n")
         out.write(f"inline constexpr int evaluation_positions = {eval_count};\n")
         out.write(f"inline constexpr int puzzle_positions = {puzzle_count};\n")
@@ -143,7 +143,7 @@ def write_header(path, weights, bias, output, eval_count, puzzle_count, themes):
         out.write(f"inline constexpr std::array<std::int8_t, {values.size}> input{{{{\n")
         for start in range(0, values.size, 32):
             out.write("  " + ", ".join(map(str, values[start:start+32].tolist())) + ",\n")
-        out.write("}};\n}  // namespace morlock::nnue_weights\n")
+        out.write("}};\n}  // namespace eloi::nnue_weights\n")
     print(f"wrote {path}: {eval_count} evaluations, {puzzle_count} puzzles, {len(themes)} themes")
 
 def main():
@@ -153,7 +153,7 @@ def main():
     parser.add_argument("--evaluations", type=pathlib.Path,
                         default=pathlib.Path(".deps/lichess_eval_sample.jsonl"))
     parser.add_argument("--output", type=pathlib.Path,
-                        default=pathlib.Path("include/morlock/nnue_weights.hpp"))
+                        default=pathlib.Path("include/eloi/nnue_weights.hpp"))
     parser.add_argument("--limit", type=int, default=12000)
     parser.add_argument("--eval-limit", type=int, default=12000)
     parser.add_argument("--epochs", type=int, default=3)

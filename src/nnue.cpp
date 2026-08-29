@@ -1,11 +1,11 @@
-#include "morlock/chess.hpp"
+#include "eloi/chess.hpp"
 
-#include "morlock/nnue_weights.hpp"
+#include "eloi/nnue_weights.hpp"
 
 #include <algorithm>
 #include <cstdlib>
 
-namespace morlock {
+namespace eloi {
 namespace {
 
 constexpr int quantization = 8;
@@ -101,4 +101,4 @@ int nnue_evaluate(const NnueState& state, Color side_to_move) {
   return score + 10;
 }
 
-}  // namespace morlock
+}  // namespace eloi

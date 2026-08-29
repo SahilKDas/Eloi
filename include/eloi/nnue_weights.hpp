@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace morlock::nnue_weights {
+namespace eloi::nnue_weights {
 inline constexpr int feature_count = 6144;
 inline constexpr int evaluation_positions = 12000;
 inline constexpr int puzzle_positions = 12000;
@@ -12305,4 +12305,4 @@ inline constexpr std::array<std::int8_t, 393216> input{{
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 }};
-}  // namespace morlock::nnue_weights
+}  // namespace eloi::nnue_weights

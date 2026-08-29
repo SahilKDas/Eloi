@@ -1,10 +1,10 @@
-#include "morlock/chess.hpp"
+#include "eloi/chess.hpp"
 
-#include "morlock/opening_data.hpp"
+#include "eloi/opening_data.hpp"
 
 #include <algorithm>
 
-namespace morlock {
+namespace eloi {
 namespace {
 
 Move decoded_move(std::uint16_t encoded) {
@@ -61,4 +61,4 @@ std::optional<BookMove> opening_move(const EngineConfig& config,
 std::size_t opening_book_size() { return opening_data::edges.size(); }
 std::size_t opening_book_node_count() { return opening_data::nodes.size(); }
 
-}  // namespace morlock
+}  // namespace eloi

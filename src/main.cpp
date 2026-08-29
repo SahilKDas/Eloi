@@ -1,4 +1,4 @@
-#include "morlock/chess.hpp"
+#include "eloi/chess.hpp"
 
 #include <cstring>
 #include <iostream>
@@ -9,8 +9,8 @@
 #endif
 
 int main(int argc, char** argv) {
-  using namespace morlock;
-  auto config = default_config(EngineKind::morlock);
+  using namespace eloi;
+  auto config = default_config(EngineKind::eloi);
 
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "--gui") == 0) return run_gui(argc, argv);

@@ -91,7 +91,7 @@ def main() -> int:
     parser.add_argument("--source", type=pathlib.Path,
                         default=pathlib.Path(".deps/lichess-openings"))
     parser.add_argument("--output", type=pathlib.Path,
-                        default=pathlib.Path("include/morlock/opening_data.hpp"))
+                        default=pathlib.Path("include/eloi/opening_data.hpp"))
     args = parser.parse_args()
 
     entries = defaultdict(int)
@@ -118,7 +118,7 @@ def main() -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8", newline="\n") as out:
         out.write("#pragma once\n\n#include <array>\n#include <cstdint>\n#include <string_view>\n\n")
-        out.write("namespace morlock::opening_data {\n")
+        out.write("namespace eloi::opening_data {\n")
         out.write("struct Node { std::uint64_t key; std::uint32_t first; std::uint16_t count; };\n")
         out.write("struct Edge { std::uint16_t move; std::uint16_t weight; std::uint8_t family; };\n")
         out.write(f"inline constexpr std::string_view source_commit = \"{SOURCE_COMMIT}\";\n")
@@ -129,7 +129,7 @@ def main() -> int:
         out.write(f"inline constexpr std::array<Edge, {len(edges)}> edges{{{{\n")
         for move, weight, family_id in edges:
             out.write(f"  {{0x{move:04x}, {weight}, {family_id}}},\n")
-        out.write("}};\n}  // namespace morlock::opening_data\n")
+        out.write("}};\n}  // namespace eloi::opening_data\n")
     print(f"generated graph with {len(nodes)} nodes and {len(edges)} edges from {SOURCE_COMMIT}")
     return 0
 
