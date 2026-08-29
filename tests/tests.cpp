@@ -1,8 +1,11 @@
 #include "eloi/chess.hpp"
+#include "eloi/config.hpp"
 #include "tactical_data.hpp"
 
 #include <atomic>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -78,6 +81,48 @@ int main() {
   static_assert(maximum_search_depth == 17'697,
                 "Eloi's ultimate limit matches the longest legal chess game");
   static_assert(sizeof(PackedMove) == 2, "TT moves remain exactly 16 bits");
+  {
+    const auto path = std::filesystem::current_path() / "eloi-config-test.yml";
+    {
+      std::ofstream output(path);
+      output << "lichess:\n"
+                "  enabled: true\n"
+                "  token: \"lip_test_only\"\n"
+                "challenge:\n"
+                "  min_base_seconds: 240\n"
+                "  max_base_seconds: 10800\n"
+                "  allow_bots: false\n"
+                "  variants:\n"
+                "    - standard\n"
+                "    - chess960\n"
+                "engine:\n"
+                "  depth: 12\n"
+                "  hash_mb: 64\n"
+                "  move_overhead_ms: 150\n"
+                "  own_book: false\n";
+    }
+    std::string error;
+    const auto config = load_runtime_config(path, &error);
+    expect(config.has_value(), "human-readable config parses: " + error);
+    if (config)
+      expect(config->lichess_enabled &&
+                 config->lichess_token == "lip_test_only" &&
+                 config->min_base_seconds == 240 &&
+                 config->max_base_seconds == 10'800 &&
+                 !config->allow_bots && config->variants.size() == 2 &&
+                 config->depth == 12 && config->hash_mb == 64 &&
+                 config->move_overhead_ms == 150 && !config->own_book,
+             "config values map exactly into runtime settings");
+    {
+      std::ofstream output(path);
+      output << "challenge:\n"
+                "  min_base_seconds: 500\n"
+                "  max_base_seconds: 240\n";
+    }
+    expect(!load_runtime_config(path, &error),
+           "config rejects an inverted base-time range");
+    std::filesystem::remove(path);
+  }
   {
     for (Piece promotion : {Piece::none, Piece::queen, Piece::rook,
                             Piece::bishop, Piece::knight}) {

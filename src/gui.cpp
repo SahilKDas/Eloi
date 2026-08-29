@@ -8,19 +8,17 @@
 
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
+#include "include/core/SkData.h"
 #include "include/core/SkFont.h"
 #include "include/core/SkGraphics.h"
+#include "include/core/SkImage.h"
 #include "include/core/SkImageInfo.h"
 #include "include/core/SkPaint.h"
-#include "include/core/SkPath.h"
 #include "include/core/SkPixmap.h"
+#include "include/core/SkSamplingOptions.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkSurface.h"
-#include "include/core/SkTileMode.h"
-#include "include/effects/SkGradientShader.h"
-
-#define NANOSVG_IMPLEMENTATION
-#include "nanosvg.h"
+#include "resource.h"
 
 #include <algorithm>
 #include <array>
@@ -163,10 +161,7 @@ struct App {
   std::optional<SearchResult> pending_result;
   SearchResult last_result;
   std::string status{"Your move"};
-  struct SvgDeleter {
-    void operator()(NSVGimage* image) const { nsvgDelete(image); }
-  };
-  std::array<std::unique_ptr<NSVGimage, SvgDeleter>, 12> pieces;
+  std::array<sk_sp<SkImage>, 12> pieces;
 
   ~App() {
     stop.store(true);
@@ -176,22 +171,21 @@ struct App {
 
 void start_engine(App& app);
 
-std::filesystem::path executable_directory() {
-  std::wstring path(32768, L'\0');
-  const DWORD length = GetModuleFileNameW(nullptr, path.data(),
-                                          static_cast<DWORD>(path.size()));
-  path.resize(length);
-  return std::filesystem::path(path).parent_path();
-}
-
 void load_pieces(App& app) {
-  constexpr std::array names{
-      "wB.svg", "wK.svg", "wN.svg", "wP.svg", "wQ.svg", "wR.svg",
-      "bB.svg", "bK.svg", "bN.svg", "bP.svg", "bQ.svg", "bR.svg"};
-  const auto root = executable_directory() / "assets" / "chess_maestro_bw";
-  for (std::size_t i = 0; i < names.size(); ++i) {
-    app.pieces[i].reset(
-        nsvgParseFromFile((root / names[i]).string().c_str(), "px", 96.0f));
+  constexpr std::array ids{
+      IDR_PIECE_WB, IDR_PIECE_WK, IDR_PIECE_WN, IDR_PIECE_WP,
+      IDR_PIECE_WQ, IDR_PIECE_WR, IDR_PIECE_BB, IDR_PIECE_BK,
+      IDR_PIECE_BN, IDR_PIECE_BP, IDR_PIECE_BQ, IDR_PIECE_BR};
+  for (std::size_t i = 0; i < ids.size(); ++i) {
+    const HRSRC resource = FindResourceW(
+        nullptr, MAKEINTRESOURCEW(ids[i]), L"PNG");
+    if (!resource) continue;
+    const HGLOBAL loaded = LoadResource(nullptr, resource);
+    const DWORD size = SizeofResource(nullptr, resource);
+    const void* bytes = LockResource(loaded);
+    if (!bytes || !size) continue;
+    app.pieces[i] = SkImage::MakeFromEncoded(
+        SkData::MakeWithCopy(bytes, static_cast<std::size_t>(size)));
   }
 }
 
@@ -345,96 +339,15 @@ void undo_turn(App& app) {
   start_engine(app);
 }
 
-SkColor svg_color(unsigned int color, float opacity) {
-  const auto alpha = static_cast<unsigned char>(
-      std::clamp(((color >> 24) & 0xff) * opacity, 0.0f, 255.0f));
-  return SkColorSetARGB(alpha, color & 0xff, (color >> 8) & 0xff,
-                        (color >> 16) & 0xff);
-}
-
-SkTileMode svg_tile_mode(char spread) {
-  if (spread == NSVG_SPREAD_REPEAT) return SkTileMode::kRepeat;
-  if (spread == NSVG_SPREAD_REFLECT) return SkTileMode::kMirror;
-  return SkTileMode::kClamp;
-}
-
-SkPaint svg_paint(const NSVGpaint& source, const NSVGshape& shape, bool stroke) {
-  SkPaint paint;
-  paint.setAntiAlias(true);
-  paint.setStyle(stroke ? SkPaint::kStroke_Style : SkPaint::kFill_Style);
-  if (stroke) {
-    paint.setStrokeWidth(shape.strokeWidth);
-    paint.setStrokeJoin(shape.strokeLineJoin == NSVG_JOIN_ROUND
-                            ? SkPaint::kRound_Join
-                            : shape.strokeLineJoin == NSVG_JOIN_BEVEL
-                                  ? SkPaint::kBevel_Join : SkPaint::kMiter_Join);
-    paint.setStrokeCap(shape.strokeLineCap == NSVG_CAP_ROUND
-                           ? SkPaint::kRound_Cap
-                           : shape.strokeLineCap == NSVG_CAP_SQUARE
-                                 ? SkPaint::kSquare_Cap : SkPaint::kButt_Cap);
-  }
-  if (source.type == NSVG_PAINT_COLOR) {
-    paint.setColor(svg_color(source.color, shape.opacity));
-  } else if ((source.type == NSVG_PAINT_LINEAR_GRADIENT ||
-              source.type == NSVG_PAINT_RADIAL_GRADIENT) &&
-             source.gradient && source.gradient->nstops > 0) {
-    std::vector<SkColor> colors;
-    std::vector<SkScalar> offsets;
-    for (int i = 0; i < source.gradient->nstops; ++i) {
-      colors.push_back(svg_color(source.gradient->stops[i].color, shape.opacity));
-      offsets.push_back(source.gradient->stops[i].offset);
-    }
-    if (colors.size() == 1) {
-      paint.setColor(colors.front());
-    } else if (source.type == NSVG_PAINT_RADIAL_GRADIENT) {
-      const SkPoint center{(shape.bounds[0] + shape.bounds[2]) / 2,
-                           (shape.bounds[1] + shape.bounds[3]) / 2};
-      const float radius = std::max(shape.bounds[2] - shape.bounds[0],
-                                    shape.bounds[3] - shape.bounds[1]) / 2;
-      paint.setShader(SkGradientShader::MakeRadial(
-          center, radius, colors.data(), offsets.data(),
-          static_cast<int>(colors.size()), svg_tile_mode(source.gradient->spread)));
-    } else {
-      const SkPoint points[] = {{shape.bounds[0], shape.bounds[1]},
-                                {shape.bounds[2], shape.bounds[1]}};
-      paint.setShader(SkGradientShader::MakeLinear(
-          points, colors.data(), offsets.data(), static_cast<int>(colors.size()),
-          svg_tile_mode(source.gradient->spread)));
-    }
-  }
-  return paint;
-}
-
 void render_piece(SkCanvas& canvas, App& app, std::int8_t cell,
                   float x, float y, float size) {
   const int slot = piece_slot(cell);
   if (slot < 0 || !app.pieces[slot]) return;
-  NSVGimage& image = *app.pieces[slot];
-  canvas.save();
   const float inset = size * 0.07f;
-  canvas.translate(x + inset, y + inset);
-  canvas.scale((size - inset * 2) / image.width,
-               (size - inset * 2) / image.height);
-  for (const NSVGshape* shape = image.shapes; shape; shape = shape->next) {
-    if (!(shape->flags & NSVG_FLAGS_VISIBLE)) continue;
-    SkPath path;
-    path.setFillType(shape->fillRule == NSVG_FILLRULE_EVENODD
-                         ? SkPathFillType::kEvenOdd : SkPathFillType::kWinding);
-    for (const NSVGpath* source = shape->paths; source; source = source->next) {
-      path.moveTo(source->pts[0], source->pts[1]);
-      for (int i = 1; i + 2 < source->npts; i += 3) {
-        path.cubicTo(source->pts[i * 2], source->pts[i * 2 + 1],
-                     source->pts[(i + 1) * 2], source->pts[(i + 1) * 2 + 1],
-                     source->pts[(i + 2) * 2], source->pts[(i + 2) * 2 + 1]);
-      }
-      if (source->closed) path.close();
-    }
-    if (shape->fill.type != NSVG_PAINT_NONE)
-      canvas.drawPath(path, svg_paint(shape->fill, *shape, false));
-    if (shape->stroke.type != NSVG_PAINT_NONE)
-      canvas.drawPath(path, svg_paint(shape->stroke, *shape, true));
-  }
-  canvas.restore();
+  const SkRect destination = SkRect::MakeXYWH(
+      x + inset, y + inset, size - inset * 2, size - inset * 2);
+  canvas.drawImageRect(app.pieces[slot], destination,
+                       SkSamplingOptions(SkFilterMode::kLinear), nullptr);
 }
 
 constexpr int material_points(Piece piece) {

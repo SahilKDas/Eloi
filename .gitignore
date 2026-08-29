@@ -19,6 +19,7 @@ dist/
 /build/
 /build-*/
 /.deps/
+/config.yml
 *.o
 *.obj
 *.a

@@ -1,0 +1,22 @@
+# Eloi runtime configuration.
+# The release build copies this template to config.yml.
+# Never publish a config.yml containing a real token.
+
+lichess:
+  enabled: false
+  token: ""
+  url: "https://lichess.org"
+
+challenge:
+  min_base_seconds: 240
+  max_base_seconds: 10800
+  allow_bots: true
+  variants:
+    - standard
+    - chess960
+
+engine:
+  depth: 0
+  hash_mb: 32
+  move_overhead_ms: 100
+  own_book: true

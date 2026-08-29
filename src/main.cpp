@@ -1,4 +1,6 @@
 #include "eloi/chess.hpp"
+#include "eloi/config.hpp"
+#include "eloi/version.hpp"
 
 #include <cstring>
 #include <iostream>
@@ -16,13 +18,16 @@ int main(int argc, char** argv) {
     if (std::strcmp(argv[i], "--gui") == 0) return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--screenshot") == 0) return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--uci") == 0) return run_engine(config, argc, argv);
+    if (std::strcmp(argv[i], "--lichess") == 0)
+      return run_lichess(argc, argv);
     if (std::strcmp(argv[i], "--perft") == 0) return run_perft(argc - i, argv + i);
     if (std::strcmp(argv[i], "--bench") == 0) return run_benchmark(argc - i, argv + i);
     if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
-      std::cout << "Eloi 1.0.0\n"
+      std::cout << "Eloi " << version << "\n"
                    "  Eloi.exe             launch the Skia chess GUI\n"
                    "  Eloi.exe --gui       force GUI mode\n"
                    "  Eloi.exe --uci       force UCI/Lichess mode\n"
+                   "  Eloi.exe --lichess   native Lichess bot using config.yml\n"
                    "  Eloi.exe --perft ... run move-generation validation\n"
                    "  Eloi.exe --bench [--depth N]  run deterministic search benchmark\n"
                    "  Eloi.exe --screenshot FILE.bmp  render a GUI test frame\n"

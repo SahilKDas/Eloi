@@ -1,4 +1,5 @@
 #include "eloi/chess.hpp"
+#include "eloi/version.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -104,7 +105,8 @@ void parse_engine_options(EngineConfig& config, int argc, char** argv) {
 }
 
 int run_console(EngineConfig config, Board board) {
-  std::cout << "engine " << config.name << " 1.0.0 (" << config.author << ")\n"
+  std::cout << "engine " << config.name << ' ' << version << " ("
+            << config.author << ")\n"
             << board_ascii(board) << std::flush;
   std::atomic_bool stopped{false};
   for (std::string line; std::getline(std::cin, line);) {
@@ -165,7 +167,7 @@ int run_engine(EngineConfig config, int argc, char** argv) {
   if (first == "console") return run_console(config, board);
   if (first != "uci") { usage(config, argv[0]); return 2; }
 
-  std::cout << "id name " << config.name << " 1.0.0\n"
+  std::cout << "id name " << config.name << ' ' << version << "\n"
             << "id author " << config.author << "\n"
             << "option name Depth type spin default " << config.depth << " min 0 max " << maximum_search_depth << "\n"
             << "option name Hash type spin default " << config.hash_mb << " min 0 max 16384\n"
@@ -388,7 +390,8 @@ int run_livechess_adapter(int argc, char** argv) {
   if(!input){std::cerr<<"cannot open live board feed: "<<feed<<'\n';return 2;}
   auto initial=parse_fen(initial_fen);if(!initial)return 2;Board board=*initial;
   std::string line;if(!std::getline(std::cin,line)||line!="uci")return 2;
-  std::cout<<"id name livechess-uci 0.91.3\nid author herohde\nuciok"<<std::endl;
+  std::cout << "id name Eloi livechess-adapter " << version
+            << "\nid author Sahil Das\nuciok" << std::endl;
   for(;std::getline(std::cin,line);){auto args=words(line);if(args.empty())continue;
     if(args[0]=="quit")break;
     if(args[0]=="isready"){std::cout<<"readyok"<<std::endl;continue;}

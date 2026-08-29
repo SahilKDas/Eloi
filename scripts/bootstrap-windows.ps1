@@ -5,10 +5,9 @@ $depsRoot = Join-Path $projectRoot '.deps'
 $packageCache = Join-Path $depsRoot 'packages'
 $skiaRoot = Join-Path $depsRoot 'skia108'
 $runtimeRoot = Join-Path $depsRoot 'runtime'
-$nanoSvgRoot = Join-Path $depsRoot 'nanosvg'
 $repository = 'https://repo.msys2.org/mingw/ucrt64'
 
-New-Item -ItemType Directory -Force -Path $packageCache, $skiaRoot, $runtimeRoot, $nanoSvgRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $packageCache, $skiaRoot, $runtimeRoot | Out-Null
 
 $tar = 'C:\msys64\usr\bin\tar.exe'
 if (-not (Test-Path $tar)) {
@@ -44,7 +43,7 @@ foreach ($package in $runtimePackages) {
   Install-Archive $package $runtimeRoot
 }
 
-Invoke-WebRequest -UseBasicParsing -Uri 'https://raw.githubusercontent.com/memononen/nanosvg/master/src/nanosvg.h' -OutFile (Join-Path $nanoSvgRoot 'nanosvg.h')
-Invoke-WebRequest -UseBasicParsing -Uri 'https://raw.githubusercontent.com/memononen/nanosvg/master/LICENSE.txt' -OutFile (Join-Path $nanoSvgRoot 'LICENSE.txt')
+& (Join-Path $PSScriptRoot 'bootstrap-static-codecs.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Could not build static codecs' }
 
 Write-Host 'Eloi dependencies are ready in .deps (ignored by git).'

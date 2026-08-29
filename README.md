@@ -1,13 +1,28 @@
 # Eloi
 
 Eloi is a C++26 chess engine and native Windows chess application. The
-production build creates one main executable, `Eloi.exe`, with four runtime
+production build creates one main executable, `Eloi.exe`, with five runtime
 modes:
 
 - no arguments or `--gui`: the Skia GUI
 - `--uci`: UCI mode for chess tools and Lichess bot bridges
+- `--lichess`: native Lichess bot mode using `config.yml`
 - `--perft`: legal move-generator validation
 - `--bench`: deterministic search benchmark
+
+## Two-file release contract
+
+An Eloi release contains exactly two files:
+
+- `Eloi.exe`, a standalone statically linked Windows application containing the
+  GUI, engine, UCI interface, native Lichess client, NNUE, opening data, piece
+  PNGs, and artwork attribution; and
+- `config.yml`, a human-readable configuration file for the user's Lichess
+  token, challenge filters, and engine settings.
+
+Published `config.yml` files always contain an empty token. Real credentials
+belong only in a user's ignored local copy. Release builds must not require
+Python, Go, external assets, downloaded data, or non-system DLLs.
 
 The engine uses iterative deepening, aspiration-window PVS/alpha-beta,
 TT-backed quiescence, a compact four-way table with packed moves and normalized
@@ -43,11 +58,12 @@ release configuration remains in the Eloi repository.
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-windows.ps1
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target Eloi -j
+cmake --build build --target release -j
 ```
 
-Skia and NanoSVG are downloaded into `.deps/`, which is intentionally ignored
-by git. The compatible Skia raster library is linked into Eloi; required MinGW
-and image-codec DLLs plus the piece assets are copied beside `Eloi.exe`.
+Skia and development-only libraries are downloaded into `.deps/`, which is
+intentionally ignored by git. Release builds statically link them and embed the
+piece PNGs into `Eloi.exe`.
 
 Double-click `build\Eloi.exe` to play. The GUI supports legal-move
 highlighting, smooth animated moves (including the rook during castling), a
@@ -84,6 +100,16 @@ Point a UCI-compatible Lichess bridge (for example, a bot-account runner) at
 `Eloi.exe --uci`. When stdin is a pipe, Eloi also selects UCI mode
 automatically, so wrappers that invoke the executable directly remain
 compatible.
+
+The two-file release does not need that Python bridge. Set `lichess.enabled`
+to `true`, paste a Bot API token into the adjacent `config.yml`, and run:
+
+```powershell
+.\Eloi.exe --lichess
+```
+
+Eloi then uses Windows HTTPS directly to accept eligible standard or Chess960
+challenges and play them with the same engine and time manager as UCI mode.
 
 The UCI `Depth` option advertises `max 17697`; requests above 40 emit a clear
 performance warning, while requests above 17,697 are rejected. `OwnBook`
@@ -147,13 +173,13 @@ transposition-table allocation remains 32 MB.
 
 ## Artwork and licenses
 
-Eloi's source is MIT-licensed; see `LICENSE`. The twelve files under
-`assets/chess_maestro_bw` are separate, unmodified CC BY 4.0 artwork from
+Eloi's source is MIT-licensed; see `LICENSE`. The twelve PNG files under
+`assets/chess_maestro_bw` are separate CC BY 4.0 artwork, rasterized without
+visual alteration from
 [Kadagaden/chess-pieces](https://github.com/Kadagaden/chess-pieces/tree/master/chess_maestro_bw).
 See [the asset attribution](assets/chess_maestro_bw/ATTRIBUTION.md).
 
-NanoSVG is used under its zlib license in the ignored dependency cache. Skia is
-used under its BSD 3-Clause license.
+Skia is used under its BSD 3-Clause license.
 
 The embedded opening and NNUE tables were generated from CC0 Lichess data.
 See [DATA_SOURCES.md](DATA_SOURCES.md) for pinned provenance and reproduction

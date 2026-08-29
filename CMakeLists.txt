@@ -1,5 +1,23 @@
 cmake_minimum_required(VERSION 3.20)
 project(Eloi VERSION 1.0.0 LANGUAGES CXX)
+set(ELOI_PRERELEASE "rc.1")
+if(ELOI_PRERELEASE)
+  set(ELOI_VERSION "${PROJECT_VERSION}-${ELOI_PRERELEASE}")
+else()
+  set(ELOI_VERSION "${PROJECT_VERSION}")
+endif()
+
+configure_file(
+  include/eloi/version.hpp.in
+  "${CMAKE_CURRENT_BINARY_DIR}/generated/eloi/version.hpp"
+  @ONLY)
+if(WIN32)
+  enable_language(RC)
+  configure_file(
+    src/version.rc.in
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/version.rc"
+    @ONLY)
+endif()
 
 include(CheckIPOSupported)
 
@@ -19,8 +37,10 @@ if(WIN32 AND ELOI_BUILD_APP AND NOT EXISTS "${SKIA_ROOT}/lib/libskia.a")
   message(FATAL_ERROR "Skia was not found in .deps/skia108/ucrt64. See README.md.")
 endif()
 
-add_library(eloi_core STATIC src/chess.cpp src/nnue.cpp src/book.cpp)
-target_include_directories(eloi_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_library(eloi_core STATIC src/chess.cpp src/nnue.cpp src/book.cpp src/config.cpp)
+target_include_directories(eloi_core PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  "${CMAKE_CURRENT_BINARY_DIR}/generated")
 if(MSVC)
   target_compile_options(eloi_core PRIVATE /W4 /permissive-)
 else()
@@ -29,7 +49,13 @@ endif()
 
 # Eloi is the sole production executable: GUI, UCI and perft are runtime modes.
 if(ELOI_BUILD_APP)
-  add_executable(Eloi src/main.cpp src/driver.cpp src/gui.cpp)
+  set(ELOI_APP_SOURCES
+    src/main.cpp src/driver.cpp src/gui.cpp src/lichess.cpp src/resources.rc)
+  if(WIN32)
+    list(APPEND ELOI_APP_SOURCES
+      "${CMAKE_CURRENT_BINARY_DIR}/generated/version.rc")
+  endif()
+  add_executable(Eloi ${ELOI_APP_SOURCES})
   target_link_libraries(Eloi PRIVATE eloi_core)
 endif()
 
@@ -52,62 +78,44 @@ if(NOT MSVC)
 endif()
 
 if(WIN32 AND ELOI_BUILD_APP)
-  get_filename_component(ELOI_COMPILER_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
-  get_filename_component(ELOI_COMPILER_RUNTIME_ROOT
-                         "${ELOI_COMPILER_BIN_DIR}" DIRECTORY)
-  set(ELOI_BUNDLED_RUNTIME_ROOT
-      "${CMAKE_CURRENT_SOURCE_DIR}/.deps/runtime/ucrt64")
-  if(EXISTS "${ELOI_BUNDLED_RUNTIME_ROOT}/lib/libjpeg.dll.a")
-    set(ELOI_DEFAULT_RUNTIME_ROOT "${ELOI_BUNDLED_RUNTIME_ROOT}")
-  else()
-    set(ELOI_DEFAULT_RUNTIME_ROOT "${ELOI_COMPILER_RUNTIME_ROOT}")
-  endif()
-  set(ELOI_RUNTIME_ROOT "${ELOI_DEFAULT_RUNTIME_ROOT}" CACHE PATH
-      "UCRT64 root containing Eloi's image-codec import libraries and DLLs")
-  set(RUNTIME_DEPS_ROOT "${ELOI_RUNTIME_ROOT}")
-  if(NOT EXISTS "${RUNTIME_DEPS_ROOT}/lib/libjpeg.dll.a")
+  set(ELOI_STATIC_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.deps/static-runtime"
+      CACHE PATH "Root containing Eloi's static codec libraries")
+  if(NOT EXISTS "${ELOI_STATIC_ROOT}/lib/libjpeg.a" OR
+     NOT EXISTS "${ELOI_STATIC_ROOT}/lib/libpng16.a" OR
+     NOT EXISTS "${ELOI_STATIC_ROOT}/lib/libwebp.a" OR
+     NOT EXISTS "${ELOI_STATIC_ROOT}/lib/libzs.a")
     message(FATAL_ERROR
-      "UCRT64 image-codec libraries were not found under ${RUNTIME_DEPS_ROOT}. "
-      "Install libjpeg-turbo, libpng, and libwebp for the active toolchain.")
+      "Static codecs were not found under ${ELOI_STATIC_ROOT}. "
+      "Run scripts/bootstrap-static-codecs.ps1.")
   endif()
   target_include_directories(Eloi PRIVATE
     "${SKIA_ROOT}/include/skia"
-    "${CMAKE_CURRENT_SOURCE_DIR}/.deps/nanosvg"
   )
   target_link_libraries(Eloi PRIVATE
     "${SKIA_ROOT}/lib/libskia.a"
-    "${RUNTIME_DEPS_ROOT}/lib/libjpeg.dll.a"
-    "${RUNTIME_DEPS_ROOT}/lib/libpng16.dll.a"
-    "${RUNTIME_DEPS_ROOT}/lib/libwebpdemux.dll.a"
-    "${RUNTIME_DEPS_ROOT}/lib/libwebpmux.dll.a"
-    "${RUNTIME_DEPS_ROOT}/lib/libwebp.dll.a"
-    "${RUNTIME_DEPS_ROOT}/lib/libz.dll.a"
-    gdi32 user32 shell32 ole32 oleaut32 uuid usp10 opengl32
+    "${ELOI_STATIC_ROOT}/lib/libjpeg.a"
+    "${ELOI_STATIC_ROOT}/lib/libpng16.a"
+    "${ELOI_STATIC_ROOT}/lib/libwebpdemux.a"
+    "${ELOI_STATIC_ROOT}/lib/libwebpmux.a"
+    "${ELOI_STATIC_ROOT}/lib/libwebp.a"
+    "${ELOI_STATIC_ROOT}/lib/libsharpyuv.a"
+    "${ELOI_STATIC_ROOT}/lib/libzs.a"
+    gdi32 user32 shell32 ole32 oleaut32 uuid usp10 opengl32 winhttp
   )
-  set(ELOI_RUNTIME_DLL_NAMES
-    libgcc_s_seh-1.dll
-    libwinpthread-1.dll
-    libstdc++-6.dll
-    libjpeg-8.dll
-    libpng16-16.dll
-    libwebp-7.dll
-    libwebpdemux-2.dll
-    libwebpmux-3.dll
-    libsharpyuv-0.dll
-    zlib1.dll
-  )
-  set(ELOI_RUNTIME_DLLS)
-  foreach(DLL_NAME IN LISTS ELOI_RUNTIME_DLL_NAMES)
-    list(APPEND ELOI_RUNTIME_DLLS "${RUNTIME_DEPS_ROOT}/bin/${DLL_NAME}")
-  endforeach()
-  add_custom_command(TARGET Eloi POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${ELOI_RUNTIME_DLLS} $<TARGET_FILE_DIR:Eloi>
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/assets/chess_maestro_bw"
-            "$<TARGET_FILE_DIR:Eloi>/assets/chess_maestro_bw"
-    COMMENT "Bundling attributed Maestro BW chess pieces"
-  )
+  target_link_options(Eloi PRIVATE
+    $<$<CONFIG:Release>:-static;-static-libgcc;-static-libstdc++>)
+
+  set(ELOI_RELEASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dist/release")
+  add_custom_target(release
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${ELOI_RELEASE_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${ELOI_RELEASE_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:Eloi>"
+            "${ELOI_RELEASE_DIR}/Eloi.exe"
+    COMMAND ${CMAKE_COMMAND} -E copy
+            "${CMAKE_CURRENT_SOURCE_DIR}/config.example.yml"
+            "${ELOI_RELEASE_DIR}/config.yml"
+    DEPENDS Eloi
+    COMMENT "Staging the two-file Eloi release")
 endif()
 
 option(ELOI_BUILD_TESTS "Build the separate Eloi test runner" OFF)
