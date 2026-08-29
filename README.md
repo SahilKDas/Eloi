@@ -158,3 +158,20 @@ used under its BSD 3-Clause license.
 The embedded opening and NNUE tables were generated from CC0 Lichess data.
 See [DATA_SOURCES.md](DATA_SOURCES.md) for pinned provenance and reproduction
 details.
+
+## A very big thank-you to Morlock
+
+Eloi began as a fork of
+[Morlock](https://github.com/herohde/morlock), and its largest thank-you goes
+to all the upstream code inherited from commits dated July 29, 2026 and
+earlier. The collaborators on that version were
+[**herohde** — Henning Rohde](https://github.com/herohde) and
+[**quadrismegistus** — Dr. Ryan Heuser](https://github.com/quadrismegistus).
+Their work provided the foundation from which Eloi grew.
+
+### A smaller thank-you to Resera
+
+Thank you to [Resera](https://discord.gg/36JDXtjgCn), a global research
+collective that pairs students with research opportunities. Resera's owner
+kindly allowed Eloi to use one of their email addresses for its Lichess bot
+account.
