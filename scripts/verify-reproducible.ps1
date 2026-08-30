@@ -91,6 +91,15 @@ function Build-Copy {
   $source = Join-Path $tempRoot "$Name\source"
   $build = Join-Path $tempRoot "$Name\build"
   Expand-Archive -LiteralPath $archive -DestinationPath $source
+  # ZIP timestamps have no timezone. Expand-Archive can otherwise interpret a
+  # UTC Git timestamp as local time and make inputs appear to be in the future,
+  # causing Ninja's manifest-regeneration guard to fail. Normalize every source
+  # input to the locked epoch before CMake observes it.
+  $sourceTime = [DateTimeOffset]::FromUnixTimeSeconds(
+    [int64]$lock.source_date_epoch).UtcDateTime
+  Get-ChildItem -LiteralPath $source -Recurse -File -Force | ForEach-Object {
+    $_.LastWriteTimeUtc = $sourceTime
+  }
 
   Invoke-Checked $cmake @(
     '-S', $source,
