@@ -112,9 +112,11 @@ function Build-Copy {
     "-DSKIA_ROOT=$skiaRoot",
     "-DELOI_STATIC_ROOT=$staticRoot",
     '-DELOI_BUILD_TESTS=ON'
-  )
-  Invoke-Checked $cmake @('--build', $build, '--target', 'release', 'eloi_tests', '-j', '2')
-  Invoke-Checked $ctest @('--test-dir', $build, '--output-on-failure')
+  ) | Out-Host
+  Invoke-Checked $cmake @(
+    '--build', $build, '--target', 'release', 'eloi_tests', '-j', '2'
+  ) | Out-Host
+  Invoke-Checked $ctest @('--test-dir', $build, '--output-on-failure') | Out-Host
 
   $release = Join-Path $source 'dist\release'
   Assert-TwoFileRelease $release
