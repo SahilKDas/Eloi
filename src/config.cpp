@@ -139,6 +139,9 @@ std::optional<RuntimeConfig> load_runtime_config(
   if (config.depth < 0 || config.depth > 17'697 ||
       config.hash_mb < 0 || config.move_overhead_ms < 0)
     return fail(line_number, "engine setting outside supported range");
+  if (config.lichess_url != "https://lichess.org")
+    return fail(line_number,
+                "lichess.url must be exactly https://lichess.org");
   return config;
 }
 

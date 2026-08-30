@@ -23,6 +23,8 @@ An Eloi release contains exactly two files:
 Published `config.yml` files always contain an empty token. Real credentials
 belong only in a user's ignored local copy. Release builds must not require
 Python, Go, external assets, downloaded data, or non-system DLLs.
+The native client accepts only the exact HTTPS origin `https://lichess.org`, so
+a changed configuration cannot redirect its bearer token to another host.
 
 The engine uses iterative deepening, aspiration-window PVS/alpha-beta,
 TT-backed quiescence, a compact four-way table with packed moves and normalized

@@ -121,6 +121,20 @@ int main() {
     }
     expect(!load_runtime_config(path, &error),
            "config rejects an inverted base-time range");
+    {
+      std::ofstream output(path);
+      output << "lichess:\n"
+                "  url: \"http://lichess.org\"\n";
+    }
+    expect(!load_runtime_config(path, &error),
+           "config rejects a plaintext Lichess token endpoint");
+    {
+      std::ofstream output(path);
+      output << "lichess:\n"
+                "  url: \"https://lichess.org.attacker.invalid\"\n";
+    }
+    expect(!load_runtime_config(path, &error),
+           "config rejects a lookalike bearer-token endpoint");
     std::filesystem::remove(path);
   }
   {

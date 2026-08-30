@@ -127,6 +127,12 @@ class HttpClient {
     secure_ = parts.nScheme == INTERNET_SCHEME_HTTPS;
     port_ = parts.nPort;
     host_.assign(parts.lpszHostName, parts.dwHostNameLength);
+    if (!secure_ || port_ != INTERNET_DEFAULT_HTTPS_PORT ||
+        CompareStringOrdinal(host_.c_str(), -1, L"lichess.org", -1, TRUE) !=
+            CSTR_EQUAL) {
+      host_.clear();
+      return;
+    }
     const std::wstring agent = L"Eloi/" + wide(version) +
                                L" native Lichess client";
     session_ = WinHttpOpen(agent.c_str(),

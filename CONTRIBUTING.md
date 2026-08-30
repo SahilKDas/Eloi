@@ -110,6 +110,8 @@ is ignored deliberately.
   a pull request.
 - Keep defaults safe: native Lichess mode disabled, token empty, pondering off,
   and challenge filters explicit.
+- Keep the native endpoint restricted to exactly `https://lichess.org`; never
+  send the bearer token over plaintext or to a configurable third-party host.
 - New configuration keys require parser tests and README documentation.
 
 ## Pull requests
