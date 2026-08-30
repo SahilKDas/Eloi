@@ -13,12 +13,11 @@ $ctest = 'C:/msys64/ucrt64/bin/ctest.exe'
 $ninja = 'C:/msys64/ucrt64/bin/ninja.exe'
 $cxx = 'C:/msys64/ucrt64/bin/c++.exe'
 $windres = 'C:/msys64/ucrt64/bin/windres.exe'
-$tar = 'C:\msys64\usr\bin\tar.exe'
 $skiaRoot = Join-Path $projectRoot '.deps\skia108\ucrt64'
 $staticRoot = Join-Path $projectRoot '.deps\static-runtime'
 $tempParent = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\')
 $tempRoot = Join-Path $tempParent ("Eloi-repro-" + [guid]::NewGuid().ToString('N'))
-$archive = Join-Path $tempRoot 'source.tar'
+$archive = Join-Path $tempRoot 'source.zip'
 
 function Invoke-Checked {
   param(
@@ -91,8 +90,7 @@ function Build-Copy {
   param([string] $Name)
   $source = Join-Path $tempRoot "$Name\source"
   $build = Join-Path $tempRoot "$Name\build"
-  New-Item -ItemType Directory -Force -Path $source | Out-Null
-  Invoke-Checked $tar @('-xf', $archive, '-C', $source)
+  Expand-Archive -LiteralPath $archive -DestinationPath $source
 
   Invoke-Checked $cmake @(
     '-S', $source,
@@ -130,7 +128,7 @@ $env:LC_ALL = 'C'
 
 try {
   New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-  Invoke-Checked 'git.exe' @('-C', $projectRoot, 'archive', '--format=tar', '--output', $archive, 'HEAD')
+  Invoke-Checked 'git.exe' @('-C', $projectRoot, 'archive', '--format=zip', '--output', $archive, 'HEAD')
 
   Write-Host 'Starting independent clean build A'
   $releaseA = Build-Copy 'A'

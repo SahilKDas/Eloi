@@ -30,7 +30,7 @@ function Install-Archive {
   if ($actual -ne $Dependency.sha256) {
     throw "Hash mismatch for $($Dependency.archive). Expected $($Dependency.sha256), got $actual"
   }
-  & $tar --zstd -xf $archive -C $Destination
+  & $tar --force-local --zstd -xf $archive -C $Destination
   if ($LASTEXITCODE -ne 0) { throw "Could not extract $($Dependency.archive)" }
 }
 

@@ -31,7 +31,7 @@ function Get-Source {
   if ($actual -ne $dependency.sha256) {
     throw "Hash mismatch for $($dependency.archive). Expected $($dependency.sha256), got $actual"
   }
-  & tar.exe -xzf $archive -C $sourceRoot
+  & tar.exe --force-local -xzf $archive -C $sourceRoot
   if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $destination)) {
     throw "Could not extract static $Name source"
   }
