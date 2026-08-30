@@ -153,6 +153,23 @@ to `true`, paste a Bot API token into the adjacent `config.yml`, and run:
 Eloi then uses Windows HTTPS directly to accept eligible standard or Chess960
 challenges and play them with the same engine and time manager as UCI mode.
 
+### Browser-joined bot tournaments
+
+Eloi can play Arena tournament pairings without joining tournaments through
+the API. While signed in as the bot account, join an Arena whose page
+explicitly says BOT accounts are allowed, then keep that tournament page open
+and keep either the native client or the `lichess-bot` bridge running. Lichess
+delivers each pairing as a `gameStart` event; Eloi recognizes the current
+`gameId`, records the `tournamentId`, plays the game, and returns to the control
+stream for the next pairing.
+
+Browser enrollment needs no `tournament:write` token permission because the
+browser performs the join. The bot process still needs `bot:play` to receive
+and play its games. Challenge minimum/maximum clock filters do not reject an
+Arena pairing: joining the Arena is the explicit authorization to play its
+clock and variant. To change Eloi's rating, the Arena itself must be marked
+**Rated**; Casual Arena games change tournament standings but not rating.
+
 The UCI `Depth` option advertises `max 17697`; requests above 40 emit a clear
 performance warning, while requests above 17,697 are rejected. `OwnBook`
 defaults to `true` and can be disabled for analysis. The compact fixed hash
@@ -168,10 +185,14 @@ and 20 seconds. If a deadline interrupts an iteration, Eloi plays the last
 fully completed result (or a guaranteed legal fallback) rather than trusting
 partial work.
 
-The staged Lichess bridge is configured to accept only challenges whose base
-clock is at least four minutes. Increment is deliberately ignored for this
-eligibility check, so `3+30` is rejected while `4+0` is accepted. It accepts
-both standard chess and Chess960 while keeping `ponder: false`.
+The native Lichess client accepts clocked challenges below four minutes as well
+as longer games (subject to the configurable minimum and maximum base times).
+Only games whose initial base clock is below four minutes use pondering. Eloi
+announces that once in player chat, searches the predicted reply while the
+opponent's clock runs, cancels immediately on a different reply, and never
+ponders in four-minute-or-longer games. Increment is deliberately ignored when
+deciding whether pondering is enabled. Standard chess and Chess960 are both
+supported.
 
 ## Validation
 

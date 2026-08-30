@@ -7,11 +7,16 @@
 
 namespace eloi {
 
+inline constexpr int lichess_ponder_base_limit_ms = 240'000;
+constexpr bool lichess_ponder_enabled(int initial_ms) {
+  return initial_ms >= 0 && initial_ms < lichess_ponder_base_limit_ms;
+}
+
 struct RuntimeConfig {
   bool lichess_enabled{false};
   std::string lichess_token;
   std::string lichess_url{"https://lichess.org"};
-  int min_base_seconds{240};
+  int min_base_seconds{0};
   int max_base_seconds{10'800};
   bool allow_bots{true};
   std::vector<std::string> variants{"standard", "chess960"};

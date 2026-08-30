@@ -81,6 +81,14 @@ int main() {
   static_assert(maximum_search_depth == 17'697,
                 "Eloi's ultimate limit matches the longest legal chess game");
   static_assert(sizeof(PackedMove) == 2, "TT moves remain exactly 16 bits");
+  static_assert(lichess_ponder_enabled(239'999),
+                "sub-four-minute games enable pondering");
+  static_assert(!lichess_ponder_enabled(240'000),
+                "four-minute games do not enable pondering");
+  static_assert(!lichess_ponder_enabled(-1),
+                "clockless games do not enable pondering");
+  expect(RuntimeConfig{}.min_base_seconds == 0,
+         "default challenge filter accepts sub-four-minute clocks");
   {
     const auto path = std::filesystem::current_path() / "eloi-config-test.yml";
     {
@@ -89,7 +97,7 @@ int main() {
                 "  enabled: true\n"
                 "  token: \"lip_test_only\"\n"
                 "challenge:\n"
-                "  min_base_seconds: 240\n"
+                "  min_base_seconds: 0\n"
                 "  max_base_seconds: 10800\n"
                 "  allow_bots: false\n"
                 "  variants:\n"
@@ -107,7 +115,7 @@ int main() {
     if (config)
       expect(config->lichess_enabled &&
                  config->lichess_token == "lip_test_only" &&
-                 config->min_base_seconds == 240 &&
+                 config->min_base_seconds == 0 &&
                  config->max_base_seconds == 10'800 &&
                  !config->allow_bots && config->variants.size() == 2 &&
                  config->depth == 12 && config->hash_mb == 64 &&

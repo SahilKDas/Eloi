@@ -8,7 +8,7 @@ lichess:
   url: "https://lichess.org"
 
 challenge:
-  min_base_seconds: 240
+  min_base_seconds: 0
   max_base_seconds: 10800
   allow_bots: true
   variants:

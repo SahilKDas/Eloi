@@ -236,21 +236,152 @@ bool variant_allowed(const RuntimeConfig& config, std::string_view variant) {
   return std::ranges::find(config.variants, variant) != config.variants.end();
 }
 
+std::string append_move(std::string_view moves, std::string_view move) {
+  if (moves.empty()) return std::string(move);
+  return std::string(moves) + " " + std::string(move);
+}
+
+std::string form_encode(std::string_view text) {
+  constexpr char digits[] = "0123456789ABCDEF";
+  std::string encoded;
+  encoded.reserve(text.size());
+  for (const unsigned char character : text) {
+    if ((character >= 'a' && character <= 'z') ||
+        (character >= 'A' && character <= 'Z') ||
+        (character >= '0' && character <= '9') || character == '-' ||
+        character == '_' || character == '.' || character == '~') {
+      encoded += static_cast<char>(character);
+    } else if (character == ' ') {
+      encoded += '+';
+    } else {
+      encoded += '%';
+      encoded += digits[character >> 4];
+      encoded += digits[character & 15];
+    }
+  }
+  return encoded;
+}
+
+std::string game_event_id(std::string_view game) {
+  if (const auto id = json_string(game, "gameId"); id && !id->empty())
+    return *id;
+  if (const auto id = json_string(game, "id"); id && !id->empty())
+    return *id;
+  if (const auto full_id = json_string(game, "fullId");
+      full_id && full_id->size() >= 8)
+    return full_id->substr(0, 8);
+  return {};
+}
+
 void play_game(const RuntimeConfig& config, std::string_view game_id,
-               std::string_view account_id) {
+               std::string_view account_id,
+               std::string_view tournament_id = {}) {
   HttpClient client(config);
   if (!client.valid()) return;
   std::string initial(initial_fen);
   bool chess960 = false;
+  bool ponder_enabled = false;
+  bool ponder_chat_sent = false;
+  std::thread ponder_chat_thread;
   std::optional<Color> bot_side;
-  std::string last_acted_moves;
+  std::optional<std::string> last_acted_moves;
+  std::atomic_bool ponder_stopped{false};
+  std::thread ponder_thread;
+  std::optional<SearchResult> ponder_result;
+  std::string ponder_base_moves;
+  std::string ponder_expected_moves;
+  std::string active_tournament(tournament_id);
+  bool tournament_announced = false;
   const std::wstring path = L"/api/bot/game/stream/" + wide(game_id);
+
+  auto announce_tournament = [&] {
+    if (active_tournament.empty() || tournament_announced) return;
+    tournament_announced = true;
+    std::cout << "tournament " << active_tournament << " game "
+              << game_id << " started\n";
+  };
+  announce_tournament();
+
+  auto stop_ponder = [&] {
+    if (!ponder_thread.joinable()) return;
+    ponder_stopped.store(true, std::memory_order_relaxed);
+    ponder_thread.join();
+  };
+
+  auto take_ponder = [&](std::string_view moves, bool game_running)
+      -> std::optional<SearchResult> {
+    if (!ponder_thread.joinable()) return std::nullopt;
+    if (game_running && moves == ponder_base_moves) return std::nullopt;
+    stop_ponder();
+    const bool hit = game_running && moves == ponder_expected_moves;
+    ponder_base_moves.clear();
+    ponder_expected_moves.clear();
+    if (!hit || !ponder_result || ponder_result->pv.empty()) {
+      ponder_result.reset();
+      return std::nullopt;
+    }
+    auto result = std::move(ponder_result);
+    ponder_result.reset();
+    return result;
+  };
+
+  auto start_ponder = [&](const Board& board_before_move,
+                          std::string_view moves_before_move,
+                          const SearchResult& result) {
+    if (!ponder_enabled || result.pv.size() < 2 ||
+        ponder_thread.joinable()) return;
+    Board predicted = board_before_move;
+    const Move our_move = result.pv[0];
+    if (!predicted.push(our_move)) return;
+    const std::string our_uci = uci_move(
+        our_move, board_before_move.position, chess960);
+    const Move opponent_move = result.pv[1];
+    const std::string opponent_uci = uci_move(
+        opponent_move, predicted.position, chess960);
+    if (!predicted.push(opponent_move)) return;
+
+    ponder_base_moves = append_move(moves_before_move, our_uci);
+    ponder_expected_moves = append_move(ponder_base_moves, opponent_uci);
+    ponder_result.reset();
+    ponder_stopped.store(false, std::memory_order_relaxed);
+    EngineConfig engine = default_config(EngineKind::eloi);
+    engine.depth = config.depth;
+    engine.hash_mb = config.hash_mb;
+    engine.move_overhead_ms = config.move_overhead_ms;
+    engine.own_book = config.own_book && !chess960;
+    ponder_thread = std::thread(
+        [&, predicted = std::move(predicted), engine = std::move(engine)]() mutable {
+          SearchLimits limits;
+          limits.depth = config.depth;
+          limits.move_overhead_ms = config.move_overhead_ms;
+          Searcher searcher(engine, ponder_stopped);
+          ponder_result = searcher.iterative(std::move(predicted), limits);
+        });
+    if (!ponder_chat_sent) {
+      ponder_chat_sent = true;
+      const std::string id(game_id);
+      ponder_chat_thread = std::thread([config, id] {
+        HttpClient chat_client(config);
+        if (!chat_client.valid()) return;
+        const std::wstring chat_path =
+            L"/api/bot/game/" + wide(id) + L"/chat";
+        const std::string message =
+            "Eloi is pondering (enabled only below four minutes).";
+        if (!chat_client.post(chat_path,
+                              "room=player&text=" + form_encode(message)))
+          std::cerr << "Could not announce pondering in game " << id << '\n';
+      });
+    }
+  };
 
   auto act = [&](std::string_view state) {
     const std::string status = json_string(state, "status").value_or("started");
-    if (status != "started" && status != "created") return;
     const std::string moves = json_string(state, "moves").value_or("");
-    if (!bot_side || moves == last_acted_moves) return;
+    const bool game_running = status == "started" || status == "created";
+    std::optional<SearchResult> ponder_hit = take_ponder(moves, game_running);
+    if (!game_running) return;
+    if (!bot_side ||
+        (last_acted_moves && moves == *last_acted_moves)) return;
     auto board = parse_fen(initial == "startpos" ? initial_fen : initial);
     if (!board) return;
     board->chess960 = chess960;
@@ -259,21 +390,28 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       if (!board->push_uci(move)) return;
     if (board->turn != *bot_side) return;
 
-    EngineConfig engine = default_config(EngineKind::eloi);
-    engine.depth = config.depth;
-    engine.hash_mb = config.hash_mb;
-    engine.move_overhead_ms = config.move_overhead_ms;
-    engine.own_book = config.own_book && !chess960;
-    SearchLimits limits;
-    limits.depth = config.depth;
-    limits.remaining_ms = json_int(
-        state, *bot_side == Color::white ? "wtime" : "btime").value_or(0);
-    limits.increment_ms = json_int(
-        state, *bot_side == Color::white ? "winc" : "binc").value_or(0);
-    limits.move_overhead_ms = config.move_overhead_ms;
-    std::atomic_bool stopped{false};
-    Searcher searcher(engine, stopped);
-    const SearchResult result = searcher.iterative(*board, limits);
+    SearchResult result;
+    if (ponder_hit) {
+      result = std::move(*ponder_hit);
+      std::cout << "game " << game_id << " ponder hit depth "
+                << result.depth << '\n';
+    } else {
+      EngineConfig engine = default_config(EngineKind::eloi);
+      engine.depth = config.depth;
+      engine.hash_mb = config.hash_mb;
+      engine.move_overhead_ms = config.move_overhead_ms;
+      engine.own_book = config.own_book && !chess960;
+      SearchLimits limits;
+      limits.depth = config.depth;
+      limits.remaining_ms = json_int(
+          state, *bot_side == Color::white ? "wtime" : "btime").value_or(0);
+      limits.increment_ms = json_int(
+          state, *bot_side == Color::white ? "winc" : "binc").value_or(0);
+      limits.move_overhead_ms = config.move_overhead_ms;
+      std::atomic_bool stopped{false};
+      Searcher searcher(engine, stopped);
+      result = searcher.iterative(*board, limits);
+    }
     if (result.pv.empty()) return;
     const std::string move = uci_move(
         result.pv.front(), board->position, chess960);
@@ -283,6 +421,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       last_acted_moves = moves;
       std::cout << "game " << game_id << " move " << move
                 << " depth " << result.depth << '\n';
+      start_ponder(*board, moves, result);
     }
   };
 
@@ -290,8 +429,17 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     const std::string type = json_string(line, "type").value_or("");
     if (type == "gameFull") {
       initial = json_string(line, "initialFen").value_or(std::string(initial_fen));
+      if (const auto id = json_string(line, "tournamentId");
+          id && !id->empty()) {
+        active_tournament = *id;
+        announce_tournament();
+      }
       if (const auto variant = json_object(line, "variant"))
         chess960 = json_string(*variant, "key").value_or("") == "chess960";
+      if (const auto clock = json_object(line, "clock")) {
+        const int initial_ms = json_int(*clock, "initial").value_or(-1);
+        ponder_enabled = lichess_ponder_enabled(initial_ms);
+      }
       if (const auto white = json_object(line, "white")) {
         const std::string white_id = json_string(*white, "id").value_or("");
         bot_side = white_id == account_id ? Color::white : Color::black;
@@ -300,10 +448,17 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     } else if (type == "gameState") {
       act(line);
       const std::string status = json_string(line, "status").value_or("");
-      if (status != "started" && status != "created") return false;
+      if (status != "started" && status != "created") {
+        if (!active_tournament.empty())
+          std::cout << "tournament " << active_tournament << " game "
+                    << game_id << " finished with status " << status << '\n';
+        return false;
+      }
     }
     return true;
   });
+  stop_ponder();
+  if (ponder_chat_thread.joinable()) ponder_chat_thread.join();
 }
 
 }  // namespace
@@ -379,8 +534,15 @@ int run_lichess(int argc, char** argv) {
                   << id << " " << variant << " " << base << "+x\n";
       } else if (type == "gameStart") {
         if (const auto game = json_object(line, "game")) {
-          const std::string id = json_string(*game, "id").value_or("");
-          if (!id.empty()) play_game(*config, id, account_id);
+          const std::string id = game_event_id(*game);
+          const std::string tournament_id =
+              json_string(*game, "tournamentId").value_or("");
+          if (!id.empty()) {
+            busy = true;
+            play_game(*config, id, account_id, tournament_id);
+          } else {
+            std::cerr << "Lichess gameStart event did not contain a game ID\n";
+          }
         }
         busy = false;
       } else if (type == "challengeCanceled" ||
