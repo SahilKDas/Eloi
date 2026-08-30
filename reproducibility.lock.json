@@ -90,6 +90,11 @@
     { "path": "C:/msys64/ucrt64/bin/ninja.exe", "sha256": "4EB8157185F7D4CD2F475E7C5360FE315FD701BDE9452E16A7FBAA3697FF6148" },
     { "path": "C:/msys64/ucrt64/bin/ctest.exe", "sha256": "AB0AE3CB7DF7467623BF293CB5F4FF3751CE2B7986B67DDA61072C81B8F30D1F" }
   ],
+  "toolchain_runtime_libraries": [
+    { "path": "C:/msys64/ucrt64/bin/libgcc_s_seh-1.dll", "sha256": "1E806611BC0803261556C82253284E6F8954C310E8F17F6F8C8A2D37A86A3D50", "size": 154354 },
+    { "path": "C:/msys64/ucrt64/bin/libstdc++-6.dll", "sha256": "A7571D46F42CDEE8C276D6A4645CAEB829D76186C4B3F239781F4D2BA9201F48", "size": 2415292 },
+    { "path": "C:/msys64/ucrt64/bin/libwinpthread-1.dll", "sha256": "CC7ED05F8B7F92DFAFFC0D44A7D432E77ADA81A3B92BD612ECEFEF1C7BAEA02C", "size": 63434 }
+  ],
   "downloaded_dependencies": [
     {
       "name": "Skia",

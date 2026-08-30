@@ -23,6 +23,10 @@ struct RuntimeConfig {
 
 std::optional<RuntimeConfig> load_runtime_config(
     const std::filesystem::path& path, std::string* error = nullptr);
+bool save_runtime_config(const std::filesystem::path& path,
+                         const RuntimeConfig& config,
+                         std::string* error = nullptr);
 int run_lichess(int argc, char** argv);
+int run_lichess_configurator();
 
 }  // namespace eloi

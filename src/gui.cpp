@@ -18,7 +18,9 @@
 #include "include/core/SkSamplingOptions.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkSurface.h"
+#ifndef ELOI_EXTERNAL_ASSETS
 #include "resource.h"
+#endif
 
 #include <algorithm>
 #include <array>
@@ -172,6 +174,22 @@ struct App {
 void start_engine(App& app);
 
 void load_pieces(App& app) {
+#ifdef ELOI_EXTERNAL_ASSETS
+  constexpr std::array names{
+      "wB.png", "wK.png", "wN.png", "wP.png", "wQ.png", "wR.png",
+      "bB.png", "bK.png", "bN.png", "bP.png", "bQ.png", "bR.png"};
+  std::wstring executable(32768, L'\0');
+  const DWORD length = GetModuleFileNameW(
+      nullptr, executable.data(), static_cast<DWORD>(executable.size()));
+  executable.resize(length);
+  const auto asset_root = std::filesystem::path(executable).parent_path() /
+      "assets" / "chess_maestro_bw";
+  for (std::size_t i = 0; i < names.size(); ++i) {
+    const auto path = asset_root / names[i];
+    app.pieces[i] = SkImage::MakeFromEncoded(
+        SkData::MakeFromFileName(path.string().c_str()));
+  }
+#else
   constexpr std::array ids{
       IDR_PIECE_WB, IDR_PIECE_WK, IDR_PIECE_WN, IDR_PIECE_WP,
       IDR_PIECE_WQ, IDR_PIECE_WR, IDR_PIECE_BB, IDR_PIECE_BK,
@@ -187,6 +205,7 @@ void load_pieces(App& app) {
     app.pieces[i] = SkImage::MakeFromEncoded(
         SkData::MakeWithCopy(bytes, static_cast<std::size_t>(size)));
   }
+#endif
 }
 
 bool write_bmp(const std::filesystem::path& path, const SkPixmap& pixels) {

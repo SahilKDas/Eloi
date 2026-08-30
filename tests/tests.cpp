@@ -113,6 +113,20 @@ int main() {
                  config->depth == 12 && config->hash_mb == 64 &&
                  config->move_overhead_ms == 150 && !config->own_book,
              "config values map exactly into runtime settings");
+    if (config) {
+      RuntimeConfig saved = *config;
+      saved.lichess_token = "lip_test_only_round_trip";
+      expect(save_runtime_config(path, saved, &error),
+             "configuration GUI serializer writes YAML: " + error);
+      const auto round_trip = load_runtime_config(path, &error);
+      expect(round_trip.has_value() &&
+                 round_trip->lichess_token == saved.lichess_token &&
+                 round_trip->lichess_enabled == saved.lichess_enabled &&
+                 round_trip->variants == saved.variants &&
+                 round_trip->depth == saved.depth &&
+                 round_trip->hash_mb == saved.hash_mb,
+             "saved configuration round-trips without losing settings");
+    }
     {
       std::ofstream output(path);
       output << "challenge:\n"

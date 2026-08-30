@@ -28,6 +28,11 @@ else()
 endif()
 
 option(ELOI_BUILD_APP "Build the production Eloi executable" ON)
+option(ELOI_EXPERIMENTAL_SPLIT_PACKAGE
+  "Build the experimental external-assets, dynamic-runtime Windows package" OFF)
+if(ELOI_EXPERIMENTAL_SPLIT_PACKAGE AND NOT WIN32)
+  message(FATAL_ERROR "The experimental split package is Windows-only")
+endif()
 
 set(SKIA_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.deps/skia108/ucrt64"
     CACHE PATH "Root of the Skia UCRT64 package")
@@ -45,16 +50,34 @@ else()
   target_compile_options(eloi_core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# Eloi is the sole production executable: GUI, UCI and perft are runtime modes.
+# Eloi is the sole production executable unless the explicitly experimental
+# split-package option is selected. The default target remains unchanged.
 if(ELOI_BUILD_APP)
-  set(ELOI_APP_SOURCES
-    src/main.cpp src/driver.cpp src/gui.cpp src/lichess.cpp src/resources.rc)
+  set(ELOI_APP_SOURCES src/main.cpp src/driver.cpp src/gui.cpp)
+  if(ELOI_EXPERIMENTAL_SPLIT_PACKAGE)
+    target_sources(eloi_core PRIVATE src/config_writer.cpp)
+    add_compile_definitions(ELOI_EXTERNAL_ASSETS ELOI_SEPARATE_LICHESS_EXE)
+  else()
+    list(APPEND ELOI_APP_SOURCES src/lichess.cpp src/resources.rc)
+  endif()
   if(WIN32)
     list(APPEND ELOI_APP_SOURCES
       "${CMAKE_CURRENT_BINARY_DIR}/generated/version.rc")
   endif()
   add_executable(Eloi ${ELOI_APP_SOURCES})
   target_link_libraries(Eloi PRIVATE eloi_core)
+  if(ELOI_EXPERIMENTAL_SPLIT_PACKAGE)
+    configure_file(
+      src/version-lichess.rc.in
+      "${CMAKE_CURRENT_BINARY_DIR}/generated/version-lichess.rc"
+      @ONLY)
+    add_executable(EloiLichess
+      src/lichess_main.cpp
+      src/lichess.cpp
+      src/lichess_config_gui.cpp
+      "${CMAKE_CURRENT_BINARY_DIR}/generated/version-lichess.rc")
+    target_link_libraries(EloiLichess PRIVATE eloi_core)
+  endif()
 endif()
 
 if(NOT MSVC)
@@ -78,6 +101,12 @@ if(NOT MSVC)
       $<$<CONFIG:Release>:${ELOI_REPRO_COMPILE_FLAGS}>)
     target_link_options(Eloi PRIVATE
       $<$<CONFIG:Release>:-flto=1;-Wl,--gc-sections,--no-insert-timestamp;-s>)
+    if(ELOI_EXPERIMENTAL_SPLIT_PACKAGE)
+      target_compile_options(EloiLichess PRIVATE
+        $<$<CONFIG:Release>:${ELOI_REPRO_COMPILE_FLAGS}>)
+      target_link_options(EloiLichess PRIVATE
+        $<$<CONFIG:Release>:-flto=1;-Wl,--gc-sections,--no-insert-timestamp;-s>)
+    endif()
   endif()
 endif()
 
@@ -95,7 +124,7 @@ if(WIN32 AND ELOI_BUILD_APP)
   target_include_directories(Eloi PRIVATE
     "${SKIA_ROOT}/include/skia"
   )
-  target_link_libraries(Eloi PRIVATE
+  set(ELOI_GUI_LIBRARIES
     "${SKIA_ROOT}/lib/libskia.a"
     "${ELOI_STATIC_ROOT}/lib/libjpeg.a"
     "${ELOI_STATIC_ROOT}/lib/libpng16.a"
@@ -104,10 +133,16 @@ if(WIN32 AND ELOI_BUILD_APP)
     "${ELOI_STATIC_ROOT}/lib/libwebp.a"
     "${ELOI_STATIC_ROOT}/lib/libsharpyuv.a"
     "${ELOI_STATIC_ROOT}/lib/libzs.a"
-    gdi32 user32 shell32 ole32 oleaut32 uuid usp10 opengl32 winhttp
+    gdi32 user32 shell32 ole32 oleaut32 uuid usp10 opengl32
   )
-  target_link_options(Eloi PRIVATE
-    $<$<CONFIG:Release>:-static;-static-libgcc;-static-libstdc++>)
+  target_link_libraries(Eloi PRIVATE ${ELOI_GUI_LIBRARIES})
+  if(ELOI_EXPERIMENTAL_SPLIT_PACKAGE)
+    target_link_libraries(EloiLichess PRIVATE winhttp user32 gdi32)
+  else()
+    target_link_libraries(Eloi PRIVATE winhttp)
+    target_link_options(Eloi PRIVATE
+      $<$<CONFIG:Release>:-static;-static-libgcc;-static-libstdc++>)
+  endif()
 
   set(ELOI_RELEASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dist/release")
   add_custom_target(release
@@ -125,7 +160,7 @@ endif()
 option(ELOI_BUILD_TESTS "Build the separate Eloi test runner" OFF)
 if(ELOI_BUILD_TESTS)
   enable_testing()
-  add_executable(eloi_tests tests/tests.cpp)
+  add_executable(eloi_tests tests/tests.cpp src/config_writer.cpp)
   target_link_libraries(eloi_tests PRIVATE eloi_core)
   if(NOT MSVC)
     target_link_options(eloi_tests PRIVATE $<$<CONFIG:Release>:-flto=1>)

@@ -60,6 +60,13 @@ foreach ($tool in $lock.tool_executables) {
   Assert-Sha256 $tool.path $tool.sha256 "tool $($tool.path)"
 }
 
+foreach ($runtime in $lock.toolchain_runtime_libraries) {
+  if ((Get-Item -LiteralPath $runtime.path).Length -ne [int64]$runtime.size) {
+    throw "Runtime library size mismatch for $($runtime.path)"
+  }
+  Assert-Sha256 $runtime.path $runtime.sha256 "runtime library $($runtime.path)"
+}
+
 foreach ($dependency in $lock.downloaded_dependencies) {
   $archivePath = Join-Path $projectRoot ('.deps\packages\' + $dependency.archive)
   if (Test-Path -LiteralPath $archivePath -PathType Leaf) {

@@ -18,8 +18,15 @@ int main(int argc, char** argv) {
     if (std::strcmp(argv[i], "--gui") == 0) return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--screenshot") == 0) return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--uci") == 0) return run_engine(config, argc, argv);
-    if (std::strcmp(argv[i], "--lichess") == 0)
+    if (std::strcmp(argv[i], "--lichess") == 0) {
+#ifdef ELOI_SEPARATE_LICHESS_EXE
+      std::cerr << "This experimental package isolates native Lichess networking.\n"
+                   "Run EloiLichess.exe instead.\n";
+      return 2;
+#else
       return run_lichess(argc, argv);
+#endif
+    }
     if (std::strcmp(argv[i], "--perft") == 0) return run_perft(argc - i, argv + i);
     if (std::strcmp(argv[i], "--bench") == 0) return run_benchmark(argc - i, argv + i);
     if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {

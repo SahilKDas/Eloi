@@ -26,6 +26,16 @@ Python, Go, external assets, downloaded data, or non-system DLLs.
 The native client accepts only the exact HTTPS origin `https://lichess.org`, so
 a changed configuration cannot redirect its bearer token to another host.
 
+An explicitly labelled experimental Windows x64 split-runtime ZIP may also be
+attached to a prerelease for antivirus diagnosis. It does not replace or alter
+the canonical two assets. In that experiment, piece PNGs and compiler runtime
+DLLs are external, and native Lichess networking runs in a separate
+`EloiLichess.exe`; the main `Eloi.exe` has no WinHTTP import. Build it with
+`scripts/build-experimental-windows-zip.ps1` and keep the extracted directory
+together. Double-clicking `EloiLichess.exe` opens a native configuration window
+that reads and writes the adjacent `config.yml`; no text or development editor
+is required.
+
 The engine uses iterative deepening, aspiration-window PVS/alpha-beta,
 TT-backed quiescence, a compact four-way table with packed moves and normalized
 mate scores, reversible in-place search moves, and TT-reconstructed principal

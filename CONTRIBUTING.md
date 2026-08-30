@@ -56,6 +56,11 @@ Every change must preserve these requirements:
   `reproducibility.lock.json`, contain a zero PE timestamp, and reproduce
   byte-for-byte from two independent clean build trees.
 
+Experimental split-runtime archives are supplemental diagnostic artifacts, not
+replacements for the two-file release. They must be clearly labelled, retain
+all DLLs/assets/licenses, record their post-tag source commit and hashes, and
+must never overwrite the canonical `Eloi.exe` or `config.yml` assets.
+
 ## Versioning
 
 `CMakeLists.txt` is the single source of truth for Eloi's version. Its numeric
