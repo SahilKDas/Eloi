@@ -6,24 +6,30 @@ $sourceRoot = Join-Path $depsRoot 'static-sources'
 $buildRoot = Join-Path $depsRoot 'static-build'
 $installRoot = Join-Path $depsRoot 'static-runtime'
 $archiveRoot = Join-Path $depsRoot 'packages'
-$repository = @{
-  zlib = 'https://github.com/madler/zlib/archive/refs/tags/v1.3.2.tar.gz'
-  jpeg = 'https://github.com/libjpeg-turbo/libjpeg-turbo/archive/refs/tags/3.2.0.tar.gz'
-  png = 'https://github.com/pnggroup/libpng/archive/refs/tags/v1.6.58.tar.gz'
-  webp = 'https://github.com/webmproject/libwebp/archive/refs/tags/v1.6.0.tar.gz'
-}
+$lock = Get-Content -LiteralPath (Join-Path $projectRoot 'reproducibility.lock.json') -Raw |
+  ConvertFrom-Json
+$env:SOURCE_DATE_EPOCH = [string]$lock.source_date_epoch
+$cmake = 'C:/msys64/ucrt64/bin/cmake.exe'
+$ninja = 'C:/msys64/ucrt64/bin/ninja.exe'
+$cc = 'C:/msys64/ucrt64/bin/cc.exe'
 
 New-Item -ItemType Directory -Force -Path `
   $sourceRoot, $buildRoot, $installRoot, $archiveRoot | Out-Null
 
 function Get-Source {
-  param([string] $Name, [string] $Directory)
+  param([string] $Name, [string] $LockName, [string] $Directory)
+  $dependency = $lock.downloaded_dependencies | Where-Object name -eq $LockName
+  if ($null -eq $dependency) { throw "No dependency lock exists for $LockName" }
   $destination = Join-Path $sourceRoot $Directory
   if (Test-Path -LiteralPath $destination) { return $destination }
-  $archive = Join-Path $archiveRoot "$Name-static.tar.gz"
+  $archive = Join-Path $archiveRoot $dependency.archive
   if (-not (Test-Path -LiteralPath $archive)) {
     Write-Host "Downloading static $Name source"
-    Invoke-WebRequest -UseBasicParsing -Uri $repository[$Name] -OutFile $archive
+    Invoke-WebRequest -UseBasicParsing -Uri $dependency.url -OutFile $archive
+  }
+  $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
+  if ($actual -ne $dependency.sha256) {
+    throw "Hash mismatch for $($dependency.archive). Expected $($dependency.sha256), got $actual"
   }
   & tar.exe -xzf $archive -C $sourceRoot
   if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $destination)) {
@@ -35,19 +41,21 @@ function Get-Source {
 function Build-Static {
   param([string] $Name, [string] $Source, [string[]] $Options)
   $build = Join-Path $buildRoot $Name
-  & cmake.exe -S $Source -B $build -G Ninja `
+  & $cmake -S $Source -B $build -G Ninja `
     -DCMAKE_BUILD_TYPE=Release `
+    "-DCMAKE_C_COMPILER=$cc" `
+    "-DCMAKE_MAKE_PROGRAM=$ninja" `
     "-DCMAKE_INSTALL_PREFIX=$installRoot" `
     -DBUILD_SHARED_LIBS=OFF @Options
   if ($LASTEXITCODE -ne 0) { throw "Could not configure $Name" }
-  & cmake.exe --build $build --target install -j 2
+  & $cmake --build $build --target install -j 2
   if ($LASTEXITCODE -ne 0) { throw "Could not build $Name" }
 }
 
-$zlib = Get-Source zlib 'zlib-1.3.2'
+$zlib = Get-Source zlib zlib 'zlib-1.3.2'
 Build-Static zlib $zlib @('-DZLIB_BUILD_TESTING=OFF')
 
-$jpeg = Get-Source jpeg 'libjpeg-turbo-3.2.0'
+$jpeg = Get-Source jpeg libjpeg-turbo 'libjpeg-turbo-3.2.0'
 Build-Static jpeg $jpeg @(
   '-DENABLE_SHARED=OFF',
   '-DENABLE_STATIC=ON',
@@ -56,7 +64,7 @@ Build-Static jpeg $jpeg @(
   '-DWITH_TESTS=OFF'
 )
 
-$png = Get-Source png 'libpng-1.6.58'
+$png = Get-Source png libpng 'libpng-1.6.58'
 Build-Static png $png @(
   '-DPNG_SHARED=OFF',
   '-DPNG_STATIC=ON',
@@ -64,7 +72,7 @@ Build-Static png $png @(
   "-DZLIB_ROOT=$installRoot"
 )
 
-$webp = Get-Source webp 'libwebp-1.6.0'
+$webp = Get-Source webp libwebp 'libwebp-1.6.0'
 Build-Static webp $webp @(
   '-DWEBP_BUILD_ANIM_UTILS=OFF',
   '-DWEBP_BUILD_CWEBP=OFF',

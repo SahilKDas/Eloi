@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(Eloi VERSION 1.0.0 LANGUAGES CXX)
-set(ELOI_PRERELEASE "rc.1")
+set(ELOI_PRERELEASE "rc.2")
 if(ELOI_PRERELEASE)
   set(ELOI_VERSION "${PROJECT_VERSION}-${ELOI_PRERELEASE}")
 else()
@@ -18,8 +18,6 @@ if(WIN32)
     "${CMAKE_CURRENT_BINARY_DIR}/generated/version.rc"
     @ONLY)
 endif()
-
-include(CheckIPOSupported)
 
 # CMake 3.29 predates the CXX26 dialect label. Request the compiler's C++26
 # mode directly until CMake's standardized CXX26 feature is widely available.
@@ -59,21 +57,27 @@ if(ELOI_BUILD_APP)
   target_link_libraries(Eloi PRIVATE eloi_core)
 endif()
 
-check_ipo_supported(RESULT ELOI_IPO_SUPPORTED OUTPUT ELOI_IPO_ERROR)
-if(ELOI_IPO_SUPPORTED)
-  set_property(TARGET eloi_core PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-  if(ELOI_BUILD_APP)
-    set_property(TARGET Eloi PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-  endif()
-endif()
 if(NOT MSVC)
+  # Keep release code generation reproducible. CMake's IPO property expands to
+  # -flto=auto with GCC, which makes the partition count host-dependent. A
+  # single LTO partition is slower to link but stable across clean builds.
+  set(ELOI_REPRO_COMPILE_FLAGS
+    -O3
+    -ffunction-sections
+    -fdata-sections
+    -flto=1
+    "-ffile-prefix-map=${CMAKE_SOURCE_DIR}=."
+    "-ffile-prefix-map=${CMAKE_BINARY_DIR}=."
+    "-fdebug-prefix-map=${CMAKE_SOURCE_DIR}=."
+    "-fdebug-prefix-map=${CMAKE_BINARY_DIR}=."
+    "-frandom-seed=eloi-${ELOI_VERSION}")
   target_compile_options(eloi_core PRIVATE
-    $<$<CONFIG:Release>:-O3;-ffunction-sections;-fdata-sections>)
+    $<$<CONFIG:Release>:${ELOI_REPRO_COMPILE_FLAGS}>)
   if(ELOI_BUILD_APP)
     target_compile_options(Eloi PRIVATE
-      $<$<CONFIG:Release>:-O3;-ffunction-sections;-fdata-sections>)
+      $<$<CONFIG:Release>:${ELOI_REPRO_COMPILE_FLAGS}>)
     target_link_options(Eloi PRIVATE
-      $<$<CONFIG:Release>:-Wl,--gc-sections;-s>)
+      $<$<CONFIG:Release>:-flto=1;-Wl,--gc-sections,--no-insert-timestamp;-s>)
   endif()
 endif()
 
@@ -123,5 +127,8 @@ if(ELOI_BUILD_TESTS)
   enable_testing()
   add_executable(eloi_tests tests/tests.cpp)
   target_link_libraries(eloi_tests PRIVATE eloi_core)
+  if(NOT MSVC)
+    target_link_options(eloi_tests PRIVATE $<$<CONFIG:Release>:-flto=1>)
+  endif()
   add_test(NAME eloi_tests COMMAND eloi_tests)
 endif()

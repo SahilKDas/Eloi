@@ -50,9 +50,11 @@ game under the automatic FIDE draw rules ([Yim, 2026](https://arxiv.org/abs/2608
 
 ## Windows build
 
-Requirements are CMake, Ninja, a MinGW UCRT C++ compiler with C++26
-(`-std=c++2c`) support, and PowerShell. No Go source, module, toolchain, or
-release configuration remains in the Eloi repository.
+Requirements are the hash-locked MSYS2 UCRT64 GCC 14.1.0-3 toolchain, CMake
+3.29.3-2, Ninja 1.12.1-1, and PowerShell. No Go source, module, toolchain, or
+release configuration remains in the Eloi repository. See
+[REPRODUCING.md](REPRODUCING.md) for the complete package names, verified
+dependency hashes, and byte-for-byte release procedure.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-windows.ps1
@@ -60,6 +62,18 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target Eloi -j
 cmake --build build --target release -j
 ```
+
+Release candidates must additionally pass two independent clean builds:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-reproducible.ps1 `
+  -StageRelease
+```
+
+Release compilation uses fixed single-partition LTO, remapped build paths, a
+fixed build epoch and a zero PE timestamp. The verifier refuses a dirty
+worktree and stages the two-file package only after both builds and test runs
+produce byte-identical files.
 
 Skia and development-only libraries are downloaded into `.deps/`, which is
 intentionally ignored by git. Release builds statically link them and embed the

@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "source_date_epoch": 1787961600,
+  "platform": {
+    "os": "Windows 11 x86_64",
+    "minimum_build_host": "Windows 10 or later",
+    "shell": "PowerShell 7.6.4",
+    "environment": "MSYS2 UCRT64"
+  },
+  "toolchain_packages": [
+    {
+      "name": "mingw-w64-ucrt-x86_64-gcc",
+      "version": "14.1.0-3",
+      "archive": "mingw-w64-ucrt-x86_64-gcc-14.1.0-3-any.pkg.tar.zst",
+      "sha256": "D2BF5AFC25110D6E2ADCE9086CF7DD404CB45B69357C8F2562B9858C0A5E0D94",
+      "size": 45556318
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-gcc-libs",
+      "version": "14.1.0-3",
+      "archive": "mingw-w64-ucrt-x86_64-gcc-libs-14.1.0-3-any.pkg.tar.zst",
+      "sha256": "3086789AE2033AD146C7869BEBEAC0D419DA45E436EA9BE2A09E561B4DAD0F82",
+      "size": 1054784
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-binutils",
+      "version": "2.42-2",
+      "archive": "mingw-w64-ucrt-x86_64-binutils-2.42-2-any.pkg.tar.zst",
+      "sha256": "1911F286061BCDFBCA1AD580E927D9673113463391A203F54B94F73656A616F6",
+      "size": 6095503
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-headers-git",
+      "version": "11.0.0.r750.g05598db99-1",
+      "archive": "mingw-w64-ucrt-x86_64-headers-git-11.0.0.r750.g05598db99-1-any.pkg.tar.zst",
+      "sha256": "B5F53E512EA67D93401D30B04A434A8D0B9D4B6CB9DF39C6CC133655C51C6B5C",
+      "size": 6313095
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-crt-git",
+      "version": "11.0.0.r750.g05598db99-1",
+      "archive": "mingw-w64-ucrt-x86_64-crt-git-11.0.0.r750.g05598db99-1-any.pkg.tar.zst",
+      "sha256": "990891149DF1725446C598D3ACEABE286ED7EDF5B8BF8957FFFF7AF827E2D412",
+      "size": 4584368
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-winpthreads-git",
+      "version": "11.0.0.r750.g05598db99-1",
+      "archive": "mingw-w64-ucrt-x86_64-winpthreads-git-11.0.0.r750.g05598db99-1-any.pkg.tar.zst",
+      "sha256": "7F3D1C62B00FABADCC24FA5A317452ADC898AE6CFA6504C8BB42829D3413BA37",
+      "size": 40799
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-libwinpthread-git",
+      "version": "11.0.0.r750.g05598db99-1",
+      "archive": "mingw-w64-ucrt-x86_64-libwinpthread-git-11.0.0.r750.g05598db99-1-any.pkg.tar.zst",
+      "sha256": "10F636ED101DE6E4855C64FA07C5666650B159BF4AAE6C20E4F2CC9504539B0F",
+      "size": 29922
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-cmake",
+      "version": "3.29.3-2",
+      "archive": "mingw-w64-ucrt-x86_64-cmake-3.29.3-2-any.pkg.tar.zst",
+      "sha256": "DB594FF173AD1015F5B412DDB68F633E4E2865618BA26EF426BFA8C256285E69",
+      "size": 9244999
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-ninja",
+      "version": "1.12.1-1",
+      "archive": "mingw-w64-ucrt-x86_64-ninja-1.12.1-1-any.pkg.tar.zst",
+      "sha256": "F185698D78799EF62BD2B03FE6C747C30024B9A4BF3FC3B8071F44B6B5595012",
+      "size": 512327
+    }
+  ],
+  "tool_executables": [
+    { "path": "C:/msys64/ucrt64/bin/c++.exe", "sha256": "275E0FD6898E396CFF0391C5A45423FC239C30D5729D222FFF7C330A77AE92D7" },
+    { "path": "C:/msys64/ucrt64/bin/cc.exe", "sha256": "D643420340A975F6946BB3E20CDB131813B768D2A19E6053B909DBBBD768D5F7" },
+    { "path": "C:/msys64/ucrt64/bin/ld.exe", "sha256": "3A29895692D32A7B83FB62A6542E0122F4132648DCADCB2B36199FA0AD223DDE" },
+    { "path": "C:/msys64/ucrt64/bin/windres.exe", "sha256": "B41503AF2E2151501BB2D59C331522617FD4BB39C6EB4530D14295DEB7DEBA59" },
+    { "path": "C:/msys64/ucrt64/bin/gcc-ar.exe", "sha256": "DCAF105A8866C57322DFFC47E4260CF9B8A827A9C39D724D126EFBDB3ACD255D" },
+    { "path": "C:/msys64/ucrt64/bin/gcc-ranlib.exe", "sha256": "4BCAF380CC3B3C5EB3D88B24AFD7E93EE8E4B4DB5F38B7BA8A7A56D61406DAC6" },
+    { "path": "C:/msys64/ucrt64/bin/ar.exe", "sha256": "63FE1FBEE24E19087C1807C7550BEEEC8480EC0C04ECF7895294215EBF756AE3" },
+    { "path": "C:/msys64/ucrt64/bin/ranlib.exe", "sha256": "06EBD2E3D11F0A1FA603277C722397F4E28AE16DD417F2BEC3ED710F9CC4BA07" },
+    { "path": "C:/msys64/ucrt64/bin/as.exe", "sha256": "908101F85683375F755DE1DE8FCF1A851EE4E4397A42E4429975F211C73260E0" },
+    { "path": "C:/msys64/ucrt64/bin/strip.exe", "sha256": "A31C89857D56D5196FBEC9EDEC13690BDF6905E218FE26A4C6AFB6C4CAC4A0D9" },
+    { "path": "C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/14.1.0/cc1plus.exe", "sha256": "BCBD82E934A9A25110009360D961E93BDC131C53C802ECB8ACB59213FEC18C92" },
+    { "path": "C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/14.1.0/lto1.exe", "sha256": "0E3C0CBD7D5770AF04ACE44FC59ADCB16F9337187541F512D1B1197F89D7AC30" },
+    { "path": "C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/14.1.0/collect2.exe", "sha256": "06971187592B8A1692AE31BA181D110A39E1213CA559F1B791AB2C85A5F2AF85" },
+    { "path": "C:/msys64/ucrt64/bin/cmake.exe", "sha256": "B5382D230996275CDAEFED21A0DE4FF6D0BD82B80BA9D82DCC6B2D1628653F04" },
+    { "path": "C:/msys64/ucrt64/bin/ninja.exe", "sha256": "4EB8157185F7D4CD2F475E7C5360FE315FD701BDE9452E16A7FBAA3697FF6148" },
+    { "path": "C:/msys64/ucrt64/bin/ctest.exe", "sha256": "AB0AE3CB7DF7467623BF293CB5F4FF3751CE2B7986B67DDA61072C81B8F30D1F" }
+  ],
+  "downloaded_dependencies": [
+    {
+      "name": "Skia",
+      "version": "108.0.5359.95-4",
+      "url": "https://repo.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-skia-108.0.5359.95-4-any.pkg.tar.zst",
+      "archive": "mingw-w64-ucrt-x86_64-skia-108.0.5359.95-4-any.pkg.tar.zst",
+      "sha256": "4B205F0905E1540948A405F3DDD63D7776566E6902983AE4E9644227885E4F6B",
+      "size": 5529053
+    },
+    {
+      "name": "zlib",
+      "version": "1.3.2",
+      "url": "https://github.com/madler/zlib/archive/refs/tags/v1.3.2.tar.gz",
+      "archive": "zlib-static.tar.gz",
+      "sha256": "B99A0B86C0BA9360EC7E78C4F1E43B1CBDF1E6936C8FA0F6835C0CD694A495A1"
+    },
+    {
+      "name": "libjpeg-turbo",
+      "version": "3.2.0",
+      "url": "https://github.com/libjpeg-turbo/libjpeg-turbo/archive/refs/tags/3.2.0.tar.gz",
+      "archive": "jpeg-static.tar.gz",
+      "sha256": "980DD81F425082AA6D7C9E47FEF27554CE7A9FFC8E2F6E863B97D263C5C50858"
+    },
+    {
+      "name": "libpng",
+      "version": "1.6.58",
+      "url": "https://github.com/pnggroup/libpng/archive/refs/tags/v1.6.58.tar.gz",
+      "archive": "png-static.tar.gz",
+      "sha256": "A9D4DF463D36A6E5F9C29BD6F4967312D17E996C1854F3511F833924EB1993CF"
+    },
+    {
+      "name": "libwebp",
+      "version": "1.6.0",
+      "url": "https://github.com/webmproject/libwebp/archive/refs/tags/v1.6.0.tar.gz",
+      "archive": "webp-static.tar.gz",
+      "sha256": "93A852C2B3EFAFEE3723EFD4636DE855B46F9FE1EFDDD607E1F42F60FC8F2136"
+    }
+  ],
+  "linked_static_libraries": [
+    { "path": ".deps/skia108/ucrt64/lib/libskia.a", "sha256": "774656DA841CF84FEF9AE258F18F63424A5B164B55BC28CFF51E61DA3EFA4943" },
+    { "path": ".deps/static-runtime/lib/libjpeg.a", "sha256": "041CB7FC7F1EA6F886E79B173476EE96361FB8B733B17846B664297623D52F9B" },
+    { "path": ".deps/static-runtime/lib/libpng16.a", "sha256": "DC61D4699E41F09A50E77D6E8710CB92C782139CF933BDF6F52C20BD5ED0123E" },
+    { "path": ".deps/static-runtime/lib/libwebpdemux.a", "sha256": "B652CF59F6A226C328D399DCB654B7415FDB33CF70EA24DED3EE212F6E245008" },
+    { "path": ".deps/static-runtime/lib/libwebpmux.a", "sha256": "6AA022C08B1D3FBD9AEFF82BA01A57CC01D24F71C2790B1EB2035B942641B3E6" },
+    { "path": ".deps/static-runtime/lib/libwebp.a", "sha256": "69E75E965D47BD7853D06C0FF249A626DD95A5791B9A95CA2AB5A47ACC5DEE65" },
+    { "path": ".deps/static-runtime/lib/libsharpyuv.a", "sha256": "CB55BA952E7611FD3146531D6B7AF1BECF993B3C5695708FB1965AE1F501D8C0" },
+    { "path": ".deps/static-runtime/lib/libzs.a", "sha256": "03562AC211BD82C7050D7809F954A62344B385A3A0824E8D9BCD023AF06E7186" }
+  ]
+}

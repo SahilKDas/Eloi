@@ -52,6 +52,9 @@ Every change must preserve these requirements:
 - The engine warns above 40 plies, the GUI caps selection at 200 plies, and the
   absolute engine ceiling remains 17,697 plies.
 - Standard chess, Chess960, UCI, and native Lichess operation remain compatible.
+- Release builds use the exact toolchain and dependency hashes recorded in
+  `reproducibility.lock.json`, contain a zero PE timestamp, and reproduce
+  byte-for-byte from two independent clean build trees.
 
 ## Versioning
 
@@ -122,3 +125,8 @@ A good pull request includes:
 
 Keep commits understandable and avoid committing generated binaries. Maintainers
 may ask for a change to be split, retested, or retuned before merging.
+
+Before tagging a release candidate, follow [REPRODUCING.md](REPRODUCING.md)
+and run `scripts/verify-reproducible.ps1 -StageRelease` from a clean worktree.
+Do not describe an artifact as reproducible unless that command completes and
+the published asset hashes match its output.
