@@ -115,6 +115,47 @@ advantage, a 1–200-ply depth control with a warning above 40, and live
 NNUE/search/LMR statistics. The board and interface are drawn in code with
 Skia.
 
+### Watch the new brain play the previous brain
+
+Eloi's **Version Match** mode is a friendly, real-time regression tool for
+engine-logic changes. Before changing search, evaluation, time management, the
+opening book, or another part of the chess brain, retain the current executable
+with one command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\capture-brain-baseline.ps1
+```
+
+The script keeps exactly one sibling baseline named `Eloi.previous.exe` and a
+small commit-label file. Capturing again deliberately replaces that baseline,
+so old builds do not accumulate. These build-local files are ignored by Git
+and never enter either release package.
+
+After making the change, rebuild and open `Eloi.exe`, then click **VERSION
+MATCH**. Eloi automatically finds `Eloi.previous.exe`; if it is absent, a file
+picker can select any historical Eloi executable. The current and previous
+executables run as separate UCI child processes with equal settings: the GUI's
+selected depth, a 32 MB hash table each, and both opening books disabled. The
+board animates every move and identifies whose turn and last move it is. Use
+**RESTART VERSION MATCH** to replay, **SWAP COLORS** to reverse the sides, and
+**EXIT VERSION MATCH** to return to human play. No terminal match loop is
+required.
+
+To launch directly into autoplay from a terminal, use
+`.\build-release\Eloi.exe --version-match`.
+
+For a non-visual integration check, run:
+
+```powershell
+.\build-release\Eloi.exe --version-match-smoke `
+  .\build-release\Eloi.previous.exe
+```
+
+A watched game is useful for spotting crashes, illegal moves, obvious tactical
+regressions, and style changes, but one game cannot establish strength. Brain
+changes still require paired, color-reversed fixed-node self-play; major
+strength claims retain the documented 200-game, above-55% gauntlet gate.
+
 Eloi implements legal castling (including attacked-square restrictions), en
 passant, every underpromotion, checkmate, stalemate, threefold repetition, the
 fifty-move rule, and dead-position draws from insufficient material. Repetition

@@ -1,8 +1,10 @@
 #include "eloi/chess.hpp"
 #include "eloi/config.hpp"
+#include "eloi/version_match.hpp"
 #include "eloi/version.hpp"
 
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 
 #ifdef _WIN32
@@ -15,6 +17,12 @@ int main(int argc, char** argv) {
   auto config = default_config(EngineKind::eloi);
 
   for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--version-match-smoke") == 0 && i + 1 < argc)
+      return run_version_match_smoke(
+          std::filesystem::absolute(argv[0]),
+          std::filesystem::absolute(argv[i + 1]));
+    if (std::strcmp(argv[i], "--version-match") == 0)
+      return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--gui") == 0) return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--screenshot") == 0) return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--uci") == 0) return run_engine(config, argc, argv);
@@ -38,6 +46,8 @@ int main(int argc, char** argv) {
                    "  Eloi.exe --perft ... run move-generation validation\n"
                    "  Eloi.exe --bench [--depth N]  run deterministic search benchmark\n"
                    "  Eloi.exe --screenshot FILE.bmp  render a GUI test frame\n"
+                   "  Eloi.exe --version-match  launch the current-vs-previous arena\n"
+                   "  Eloi.exe --version-match-smoke PREVIOUS.exe  test the UCI version arena\n"
                    "Depths above 40 plies are experimental and may take hours or days.\n"
                    "GUI maximum: 200 plies; engine/UCI maximum: 17697 plies.\n";
       return 0;

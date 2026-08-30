@@ -53,7 +53,11 @@ endif()
 # Eloi is the sole production executable unless the split-runtime release
 # option is selected. The default standalone target remains unchanged.
 if(ELOI_BUILD_APP)
-  set(ELOI_APP_SOURCES src/main.cpp src/driver.cpp src/gui.cpp)
+  set(ELOI_APP_SOURCES
+    src/main.cpp
+    src/driver.cpp
+    src/gui.cpp
+    src/version_match.cpp)
   if(ELOI_SPLIT_PACKAGE)
     target_sources(eloi_core PRIVATE src/config_writer.cpp)
     add_compile_definitions(ELOI_EXTERNAL_ASSETS ELOI_SEPARATE_LICHESS_EXE)
@@ -133,7 +137,7 @@ if(WIN32 AND ELOI_BUILD_APP)
     "${ELOI_STATIC_ROOT}/lib/libwebp.a"
     "${ELOI_STATIC_ROOT}/lib/libsharpyuv.a"
     "${ELOI_STATIC_ROOT}/lib/libzs.a"
-    gdi32 user32 shell32 ole32 oleaut32 uuid usp10 opengl32
+    gdi32 user32 comdlg32 shell32 ole32 oleaut32 uuid usp10 opengl32
   )
   target_link_libraries(Eloi PRIVATE ${ELOI_GUI_LIBRARIES})
   if(ELOI_SPLIT_PACKAGE)

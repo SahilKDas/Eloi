@@ -88,6 +88,30 @@ stable release sets `ELOI_PRERELEASE` to an empty string and uses
   fixed-node self-play and, for major changes, an SPRT or the documented
   200-game mirrored gauntlet.
 
+### Brain-change regression protocol
+
+Before editing search, evaluation, time management, opening selection, or other
+playing logic, capture the executable that immediately precedes the change:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\capture-brain-baseline.ps1
+```
+
+This intentionally retains only `Eloi.previous.exe` beside the current build;
+running it again replaces the prior baseline. After rebuilding, open the GUI
+and run **VERSION MATCH** in both color assignments at the same depth. Both
+engines must start successfully, return legal moves, and finish or reach a
+stable test stopping point without hanging. Also run the command-line smoke:
+
+```powershell
+.\build-release\Eloi.exe --version-match-smoke `
+  .\build-release\Eloi.previous.exe
+```
+
+Record noteworthy visual behavior in the pull request, but use the mirrored
+fixed-node gauntlet—not a single watched game—as the strength gate. Do not
+commit the retained executable or package it in a release.
+
 Run at minimum:
 
 ```powershell
@@ -95,6 +119,8 @@ ctest --test-dir build-release --output-on-failure
 .\build-release\Eloi.exe --perft --depth 4
 .\build-release\Eloi.exe --bench --depth 6
 .\build-release\Eloi.exe --screenshot .\build-release\smoke.bmp
+.\build-release\Eloi.exe --version-match-smoke `
+  .\build-release\Eloi.previous.exe
 ```
 
 ## Artwork and data
