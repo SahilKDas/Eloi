@@ -10,9 +10,16 @@ modes:
 - `--perft`: legal move-generator validation
 - `--bench`: deterministic search benchmark
 
-## Two-file release contract
+## Two golden release packages
 
-An Eloi release contains exactly two files:
+Every Eloi release publishes exactly two Windows x64 archives:
+
+- `Eloi-vVERSION-windows-x64-standalone.zip`, whose extracted contents are
+  exactly the following two files; and
+- `Eloi-vVERSION-windows-x64-split-runtime.zip`, the Defender-friendly package
+  with networking, runtime DLLs, and artwork deliberately separated.
+
+The canonical standalone archive contains:
 
 - `Eloi.exe`, a standalone statically linked Windows application containing the
   GUI, engine, UCI interface, native Lichess client, NNUE, opening data, piece
@@ -26,15 +33,24 @@ Python, Go, external assets, downloaded data, or non-system DLLs.
 The native client accepts only the exact HTTPS origin `https://lichess.org`, so
 a changed configuration cannot redirect its bearer token to another host.
 
-An explicitly labelled experimental Windows x64 split-runtime ZIP may also be
-attached to a prerelease for antivirus diagnosis. It does not replace or alter
-the canonical two assets. In that experiment, piece PNGs and compiler runtime
-DLLs are external, and native Lichess networking runs in a separate
+The second golden package places piece PNGs and compiler runtime DLLs outside
+the main executable, and native Lichess networking runs in a separate
 `EloiLichess.exe`; the main `Eloi.exe` has no WinHTTP import. Build it with
-`scripts/build-experimental-windows-zip.ps1` and keep the extracted directory
+`scripts/build-windows-split-zip.ps1` and keep the extracted directory
 together. Double-clicking `EloiLichess.exe` opens a native configuration window
 that reads and writes the adjacent `config.yml`; no text or development editor
 is required.
+
+### Microsoft Defender false-positive resolution
+
+Microsoft analyzed the RC-2 standalone executable submitted as suspected false
+positive `f6ee03e9-1ec6-4f33-bd8e-f831c8502d27`. Its analyst determined that
+the submitted file did not meet Microsoft's criteria for malware or a
+potentially unwanted application and removed the
+`Trojan:Win32/Wacatac.B!ml` detection. This determination applies to the exact
+submitted RC-2 binary; a new release hash is scanned and assessed separately.
+Never disable antivirus protection to run Eloi. If Defender retains the old
+cached verdict, update its security intelligence and rescan the file.
 
 The engine uses iterative deepening, aspiration-window PVS/alpha-beta,
 TT-backed quiescence, a compact four-way table with packed moves and normalized
@@ -75,7 +91,7 @@ cmake --build build --target Eloi -j
 cmake --build build --target release -j
 ```
 
-Release candidates must additionally pass two independent clean builds:
+Every release must additionally pass two independent clean builds:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-reproducible.ps1 `
@@ -127,7 +143,7 @@ Point a UCI-compatible Lichess bridge (for example, a bot-account runner) at
 automatically, so wrappers that invoke the executable directly remain
 compatible.
 
-The two-file release does not need that Python bridge. Set `lichess.enabled`
+The two-file standalone package does not need that Python bridge. Set `lichess.enabled`
 to `true`, paste a Bot API token into the adjacent `config.yml`, and run:
 
 ```powershell

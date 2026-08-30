@@ -23,7 +23,7 @@ dependency caches, private configuration, and binaries are not committed.
 
 ## Locked build environment
 
-RC-2 uses Windows x86-64, PowerShell 7.6.4, and MSYS2 UCRT64 with:
+Eloi 1.0.0 uses Windows x86-64, PowerShell 7.6.4, and MSYS2 UCRT64 with:
 
 | Component | Locked package version |
 | --- | --- |
@@ -87,6 +87,16 @@ The script performs the following checks:
 8. Compares both files byte-for-byte and prints their SHA-256 hashes.
 9. Copies the verified pair to `dist\release` only after every check passes.
 
+Then create the two release archives from the same clean commit:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-windows-release.ps1
+```
+
+That command reruns the canonical two-build proof, creates a standalone ZIP
+containing exactly `Eloi.exe` and `config.yml`, and builds the hash-manifested
+split-runtime ZIP. The GitHub release receives those two ZIPs only.
+
 Use `-Keep` to preserve the temporary trees for diagnosis. Without it, the
 script removes only its uniquely named directory under the system temporary
 directory.
@@ -101,17 +111,19 @@ not affect the executable bytes. Timed games are naturally not replay-identical
 because operating-system scheduling changes how many nodes fit before a clock
 deadline; that is runtime behavior, not build randomness.
 
-## Verifying a published candidate
+## Verifying a published release
 
-Download `Eloi.exe` and `config.yml` from the GitHub release and compare them
+Extract the published standalone ZIP and compare `Eloi.exe` and `config.yml`
 with the hashes printed by the two-build verifier:
 
 ```powershell
 Get-FileHash .\Eloi.exe, .\config.yml -Algorithm SHA256
 ```
 
-Matching hashes prove that the downloaded files are byte-identical to files
+The split-runtime ZIP includes `SOURCE_COMMIT.txt` and `SHA256SUMS.txt`; verify
+its ZIP hash from the release notes, then check every extracted file against
+the manifest. Matching hashes prove that the downloaded files are byte-identical to files
 produced from the tagged source with the locked inputs. They do not, by
 themselves, prove that the reviewed source is harmless; source review and local
-antivirus scanning remain separate security checks. RC binaries are currently
+antivirus scanning remain separate security checks. Release binaries are currently
 unsigned, so signing is not part of the reproducibility claim.

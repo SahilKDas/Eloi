@@ -2,7 +2,7 @@
 
 Thank you for helping improve Eloi. Contributions should preserve its identity:
 a deterministic, single-threaded C++26 chess engine with a native Windows GUI,
-UCI compatibility, and a two-file end-user release.
+UCI compatibility, and two golden Windows release packages.
 
 ## Before you begin
 
@@ -42,7 +42,9 @@ ctest --test-dir build-release --output-on-failure
 
 Every change must preserve these requirements:
 
-- The release directory contains exactly `Eloi.exe` and `config.yml`.
+- GitHub releases contain exactly two downloadable archives: the canonical
+  standalone ZIP and the Defender-friendly split-runtime ZIP.
+- The standalone ZIP contains exactly `Eloi.exe` and `config.yml`.
 - `Eloi.exe` is standalone and imports no non-system DLL.
 - Piece PNGs, opening data, NNUE weights, and required attribution are embedded
   in the executable.
@@ -56,10 +58,10 @@ Every change must preserve these requirements:
   `reproducibility.lock.json`, contain a zero PE timestamp, and reproduce
   byte-for-byte from two independent clean build trees.
 
-Experimental split-runtime archives are supplemental diagnostic artifacts, not
-replacements for the two-file release. They must be clearly labelled, retain
-all DLLs/assets/licenses, record their post-tag source commit and hashes, and
-must never overwrite the canonical `Eloi.exe` or `config.yml` assets.
+The split-runtime ZIP must isolate native networking in `EloiLichess.exe`, keep
+WinHTTP out of its main `Eloi.exe`, and retain all required DLLs, PNG assets,
+licenses, source revision, and per-file hashes. Both ZIP filenames include the
+version and `windows-x64`; neither package replaces the other.
 
 ## Versioning
 
@@ -128,12 +130,12 @@ A good pull request includes:
 3. Benchmark or gauntlet evidence for performance/strength claims.
 4. Screenshots for visible GUI changes.
 5. Confirmation that `git diff --check`, CTest, UCI startup, GUI rendering, and
-   the two-file release validation pass.
+   both golden release-package validations pass.
 
 Keep commits understandable and avoid committing generated binaries. Maintainers
 may ask for a change to be split, retested, or retuned before merging.
 
-Before tagging a release candidate, follow [REPRODUCING.md](REPRODUCING.md)
+Before tagging a release, follow [REPRODUCING.md](REPRODUCING.md)
 and run `scripts/verify-reproducible.ps1 -StageRelease` from a clean worktree.
 Do not describe an artifact as reproducible unless that command completes and
 the published asset hashes match its output.

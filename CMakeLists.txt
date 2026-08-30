@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(Eloi VERSION 1.0.0 LANGUAGES CXX)
-set(ELOI_PRERELEASE "rc.2")
+set(ELOI_PRERELEASE "")
 if(ELOI_PRERELEASE)
   set(ELOI_VERSION "${PROJECT_VERSION}-${ELOI_PRERELEASE}")
 else()
@@ -28,10 +28,10 @@ else()
 endif()
 
 option(ELOI_BUILD_APP "Build the production Eloi executable" ON)
-option(ELOI_EXPERIMENTAL_SPLIT_PACKAGE
-  "Build the experimental external-assets, dynamic-runtime Windows package" OFF)
-if(ELOI_EXPERIMENTAL_SPLIT_PACKAGE AND NOT WIN32)
-  message(FATAL_ERROR "The experimental split package is Windows-only")
+option(ELOI_SPLIT_PACKAGE
+  "Build the Defender-friendly external-assets Windows release package" OFF)
+if(ELOI_SPLIT_PACKAGE AND NOT WIN32)
+  message(FATAL_ERROR "The split-runtime package is Windows-only")
 endif()
 
 set(SKIA_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.deps/skia108/ucrt64"
@@ -50,11 +50,11 @@ else()
   target_compile_options(eloi_core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# Eloi is the sole production executable unless the explicitly experimental
-# split-package option is selected. The default target remains unchanged.
+# Eloi is the sole production executable unless the split-runtime release
+# option is selected. The default standalone target remains unchanged.
 if(ELOI_BUILD_APP)
   set(ELOI_APP_SOURCES src/main.cpp src/driver.cpp src/gui.cpp)
-  if(ELOI_EXPERIMENTAL_SPLIT_PACKAGE)
+  if(ELOI_SPLIT_PACKAGE)
     target_sources(eloi_core PRIVATE src/config_writer.cpp)
     add_compile_definitions(ELOI_EXTERNAL_ASSETS ELOI_SEPARATE_LICHESS_EXE)
   else()
@@ -66,7 +66,7 @@ if(ELOI_BUILD_APP)
   endif()
   add_executable(Eloi ${ELOI_APP_SOURCES})
   target_link_libraries(Eloi PRIVATE eloi_core)
-  if(ELOI_EXPERIMENTAL_SPLIT_PACKAGE)
+  if(ELOI_SPLIT_PACKAGE)
     configure_file(
       src/version-lichess.rc.in
       "${CMAKE_CURRENT_BINARY_DIR}/generated/version-lichess.rc"
@@ -101,7 +101,7 @@ if(NOT MSVC)
       $<$<CONFIG:Release>:${ELOI_REPRO_COMPILE_FLAGS}>)
     target_link_options(Eloi PRIVATE
       $<$<CONFIG:Release>:-flto=1;-Wl,--gc-sections,--no-insert-timestamp;-s>)
-    if(ELOI_EXPERIMENTAL_SPLIT_PACKAGE)
+    if(ELOI_SPLIT_PACKAGE)
       target_compile_options(EloiLichess PRIVATE
         $<$<CONFIG:Release>:${ELOI_REPRO_COMPILE_FLAGS}>)
       target_link_options(EloiLichess PRIVATE
@@ -136,7 +136,7 @@ if(WIN32 AND ELOI_BUILD_APP)
     gdi32 user32 shell32 ole32 oleaut32 uuid usp10 opengl32
   )
   target_link_libraries(Eloi PRIVATE ${ELOI_GUI_LIBRARIES})
-  if(ELOI_EXPERIMENTAL_SPLIT_PACKAGE)
+  if(ELOI_SPLIT_PACKAGE)
     target_link_libraries(EloiLichess PRIVATE winhttp user32 gdi32)
   else()
     target_link_libraries(Eloi PRIVATE winhttp)

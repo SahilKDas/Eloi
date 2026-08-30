@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     if (std::strcmp(argv[i], "--uci") == 0) return run_engine(config, argc, argv);
     if (std::strcmp(argv[i], "--lichess") == 0) {
 #ifdef ELOI_SEPARATE_LICHESS_EXE
-      std::cerr << "This experimental package isolates native Lichess networking.\n"
+      std::cerr << "This split-runtime package isolates native Lichess networking.\n"
                    "Run EloiLichess.exe instead.\n";
       return 2;
 #else

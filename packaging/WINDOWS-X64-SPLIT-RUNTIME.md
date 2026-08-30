@@ -1,7 +1,7 @@
-# Eloi experimental Windows x64 split-runtime package
+# Eloi Windows x64 split-runtime package
 
-This ZIP is an experimental companion to Eloi v1.0.0-rc.2. It does not replace
-the canonical standalone `Eloi.exe` and `config.yml` release assets.
+This Defender-friendly ZIP is one of Eloi's two golden release packages. The
+other is the standalone ZIP containing only `Eloi.exe` and `config.yml`.
 
 Keep the entire extracted directory together. Its components are deliberately
 split to test antivirus classification of the monolithic standalone build:
@@ -17,8 +17,8 @@ split to test antivirus classification of the monolithic standalone build:
 - `config.yml` contains an intentionally blank token. Add your Bot API token
   only to your private extracted copy.
 - `licenses` contains Eloi and redistributed dependency license notices.
-- `SOURCE_COMMIT.txt` records the exact post-tag source revision used for this
-  experimental variant, while `SHA256SUMS.txt` covers every packaged file.
+- `SOURCE_COMMIT.txt` records the exact source revision used for this package,
+  while `SHA256SUMS.txt` covers every packaged file.
 
 Double-click `Eloi.exe` for the GUI, or run UCI mode with:
 
@@ -38,6 +38,12 @@ file has been configured, run:
 Running `Eloi.exe --lichess` intentionally refuses and points to the separate
 bridge. The Python lichess-bot workflow may still use `Eloi.exe --uci`.
 
-This package is unsigned and experimental. Do not disable antivirus protection
-or bypass a warning. Report which individual file is detected; separating the
-network client is intended to make that result diagnostically useful.
+This package is unsigned. Do not disable antivirus protection or bypass a
+warning. Report which individual file is detected; separating the network
+client makes that result diagnostically useful.
+
+Microsoft previously reviewed the RC-2 standalone false-positive submission
+`f6ee03e9-1ec6-4f33-bd8e-f831c8502d27`, determined that exact file was not
+malware or a potentially unwanted application, and removed its
+`Trojan:Win32/Wacatac.B!ml` detection. That determination is hash-specific and
+does not replace scanning this package.

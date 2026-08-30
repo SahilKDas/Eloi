@@ -1,14 +1,27 @@
 param(
   [switch] $AllowDirty,
-  [switch] $SkipDefenderScan
+  [switch] $SkipDefenderScan,
+  [string] $OutputRoot
 )
 
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$packageName = 'Eloi-v1.0.0-rc.2-windows-x64-split-runtime'
-$buildRoot = Join-Path $projectRoot 'build-experimental-split'
-$outputRoot = Join-Path $projectRoot 'dist\experimental'
+$cmakeSource = Get-Content -LiteralPath (Join-Path $projectRoot 'CMakeLists.txt') -Raw
+if ($cmakeSource -notmatch 'project\(Eloi VERSION ([0-9]+\.[0-9]+\.[0-9]+)') {
+  throw 'Could not determine Eloi version from CMakeLists.txt'
+}
+$releaseVersion = $Matches[1]
+if ($cmakeSource -match 'set\(ELOI_PRERELEASE "([^"]*)"\)' -and $Matches[1]) {
+  $releaseVersion += '-' + $Matches[1]
+}
+$packageName = "Eloi-v$releaseVersion-windows-x64-split-runtime"
+$buildRoot = Join-Path $projectRoot 'build-split-runtime'
+if ($OutputRoot) {
+  $outputRoot = [IO.Path]::GetFullPath($OutputRoot)
+} else {
+  $outputRoot = Join-Path $projectRoot 'dist\split-runtime'
+}
 $packageRoot = Join-Path $outputRoot $packageName
 $zipPath = Join-Path $outputRoot ($packageName + '.zip')
 $cmake = 'C:/msys64/ucrt64/bin/cmake.exe'
@@ -69,8 +82,9 @@ function Assert-ZeroPeTimestamp {
 }
 
 if (-not $AllowDirty -and (& git -C $projectRoot status --porcelain)) {
-  throw 'Commit the exact source first; the experimental packager requires a clean worktree.'
+  throw 'Commit the exact source first; the split-runtime packager requires a clean worktree.'
 }
+$null = Assert-UnderProject $outputRoot
 
 & (Join-Path $PSScriptRoot 'verify-toolchain.ps1') -RequirePackageArchives
 if ($LASTEXITCODE -ne 0) { throw 'Pinned input verification failed' }
@@ -90,7 +104,7 @@ Invoke-Checked $cmake @(
   "-DCMAKE_CXX_COMPILER=$cxx",
   "-DCMAKE_RC_COMPILER=$windres",
   '-DELOI_BUILD_TESTS=ON',
-  '-DELOI_EXPERIMENTAL_SPLIT_PACKAGE=ON'
+  '-DELOI_SPLIT_PACKAGE=ON'
 )
 Invoke-Checked $cmake @(
   '--build', $buildRoot, '--target', 'Eloi', 'EloiLichess', 'eloi_tests', '-j', '2'
@@ -101,7 +115,7 @@ Copy-Item -LiteralPath (Join-Path $buildRoot 'Eloi.exe') -Destination $packageRo
 Copy-Item -LiteralPath (Join-Path $buildRoot 'EloiLichess.exe') -Destination $packageRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config.example.yml') `
   -Destination (Join-Path $packageRoot 'config.yml')
-Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\EXPERIMENTAL-WINDOWS-X64.md') `
+Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\WINDOWS-X64-SPLIT-RUNTIME.md') `
   -Destination (Join-Path $packageRoot 'README.md')
 
 $assetParent = Join-Path $packageRoot 'assets'
@@ -159,19 +173,19 @@ Assert-ZeroPeTimestamp $lichessExe
 
 $uci = "uci`nisready`nquit`n" | & $mainExe --uci 2>&1
 if (-not ($uci -match 'uciok') -or -not ($uci -match 'readyok')) {
-  throw 'Experimental packaged UCI handshake failed'
+  throw 'Split-runtime packaged UCI handshake failed'
 }
 & $lichessExe --check-config
-if ($LASTEXITCODE -ne 0) { throw 'Experimental Lichess config check failed' }
+if ($LASTEXITCODE -ne 0) { throw 'Split-runtime Lichess config check failed' }
 $mainLichess = & $mainExe --lichess 2>&1
 if ($LASTEXITCODE -ne 2 -or
     ($mainLichess -join "`n") -notmatch 'EloiLichess.exe') {
   throw 'Main executable did not redirect native Lichess users to the bridge'
 }
-$smoke = Join-Path $outputRoot 'experimental-gui-smoke.bmp'
+$smoke = Join-Path $outputRoot 'split-runtime-gui-smoke.bmp'
 & $mainExe --screenshot $smoke
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $smoke)) {
-  throw 'Experimental GUI/assets screenshot smoke test failed'
+  throw 'Split-runtime GUI/assets screenshot smoke test failed'
 }
 Remove-Item -LiteralPath $smoke -Force
 
@@ -203,7 +217,7 @@ if (-not $SkipDefenderScan) {
 }
 
 $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
-Write-Host "Experimental package: $zipPath"
+Write-Host "Split-runtime package: $zipPath"
 Write-Host "SHA-256: $zipHash"
 Write-Host "Main imports: $($mainImports -join ', ')"
 Write-Host "Lichess imports: $($lichessImports -join ', ')"

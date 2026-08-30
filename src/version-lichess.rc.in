@@ -18,7 +18,7 @@ BEGIN
     BLOCK "040904b0"
     BEGIN
       VALUE "CompanyName", "Eloi contributors\0"
-      VALUE "FileDescription", "Experimental Eloi native Lichess bridge\0"
+      VALUE "FileDescription", "Eloi native Lichess bridge\0"
       VALUE "FileVersion", "@ELOI_VERSION@\0"
       VALUE "InternalName", "EloiLichess\0"
       VALUE "LegalCopyright", "MIT\0"
