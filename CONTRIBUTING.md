@@ -1,8 +1,8 @@
 # Contributing to Eloi
 
 Thank you for helping improve Eloi. Contributions should preserve its identity:
-a deterministic, single-threaded C++26 chess engine with a native Windows GUI,
-UCI compatibility, and two golden Windows release packages.
+a deterministic, fixed-three-thread C++26 chess engine with a native Windows
+GUI, UCI compatibility, and two golden Windows release packages.
 
 ## Before you begin
 
@@ -50,7 +50,8 @@ Every change must preserve these requirements:
   in the executable.
 - `config.yml` is readable text and contains no real credential in Git or
   published artifacts.
-- Eloi remains single-threaded while searching and does not advertise pondering.
+- Eloi uses exactly three deterministic search threads, advertises a fixed UCI
+  `Threads` value of 3, and does not advertise pondering.
 - The engine warns above 40 plies, the GUI caps selection at 200 plies, and the
   absolute engine ceiling remains 17,697 plies.
 - Standard chess, Chess960, UCI, and native Lichess operation remain compatible.
@@ -63,14 +64,21 @@ WinHTTP out of its main `Eloi.exe`, and retain all required DLLs, PNG assets,
 licenses, source revision, and per-file hashes. Both ZIP filenames include the
 version and `windows-x64`; neither package replaces the other.
 
+Local development uses `dist/current` as a rolling release-candidate area, not
+an archive. After every build-affecting change, run
+`scripts/stage-current-candidates.ps1`. It deletes only the previous rolling
+candidate, rebuilds and tests both package forms, and leaves the newest
+standalone and split-runtime ZIPs together. Extracted staging duplicates and
+older local candidates do not remain under `dist`.
+
 ## Versioning
 
 `CMakeLists.txt` is the single source of truth for Eloi's version. Its numeric
 `project(... VERSION ...)` and `ELOI_PRERELEASE` values generate the C++
 version header and Windows executable metadata. Do not hardcode a version in
-another source file. Release-candidate tags use `vMAJOR.MINOR.PATCH-rc.N`; a
-stable release sets `ELOI_PRERELEASE` to an empty string and uses
-`vMAJOR.MINOR.PATCH`.
+another source file. Beta tags use `vMAJOR.MINOR.PATCH-beta.N`, release
+candidate tags use `vMAJOR.MINOR.PATCH-rc.N`, and a stable release sets
+`ELOI_PRERELEASE` to an empty string and uses `vMAJOR.MINOR.PATCH`.
 
 ## Code and engine changes
 
@@ -84,9 +92,10 @@ stable release sets `ELOI_PRERELEASE` to an empty string and uses
   changed.
 - Guard selective-search optimizations against checks, zugzwang-prone endings,
   promotions, forced replies, and tactical positions as appropriate.
-- Do not claim an Elo gain from a few games. Strength changes should pass paired
-  fixed-node self-play and, for major changes, an SPRT or the documented
-  200-game mirrored gauntlet.
+- Do not claim an Elo gain from a few games. Three-lane strength changes should
+  use paired equal-wall-time or equal-depth self-play; a fixed total-node gate
+  unfairly fragments one budget across three independent trees. Major strength
+  claims still require an SPRT or the documented 200-game mirrored gauntlet.
 
 ### Brain-change regression protocol
 
@@ -108,9 +117,19 @@ stable test stopping point without hanging. Also run the command-line smoke:
   .\build-release\Eloi.previous.exe
 ```
 
-Record noteworthy visual behavior in the pull request, but use the mirrored
-fixed-node gauntlet—not a single watched game—as the strength gate. Do not
-commit the retained executable or package it in a release.
+Record noteworthy visual behavior in the pull request, but use a mirrored
+equal-wall-time gauntlet—not a single watched game—as the strength gate. Do not
+commit the retained executable or package it in a release. On a shared Windows
+machine, add `--idle-priority` so foreground applications and live bot games
+preempt the test engines.
+
+```powershell
+& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
+  '.\scripts\selfplay_gauntlet.py' `
+  --candidate '.\build-release\Eloi.exe' `
+  --baseline '.\build-release\Eloi.previous.exe' `
+  --games 200 --movetime-ms 250 --required-score 55 --idle-priority
+```
 
 Run at minimum:
 
@@ -119,6 +138,7 @@ ctest --test-dir build-release --output-on-failure
 .\build-release\Eloi.exe --perft --depth 4
 .\build-release\Eloi.exe --bench --depth 6
 .\build-release\Eloi.exe --screenshot .\build-release\smoke.bmp
+.\build-release\Eloi.exe --screenshot-setup .\build-release\setup-smoke.bmp
 .\build-release\Eloi.exe --version-match-smoke `
   .\build-release\Eloi.previous.exe
 ```

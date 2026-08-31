@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
-project(Eloi VERSION 1.0.0 LANGUAGES CXX)
-set(ELOI_PRERELEASE "")
+project(Eloi VERSION 1.5.0 LANGUAGES CXX)
+set(ELOI_PRERELEASE "beta.1")
 if(ELOI_PRERELEASE)
   set(ELOI_VERSION "${PROJECT_VERSION}-${ELOI_PRERELEASE}")
 else()

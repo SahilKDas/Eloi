@@ -23,7 +23,7 @@ dependency caches, private configuration, and binaries are not committed.
 
 ## Locked build environment
 
-Eloi 1.0.0 uses Windows x86-64, PowerShell 7.6.4, and MSYS2 UCRT64 with:
+Eloi Windows x64 release builds use PowerShell 7.6.4 and MSYS2 UCRT64 with:
 
 | Component | Locked package version |
 | --- | --- |

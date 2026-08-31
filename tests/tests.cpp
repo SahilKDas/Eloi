@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <set>
 #include <string>
 
 using namespace eloi;
@@ -21,12 +22,13 @@ void expect(bool condition, const std::string& message) {
   }
 }
 
-void expect_perft(std::string_view fen, int depth, std::uint64_t expected) {
+void expect_perft(std::string_view fen, int depth, std::uint64_t expected,
+                  bool horde = false) {
   std::string error;
   auto board = parse_fen(fen, &error);
   expect(board.has_value(), "parse perft FEN: " + error);
   if (!board) return;
-  auto actual = perft(board->position, board->turn, depth);
+  auto actual = perft(board->position, board->turn, depth, nullptr, horde);
   expect(actual == expected, "perft depth " + std::to_string(depth) + ": expected " +
                             std::to_string(expected) + ", got " + std::to_string(actual));
 }
@@ -74,6 +76,8 @@ void expect_search_round_trip(std::string_view fen, std::string_view uci) {
 }  // namespace
 
 int main() {
+  static_assert(search_thread_count == 3,
+                "Eloi's search contract is fixed at exactly three threads");
   static_assert(recommended_search_depth == 40,
                 "Eloi warns above exactly 40 plies");
   static_assert(maximum_gui_search_depth == 200,
@@ -103,6 +107,7 @@ int main() {
                 "  variants:\n"
                 "    - standard\n"
                 "    - chess960\n"
+                "    - horde\n"
                 "engine:\n"
                 "  depth: 12\n"
                 "  hash_mb: 64\n"
@@ -117,7 +122,7 @@ int main() {
                  config->lichess_token == "lip_test_only" &&
                  config->min_base_seconds == 0 &&
                  config->max_base_seconds == 10'800 &&
-                 !config->allow_bots && config->variants.size() == 2 &&
+                 !config->allow_bots && config->variants.size() == 3 &&
                  config->depth == 12 && config->hash_mb == 64 &&
                  config->move_overhead_ms == 150 && !config->own_book,
              "config values map exactly into runtime settings");
@@ -201,6 +206,39 @@ int main() {
   expect_perft("7k/8/8/8/8/8/8/4K1R1 w G - 0 1", 2, 21);
   expect_perft("7k/8/8/8/8/8/8/1R1K4 w B - 0 1", 2, 42);
   expect_perft("5r1k/8/8/8/8/8/8/1K1R4 w D - 0 1", 2, 244);
+  expect_perft(horde_initial_fen, 2, 128, true);
+
+  {
+    std::set<std::string> unique_positions;
+    for (int index = 0; index < 960; ++index) {
+      auto board = chess960_start(index);
+      expect(board.has_value() && board->chess960,
+             "every numbered Chess960 start parses with Shredder rights");
+      if (!board) continue;
+      const int king = board->position.king_square(Color::white);
+      const int left_rook = board->position.castling_rooks[1];
+      const int right_rook = board->position.castling_rooks[0];
+      expect(left_rook < king && king < right_rook,
+             "Chess960 king begins between its rooks");
+      std::array<int, 2> bishops{-1, -1};
+      int bishop = 0;
+      for (int file = 0; file < 8; ++file)
+        if (board->position.piece_at(square_of(file, 0)) == Piece::bishop)
+          bishops[bishop++] = file;
+      expect(bishop == 2 && ((bishops[0] ^ bishops[1]) & 1),
+             "Chess960 bishops begin on opposite colors");
+      const std::string fen = to_fen(*board);
+      unique_positions.insert(fen.substr(0, fen.find(' ')));
+    }
+    expect(unique_positions.size() == 960,
+           "Chess960 generator produces all 960 unique starting arrays");
+    const auto orthodox = chess960_start(518);
+    expect(orthodox && to_fen(*orthodox).starts_with(
+               "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"),
+           "official Chess960 position 518 is the orthodox arrangement");
+    expect(!chess960_start(-1) && !chess960_start(960),
+           "Chess960 generator rejects indices outside 0..959");
+  }
 
   {
     auto board = *parse_fen(initial_fen);
@@ -356,6 +394,51 @@ int main() {
   }
 
   {
+    auto board = *parse_fen(horde_initial_fen);
+    board.horde = true;
+    int white_pawns = 0;
+    for (int square = 0; square < 64; ++square)
+      if (board.position.color_at(square) == Color::white &&
+          board.position.piece_at(square) == Piece::pawn)
+        ++white_pawns;
+    expect(white_pawns == 36, "Horde starts with exactly 36 white pawns");
+    expect(board.position.king_square(Color::white) < 0,
+           "Horde White is legal without a king");
+    expect(!board.horde_eliminated(),
+           "the initial Horde is not considered eliminated");
+  }
+
+  {
+    auto board = *parse_fen("4k3/8/8/8/8/8/8/P7 w - - 0 1");
+    board.horde = true;
+    expect(board.push_uci("a1a3"),
+           "a Horde pawn may make its special first-rank double-step");
+    expect(board.position.en_passant < 0,
+           "a first-rank Horde double-step does not create en passant");
+    expect(board.pop(), "the Horde double-step can be undone");
+  }
+
+  {
+    auto board = *parse_fen("4k3/8/8/8/8/8/r7/P7 b - - 0 1");
+    board.horde = true;
+    expect(board.push_uci("a2a1"), "Black can capture the last Horde piece");
+    expect(board.horde_eliminated(),
+           "capturing every Horde piece ends the game");
+    expect(board.variant_winner() == Color::black,
+           "Black wins when the Horde is eliminated");
+  }
+
+  {
+    auto board = *parse_fen("7k/6Q1/5P2/8/8/8/8/8 b - - 0 1");
+    board.horde = true;
+    expect(board.legal_moves().empty() &&
+               board.position.in_check(Color::black),
+           "Horde can checkmate Black without a white king");
+    expect(board.variant_winner() == Color::white,
+           "White wins Horde by checkmating Black");
+  }
+
+  {
     auto board = *parse_fen(initial_fen);
     constexpr std::array cycle{"g1f3", "g8f6", "f3g1", "f6g8"};
     for (int repeat = 0; repeat < 2; ++repeat)
@@ -487,12 +570,23 @@ int main() {
            "verified null-move pruning is exercised");
     expect(result.probcut_cutoffs > 0,
            "SEE-guarded ProbCut is exercised");
-    expect(result.singular_extensions > 0,
-           "true singular extensions are exercised");
     expect(result.late_move_prunes > 0,
            "late-move pruning is exercised");
     expect(result.history_hits > 0 && result.countermove_hits > 0,
-           "history and countermove ordering are exercised");
+            "history and countermove ordering are exercised");
+  }
+
+  {
+    auto board = *parse_fen(
+        "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
+    auto config = default_config(EngineKind::eloi);
+    config.own_book = false;
+    std::atomic_bool stopped{false};
+    SearchLimits limits; limits.depth = 6;
+    Searcher searcher(config, stopped);
+    const auto result = searcher.iterative(board, limits);
+    expect(result.singular_extensions > 0,
+           "true singular extensions are exercised");
   }
 
   {

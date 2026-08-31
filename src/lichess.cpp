@@ -275,11 +275,15 @@ std::string game_event_id(std::string_view game) {
 
 void play_game(const RuntimeConfig& config, std::string_view game_id,
                std::string_view account_id,
-               std::string_view tournament_id = {}) {
+               std::string_view tournament_id = {},
+               std::string_view swiss_id = {},
+               bool swiss_pairing = false) {
   HttpClient client(config);
   if (!client.valid()) return;
   std::string initial(initial_fen);
+  std::string variant_key{"standard"};
   bool chess960 = false;
+  bool horde = false;
   bool ponder_enabled = false;
   bool ponder_chat_sent = false;
   std::thread ponder_chat_thread;
@@ -288,19 +292,88 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
   std::atomic_bool ponder_stopped{false};
   std::thread ponder_thread;
   std::optional<SearchResult> ponder_result;
+  std::optional<SearchResult> last_search;
   std::string ponder_base_moves;
   std::string ponder_expected_moves;
   std::string active_tournament(tournament_id);
-  bool tournament_announced = false;
+  std::string active_swiss(swiss_id);
+  bool active_swiss_pairing = swiss_pairing || !active_swiss.empty();
+  bool competition_announced = false;
   const std::wstring path = L"/api/bot/game/stream/" + wide(game_id);
 
-  auto announce_tournament = [&] {
-    if (active_tournament.empty() || tournament_announced) return;
-    tournament_announced = true;
-    std::cout << "tournament " << active_tournament << " game "
-              << game_id << " started\n";
+  auto announce_competition = [&] {
+    if (competition_announced) return;
+    if (active_swiss_pairing) {
+      competition_announced = true;
+      std::cout << "swiss";
+      if (!active_swiss.empty()) std::cout << ' ' << active_swiss;
+      std::cout << " pairing " << game_id << " started\n";
+    } else if (!active_tournament.empty()) {
+      competition_announced = true;
+      std::cout << "arena " << active_tournament << " game "
+                << game_id << " started\n";
+    }
   };
-  announce_tournament();
+  announce_competition();
+
+  auto send_chat = [&](std::string_view message) {
+    const std::wstring chat_path =
+        L"/api/bot/game/" + wide(game_id) + L"/chat";
+    return client.post(chat_path,
+                       "room=player&text=" + form_encode(message));
+  };
+
+  auto handle_chat = [&](std::string_view line) {
+    if (json_string(line, "room").value_or("") != "player") return;
+    std::string username = json_string(line, "username").value_or("");
+    std::string sender = username;
+    std::ranges::transform(sender, sender.begin(), [](unsigned char character) {
+      return static_cast<char>(std::tolower(character));
+    });
+    std::string self(account_id);
+    std::ranges::transform(self, self.begin(), [](unsigned char character) {
+      return static_cast<char>(std::tolower(character));
+    });
+    if (sender == self) return;
+
+    std::string command = json_string(line, "text").value_or("");
+    while (!command.empty() &&
+           std::isspace(static_cast<unsigned char>(command.front())))
+      command.erase(command.begin());
+    while (!command.empty() &&
+           std::isspace(static_cast<unsigned char>(command.back())))
+      command.pop_back();
+    std::ranges::transform(command, command.begin(), [](unsigned char character) {
+      return static_cast<char>(std::tolower(character));
+    });
+
+    std::string response;
+    if (command == "!help") {
+      response = "Commands: !help, !version, !eval, !depth, !rematch";
+    } else if (command == "!version") {
+      response = "Eloi " + std::string(version) + " (native C++ Lichess client)";
+    } else if (command == "!eval") {
+      if (!last_search) {
+        response = "No completed Eloi search yet.";
+      } else if (std::abs(last_search->score_cp) >= 29'000) {
+        response = "Eloi sees a forced mate.";
+      } else {
+        const int score = last_search->score_cp;
+        response = "Eloi evaluation: " + std::string(score >= 0 ? "+" : "") +
+                   std::to_string(score) + " cp (for Eloi).";
+      }
+    } else if (command == "!depth") {
+      response = last_search
+          ? "Last search: depth " + std::to_string(last_search->depth) +
+                ", " + std::to_string(last_search->nodes) + " nodes."
+          : "No completed Eloi search yet.";
+    } else if (command == "!rematch") {
+      response =
+          "Request a Lichess rematch after the game; Eloi accepts when idle.";
+    }
+    if (!response.empty() && !send_chat(response))
+      std::cerr << "Could not answer chat command in game " << game_id << '\n';
+  };
 
   auto stop_ponder = [&] {
     if (!ponder_thread.joinable()) return;
@@ -348,7 +421,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     engine.depth = config.depth;
     engine.hash_mb = config.hash_mb;
     engine.move_overhead_ms = config.move_overhead_ms;
-    engine.own_book = config.own_book && !chess960;
+    engine.own_book = config.own_book && !chess960 && !horde;
     ponder_thread = std::thread(
         [&, predicted = std::move(predicted), engine = std::move(engine)]() mutable {
           SearchLimits limits;
@@ -382,9 +455,11 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     if (!game_running) return;
     if (!bot_side ||
         (last_acted_moves && moves == *last_acted_moves)) return;
-    auto board = parse_fen(initial == "startpos" ? initial_fen : initial);
+    auto board = parse_fen(initial == "startpos"
+        ? (horde ? horde_initial_fen : initial_fen) : initial);
     if (!board) return;
     board->chess960 = chess960;
+    board->horde = horde;
     std::istringstream history(moves);
     for (std::string move; history >> move;)
       if (!board->push_uci(move)) return;
@@ -400,7 +475,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       engine.depth = config.depth;
       engine.hash_mb = config.hash_mb;
       engine.move_overhead_ms = config.move_overhead_ms;
-      engine.own_book = config.own_book && !chess960;
+      engine.own_book = config.own_book && !chess960 && !horde;
       SearchLimits limits;
       limits.depth = config.depth;
       limits.remaining_ms = json_int(
@@ -412,6 +487,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       Searcher searcher(engine, stopped);
       result = searcher.iterative(*board, limits);
     }
+    last_search = result;
     if (result.pv.empty()) return;
     const std::string move = uci_move(
         result.pv.front(), board->position, chess960);
@@ -432,10 +508,23 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       if (const auto id = json_string(line, "tournamentId");
           id && !id->empty()) {
         active_tournament = *id;
-        announce_tournament();
+        announce_competition();
       }
-      if (const auto variant = json_object(line, "variant"))
-        chess960 = json_string(*variant, "key").value_or("") == "chess960";
+      if (const auto id = json_string(line, "swissId");
+          id && !id->empty()) {
+        active_swiss = *id;
+        active_swiss_pairing = true;
+        announce_competition();
+      }
+      if (json_string(line, "source").value_or("") == "swiss") {
+        active_swiss_pairing = true;
+        announce_competition();
+      }
+      if (const auto variant = json_object(line, "variant")) {
+        variant_key = json_string(*variant, "key").value_or("standard");
+        chess960 = variant_key == "chess960";
+        horde = variant_key == "horde";
+      }
       if (const auto clock = json_object(line, "clock")) {
         const int initial_ms = json_int(*clock, "initial").value_or(-1);
         ponder_enabled = lichess_ponder_enabled(initial_ms);
@@ -449,11 +538,19 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       act(line);
       const std::string status = json_string(line, "status").value_or("");
       if (status != "started" && status != "created") {
-        if (!active_tournament.empty())
-          std::cout << "tournament " << active_tournament << " game "
+        if (active_swiss_pairing) {
+          std::cout << "swiss";
+          if (!active_swiss.empty()) std::cout << ' ' << active_swiss;
+          std::cout << " pairing " << game_id
+                    << " finished with status " << status << '\n';
+        }
+        else if (!active_tournament.empty())
+          std::cout << "arena " << active_tournament << " game "
                     << game_id << " finished with status " << status << '\n';
         return false;
       }
+    } else if (type == "chatLine") {
+      handle_chat(line);
     }
     return true;
   });
@@ -521,6 +618,8 @@ int run_lichess(int argc, char** argv) {
         const int base = clock ? json_int(*clock, "limit").value_or(-1) : -1;
         const bool bot = challenger &&
             json_string(*challenger, "title").value_or("") == "BOT";
+        const bool rematch =
+            json_string(*challenge, "rematchOf").has_value();
         const bool accept = !busy && !id.empty() &&
             variant_allowed(*config, variant) &&
             base >= config->min_base_seconds &&
@@ -530,16 +629,23 @@ int run_lichess(int argc, char** argv) {
             (accept ? L"/accept" : L"/decline");
         if (client.post(action, accept ? "" : "reason=standard") && accept)
           busy = true;
-        std::cout << (accept ? "accepted " : "declined ")
+        std::cout << (accept ? (rematch ? "accepted rematch " : "accepted ")
+                             : "declined ")
                   << id << " " << variant << " " << base << "+x\n";
       } else if (type == "gameStart") {
         if (const auto game = json_object(line, "game")) {
           const std::string id = game_event_id(*game);
           const std::string tournament_id =
               json_string(*game, "tournamentId").value_or("");
+          const std::string swiss_id =
+              json_string(*game, "swissId").value_or("");
+          const bool swiss_pairing =
+              json_string(*game, "source").value_or("") == "swiss" ||
+              !swiss_id.empty();
           if (!id.empty()) {
             busy = true;
-            play_game(*config, id, account_id, tournament_id);
+            play_game(*config, id, account_id, tournament_id, swiss_id,
+                      swiss_pairing);
           } else {
             std::cerr << "Lichess gameStart event did not contain a game ID\n";
           }

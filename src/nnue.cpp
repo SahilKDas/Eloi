@@ -93,6 +93,31 @@ void nnue_update(NnueState& state, const Position& before,
   }
 }
 
+void nnue_update_changed(NnueState& state, const Position& before,
+                         const Position& after,
+                         const std::array<std::uint8_t, 4>& squares,
+                         std::uint8_t count) {
+  for (Color perspective : {Color::white, Color::black}) {
+    const int index = perspective_index(perspective);
+    const int before_bucket = king_bucket(before, perspective);
+    const int after_bucket = king_bucket(after, perspective);
+    if (before_bucket != after_bucket) {
+      state.perspective[index] = refresh_perspective(after, perspective);
+      continue;
+    }
+    for (std::uint8_t changed = 0; changed < count; ++changed) {
+      const int square = squares[changed];
+      if (before.cells[square] == after.cells[square]) continue;
+      add_feature(state.perspective[index],
+                  feature_of(before.cells[square], square, before_bucket,
+                             perspective), -1);
+      add_feature(state.perspective[index],
+                  feature_of(after.cells[square], square, after_bucket,
+                             perspective), 1);
+    }
+  }
+}
+
 int nnue_evaluate(const NnueState& state, Color side_to_move) {
   const std::int64_t white_score = activate(state.perspective[0]);
   const std::int64_t black_score = activate(state.perspective[1]);

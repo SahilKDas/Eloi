@@ -27,12 +27,15 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <format>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <random>
 #include <string>
 #include <thread>
 #include <vector>
@@ -42,7 +45,7 @@ namespace {
 
 constexpr UINT engine_finished_message = WM_APP + 26;
 constexpr UINT animation_timer_id = 27;
-constexpr auto move_animation_duration = std::chrono::milliseconds(230);
+constexpr auto move_animation_duration = std::chrono::milliseconds(280);
 constexpr SkColor ink = SkColorSetRGB(235, 239, 248);
 constexpr SkColor muted = SkColorSetRGB(144, 153, 176);
 constexpr SkColor accent = SkColorSetRGB(121, 101, 255);
@@ -66,6 +69,7 @@ struct Layout {
   float board_size{};
   float square{};
   float panel_left{};
+  UiRect eval_bar;
   UiRect depth_minus;
   UiRect depth_plus;
   UiRect new_game;
@@ -73,6 +77,14 @@ struct Layout {
   UiRect flip;
   UiRect side;
   UiRect version_match;
+  UiRect setup_base_minus;
+  UiRect setup_base_plus;
+  UiRect setup_increment_minus;
+  UiRect setup_increment_plus;
+  std::array<UiRect, 3> setup_variants;
+  std::array<UiRect, 2> setup_sides;
+  UiRect setup_start;
+  UiRect setup_cancel;
 };
 
 Layout make_layout(int width, int height) {
@@ -85,6 +97,9 @@ Layout make_layout(int width, int height) {
       400.0f, 696.0f);
   layout.square = layout.board_size / 8.0f;
   layout.panel_left = layout.board_left + layout.board_size + 38.0f;
+  layout.eval_bar = {layout.board_left - 28.0f, layout.board_top,
+                     layout.board_left - 14.0f,
+                     layout.board_top + layout.board_size};
   const float right = static_cast<float>(width) - 38.0f;
   layout.depth_minus = {layout.panel_left, 291, layout.panel_left + 46, 337};
   layout.depth_plus = {right - 46, 291, right, 337};
@@ -93,7 +108,43 @@ Layout make_layout(int width, int height) {
   layout.flip = {layout.panel_left, 598, right, 646};
   layout.side = {layout.panel_left, 658, right, 706};
   layout.version_match = {layout.panel_left, 718, right, 766};
+  const float dialog_left = layout.board_left + 54;
+  const float dialog_right = layout.board_left + layout.board_size - 54;
+  const float dialog_width = dialog_right - dialog_left;
+  layout.setup_base_minus = {dialog_left + 22, 280, dialog_left + 70, 326};
+  layout.setup_base_plus = {dialog_left + dialog_width / 2 - 70, 280,
+                            dialog_left + dialog_width / 2 - 22, 326};
+  layout.setup_increment_minus = {dialog_left + dialog_width / 2 + 22, 280,
+                                  dialog_left + dialog_width / 2 + 70, 326};
+  layout.setup_increment_plus = {dialog_right - 70, 280,
+                                 dialog_right - 22, 326};
+  const float variant_gap = 10;
+  const float variant_width = (dialog_width - 44 - variant_gap * 2) / 3;
+  for (int i = 0; i < 3; ++i) {
+    const float left = dialog_left + 22 + i * (variant_width + variant_gap);
+    layout.setup_variants[i] = {left, 382, left + variant_width, 428};
+  }
+  const float side_width = (dialog_width - 54) / 2;
+  layout.setup_sides[0] = {dialog_left + 22, 480,
+                           dialog_left + 22 + side_width, 530};
+  layout.setup_sides[1] = {dialog_right - 22 - side_width, 480,
+                           dialog_right - 22, 530};
+  layout.setup_cancel = {dialog_left + 22, 574,
+                         dialog_left + dialog_width * .38f, 624};
+  layout.setup_start = {dialog_left + dialog_width * .42f, 574,
+                        dialog_right - 22, 624};
   return layout;
+}
+
+SkColor blend_color(SkColor from, SkColor to, float amount) {
+  amount = std::clamp(amount, 0.0f, 1.0f);
+  auto channel = [amount](int a, int b) {
+    return static_cast<U8CPU>(std::lround(a + (b - a) * amount));
+  };
+  return SkColorSetARGB(channel(SkColorGetA(from), SkColorGetA(to)),
+                        channel(SkColorGetR(from), SkColorGetR(to)),
+                        channel(SkColorGetG(from), SkColorGetG(to)),
+                        channel(SkColorGetB(from), SkColorGetB(to)));
 }
 
 void text(SkCanvas& canvas, std::string_view value, float x, float y, float size,
@@ -115,9 +166,10 @@ void round_rect(SkCanvas& canvas, const UiRect& rect, float radius, SkColor colo
 }
 
 void button(SkCanvas& canvas, const UiRect& rect, std::string_view label,
-            SkColor fill = SkColorSetRGB(35, 40, 57)) {
+            SkColor fill = SkColorSetRGB(35, 40, 57), float hover = 0.0f) {
+  fill = blend_color(fill, SkColorSetRGB(73, 78, 105), hover * .55f);
   round_rect(canvas, {rect.left + 2, rect.top + 4, rect.right + 2, rect.bottom + 4},
-             13, SkColorSetARGB(80, 0, 0, 0));
+             13 + hover * 2, SkColorSetARGB(80, 0, 0, 0));
   round_rect(canvas, rect, 13, fill);
   const float label_width = static_cast<float>(label.size()) * 7.1f;
   text(canvas, label, (rect.left + rect.right - label_width) / 2,
@@ -139,6 +191,13 @@ int piece_slot(std::int8_t cell) {
 }
 
 struct App {
+  enum class LocalVariant { standard, chess960, horde };
+  enum class HoverControl : std::size_t {
+    depth_minus, depth_plus, new_game, undo, flip, side, version_match,
+    base_minus, base_plus, increment_minus, increment_plus,
+    variant_standard, variant_chess960, variant_horde,
+    side_white, side_black, setup_start, setup_cancel, count
+  };
   enum class AnimationAfter { none, start_engine, finish_engine };
   struct MoveAnimation {
     bool active{false};
@@ -154,6 +213,16 @@ struct App {
     bool active{false};
     std::vector<Move> moves;
   } promotion;
+  struct GameSetup {
+    bool active{false};
+    bool resume_clock{false};
+    int previous_depth{1};
+    int base_minutes{5};
+    int increment_seconds{0};
+    int chess960_index{518};
+    Color human{Color::white};
+    LocalVariant variant{LocalVariant::standard};
+  } setup;
   HWND window{};
   Board board{*parse_fen(initial_fen)};
   Color human{Color::white};
@@ -161,6 +230,23 @@ struct App {
   bool flipped{false};
   bool version_match{false};
   int depth{7};
+  LocalVariant local_variant{LocalVariant::standard};
+  int chess960_index{518};
+  bool clocked_game{false};
+  int increment_ms{0};
+  std::array<std::int64_t, 2> clock_ms{300'000, 300'000};
+  std::vector<std::array<std::int64_t, 2>> clock_history;
+  std::chrono::steady_clock::time_point turn_started{};
+  bool clock_running{false};
+  bool mouse_inside{false};
+  float mouse_x{-1};
+  float mouse_y{-1};
+  std::array<float, static_cast<std::size_t>(HoverControl::count)> hover{};
+  float displayed_eval_fraction{0.5f};
+  float setup_alpha{0.0f};
+  float promotion_alpha{0.0f};
+  std::chrono::steady_clock::time_point visual_tick{
+      std::chrono::steady_clock::now()};
   int selected{-1};
   std::atomic_bool stop{false};
   std::atomic_bool thinking{false};
@@ -174,6 +260,7 @@ struct App {
   std::optional<SearchResult> pending_result;
   std::string pending_error;
   SearchResult last_result;
+  Color last_result_side{Color::white};
   std::string last_engine{"Eloi"};
   std::string status{"Your move"};
   std::array<sk_sp<SkImage>, 12> pieces;
@@ -187,6 +274,118 @@ struct App {
 };
 
 void start_engine(App& app);
+
+constexpr std::size_t side_index(Color side) {
+  return side == Color::white ? 0U : 1U;
+}
+
+std::string_view variant_name(App::LocalVariant variant) {
+  switch (variant) {
+    case App::LocalVariant::chess960: return "Chess960";
+    case App::LocalVariant::horde: return "Horde";
+    default: return "FIDE chess";
+  }
+}
+
+Board local_start_position(App::LocalVariant variant, int chess960_index) {
+  if (variant == App::LocalVariant::horde) {
+    Board board = *parse_fen(horde_initial_fen);
+    board.horde = true;
+    return board;
+  }
+  if (variant == App::LocalVariant::chess960)
+    return *chess960_start(std::clamp(chess960_index, 0, 959));
+  return *parse_fen(initial_fen);
+}
+
+int random_chess960_index() {
+  static std::mt19937 generator(std::random_device{}());
+  static std::uniform_int_distribution<int> distribution(0, 959);
+  return distribution(generator);
+}
+
+std::int64_t clock_remaining(const App& app, Color side,
+                             std::chrono::steady_clock::time_point now =
+                                 std::chrono::steady_clock::now()) {
+  std::int64_t remaining = app.clock_ms[side_index(side)];
+  if (app.clocked_game && app.clock_running && app.board.turn == side)
+    remaining -= std::chrono::duration_cast<std::chrono::milliseconds>(
+        now - app.turn_started).count();
+  return std::max<std::int64_t>(0, remaining);
+}
+
+std::string format_clock(std::int64_t milliseconds) {
+  milliseconds = std::max<std::int64_t>(0, milliseconds);
+  if (milliseconds < 10'000)
+    return std::format("0:{:02}.{}", milliseconds / 1000,
+                       (milliseconds % 1000) / 100);
+  const auto seconds = milliseconds / 1000;
+  return std::format("{}:{:02}", seconds / 60, seconds % 60);
+}
+
+void commit_move_clock(App& app, Color moving_side) {
+  if (!app.clocked_game) return;
+  const auto now = std::chrono::steady_clock::now();
+  app.clock_history.push_back(app.clock_ms);
+  std::array<std::int64_t, 2> snapshot{
+      clock_remaining(app, Color::white, now),
+      clock_remaining(app, Color::black, now)};
+  app.clock_ms = snapshot;
+  app.clock_ms[side_index(moving_side)] += app.increment_ms;
+  app.turn_started = now;
+  app.clock_running = true;
+}
+
+float target_eval_fraction(const App& app) {
+  const int white_score = app.last_result.depth == 0 &&
+          app.last_result.opening_family.empty()
+      ? 0
+      : (app.last_result_side == Color::white
+             ? app.last_result.score_cp : -app.last_result.score_cp);
+  return std::clamp(
+      0.5f + 0.48f * std::tanh(static_cast<float>(white_score) / 400.0f),
+      0.02f, 0.98f);
+}
+
+std::array<UiRect, static_cast<std::size_t>(App::HoverControl::count)>
+hover_rects(const Layout& layout) {
+  return {layout.depth_minus, layout.depth_plus, layout.new_game, layout.undo,
+          layout.flip, layout.side, layout.version_match,
+          layout.setup_base_minus, layout.setup_base_plus,
+          layout.setup_increment_minus, layout.setup_increment_plus,
+          layout.setup_variants[0], layout.setup_variants[1],
+          layout.setup_variants[2], layout.setup_sides[0],
+          layout.setup_sides[1], layout.setup_start, layout.setup_cancel};
+}
+
+float hover_value(const App& app, App::HoverControl control) {
+  return app.hover[static_cast<std::size_t>(control)];
+}
+
+void update_visuals(App& app) {
+  const auto now = std::chrono::steady_clock::now();
+  const float elapsed = std::clamp(
+      std::chrono::duration<float>(now - app.visual_tick).count(),
+      0.0f, 0.1f);
+  app.visual_tick = now;
+  const float response = 1.0f - std::exp(-elapsed * 14.0f);
+  RECT client{};
+  GetClientRect(app.window, &client);
+  const auto controls = hover_rects(make_layout(client.right, client.bottom));
+  for (std::size_t index = 0; index < app.hover.size(); ++index) {
+    const float target = app.mouse_inside &&
+        controls[index].contains(app.mouse_x, app.mouse_y) ? 1.0f : 0.0f;
+    app.hover[index] += (target - app.hover[index]) * response;
+  }
+  const float eval_target = target_eval_fraction(app);
+  app.displayed_eval_fraction +=
+      (eval_target - app.displayed_eval_fraction) *
+      (1.0f - std::exp(-elapsed * 7.0f));
+  app.setup_alpha += ((app.setup.active ? 1.0f : 0.0f) - app.setup_alpha) *
+                     response;
+  app.promotion_alpha +=
+      ((app.promotion.active ? 1.0f : 0.0f) - app.promotion_alpha) * response;
+}
 
 void load_pieces(App& app) {
 #ifdef ELOI_EXTERNAL_ASSETS
@@ -270,6 +469,27 @@ bool write_bmp(const std::filesystem::path& path, const SkPixmap& pixels) {
 }
 
 bool game_over(App& app) {
+  if (app.clocked_game && app.clock_running &&
+      clock_remaining(app, app.board.turn) <= 0) {
+    const bool human_flagged = app.board.turn == app.human;
+    app.clock_ms[side_index(app.board.turn)] = 0;
+    app.clock_running = false;
+    app.status = human_flagged ? "Time — Eloi wins" : "Eloi flags — you win";
+    return true;
+  }
+  if (app.board.horde_eliminated()) {
+    if (app.version_match) {
+      app.status = app.current_version_side == Color::black
+          ? "Horde eliminated — current Eloi wins"
+          : "Horde eliminated — previous Eloi wins";
+    } else {
+      app.status = app.human == Color::black
+          ? "Horde eliminated — you win"
+          : "Horde eliminated — Eloi wins";
+    }
+    app.clock_running = false;
+    return true;
+  }
   const auto moves = app.board.legal_moves();
   if (moves.empty()) {
     if (!app.board.position.in_check(app.board.turn)) {
@@ -283,48 +503,57 @@ bool game_over(App& app) {
       app.status = app.board.turn == app.human
           ? "Checkmate — Eloi wins" : "Checkmate — you win";
     }
+    app.clock_running = false;
     return true;
   }
   if (app.board.is_threefold_repetition()) {
     app.status = "Draw by threefold repetition";
+    app.clock_running = false;
     return true;
   }
   if (app.board.is_fifty_move_draw()) {
     app.status = "Draw by fifty-move rule";
+    app.clock_running = false;
     return true;
   }
-  if (app.board.position.insufficient_material()) {
+  if (!app.board.horde && app.board.position.insufficient_material()) {
     app.status = "Draw by insufficient material";
+    app.clock_running = false;
     return true;
   }
   return false;
 }
 
 void cancel_animation(App& app) {
-  if (app.window) KillTimer(app.window, animation_timer_id);
   app.animation = {};
   app.promotion = {};
 }
 
+int castling_rook_origin(const Board& board, const Move& move) {
+  if (!move.is_castle()) return -1;
+  const int color_offset = board.turn == Color::white ? 0 : 2;
+  const int slot = color_offset +
+      (move.type == MoveType::king_castle ? 0 : 1);
+  return board.position.castling_rooks[slot];
+}
+
 void begin_animation(App& app, const Move& move, std::int8_t moving_cell,
-                     App::AnimationAfter after) {
+                     App::AnimationAfter after, int rook_from = -1) {
   app.animation = {};
   app.animation.active = true;
   app.animation.move = move;
   app.animation.moving_cell = moving_cell;
   app.animation.started = std::chrono::steady_clock::now();
   app.animation.after = after;
-  if (move.is_castle()) {
+  if (move.is_castle() && rook_from >= 0) {
     const int rank = rank_of(move.from);
-    app.animation.rook_from = square_of(
-        move.type == MoveType::king_castle ? 7 : 0, rank);
+    app.animation.rook_from = rook_from;
     app.animation.rook_to = square_of(
         move.type == MoveType::king_castle ? 5 : 3, rank);
     const int sign = moving_cell < 0 ? -1 : 1;
     app.animation.rook_cell = static_cast<std::int8_t>(
         sign * static_cast<int>(Piece::rook));
   }
-  if (app.window) SetTimer(app.window, animation_timer_id, 16, nullptr);
 }
 
 void stop_engine(App& app) {
@@ -357,20 +586,30 @@ void start_engine(App& app) {
   if (app.worker.joinable()) app.worker.join();
 
   const Board root = app.board;
-  const int depth = std::clamp(app.depth, 1, maximum_gui_search_depth);
+  const int depth = app.version_match
+      ? std::clamp(app.depth, 1, maximum_gui_search_depth)
+      : std::clamp(app.depth, 0, maximum_gui_search_depth);
   const bool version_mode = app.version_match;
   const bool current_turn = root.turn == app.current_version_side;
+  const int remaining_ms = depth == 0
+      ? static_cast<int>(std::min<std::int64_t>(
+            clock_remaining(app, root.turn), std::numeric_limits<int>::max()))
+      : 0;
+  const int increment_ms = app.increment_ms;
   app.stop.store(false);
   app.thinking.store(true);
   const auto generation = app.search_generation.fetch_add(1) + 1;
   app.status = version_mode
       ? std::format("{} is thinking · {} plies",
                     current_turn ? "Current Eloi" : "Previous Eloi", depth)
-      : std::format("Eloi is thinking · {} plies", depth);
+      : (depth == 0
+            ? std::format("Eloi is thinking · {}", format_clock(remaining_ms))
+            : std::format("Eloi is thinking · {} plies", depth));
   InvalidateRect(app.window, nullptr, FALSE);
 
   app.worker = std::thread(
-      [&app, root, depth, generation, version_mode, current_turn] {
+      [&app, root, depth, remaining_ms, increment_ms, generation,
+       version_mode, current_turn] {
     if (version_mode) {
       UciVersionEngine* engine = current_turn
           ? app.current_version_engine.get()
@@ -395,9 +634,15 @@ void start_engine(App& app) {
     }
     auto config = default_config(EngineKind::eloi);
     config.depth = depth;
+    config.own_book = config.own_book && !root.chess960 && !root.horde;
     Searcher searcher(config, app.stop);
     SearchLimits limits;
     limits.depth = depth;
+    if (depth == 0) {
+      limits.remaining_ms = remaining_ms;
+      limits.increment_ms = increment_ms;
+      limits.move_overhead_ms = config.move_overhead_ms;
+    }
     auto result = searcher.iterative(root, limits);
     if (!app.stop.load()) {
       std::scoped_lock lock(app.result_mutex);
@@ -412,7 +657,6 @@ void start_engine(App& app) {
 void finish_animation(App& app) {
   if (!app.animation.active) return;
   const auto after = app.animation.after;
-  KillTimer(app.window, animation_timer_id);
   app.animation = {};
   if (game_over(app)) {
     InvalidateRect(app.window, nullptr, FALSE);
@@ -430,13 +674,68 @@ void finish_animation(App& app) {
 void reset_game(App& app, Color human) {
   cancel_animation(app);
   stop_engine(app);
-  app.board = *parse_fen(initial_fen);
+  app.board = local_start_position(app.local_variant, app.chess960_index);
   app.human = human;
   app.selected = -1;
   app.last_result = {};
+  app.displayed_eval_fraction = 0.5f;
+  app.clock_history.clear();
+  app.clocked_game = app.depth == 0;
+  if (app.clocked_game) {
+    const std::int64_t initial =
+        static_cast<std::int64_t>(app.setup.base_minutes) * 60'000;
+    app.increment_ms = app.setup.increment_seconds * 1000;
+    app.clock_ms = {initial, initial};
+    app.turn_started = std::chrono::steady_clock::now();
+    app.clock_running = true;
+  } else {
+    app.clock_running = false;
+  }
   app.status = human == Color::white ? "Your move" : "Eloi opens";
   InvalidateRect(app.window, nullptr, FALSE);
   start_engine(app);
+}
+
+void open_game_setup(App& app, int previous_depth) {
+  cancel_animation(app);
+  if (app.clocked_game && app.clock_running) {
+    const auto now = std::chrono::steady_clock::now();
+    app.clock_ms = {clock_remaining(app, Color::white, now),
+                    clock_remaining(app, Color::black, now)};
+    app.turn_started = now;
+  }
+  stop_engine(app);
+  app.setup.previous_depth = previous_depth;
+  app.setup.resume_clock = app.clocked_game && app.clock_running;
+  app.setup.human = app.human;
+  app.setup.variant = app.local_variant;
+  app.setup.chess960_index = app.chess960_index;
+  app.clock_running = false;
+  app.depth = 0;
+  app.setup.active = true;
+  app.status = "Configure a clocked game";
+  InvalidateRect(app.window, nullptr, FALSE);
+}
+
+void cancel_game_setup(App& app) {
+  app.setup.active = false;
+  app.depth = app.setup.previous_depth;
+  if (app.setup.resume_clock && app.depth == 0) {
+    app.turn_started = std::chrono::steady_clock::now();
+    app.clock_running = true;
+  }
+  app.status = app.board.turn == app.human ? "Your move" : "Eloi is ready";
+  InvalidateRect(app.window, nullptr, FALSE);
+  start_engine(app);
+}
+
+void apply_game_setup(App& app) {
+  app.setup.active = false;
+  app.local_variant = app.setup.variant;
+  app.chess960_index = app.setup.chess960_index;
+  app.depth = 0;
+  app.flipped = app.setup.human == Color::black;
+  reset_game(app, app.setup.human);
 }
 
 void reset_version_game(App& app) {
@@ -445,6 +744,8 @@ void reset_version_game(App& app) {
   app.board = *parse_fen(initial_fen);
   app.selected = -1;
   app.last_result = {};
+  app.clocked_game = false;
+  app.clock_running = false;
   app.last_engine = "No moves yet";
   if (app.current_version_engine) app.current_version_engine->begin_new_game();
   if (app.previous_version_engine) app.previous_version_engine->begin_new_game();
@@ -502,6 +803,7 @@ void toggle_version_match(App& app) {
       app.previous_version_label += " · " + commit;
   }
   app.current_version_side = Color::white;
+  app.depth = std::max(1, app.depth);
   app.version_match = true;
   reset_version_game(app);
 }
@@ -509,8 +811,21 @@ void toggle_version_match(App& app) {
 void undo_turn(App& app) {
   cancel_animation(app);
   stop_engine(app);
-  if (!app.board.history.empty()) app.board.pop();
-  if (!app.board.history.empty() && app.board.turn != app.human) app.board.pop();
+  auto pop = [&] {
+    if (app.board.history.empty()) return false;
+    if (!app.board.pop()) return false;
+    if (app.clocked_game && !app.clock_history.empty()) {
+      app.clock_ms = app.clock_history.back();
+      app.clock_history.pop_back();
+    }
+    return true;
+  };
+  pop();
+  if (!app.board.history.empty() && app.board.turn != app.human) pop();
+  if (app.clocked_game) {
+    app.turn_started = std::chrono::steady_clock::now();
+    app.clock_running = true;
+  }
   app.selected = -1;
   app.status = app.board.turn == app.human ? "Your move" : "Eloi is ready";
   InvalidateRect(app.window, nullptr, FALSE);
@@ -635,7 +950,8 @@ float animation_progress(const App& app) {
       std::chrono::steady_clock::now() - app.animation.started).count() /
       std::chrono::duration<float>(move_animation_duration).count();
   const float t = std::clamp(raw, 0.0f, 1.0f);
-  return t * t * (3.0f - 2.0f * t);
+  return t < 0.5f ? 4.0f * t * t * t
+                  : 1.0f - std::pow(-2.0f * t + 2.0f, 3.0f) / 2.0f;
 }
 
 void render_animation(App& app, SkCanvas& canvas, const Layout& layout) {
@@ -663,7 +979,9 @@ void render_animation(App& app, SkCanvas& canvas, const Layout& layout) {
 }
 
 void render_promotion_picker(App& app, SkCanvas& canvas, const Layout& layout) {
-  if (!app.promotion.active) return;
+  if (!app.promotion.active && app.promotion_alpha < 0.01f) return;
+  canvas.saveLayerAlpha(nullptr, static_cast<U8CPU>(
+      std::clamp(app.promotion_alpha, 0.0f, 1.0f) * 255));
   SkPaint veil;
   veil.setColor(SkColorSetARGB(170, 10, 11, 21));
   canvas.drawRoundRect(
@@ -690,6 +1008,83 @@ void render_promotion_picker(App& app, SkCanvas& canvas, const Layout& layout) {
                  cards[i].left, cards[i].top,
                  cards[i].right - cards[i].left);
   }
+  canvas.restore();
+}
+
+void render_game_setup(App& app, SkCanvas& canvas, const Layout& layout) {
+  if (!app.setup.active && app.setup_alpha < 0.01f) return;
+  canvas.saveLayerAlpha(nullptr, static_cast<U8CPU>(
+      std::clamp(app.setup_alpha, 0.0f, 1.0f) * 255));
+  SkPaint veil;
+  veil.setColor(SkColorSetARGB(205, 8, 9, 18));
+  canvas.drawRect(SkRect::MakeXYWH(
+      layout.board_left - 10, layout.board_top - 10,
+      layout.board_size + 20, layout.board_size + 20), veil);
+  const float left = layout.board_left + 54;
+  const float right = layout.board_left + layout.board_size - 54;
+  round_rect(canvas, {left, 146, right, 652}, 24,
+             SkColorSetRGB(27, 31, 48));
+  text(canvas, "NEW CLOCKED GAME", left + 24, 184, 21, ink, true);
+  text(canvas, "Depth 0 · Eloi manages its time like an online game",
+       left + 24, 210, 12, muted);
+
+  const float middle = (left + right) / 2;
+  text(canvas, "BASE MINUTES", left + 24, 252, 11, muted, true);
+  text(canvas, "INCREMENT", middle + 24, 252, 11, muted, true);
+  button(canvas, layout.setup_base_minus, "−", SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::base_minus));
+  button(canvas, layout.setup_base_plus, "+", SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::base_plus));
+  button(canvas, layout.setup_increment_minus, "−",
+         SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::increment_minus));
+  button(canvas, layout.setup_increment_plus, "+",
+         SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::increment_plus));
+  text(canvas, std::format("{} min", app.setup.base_minutes),
+       left + 84, 312, 22, ink, true);
+  text(canvas, std::format("{} sec", app.setup.increment_seconds),
+       middle + 84, 312, 22, ink, true);
+
+  text(canvas, "VARIANT", left + 24, 360, 11, muted, true);
+  constexpr std::array labels{"FIDE", "CHESS960", "HORDE"};
+  constexpr std::array variants{App::LocalVariant::standard,
+                                App::LocalVariant::chess960,
+                                App::LocalVariant::horde};
+  constexpr std::array controls{App::HoverControl::variant_standard,
+                                App::HoverControl::variant_chess960,
+                                App::HoverControl::variant_horde};
+  for (std::size_t i = 0; i < labels.size(); ++i)
+    button(canvas, layout.setup_variants[i], labels[i],
+           app.setup.variant == variants[i] ? accent : SkColorSetRGB(35, 40, 57),
+           hover_value(app, controls[i]));
+  if (app.setup.variant == App::LocalVariant::chess960)
+    text(canvas, std::format("Position #{} · randomized when selected",
+                            app.setup.chess960_index),
+         left + 24, 451, 12, mint);
+  else
+    text(canvas, std::string(variant_name(app.setup.variant)),
+         left + 24, 451, 12, muted);
+
+  text(canvas, "SIDES", left + 24, 472, 11, muted, true);
+  button(canvas, layout.setup_sides[0], "YOU WHITE · ELOI BLACK",
+         app.setup.human == Color::white ? accent : SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::side_white));
+  button(canvas, layout.setup_sides[1], "YOU BLACK · ELOI WHITE",
+         app.setup.human == Color::black ? accent : SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::side_black));
+
+  text(canvas, std::format("{}+{} · {} · you play {}",
+                          app.setup.base_minutes,
+                          app.setup.increment_seconds,
+                          variant_name(app.setup.variant),
+                          app.setup.human == Color::white ? "White" : "Black"),
+       left + 24, 558, 13, mint, true);
+  button(canvas, layout.setup_cancel, "CANCEL", SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::setup_cancel));
+  button(canvas, layout.setup_start, "START GAME", accent,
+         hover_value(app, App::HoverControl::setup_start));
+  canvas.restore();
 }
 
 void render(App& app, SkCanvas& canvas, int width, int height) {
@@ -708,6 +1103,28 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
               layout.board_left + layout.board_size + 10,
               layout.board_top + layout.board_size + 10},
              20, SkColorSetRGB(31, 35, 50));
+
+  const float white_fraction = app.displayed_eval_fraction;
+  const UiRect eval_border{layout.eval_bar.left - 2, layout.eval_bar.top - 2,
+                           layout.eval_bar.right + 2,
+                           layout.eval_bar.bottom + 2};
+  round_rect(canvas, eval_border, 8, SkColorSetRGB(77, 84, 104));
+  round_rect(canvas, layout.eval_bar, 6, SkColorSetRGB(20, 22, 29));
+  canvas.save();
+  if (app.flipped) {
+    canvas.clipRect(SkRect::MakeLTRB(
+        layout.eval_bar.left, layout.eval_bar.top, layout.eval_bar.right,
+        layout.eval_bar.top +
+            (layout.eval_bar.bottom - layout.eval_bar.top) * white_fraction));
+  } else {
+    canvas.clipRect(SkRect::MakeLTRB(
+        layout.eval_bar.left,
+        layout.eval_bar.bottom -
+            (layout.eval_bar.bottom - layout.eval_bar.top) * white_fraction,
+        layout.eval_bar.right, layout.eval_bar.bottom));
+  }
+  round_rect(canvas, layout.eval_bar, 6, SkColorSetRGB(238, 240, 246));
+  canvas.restore();
 
   std::vector<int> destinations;
   if (app.selected >= 0) {
@@ -788,23 +1205,41 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
                     app.current_version_side == Color::white ? "White" : "Black")
       : (app.board.turn == Color::white ? "White to move" : "Black to move");
   text(canvas, turn_text, layout.panel_left + 24, 180, 14, muted);
+  if (app.clocked_game) {
+    const std::string clocks = std::format(
+        "W {} · B {}", format_clock(clock_remaining(app, Color::white)),
+        format_clock(clock_remaining(app, Color::black)));
+    text(canvas, clocks,
+         panel_right - 24 - static_cast<float>(clocks.size()) * 7.0f,
+         180, 13, app.clock_running ? ink : muted, true);
+  }
 
   render_material(canvas, app, layout.panel_left + 24, panel_right - 24);
 
-  text(canvas, app.version_match ? "MATCH DEPTH · BOTH ENGINES" : "SEARCH DEPTH",
+  text(canvas, app.version_match ? "MATCH DEPTH · BOTH ENGINES"
+                                 : (app.depth == 0 ? "TIME CONTROL"
+                                                   : "SEARCH DEPTH"),
        layout.panel_left + 24, 276, 12, muted, true);
-  text(canvas, std::format("{} plies", app.depth),
+  text(canvas, app.depth == 0 ? "AUTO · CLOCKED"
+                              : std::format("{} plies", app.depth),
        layout.panel_left + 80, 325, 25, ink, true);
   text(canvas,
-       app.depth > recommended_search_depth
+       app.depth == 0
+           ? std::format("{}+{} · {} · Eloi manages time",
+                         app.setup.base_minutes,
+                         app.setup.increment_seconds,
+                         variant_name(app.local_variant))
+       : app.depth > recommended_search_depth
            ? "Warning: 40+ may take hours or days"
            : "Recommended limit: 40 plies",
        layout.panel_left + 24, 360, 13,
        app.depth > recommended_search_depth
            ? SkColorSetRGB(255, 205, 92) : muted,
        app.depth > recommended_search_depth);
-  button(canvas, layout.depth_minus, "−");
-  button(canvas, layout.depth_plus, "+");
+  button(canvas, layout.depth_minus, "−", SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::depth_minus));
+  button(canvas, layout.depth_plus, "+", SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::depth_plus));
 
   text(canvas, app.version_match
                    ? std::format("LAST MOVE · {}", app.last_engine)
@@ -824,17 +1259,25 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
          layout.panel_left + 24, 446, 12, muted);
 
   button(canvas, layout.new_game,
-         app.version_match ? "RESTART VERSION MATCH" : "NEW GAME", accent);
+         app.version_match ? "RESTART VERSION MATCH" : "NEW GAME", accent,
+         hover_value(app, App::HoverControl::new_game));
   button(canvas, layout.undo,
-         app.version_match ? "AUTOPLAY ACTIVE" : "UNDO TURN");
-  button(canvas, layout.flip, app.flipped ? "NORMAL VIEW" : "FLIP BOARD");
+         app.version_match ? "AUTOPLAY ACTIVE" : "UNDO TURN",
+         SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::undo));
+  button(canvas, layout.flip, app.flipped ? "NORMAL VIEW" : "FLIP BOARD",
+         SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::flip));
   button(canvas, layout.side,
          app.version_match
              ? "SWAP CURRENT / PREVIOUS COLORS"
-             : (app.human == Color::white ? "PLAY AS BLACK" : "PLAY AS WHITE"));
+             : (app.human == Color::white ? "PLAY AS BLACK" : "PLAY AS WHITE"),
+         SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::side));
   button(canvas, layout.version_match,
          app.version_match ? "EXIT VERSION MATCH" : "VERSION MATCH",
-         app.version_match ? SkColorSetRGB(65, 57, 105) : accent);
+         app.version_match ? SkColorSetRGB(65, 57, 105) : accent,
+         hover_value(app, App::HoverControl::version_match));
 
   if (app.version_match && !app.previous_version_path.empty())
     text(canvas,
@@ -845,6 +1288,7 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
        layout.panel_left, static_cast<float>(height) - 48, 11, muted);
   text(canvas, "Board and interface rendered in code with Skia",
        layout.panel_left, static_cast<float>(height) - 27, 11, muted);
+  render_game_setup(app, canvas, layout);
 }
 
 std::optional<int> square_at(const App& app, const Layout& layout, float x, float y) {
@@ -877,11 +1321,13 @@ void play_human_move(App& app, int target) {
     if (!matches.empty()) {
       const Move move = matches.front();
       const std::int8_t moving_cell = app.board.position.cells[move.from];
+      const int rook_from = castling_rook_origin(app.board, move);
+      commit_move_clock(app, app.board.turn);
       if (!app.board.push(move)) return;
       app.selected = -1;
       app.status = "Move played";
       begin_animation(app, move, moving_cell,
-                      App::AnimationAfter::start_engine);
+                      App::AnimationAfter::start_engine, rook_from);
       InvalidateRect(app.window, nullptr, FALSE);
       return;
     }
@@ -895,6 +1341,38 @@ void on_click(App& app, float x, float y) {
   RECT client{};
   GetClientRect(app.window, &client);
   const auto layout = make_layout(client.right, client.bottom);
+  if (app.setup.active) {
+    if (layout.setup_base_minus.contains(x, y)) {
+      app.setup.base_minutes = std::max(1, app.setup.base_minutes - 1);
+    } else if (layout.setup_base_plus.contains(x, y)) {
+      app.setup.base_minutes = std::min(180, app.setup.base_minutes + 1);
+    } else if (layout.setup_increment_minus.contains(x, y)) {
+      app.setup.increment_seconds =
+          std::max(0, app.setup.increment_seconds - 1);
+    } else if (layout.setup_increment_plus.contains(x, y)) {
+      app.setup.increment_seconds =
+          std::min(60, app.setup.increment_seconds + 1);
+    } else if (layout.setup_variants[0].contains(x, y)) {
+      app.setup.variant = App::LocalVariant::standard;
+    } else if (layout.setup_variants[1].contains(x, y)) {
+      app.setup.chess960_index = random_chess960_index();
+      app.setup.variant = App::LocalVariant::chess960;
+    } else if (layout.setup_variants[2].contains(x, y)) {
+      app.setup.variant = App::LocalVariant::horde;
+    } else if (layout.setup_sides[0].contains(x, y)) {
+      app.setup.human = Color::white;
+    } else if (layout.setup_sides[1].contains(x, y)) {
+      app.setup.human = Color::black;
+    } else if (layout.setup_start.contains(x, y)) {
+      apply_game_setup(app);
+      return;
+    } else if (layout.setup_cancel.contains(x, y)) {
+      cancel_game_setup(app);
+      return;
+    }
+    InvalidateRect(app.window, nullptr, FALSE);
+    return;
+  }
   if (app.promotion.active) {
     constexpr std::array order{
         Piece::queen, Piece::rook, Piece::bishop, Piece::knight};
@@ -908,6 +1386,7 @@ void on_click(App& app, float x, float y) {
         const Move move = *chosen;
         const std::int8_t moving_cell = app.board.position.cells[move.from];
         app.promotion = {};
+        commit_move_clock(app, app.board.turn);
         if (app.board.push(move)) {
           app.selected = -1;
           app.status = "Move played";
@@ -928,14 +1407,24 @@ void on_click(App& app, float x, float y) {
     return;
   }
   if (layout.depth_minus.contains(x, y)) {
+    if (app.depth <= 1 && !app.version_match) {
+      open_game_setup(app, app.depth);
+      return;
+    }
     app.depth = std::max(1, app.depth - 1);
   } else if (layout.depth_plus.contains(x, y)) {
+    if (app.depth == 0) {
+      stop_engine(app);
+      app.clock_running = false;
+      app.clocked_game = false;
+    }
     app.depth = std::min(maximum_gui_search_depth, app.depth + 1);
     if (app.depth > recommended_search_depth)
       app.status = std::format("Warning · depth {} may take a very long time",
                                app.depth);
   } else if (layout.new_game.contains(x, y)) {
     if (app.version_match) reset_version_game(app);
+    else if (app.depth == 0) open_game_setup(app, 0);
     else reset_game(app, app.human);
     return;
   } else if (layout.undo.contains(x, y)) {
@@ -947,6 +1436,9 @@ void on_click(App& app, float x, float y) {
     if (app.version_match) {
       app.current_version_side = opponent(app.current_version_side);
       reset_version_game(app);
+    } else if (app.depth == 0) {
+      open_game_setup(app, 0);
+      app.setup.human = opponent(app.human);
     } else {
       reset_game(app, opponent(app.human));
     }
@@ -977,13 +1469,31 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
       if (app) on_click(*app, static_cast<float>(GET_X_LPARAM(lparam)),
                         static_cast<float>(GET_Y_LPARAM(lparam)));
       return 0;
+    case WM_MOUSEMOVE:
+      if (app) {
+        app->mouse_inside = true;
+        app->mouse_x = static_cast<float>(GET_X_LPARAM(lparam));
+        app->mouse_y = static_cast<float>(GET_Y_LPARAM(lparam));
+        TRACKMOUSEEVENT tracking{sizeof(tracking), TME_LEAVE, window, 0};
+        TrackMouseEvent(&tracking);
+      }
+      return 0;
+    case WM_MOUSELEAVE:
+      if (app) app->mouse_inside = false;
+      return 0;
     case WM_TIMER:
       if (app && wparam == animation_timer_id) {
-        if (std::chrono::steady_clock::now() - app->animation.started >=
-            move_animation_duration)
+        update_visuals(*app);
+        if (app->animation.active &&
+            std::chrono::steady_clock::now() - app->animation.started >=
+                move_animation_duration)
           finish_animation(*app);
-        else
-          InvalidateRect(window, nullptr, FALSE);
+        if (app->clocked_game && app->clock_running &&
+            clock_remaining(*app, app->board.turn) <= 0) {
+          game_over(*app);
+          stop_engine(*app);
+        }
+        InvalidateRect(window, nullptr, FALSE);
       }
       return 0;
     case engine_finished_message:
@@ -1003,12 +1513,15 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
         app->thinking.store(false);
         if (result && !result->pv.empty()) {
           app->last_result = *result;
+          app->last_result_side = app->board.turn;
           const bool current_moved = app->version_match &&
               app->board.turn == app->current_version_side;
           if (app->version_match)
             app->last_engine = current_moved ? "CURRENT" : "PREVIOUS";
           const Move move = result->pv.front();
           const std::int8_t moving_cell = app->board.position.cells[move.from];
+          const int rook_from = castling_rook_origin(app->board, move);
+          commit_move_clock(*app, app->board.turn);
           if (app->board.push(move)) {
             if (app->version_match) {
               app->status = current_moved
@@ -1021,7 +1534,8 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
             begin_animation(*app, move, moving_cell,
                             app->version_match
                                 ? App::AnimationAfter::start_engine
-                                : App::AnimationAfter::finish_engine);
+                                : App::AnimationAfter::finish_engine,
+                            rook_from);
           }
         } else if (!app->stop.load()) {
           app->status = pending_error.empty()
@@ -1061,6 +1575,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
     }
     case WM_CLOSE:
       if (app) {
+        KillTimer(window, animation_timer_id);
         cancel_animation(*app);
         stop_engine(*app);
       }
@@ -1087,7 +1602,15 @@ int run_gui(int argc, char** argv) {
     if (std::string_view(argv[i]) == "--version-match")
       launch_version_match = true;
   for (int i = 1; i + 1 < argc; ++i) {
-    if (std::string_view(argv[i]) != "--screenshot") continue;
+    const std::string_view option(argv[i]);
+    if (option != "--screenshot" && option != "--screenshot-setup")
+      continue;
+    if (option == "--screenshot-setup") {
+      app.depth = 0;
+      app.setup.active = true;
+      app.setup_alpha = 1.0f;
+      app.status = "Configure a clocked game";
+    }
     constexpr int width = 1180;
     constexpr int height = 850;
     auto surface = SkSurface::MakeRaster(SkImageInfo::MakeN32Premul(width, height));
@@ -1117,6 +1640,7 @@ int run_gui(int argc, char** argv) {
   if (!window) return 1;
   ShowWindow(window, SW_SHOW);
   UpdateWindow(window);
+  SetTimer(window, animation_timer_id, 16, nullptr);
   if (launch_version_match) toggle_version_match(app);
 
   MSG message{};

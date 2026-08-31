@@ -19,7 +19,7 @@ struct RuntimeConfig {
   int min_base_seconds{0};
   int max_base_seconds{10'800};
   bool allow_bots{true};
-  std::vector<std::string> variants{"standard", "chess960"};
+  std::vector<std::string> variants{"standard", "chess960", "horde"};
   int depth{0};
   int hash_mb{32};
   int move_overhead_ms{100};

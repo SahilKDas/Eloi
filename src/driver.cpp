@@ -162,6 +162,7 @@ int run_engine(EngineConfig config, int argc, char** argv) {
   if (!initial) return 2;
   Board board = *initial;
   bool uci_chess960 = false;
+  std::string uci_variant{"chess"};
   std::string first;
   if (!std::getline(std::cin, first)) { usage(config, argv[0]); return 2; }
   if (first == "console") return run_console(config, board);
@@ -171,9 +172,11 @@ int run_engine(EngineConfig config, int argc, char** argv) {
             << "id author " << config.author << "\n"
             << "option name Depth type spin default " << config.depth << " min 0 max " << maximum_search_depth << "\n"
             << "option name Hash type spin default " << config.hash_mb << " min 0 max 16384\n"
+            << "option name Threads type spin default 3 min 3 max 3\n"
             << "option name Move Overhead type spin default " << config.move_overhead_ms << " min 0 max 5000\n"
             << "option name Noise type spin default " << config.noise_millipawns << " min 0 max 10000\n"
-            << "option name UCI_Chess960 type check default false\n";
+            << "option name UCI_Chess960 type check default false\n"
+            << "option name UCI_Variant type combo default chess var chess var horde\n";
   if (config.own_book) std::cout << "option name OwnBook type check default true\n";
   std::cout << "uciok" << std::endl;
 
@@ -188,10 +191,11 @@ int run_engine(EngineConfig config, int argc, char** argv) {
   auto launch = [&](SearchLimits limits) {
     stop_worker(); stopped = false; active = true;
     Board snapshot = board;
-    const bool chess960_mode = uci_chess960 || snapshot.chess960;
+    const bool chess960_mode = !snapshot.horde &&
+        (uci_chess960 || snapshot.chess960);
     snapshot.chess960 = chess960_mode;
     EngineConfig current = config;
-    if (chess960_mode) current.own_book = false;
+    if (chess960_mode || snapshot.horde) current.own_book = false;
     worker = std::thread([&, snapshot=std::move(snapshot),
                           current=std::move(current), limits,
                           chess960_mode]() mutable {
@@ -223,8 +227,11 @@ int run_engine(EngineConfig config, int argc, char** argv) {
     if (cmd == "stop") { stop_worker(); continue; }
     if (cmd == "ucinewgame") {
       stop_worker();
-      board=*initial;
-      board.chess960=uci_chess960;
+      const auto start = parse_fen(
+          uci_variant == "horde" ? horde_initial_fen : initial_fen);
+      board = *start;
+      board.horde = uci_variant == "horde";
+      board.chess960 = !board.horde && uci_chess960;
       continue;
     }
     if (cmd == "setoption") {
@@ -248,7 +255,20 @@ int run_engine(EngineConfig config, int argc, char** argv) {
         if(key=="OwnBook") config.own_book=(val=="true"||val=="1");
         if(key=="UCI_Chess960") {
           uci_chess960=(val=="true"||val=="1");
-          board.chess960=uci_chess960;
+          board.chess960=!board.horde && uci_chess960;
+        }
+        if(key=="UCI_Variant") {
+          std::ranges::transform(val, val.begin(), [](unsigned char character) {
+            return static_cast<char>(std::tolower(character));
+          });
+          if (val == "chess" || val == "standard" || val == "horde") {
+            uci_variant = val == "horde" ? "horde" : "chess";
+            board.horde = uci_variant == "horde";
+            board.chess960 = !board.horde && uci_chess960;
+          } else {
+            std::cout << "info string unsupported UCI_Variant " << val
+                      << std::endl;
+          }
         }
       }
       continue;
@@ -256,14 +276,20 @@ int run_engine(EngineConfig config, int argc, char** argv) {
     if (cmd == "position") {
       stop_worker(); std::size_t index=1;
       if(index<args.size()&&args[index]=="startpos") {
-        board=*initial; board.chess960=uci_chess960; ++index;
+        const auto start = parse_fen(
+            uci_variant == "horde" ? horde_initial_fen : initial_fen);
+        board = *start;
+        board.horde = uci_variant == "horde";
+        board.chess960 = !board.horde && uci_chess960;
+        ++index;
       }
       else if(index<args.size()&&args[index]=="fen"&&index+6<args.size()) {
         std::string fen; for(int i=0;i<6;++i){if(i)fen+=' ';fen+=args[index+1+i];}
         std::string error; auto parsed=parse_fen(fen,&error);
         if(!parsed){std::lock_guard lock(output);std::cout<<"info string invalid FEN: "<<error<<std::endl;continue;}
         board=*parsed;
-        board.chess960=board.chess960||uci_chess960;
+        board.horde=uci_variant=="horde";
+        board.chess960=!board.horde&&(board.chess960||uci_chess960);
         index+=7;
       }
       if(index<args.size()&&args[index]=="moves")++index;

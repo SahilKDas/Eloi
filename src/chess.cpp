@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <thread>
 
@@ -684,7 +685,7 @@ void clear_castling_rights(Position& position, const Move& move,
 
 }  // namespace
 
-MoveList Position::pseudo_legal(Color side) const {
+MoveList Position::pseudo_legal(Color side, bool horde) const {
   MoveList out;
   out.reserve(64);
   constexpr int knight_steps[8][2] = {
@@ -713,6 +714,11 @@ MoveList Position::pseudo_legal(Color side) const {
           int jump_rank = r + 2 * step;
           if (r == start && empty(square_of(f, jump_rank)))
             out.push_back({MoveType::jump, from, square_of(f, jump_rank), piece,
+                           Piece::none, Piece::none});
+          else if (horde && side == Color::white && r == 0 &&
+                   empty(square_of(f, jump_rank)))
+            out.push_back({MoveType::horde_jump, from,
+                           square_of(f, jump_rank), piece,
                            Piece::none, Piece::none});
         }
       }
@@ -835,13 +841,14 @@ std::optional<Position> Position::apply(const Move& move) const {
   return next;
 }
 
-MoveList Position::legal(Color side) const {
+MoveList Position::legal(Color side, bool horde) const {
   MoveList result;
-  for (const Move& move : pseudo_legal(side)) if (apply(move)) result.push_back(move);
+  for (const Move& move : pseudo_legal(side, horde))
+    if (apply(move)) result.push_back(move);
   return result;
 }
 
-MoveList Board::legal_moves() const { return position.legal(turn); }
+MoveList Board::legal_moves() const { return position.legal(turn, horde); }
 
 namespace {
 
@@ -919,6 +926,31 @@ std::uint64_t updated_position_key(std::uint64_t key,
   if (before_turn != after_turn) key ^= zobrist_value(772);
   const int before_ep = effective_en_passant(before, before_turn);
   const int after_ep = effective_en_passant(after, after_turn);
+  if (before_ep >= 0) key ^= zobrist_value(773 + file_of(before_ep));
+  if (after_ep >= 0) key ^= zobrist_value(773 + file_of(after_ep));
+  return key;
+}
+
+std::uint64_t updated_search_key(
+    std::uint64_t key, const Position& before, Color before_turn,
+    const Position& after, Color after_turn,
+    const std::array<std::uint8_t, 4>& squares, std::uint8_t count) {
+  for (std::uint8_t changed = 0; changed < count; ++changed) {
+    const int square = squares[changed];
+    key ^= cell_key(before.cells[square], square);
+    key ^= cell_key(after.cells[square], square);
+  }
+  for (int bit = 0; bit < 4; ++bit) {
+    const std::uint8_t right = static_cast<std::uint8_t>(1U << bit);
+    if ((before.castling & right) == (after.castling & right)) continue;
+    if (before.castling & right) key ^= castling_key(before, bit);
+    if (after.castling & right) key ^= castling_key(after, bit);
+  }
+  if (before_turn != after_turn) key ^= zobrist_value(772);
+  const int before_ep = before.en_passant >= 0
+      ? effective_en_passant(before, before_turn) : -1;
+  const int after_ep = after.en_passant >= 0
+      ? effective_en_passant(after, after_turn) : -1;
   if (before_ep >= 0) key ^= zobrist_value(773 + file_of(before_ep));
   if (after_ep >= 0) key ^= zobrist_value(773 + file_of(after_ep));
   return key;
@@ -1059,13 +1091,14 @@ bool Board::make_search_move(const Move& move, SearchUndo& undo) {
     return false;
   }
 
-  nnue_update(nnue, before, position);
+  nnue_update_changed(nnue, before, position, undo.squares, undo.changed);
   if (move.is_castle()) has_castled[color_index(side)] = true;
   halfmove = moving == Piece::pawn || move.is_capture() || move.is_castle()
       ? 0 : halfmove + 1;
   if (side == Color::black) ++fullmove;
   turn = opponent(side);
-  key = updated_position_key(undo.key, before, side, position, turn);
+  key = updated_search_key(undo.key, before, side, position, turn,
+                           undo.squares, undo.changed);
   return true;
 }
 
@@ -1080,7 +1113,8 @@ void Board::unmake_search_move(const SearchUndo& undo) {
   halfmove = undo.halfmove;
   fullmove = undo.fullmove;
   has_castled = undo.has_castled;
-  if (!undo.null_move) nnue_update(nnue, after, position);
+  if (!undo.null_move)
+    nnue_update_changed(nnue, after, position, undo.squares, undo.changed);
   key = undo.key;
 }
 
@@ -1134,6 +1168,20 @@ int Board::repetition_count() const {
 bool Board::is_threefold_repetition() const { return repetition_count() >= 3; }
 
 bool Board::is_fifty_move_draw() const { return halfmove >= 100; }
+
+bool Board::horde_eliminated() const {
+  if (!horde) return false;
+  for (int square = 0; square < 64; ++square)
+    if (position.color_at(square) == Color::white) return false;
+  return true;
+}
+
+std::optional<Color> Board::variant_winner() const {
+  if (horde_eliminated()) return Color::black;
+  if (legal_moves().empty() && position.in_check(turn))
+    return opponent(turn);
+  return std::nullopt;
+}
 
 std::optional<int> parse_square(std::string_view text) {
   if (text.size() != 2) return std::nullopt;
@@ -1272,6 +1320,59 @@ std::optional<Board> parse_fen(std::string_view fen, std::string* error) {
   return board;
 }
 
+std::optional<Board> chess960_start(int index) {
+  if (index < 0 || index >= 960) return std::nullopt;
+  int code = index;
+  std::array<char, 8> back{};
+  back.fill(' ');
+  back[(code % 4) * 2 + 1] = 'B';
+  code /= 4;
+  back[(code % 4) * 2] = 'B';
+  code /= 4;
+
+  auto empty_files = [&] {
+    std::vector<int> result;
+    for (int file = 0; file < 8; ++file)
+      if (back[file] == ' ') result.push_back(file);
+    return result;
+  };
+  auto empty = empty_files();
+  back[empty[code % 6]] = 'Q';
+  code /= 6;
+
+  empty = empty_files();
+  int combination = code % 10;
+  int first = 0;
+  while (combination >= 4 - first) {
+    combination -= 4 - first;
+    ++first;
+  }
+  const int second = first + 1 + combination;
+  back[empty[first]] = 'N';
+  back[empty[second]] = 'N';
+
+  empty = empty_files();
+  back[empty[0]] = 'R';
+  back[empty[1]] = 'K';
+  back[empty[2]] = 'R';
+
+  std::string white(back.begin(), back.end());
+  std::string black = white;
+  std::ranges::transform(black, black.begin(), [](unsigned char character) {
+    return static_cast<char>(std::tolower(character));
+  });
+  const int king_file = static_cast<int>(white.find('K'));
+  const int queen_rook_file = static_cast<int>(white.find('R'));
+  const int king_rook_file = static_cast<int>(white.find('R', king_file + 1));
+  std::string rights;
+  rights += static_cast<char>('A' + king_rook_file);
+  rights += static_cast<char>('A' + queen_rook_file);
+  rights += static_cast<char>('a' + king_rook_file);
+  rights += static_cast<char>('a' + queen_rook_file);
+  return parse_fen(black + "/pppppppp/8/8/8/8/PPPPPPPP/" + white +
+                   " w " + rights + " - 0 1");
+}
+
 std::string to_fen(const Board& board) {
   std::ostringstream out;
   for (int rank = 7; rank >= 0; --rank) {
@@ -1329,11 +1430,18 @@ std::string board_ascii(const Board& board) {
 }
 
 Searcher::Searcher(EngineConfig config, std::atomic_bool& stopped)
+    : Searcher(std::move(config), stopped, 0) {}
+
+Searcher::Searcher(EngineConfig config, std::atomic_bool& stopped, int lane)
     : config_(std::move(config)), stopped_(stopped),
-      killers_(maximum_search_depth + 32) {
+      killers_(maximum_search_depth + 32), lane_(lane) {
   if (config_.hash_mb > 0) {
+    // Keep half of the fixed memory budget on the coherent principal search;
+    // the two diversified helpers receive one quarter each. This preserves
+    // the configured total instead of silently tripling memory usage.
+    const std::size_t budget_parts = lane_ == 0 ? 2 : 1;
     const std::size_t requested = static_cast<std::size_t>(config_.hash_mb) *
-                                  1024 * 1024 / sizeof(TTBucket);
+        1024 * 1024 * budget_parts / 4 / sizeof(TTBucket);
     const std::size_t buckets = std::bit_floor(std::max<std::size_t>(1, requested));
     table_.resize(buckets);
   }
@@ -1450,6 +1558,7 @@ int Searcher::bernstein_eval(const Board& board) const {
 }
 
 ExactEndgame probe_exact_endgame(const Board& board) {
+  if (board.horde) return ExactEndgame::none;
   if (board.position.insufficient_material() ||
       wrong_bishop_rook_pawn_draw(board.position))
     return ExactEndgame::draw;
@@ -1464,6 +1573,28 @@ ExactEndgame probe_exact_endgame(const Board& board) {
 }
 
 int Searcher::evaluate(const Board& board) {
+  if (board.horde) {
+    int white = 0;
+    int black = 0;
+    for (int square = 0; square < 64; ++square) {
+      const auto color = board.position.color_at(square);
+      if (!color) continue;
+      const Piece piece = board.position.piece_at(square);
+      if (piece == Piece::king) continue;
+      int value = piece == Piece::pawn ? 100 : nominal(piece);
+      if (*color == Color::white) {
+        if (piece == Piece::pawn) value += rank_of(square) * 6;
+        white += value;
+      } else {
+        black += value;
+      }
+    }
+    const int black_king = board.position.king_square(Color::black);
+    if (black_king >= 0)
+      white += board.position.attackers(Color::white, black_king) * 45;
+    const int white_score = white - black;
+    return board.turn == Color::white ? white_score : -white_score;
+  }
   int score = 0;
   switch (config_.kind) {
     case EngineKind::turochamp: score = turochamp_eval(board); break;
@@ -1495,38 +1626,36 @@ int Searcher::volatility(const Board& board, std::size_t legal_count,
   if (legal_count == 1) result += 24;
   else if (legal_count <= 3) result += 10;
 
+  // Volatility gates pruning at nearly every interior node, so it must stay
+  // substantially cheaper than evaluation. Use structural danger signals
+  // here; exact attackers and SEE are already checked by the pruning rules
+  // and move loop that consume this value.
+  std::array<int, 2> advanced_pawns{};
   for (int square = 0; square < 64; ++square) {
     const auto side = board.position.color_at(square);
-    if (!side) continue;
-    const Piece piece = board.position.piece_at(square);
-    if (piece != Piece::king && piece != Piece::pawn &&
-        board.position.attackers(opponent(*side), square) > 0 &&
-        (board.position.attackers(*side, square) == 0 ||
-         board.position.attackers(opponent(*side), square) >
-             board.position.attackers(*side, square)))
-      result += std::min(12, nominal(piece) / 75);
-    if (piece == Piece::pawn && passed_pawn(board.position, *side, square)) {
-      const int advance = *side == Color::white ? rank_of(square)
-                                                : 7 - rank_of(square);
-      if (advance >= 5) result += 10 + (advance - 5) * 8;
-    }
+    if (!side || board.position.piece_at(square) != Piece::pawn) continue;
+    const int advance = *side == Color::white ? rank_of(square)
+                                              : 7 - rank_of(square);
+    if (advance >= 5) ++advanced_pawns[color_index(*side)];
   }
+  result += std::min(20, 8 * (advanced_pawns[0] + advanced_pawns[1]));
 
   for (Color side : {Color::white, Color::black}) {
     const int king = board.position.king_square(side);
     if (king < 0) continue;
-    int hostile_ring = 0, shield = 0;
-    for (int df = -1; df <= 1; ++df)
-      for (int dr = -1; dr <= 1; ++dr) {
-        const int file = file_of(king) + df, rank = rank_of(king) + dr;
-        if (!inside(file, rank)) continue;
-        const int square = square_of(file, rank);
-        hostile_ring += board.position.attackers(opponent(side), square);
-        if (board.position.color_at(square) == side &&
-            board.position.piece_at(square) == Piece::pawn) ++shield;
-      }
-    result += std::min(18, hostile_ring * 3);
-    if (shield == 0) result += 5;
+    int shield = 0;
+    const int direction = side == Color::white ? 1 : -1;
+    const int shield_rank = rank_of(king) + direction;
+    for (int df = -1; df <= 1; ++df) {
+      const int file = file_of(king) + df;
+      if (!inside(file, shield_rank)) continue;
+      const int square = square_of(file, shield_rank);
+      if (board.position.color_at(square) == side &&
+          board.position.piece_at(square) == Piece::pawn)
+        ++shield;
+    }
+    if (shield == 0) result += 6;
+    else if (shield == 1) result += 2;
   }
   return std::clamp(result, 0, 100);
 }
@@ -1602,8 +1731,11 @@ void Searcher::update_quiet_history(Color side, const Move& move,
 }
 
 MoveList Searcher::ordered_moves(const Board& board, PackedMove tt_move,
-                                 int ply, const Move& previous) {
-  auto moves = board.legal_moves();
+                                 int ply, const Move& previous,
+                                 bool legal_only) {
+  auto moves = legal_only
+      ? board.legal_moves()
+      : board.position.pseudo_legal(board.turn, board.horde);
   const Move unpacked_tt = unpack_move(tt_move);
   Move counter;
   if (previous.from >= 0 && previous.to >= 0)
@@ -1639,6 +1771,11 @@ MoveList Searcher::ordered_moves(const Board& board, PackedMove tt_move,
         static constexpr int pawn_file[8]{1,3,6,7,8,5,4,2};
         p += 1000 + pawn_file[file_of(move.from)];
       }
+    }
+    if (lane_ > 0) {
+      const std::uint32_t mixed = static_cast<std::uint32_t>(pack_move(move)) *
+          0x9e3779b1U + static_cast<std::uint32_t>(lane_) * 0x85ebca6bU;
+      p += static_cast<int>(mixed % 31U) - 15;
     }
     return p;
   };
@@ -1709,7 +1846,8 @@ void Searcher::store(std::uint64_t key, int depth, int score, int static_eval,
 
 bool Searcher::search_draw(const Board& board, int ply) const {
   if (ply <= 0) return false;
-  if (board.is_fifty_move_draw() || board.position.insufficient_material())
+  if (board.is_fifty_move_draw() ||
+      (!board.horde && board.position.insufficient_material()))
     return true;
   int repetitions = 0;
   for (std::uint64_t key : repetition_keys_)
@@ -1749,6 +1887,7 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
                          int qply) {
   if (halted()) return 0;
   ++nodes_; ++qnodes_;
+  if (board.horde_eliminated()) return -mate_score + ply;
   if (search_draw(board, ply)) return 0;
   const int original_alpha = alpha;
   TTEntry* found = probe(board.key);
@@ -1770,6 +1909,7 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
   const auto moves = ordered_moves(board, found ? found->best : 0, ply, {});
   if (moves.empty()) return in_check ? -mate_score + ply : 0;
   int quiet_checks = 0;
+  int legal_moves = 0;
   Move best;
   for (const auto& move : moves) {
     const bool quiet = !move.is_capture() && !move.is_promotion();
@@ -1781,6 +1921,7 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
       continue;
     Board::SearchUndo undo;
     if (!board.make_search_move(move, undo)) continue;
+    ++legal_moves;
     repetition_keys_.push_back(board.key);
     if (!in_check && quiet) {
       if (!qualifying_quiet_check(board, move)) {
@@ -1805,6 +1946,12 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
       best = move;
     }
   }
+  if (legal_moves == 0) {
+    if (in_check) return -mate_score + ply;
+    // Captures can be deliberately skipped by delta/SEE pruning before they
+    // reach make_search_move(). Distinguish that case from a true stalemate.
+    return board.legal_moves().empty() ? 0 : alpha;
+  }
   store(board.key, 0, alpha, stand, alpha > original_alpha ? 0 : -1,
         best, ply);
   return alpha;
@@ -1815,6 +1962,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
                       PackedMove excluded, bool allow_null) {
   if (halted()) return 0;
   ++nodes_;
+  if (board.horde_eliminated()) return -mate_score + ply;
   if (search_draw(board, ply)) return 0;
   alpha = std::max(alpha, -mate_score + ply);
   beta = std::min(beta, mate_score - ply - 1);
@@ -1868,7 +2016,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     }
   }
 
-  if (modern && allow_null && !pv_node && !excluded && !in_check &&
+  if (modern && !board.horde && allow_null && !pv_node && !excluded && !in_check &&
       depth >= 3 && ply > 0 && board.halfmove < 80 &&
       base_volatility < 65 &&
       (non_pawn_value >= 500 || non_pawn_count >= 2) &&
@@ -2184,6 +2332,95 @@ TimeBudget plan_time_budget(const Board& board, const SearchLimits& limits) {
 
 SearchResult Searcher::iterative(Board board, SearchLimits limits,
                                  const std::function<void(const SearchResult&)>& info) {
+  // Book moves require no tree search, so there is nothing useful for helper
+  // lanes to do. All calculated moves use exactly three deterministic lanes.
+  if (opening_move(config_, board))
+    return iterative_single(std::move(board), limits, info);
+
+  std::array<SearchLimits, search_thread_count> lane_limits;
+  lane_limits.fill(limits);
+  if (limits.depth > 1 && !limits.deadline && limits.remaining_ms <= 0) {
+    // In fixed-depth analysis the principal lane defines the requested result.
+    // Let helpers diversify one ply shallower so a pathological helper tree
+    // cannot hold the GUI hostage after the principal depth is complete.
+    lane_limits[1].depth = limits.depth - 1;
+    lane_limits[2].depth = limits.depth - 1;
+  }
+  if (limits.nodes) {
+    // A fixed-node command is a total budget. Favor the principal lane so it
+    // retains a coherent tree instead of weakening all three equally.
+    lane_limits[0].nodes = std::max<std::uint64_t>(1, (limits.nodes + 1) / 2);
+    lane_limits[1].nodes = std::max<std::uint64_t>(1, (limits.nodes + 3) / 4);
+    lane_limits[2].nodes = std::max<std::uint64_t>(1, (limits.nodes + 3) / 4);
+  }
+
+  std::array<SearchResult, search_thread_count> results;
+  std::array<std::unique_ptr<Searcher>, search_thread_count - 1> helpers;
+  for (int index = 0; index < search_thread_count - 1; ++index) {
+    helpers[index] = std::make_unique<Searcher>(config_, stopped_, index + 1);
+  }
+  lane_ = 0;
+
+  std::thread helper_one([&] {
+    results[1] = helpers[0]->iterative_single(board, lane_limits[1], {});
+  });
+  std::thread helper_two([&] {
+    results[2] = helpers[1]->iterative_single(board, lane_limits[2], {});
+  });
+  results[0] = iterative_single(std::move(board), lane_limits[0], info);
+  helper_one.join();
+  helper_two.join();
+
+  auto move_id = [](const SearchResult& result) -> std::uint32_t {
+    return result.pv.empty() ? 0x1'0000U : pack_move(result.pv.front());
+  };
+  const std::array<std::uint32_t, search_thread_count> moves{
+      move_id(results[0]), move_id(results[1]), move_id(results[2])};
+  int winner = 0;
+  for (int index = 1; index < search_thread_count; ++index) {
+    if (!results[index].pv.empty() &&
+        results[index].depth > results[winner].depth)
+      winner = index;
+  }
+  if (moves[1] == moves[2]) {
+    const int helper = results[1].depth >= results[2].depth ? 1 : 2;
+    // The principal lane owns the larger TT and the coherent search. Helper
+    // consensus is useful only when it finished a genuinely deeper iteration;
+    // at equal depth it must not replace the principal move with a perturbed
+    // ordering result (the shallow Na3 regression was exactly this case).
+    if (!results[helper].pv.empty() &&
+        results[helper].depth > results[0].depth)
+      winner = helper;
+  }
+
+  SearchResult combined = results[winner];
+  combined.nodes = combined.qnodes = combined.tt_hits = 0;
+  combined.beta_cutoffs = combined.lmr_reductions = combined.quiet_checks = 0;
+  combined.null_cutoffs = combined.probcut_cutoffs = 0;
+  combined.singular_extensions = combined.late_move_prunes = 0;
+  combined.history_hits = combined.countermove_hits = 0;
+  combined.elapsed = {};
+  for (const SearchResult& result : results) {
+    combined.nodes += result.nodes;
+    combined.qnodes += result.qnodes;
+    combined.tt_hits += result.tt_hits;
+    combined.beta_cutoffs += result.beta_cutoffs;
+    combined.lmr_reductions += result.lmr_reductions;
+    combined.quiet_checks += result.quiet_checks;
+    combined.null_cutoffs += result.null_cutoffs;
+    combined.probcut_cutoffs += result.probcut_cutoffs;
+    combined.singular_extensions += result.singular_extensions;
+    combined.late_move_prunes += result.late_move_prunes;
+    combined.history_hits += result.history_hits;
+    combined.countermove_hits += result.countermove_hits;
+    combined.elapsed = std::max(combined.elapsed, result.elapsed);
+  }
+  if (info) info(combined);
+  return combined;
+}
+
+SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
+                                 const std::function<void(const SearchResult&)>& info) {
   limits_ = limits;
   limits_.depth = std::clamp(limits_.depth, 0, maximum_search_depth);
   nodes_ = qnodes_ = tt_hits_ = beta_cutoffs_ = lmr_reductions_ = 0;
@@ -2360,12 +2597,14 @@ SearchResult Searcher::iterative(Board board, SearchLimits limits,
 }
 
 std::uint64_t perft(Position position, Color side, int depth,
-                    std::vector<std::pair<Move, std::uint64_t>>* divide) {
+                     std::vector<std::pair<Move, std::uint64_t>>* divide,
+                     bool horde) {
   if (depth == 0) return 1;
   std::uint64_t total = 0;
-  for (const Move& move : position.legal(side)) {
+  for (const Move& move : position.legal(side, horde)) {
     auto next = position.apply(move);
-    std::uint64_t count = perft(*next, opponent(side), depth - 1, nullptr);
+    std::uint64_t count = perft(
+        *next, opponent(side), depth - 1, nullptr, horde);
     if (divide) divide->push_back({move, count});
     total += count;
   }

@@ -59,7 +59,9 @@ variations. Move ordering combines killer, butterfly, capture, continuation,
 and countermove history with static exchange evaluation. Guarded verified null
 move, ProbCut, razoring, futility and late-move pruning, singular/selective
 extensions, volatility-aware LMR, and an incrementally updated quantized NNUE
-complete the single-threaded search.
+complete the search. Every calculated move uses exactly three deterministic
+Lazy-SMP lanes. Eloi exposes a fixed UCI `Threads` value of 3; it cannot claim
+more processors or be configured to use fewer.
 
 Eloi has a deliberate opening personality. As White it forces the Italian
 Game with `1.e4 e5 2.Nf3 Nc6 3.Bc4` whenever Black permits it. As Black it
@@ -71,7 +73,7 @@ shared nodes instead of duplicating branches. No runtime database is needed.
 ## Search-depth limits
 
 Eloi recommends at most **40 plies** for interactive play and warns when a
-larger value is selected because a single-threaded search can take hours or
+larger value is selected because even a three-thread search can take hours or
 days. The GUI permits up to **200 plies**. UCI and command-line analysis have
 an absolute maximum of **17,697 plies**, the proven maximum length of a legal
 game under the automatic FIDE draw rules ([Yim, 2026](https://arxiv.org/abs/2608.14762)).
@@ -111,9 +113,16 @@ Double-click `build\Eloi.exe` to play. The GUI supports legal-move
 highlighting, smooth animated moves (including the rook during castling), a
 queen/rook/bishop/knight promotion picker, play as either color, undo, board
 flipping, a chess.com-style captured-piece material counter with a live +N
-advantage, a 1–200-ply depth control with a warning above 40, and live
-NNUE/search/LMR statistics. The board and interface are drawn in code with
-Skia.
+advantage, a side-correct evaluation bar to the left of the board, a
+0–200-ply control with a warning above 40, and live NNUE/search/LMR statistics.
+Depth zero opens a friendly clocked-game setup instead of asking for terminal
+commands: choose the base time and increment, play as White or Black, and pick
+FIDE chess, a randomly numbered Chess960 start, or Horde. Eloi then uses the
+same adaptive clock manager as native Lichess play. Hover states, dialogs,
+promotion choices, piece movement, castling, and evaluation changes animate
+smoothly. The bar is neutral before the first search, grows toward the side
+Eloi evaluates as better, and follows the board when it is flipped. The board
+and interface are drawn in code with Skia.
 
 ### Watch the new brain play the previous brain
 
@@ -153,8 +162,22 @@ For a non-visual integration check, run:
 
 A watched game is useful for spotting crashes, illegal moves, obvious tactical
 regressions, and style changes, but one game cannot establish strength. Brain
-changes still require paired, color-reversed fixed-node self-play; major
-strength claims retain the documented 200-game, above-55% gauntlet gate.
+changes still require paired, color-reversed equal-wall-time self-play; major
+strength claims retain the documented 200-game, above-55% gauntlet gate. A
+fixed total-node match is not a fair single-versus-three-lane comparison because
+the newer engine must divide one allowance among three independent trees.
+
+On a shared Windows computer, the gauntlet can create only its own test engines
+at Idle priority so live bot games and foreground applications always preempt
+them:
+
+```powershell
+& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
+  '.\scripts\selfplay_gauntlet.py' `
+  --candidate '.\build-release\Eloi.exe' `
+  --baseline '.\build-release\Eloi.previous.exe' `
+  --games 200 --movetime-ms 250 --required-score 55 --idle-priority
+```
 
 Eloi implements legal castling (including attacked-square restrictions), en
 passant, every underpromotion, checkmate, stalemate, threefold repetition, the
@@ -162,11 +185,17 @@ fifty-move rule, and dead-position draws from insufficient material. Repetition
 identity includes side to move, castling rights, and an en-passant target only
 when a legal en-passant capture exists.
 
+Horde is available through `UCI_Variant` and native Lichess mode. Its canonical
+36-pawn start, kingless White side, first-rank pawn double-step (without an
+en-passant target), promoted Horde pieces, White checkmate victory, and Black
+victory after eliminating every White piece are handled separately from
+orthodox chess. Eloi disables standard NNUE/endgame shortcuts and the orthodox
+opening book in Horde, using a dedicated Horde-safe evaluation.
+
 Chess960 is supported through Shredder/X-FEN rook-file castling rights and the
 standard `UCI_Chess960` option. Castling handles every legal overlap case and
 uses UCI's king-to-rook notation when Chess960 is active. Eloi disables its
-orthodox Italian/Nimzo opening book in Chess960 positions. Pondering is
-deliberately not advertised or enabled yet.
+orthodox Italian/Nimzo opening book in Chess960 positions.
 
 ## UCI and Lichess
 
@@ -174,6 +203,7 @@ deliberately not advertised or enabled yet.
 uci
 isready
 setoption name Depth value 8
+setoption name UCI_Variant value horde
 position startpos moves e2e4 e7e5
 go depth 8
 quit
@@ -191,8 +221,12 @@ to `true`, paste a Bot API token into the adjacent `config.yml`, and run:
 .\Eloi.exe --lichess
 ```
 
-Eloi then uses Windows HTTPS directly to accept eligible standard or Chess960
-challenges and play them with the same engine and time manager as UCI mode.
+Eloi then uses Windows HTTPS directly to accept eligible standard, Chess960, or
+Horde challenges and play them with the same engine and time manager as UCI
+mode. The native player-chat commands are `!help`, `!version`, `!eval`,
+`!depth`, and `!rematch`. Eloi ignores spectator chat and its own messages. After a game it
+auto-accepts an eligible rematch while idle; an earlier queued challenge event
+takes precedence.
 
 ### Browser-joined bot tournaments
 
@@ -203,6 +237,14 @@ and keep either the native client or the `lichess-bot` bridge running. Lichess
 delivers each pairing as a `gameStart` event; Eloi recognizes the current
 `gameId`, records the `tournamentId`, plays the game, and returns to the control
 stream for the next pairing.
+
+Swiss pairings use the same Bot API game stream rather than a second gameplay
+endpoint. If Lichess admits the bot to a Swiss event, Eloi recognizes the
+`gameStart` source as Swiss (and records a `swissId` when Lichess supplies one),
+labels the game as a Swiss pairing, plays it normally, and waits for the next
+pairing. Browser enrollment remains the user's job. Lichess may refuse BOT
+accounts on a particular Arena or Swiss page; Eloi cannot and does not bypass
+that server-side eligibility rule.
 
 Browser enrollment needs no `tournament:write` token permission because the
 browser performs the join. The bot process still needs `bot:play` to receive
@@ -232,7 +274,7 @@ Only games whose initial base clock is below four minutes use pondering. Eloi
 announces that once in player chat, searches the predicted reply while the
 opponent's clock runs, cancels immediately on a different reply, and never
 ponders in four-minute-or-longer games. Increment is deliberately ignored when
-deciding whether pondering is enabled. Standard chess and Chess960 are both
+deciding whether pondering is enabled. Standard chess, Chess960, and Horde are
 supported.
 
 ## Validation
@@ -260,6 +302,9 @@ make/unmake and null-move restoration, search pruning exemptions, and activity
 from null move, ProbCut, singular extensions, LMR, LMP, and history ordering.
 Chess960 tests cover rook-file FEN rights, UCI notation, attacked transit
 squares, non-corner rights loss, and king/rook origin/destination overlaps.
+Horde tests cover the canonical 36-pawn position and reference perft, kingless
+White play, the special first-rank double-step without en passant, Horde
+elimination, and checkmating Black.
 Clock tests cover five-minute allocation, protected reserve, increment and
 overhead bounds, phase scaling, every pressure mode, hard ceilings, and legal
 fallback under a near-expired deadline.
@@ -274,6 +319,14 @@ depth-six benchmark runs reduced the median from 2,181 ms and 194,320 nodes to
 In the mirrored 200-game, 2,000-node gauntlet it scored 66.00% (100 wins,
 64 draws, 36 losses), passing the required 55% strength gate. The default
 transposition-table allocation remains 32 MB.
+
+For the fixed-three-thread pass, the immediately preceding executable was
+preserved as `Eloi.previous.exe`. Five depth-six runs on the development
+machine reduced median wall time from 782 ms to 568 ms while increasing the
+searched nodes from 103,560 to 268,698 (2.59x). All five candidate runs shared
+the same checksum, and the current-versus-previous UCI version-match smoke test
+passed. The three transposition-table slices together remain within the one
+configured hash budget rather than tripling it.
 
 ## Artwork and licenses
 

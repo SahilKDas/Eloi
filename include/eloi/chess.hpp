@@ -16,10 +16,13 @@ namespace eloi {
 
 inline constexpr std::string_view initial_fen =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+inline constexpr std::string_view horde_initial_fen =
+    "rnbqkbnr/pppppppp/8/1PP2PP1/PPPPPPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 1";
 inline constexpr int recommended_search_depth = 40;
 inline constexpr int maximum_gui_search_depth = 200;
 inline constexpr int maximum_search_depth = 17'697;
 inline constexpr int nnue_hidden_size = 64;
+inline constexpr int search_thread_count = 3;
 using NnueAccumulator = std::array<std::int32_t, nnue_hidden_size>;
 struct NnueState {
   std::array<NnueAccumulator, 2> perspective{};
@@ -30,7 +33,7 @@ enum class Color : std::uint8_t { white, black };
 enum class Piece : std::uint8_t { none, pawn, bishop, knight, rook, queen, king };
 enum class MoveType : std::uint8_t {
   normal, push, jump, en_passant, queen_castle, king_castle, capture,
-  promotion, capture_promotion
+  promotion, capture_promotion, horde_jump
 };
 enum Castling : std::uint8_t {
   white_king = 1, white_queen = 2, black_king = 4, black_queen = 8
@@ -113,14 +116,18 @@ struct Position {
   int attackers(Color side, int square) const;
   bool in_check(Color side) const;
   bool insufficient_material() const;
-  MoveList pseudo_legal(Color side) const;
-  MoveList legal(Color side) const;
+  MoveList pseudo_legal(Color side, bool horde = false) const;
+  MoveList legal(Color side, bool horde = false) const;
   std::optional<Position> apply(const Move& move) const;
 };
 
 NnueState nnue_refresh(const Position& position);
 void nnue_update(NnueState& accumulator, const Position& before,
                  const Position& after);
+void nnue_update_changed(NnueState& accumulator, const Position& before,
+                         const Position& after,
+                         const std::array<std::uint8_t, 4>& squares,
+                         std::uint8_t count);
 int nnue_evaluate(const NnueState& accumulator, Color side_to_move);
 std::uint64_t position_key(const Position& position, Color turn);
 
@@ -161,6 +168,7 @@ struct Board {
   int fullmove{1};
   std::array<bool, 2> has_castled{};
   bool chess960{false};
+  bool horde{false};
   NnueState nnue{};
   std::uint64_t key{};
   std::vector<Snapshot> history;
@@ -178,6 +186,8 @@ struct Board {
   int repetition_count() const;
   bool is_threefold_repetition() const;
   bool is_fifty_move_draw() const;
+  bool horde_eliminated() const;
+  std::optional<Color> variant_winner() const;
 };
 
 std::optional<int> parse_square(std::string_view text);
@@ -186,6 +196,7 @@ std::optional<Move> parse_uci_move(std::string_view text);
 std::string uci_move(const Move& move, const Position& position,
                      bool chess960);
 std::optional<Board> parse_fen(std::string_view fen, std::string* error = nullptr);
+std::optional<Board> chess960_start(int index);
 std::string to_fen(const Board& board);
 std::string board_ascii(const Board& board);
 
@@ -267,6 +278,7 @@ struct SearchResult {
 class Searcher {
  public:
   Searcher(EngineConfig config, std::atomic_bool& stopped);
+  Searcher(EngineConfig config, std::atomic_bool& stopped, int lane);
   SearchResult iterative(Board board, SearchLimits limits,
                          const std::function<void(const SearchResult&)>& info = {});
 
@@ -310,8 +322,12 @@ class Searcher {
   std::vector<std::pair<Move, int>> root_scores_;
   std::vector<std::uint64_t> repetition_keys_;
   Move root_best_{};
+  int lane_{0};
 
   bool halted();
+  SearchResult iterative_single(
+      Board board, SearchLimits limits,
+      const std::function<void(const SearchResult&)>& info);
   int evaluate(const Board& board);
   int material(const Position& pos, Color side, const std::array<int, 7>& values) const;
   int turochamp_eval(const Board& board) const;
@@ -326,7 +342,8 @@ class Searcher {
               bool pv_node, const Move& previous, int extensions,
               PackedMove excluded = 0, bool allow_null = true);
   MoveList ordered_moves(const Board& board, PackedMove tt_move,
-                         int ply, const Move& previous);
+                         int ply, const Move& previous,
+                         bool legal_only = false);
   std::vector<Move> reconstruct_pv(Board board, const Move& root,
                                    std::size_t maximum = 128) const;
   bool search_draw(const Board& board, int ply) const;
@@ -341,7 +358,8 @@ class Searcher {
 };
 
 std::uint64_t perft(Position position, Color side, int depth,
-                    std::vector<std::pair<Move, std::uint64_t>>* divide = nullptr);
+                    std::vector<std::pair<Move, std::uint64_t>>* divide = nullptr,
+                    bool horde = false);
 
 struct BookMove {
   Move move{};

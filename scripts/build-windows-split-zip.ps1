@@ -1,7 +1,8 @@
 param(
   [switch] $AllowDirty,
   [switch] $SkipDefenderScan,
-  [string] $OutputRoot
+  [string] $OutputRoot,
+  [string] $CandidateLabel
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,6 +15,12 @@ if ($cmakeSource -notmatch 'project\(Eloi VERSION ([0-9]+\.[0-9]+\.[0-9]+)') {
 $releaseVersion = $Matches[1]
 if ($cmakeSource -match 'set\(ELOI_PRERELEASE "([^"]*)"\)' -and $Matches[1]) {
   $releaseVersion += '-' + $Matches[1]
+}
+if ($CandidateLabel) {
+  if ($CandidateLabel -notmatch '^[A-Za-z0-9][A-Za-z0-9.-]*$') {
+    throw 'CandidateLabel may contain only letters, numbers, dots, and hyphens.'
+  }
+  $releaseVersion += '-' + $CandidateLabel
 }
 $packageName = "Eloi-v$releaseVersion-windows-x64-split-runtime"
 $buildRoot = Join-Path $projectRoot 'build-split-runtime'
@@ -190,6 +197,7 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $smoke)) {
 Remove-Item -LiteralPath $smoke -Force
 
 $commit = (& git -C $projectRoot rev-parse HEAD).Trim()
+if (& git -C $projectRoot status --porcelain) { $commit += '-dirty' }
 [IO.File]::WriteAllText(
   (Join-Path $packageRoot 'SOURCE_COMMIT.txt'),
   "$commit`n",

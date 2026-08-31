@@ -61,6 +61,7 @@ struct ConfigWindow {
   HWND allow_bots{};
   HWND standard{};
   HWND chess960{};
+  HWND horde{};
   HWND depth{};
   HWND hash{};
   HWND overhead{};
@@ -122,7 +123,7 @@ bool save_from_controls(ConfigWindow& ui) {
   if (!minimum || !maximum || !depth || !hash || !overhead ||
       *minimum < 0 || *maximum < *minimum ||
       *depth < 0 || *depth > 17'697 || *hash < 0 || *overhead < 0 ||
-      (!checked(ui.standard) && !checked(ui.chess960))) {
+      (!checked(ui.standard) && !checked(ui.chess960) && !checked(ui.horde))) {
     MessageBoxW(ui.window,
         L"Check the numeric ranges and select at least one variant.",
         L"Eloi configuration", MB_OK | MB_ICONWARNING);
@@ -137,6 +138,7 @@ bool save_from_controls(ConfigWindow& ui) {
   ui.config.variants.clear();
   if (checked(ui.standard)) ui.config.variants.emplace_back("standard");
   if (checked(ui.chess960)) ui.config.variants.emplace_back("chess960");
+  if (checked(ui.horde)) ui.config.variants.emplace_back("horde");
   ui.config.depth = *depth;
   ui.config.hash_mb = *hash;
   ui.config.move_overhead_ms = *overhead;
@@ -223,30 +225,32 @@ void create_controls(ConfigWindow& ui) {
       BS_AUTOCHECKBOX, 350, 250, 100, 26);
   ui.chess960 = add_control(ui, L"BUTTON", L"Chess960",
       BS_AUTOCHECKBOX, 456, 250, 100, 26);
+  ui.horde = add_control(ui, L"BUTTON", L"Horde",
+      BS_AUTOCHECKBOX, 350, 280, 100, 26);
 
   add_control(ui, L"STATIC", L"Search depth (0 = clock-managed)",
-      SS_LEFT, 24, 302, 240, 22);
+      SS_LEFT, 24, 332, 240, 22);
   ui.depth = add_control(ui, L"EDIT", std::to_wstring(ui.config.depth).c_str(),
-      ES_NUMBER, 270, 298, 90, 28);
-  add_control(ui, L"STATIC", L"Hash (MB)", SS_LEFT, 24, 338, 120, 22);
+      ES_NUMBER, 270, 328, 90, 28);
+  add_control(ui, L"STATIC", L"Hash (MB)", SS_LEFT, 24, 368, 120, 22);
   ui.hash = add_control(ui, L"EDIT", std::to_wstring(ui.config.hash_mb).c_str(),
-      ES_NUMBER, 144, 334, 90, 28);
-  add_control(ui, L"STATIC", L"Move overhead (ms)", SS_LEFT, 270, 338, 170, 22);
+      ES_NUMBER, 144, 364, 90, 28);
+  add_control(ui, L"STATIC", L"Move overhead (ms)", SS_LEFT, 270, 368, 170, 22);
   ui.overhead = add_control(ui, L"EDIT",
       std::to_wstring(ui.config.move_overhead_ms).c_str(), ES_NUMBER,
-      450, 334, 90, 28);
+      450, 364, 90, 28);
   ui.own_book = add_control(ui, L"BUTTON", L"Use Eloi opening book",
-      BS_AUTOCHECKBOX, 24, 378, 220, 26);
+      BS_AUTOCHECKBOX, 24, 408, 220, 26);
 
   add_control(ui, L"BUTTON", L"Save", BS_PUSHBUTTON,
-      24, 430, 110, 34, save_button);
+      24, 460, 110, 34, save_button);
   add_control(ui, L"BUTTON", L"Save && Start Bot", BS_DEFPUSHBUTTON,
-      146, 430, 180, 34, start_button);
+      146, 460, 180, 34, start_button);
   add_control(ui, L"BUTTON", L"Cancel", BS_PUSHBUTTON,
-      338, 430, 110, 34, cancel_button);
+      338, 460, 110, 34, cancel_button);
   ui.status = add_control(ui, L"STATIC",
       L"Your token is stored only in the local config.yml.",
-      SS_LEFT, 24, 482, 510, 36);
+      SS_LEFT, 24, 512, 510, 36);
 
   set_checked(ui.enabled, ui.config.lichess_enabled);
   set_checked(ui.allow_bots, ui.config.allow_bots);
@@ -254,6 +258,8 @@ void create_controls(ConfigWindow& ui) {
       std::ranges::find(ui.config.variants, "standard") != ui.config.variants.end());
   set_checked(ui.chess960,
       std::ranges::find(ui.config.variants, "chess960") != ui.config.variants.end());
+  set_checked(ui.horde,
+      std::ranges::find(ui.config.variants, "horde") != ui.config.variants.end());
   set_checked(ui.own_book, ui.config.own_book);
 }
 
@@ -280,7 +286,7 @@ int run_lichess_configurator() {
 
   ui.window = CreateWindowExW(
       0, class_name, L"Configure Eloi Lichess", WS_OVERLAPPED | WS_CAPTION |
-      WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 590, 575,
+      WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 590, 605,
       nullptr, nullptr, GetModuleHandleW(nullptr), &ui);
   if (!ui.window) return 2;
   create_controls(ui);

@@ -100,7 +100,7 @@ std::optional<RuntimeConfig> load_runtime_config(
       if (section != "challenge")
         return fail(line_number, "list item outside challenge.variants");
       const std::string value = scalar(content.substr(2));
-      if (value != "standard" && value != "chess960")
+      if (value != "standard" && value != "chess960" && value != "horde")
         return fail(line_number, "unsupported variant " + value);
       config.variants.push_back(value);
       continue;
