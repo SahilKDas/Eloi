@@ -1454,109 +1454,6 @@ bool Searcher::halted() {
   return false;
 }
 
-int Searcher::material(const Position& pos, Color side, const std::array<int, 7>& values) const {
-  int score = 0;
-  for (int sq = 0; sq < 64; ++sq) {
-    if (pos.empty(sq)) continue;
-    int value = values[static_cast<int>(pos.piece_at(sq))];
-    score += pos.color_at(sq) == side ? value : -value;
-  }
-  return score;
-}
-
-int Searcher::turochamp_eval(const Board& board) const {
-  const auto count_material = [&](Color side) {
-    double value = 0.0;
-    for (int sq = 0; sq < 64; ++sq) if (board.position.color_at(sq) == side) {
-      switch (board.position.piece_at(sq)) {
-        case Piece::pawn: value += 1; break; case Piece::knight: value += 3; break;
-        case Piece::bishop: value += 3.5; break; case Piece::rook: value += 5; break;
-        case Piece::queen: value += 10; break; default: break;
-      }
-    }
-    return value == 0 ? .5 : value;
-  };
-  const auto position_play = [&](Color side) {
-    double score = 0.0;
-    const auto moves = board.position.legal(side);
-    std::array<int,64> mobility{};
-    for (const auto& move : moves) if (move.piece != Piece::pawn && !move.is_castle())
-      mobility[move.from] += move.is_capture() ? 2 : 1;
-    for (int n : mobility) if (n) score += std::round(10 * std::sqrt(n)) / 10;
-    for (int sq = 0; sq < 64; ++sq) if (board.position.color_at(sq) == side) {
-      Piece p = board.position.piece_at(sq);
-      if (p == Piece::rook || p == Piece::bishop || p == Piece::knight) {
-        int d = board.position.attackers(side, sq); if (d) score += 1; if (d > 1) score += .5;
-      }
-      if (p == Piece::pawn) {
-        score += .2 * (side == Color::white ? rank_of(sq) - 1 : 6 - rank_of(sq));
-        if (board.position.attackers(side, sq) > 0) score += .3;
-      }
-    }
-    if (board.position.castling & (side == Color::white ? white_king | white_queen : black_king | black_queen)) score += 1;
-    if (board.has_castled[color_index(side)]) score += 1;
-    if (board.position.in_check(opponent(side))) score += .5;
-    int king = board.position.king_square(side);
-    if (king >= 0) {
-      Position empty_queen = board.position;
-      int mobility_count = 0;
-      for (const auto& m : empty_queen.pseudo_legal(side)) if (m.from == king && m.piece == Piece::king) ++mobility_count;
-      score -= std::round(10 * std::sqrt(mobility_count)) / 10;
-    }
-    return score;
-  };
-  Color side = board.turn;
-  double own = count_material(side), opp = count_material(opponent(side));
-  double ratio = own == opp ? 0 : (own > opp ? own / opp : -opp / own);
-  return static_cast<int>(std::round(ratio * 100) * 1000 +
-                          std::round((position_play(side) - position_play(opponent(side))) * 100));
-}
-
-int Searcher::sargon_eval(const Board& board) const {
-  static constexpr std::array<int,7> values{0,100,300,300,500,900,0};
-  int score = material(board.position, board.turn, values) * 4;
-  int mobility = static_cast<int>(board.position.legal(board.turn).size()) -
-                 static_cast<int>(board.position.legal(opponent(board.turn)).size());
-  int control = 0;
-  for (int sq = 0; sq < 64; ++sq)
-    control += board.position.attackers(board.turn, sq) - board.position.attackers(opponent(board.turn), sq);
-  auto development = [&](Color side) {
-    int result = 0, rank = side == Color::white ? 0 : 7;
-    for (int f : {1,2,5,6}) {
-      int sq = square_of(f, rank);
-      Piece p = board.position.piece_at(sq);
-      if (board.position.color_at(sq) == side && (p == Piece::bishop || p == Piece::knight)) result -= 200;
-    }
-    if (board.has_castled[color_index(side)]) result += 600;
-    else if (board.has_moved_from(square_of(4, rank))) result -= 200;
-    return result;
-  };
-  return score + std::clamp((mobility + control) * 10, -600, 600) +
-         development(board.turn) - development(opponent(board.turn));
-}
-
-int Searcher::bernstein_eval(const Board& board) const {
-  const auto value = [&](Color side) {
-    static constexpr std::array<int,7> values{0,1,3,3,5,9,0};
-    int mat = 0, control = 0;
-    for (int sq = 0; sq < 64; ++sq) {
-      if (board.position.color_at(sq) == side) mat += values[static_cast<int>(board.position.piece_at(sq))];
-      if (board.position.attackers(side, sq) > board.position.attackers(opponent(side), sq)) ++control;
-    }
-    int mobility = static_cast<int>(board.position.legal(side).size());
-    int defense = 0, king = board.position.king_square(side);
-    if (king >= 0) for (int df=-1;df<=1;++df) for(int dr=-1;dr<=1;++dr) {
-      int f=file_of(king)+df,r=rank_of(king)+dr;
-      if ((df||dr)&&inside(f,r)&&board.position.attackers(side,square_of(f,r))>
-          board.position.attackers(opponent(side),square_of(f,r))) ++defense;
-    }
-    return std::max(1, mobility + control + defense + config_.material_factor * mat);
-  };
-  int self = value(board.turn), opp = value(opponent(board.turn));
-  if (self == opp) return 0;
-  return self > opp ? self * 10000 / opp : -opp * 10000 / self;
-}
-
 ExactEndgame probe_exact_endgame(const Board& board) {
   if (board.horde) return ExactEndgame::none;
   if (board.position.insufficient_material() ||
@@ -1595,23 +1492,14 @@ int Searcher::evaluate(const Board& board) {
     const int white_score = white - black;
     return board.turn == Color::white ? white_score : -white_score;
   }
-  int score = 0;
-  switch (config_.kind) {
-    case EngineKind::turochamp: score = turochamp_eval(board); break;
-    case EngineKind::sargon: score = sargon_eval(board); break;
-    case EngineKind::bernstein: score = bernstein_eval(board); break;
-    default: {
-      const ExactEndgame exact = probe_exact_endgame(board);
-      if (exact == ExactEndgame::draw) return 0;
-      if (exact == ExactEndgame::white_win)
-        return board.turn == Color::white ? 1800 : -1800;
-      if (exact == ExactEndgame::black_win)
-        return board.turn == Color::black ? 1800 : -1800;
-      score = nnue_evaluate(board.nnue, board.turn) + endgame_knowledge(board);
-      if (opposite_colored_bishops(board.position)) score = score * 55 / 100;
-      break;
-    }
-  }
+  const ExactEndgame exact = probe_exact_endgame(board);
+  if (exact == ExactEndgame::draw) return 0;
+  if (exact == ExactEndgame::white_win)
+    return board.turn == Color::white ? 1800 : -1800;
+  if (exact == ExactEndgame::black_win)
+    return board.turn == Color::black ? 1800 : -1800;
+  int score = nnue_evaluate(board.nnue, board.turn) + endgame_knowledge(board);
+  if (opposite_colored_bishops(board.position)) score = score * 55 / 100;
   if (config_.noise_millipawns > 0) {
     std::uniform_int_distribution<int> noise(-config_.noise_millipawns, config_.noise_millipawns);
     score += noise(random_) / 10;
@@ -1761,17 +1649,6 @@ MoveList Searcher::ordered_moves(const Board& board, PackedMove tt_move,
       const int history = quiet_history(board.turn, move, previous);
       p += history;
     }
-    if (config_.kind == EngineKind::bernstein) {
-      if (move.is_castle()) p += 200000;
-      if (move.piece == Piece::bishop || move.piece == Piece::knight) {
-        int home = board.turn == Color::white ? 0 : 7;
-        if (rank_of(move.from) == home) p += 1300;
-      }
-      if (move.piece == Piece::pawn) {
-        static constexpr int pawn_file[8]{1,3,6,7,8,5,4,2};
-        p += 1000 + pawn_file[file_of(move.from)];
-      }
-    }
     if (lane_ > 0) {
       const std::uint32_t mixed = static_cast<std::uint32_t>(pack_move(move)) *
           0x9e3779b1U + static_cast<std::uint32_t>(lane_) * 0x85ebca6bU;
@@ -1794,12 +1671,6 @@ MoveList Searcher::ordered_moves(const Board& board, PackedMove tt_move,
     moves[insertion] = move;
     scores[insertion] = score;
   }
-  if (config_.kind == EngineKind::sargon)
-    moves.erase(std::remove_if(moves.begin(), moves.end(), [](const Move& m) {
-      return m.is_promotion() && m.promotion != Piece::queen;
-    }), moves.end());
-  if (config_.kind == EngineKind::bernstein && config_.branch > 0 &&
-      moves.size() > static_cast<std::size_t>(config_.branch)) moves.resize(config_.branch);
   return moves;
 }
 
@@ -1968,10 +1839,8 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   beta = std::min(beta, mate_score - ply - 1);
   if (alpha >= beta) return alpha;
 
-  const bool modern = config_.kind == EngineKind::eloi;
   const bool in_check = board.position.in_check(board.turn);
   if (depth <= 0) {
-    if (!modern) return evaluate(board);
     return quiescence(board, alpha, beta, ply, 0);
   }
 
@@ -1991,18 +1860,18 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   const int base_volatility = depth >= 3
       ? volatility(board, 4) : (in_check ? 65 : 20);
 
-  if (modern && !pv_node && !excluded && !in_check && depth <= 5 &&
+  if (!pv_node && !excluded && !in_check && depth <= 5 &&
       base_volatility < 50 && std::abs(beta) < mate_score - 1'000 &&
       static_score - (70 + 85 * depth) >= beta)
     return static_score;
 
-  if (modern && !pv_node && !excluded && !in_check && depth <= 2 &&
+  if (!pv_node && !excluded && !in_check && depth <= 2 &&
       base_volatility < 55 && static_score + 180 * depth <= alpha) {
     const int razor = quiescence(board, alpha, beta, ply, 0);
     if (razor <= alpha) return razor;
   }
 
-  if (modern && !pv_node && !excluded && depth >= 6 && !tt_move)
+  if (!pv_node && !excluded && depth >= 6 && !tt_move)
     --depth;
 
   int non_pawn_value = 0;
@@ -2016,7 +1885,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     }
   }
 
-  if (modern && !board.horde && allow_null && !pv_node && !excluded && !in_check &&
+  if (!board.horde && allow_null && !pv_node && !excluded && !in_check &&
       depth >= 3 && ply > 0 && board.halfmove < 80 &&
       base_volatility < 65 &&
       (non_pawn_value >= 500 || non_pawn_count >= 2) &&
@@ -2049,7 +1918,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   const int node_volatility = std::clamp(
       base_volatility + (moves.size() == 1 ? 24 : 0), 0, 100);
 
-  if (modern && !pv_node && !excluded && !in_check && depth >= 5 &&
+  if (!pv_node && !excluded && !in_check && depth >= 5 &&
       node_volatility < 80 && beta < mate_score - 1'000) {
     const int prob_beta = std::min(mate_score - ply - 1, beta + 140);
     int candidates = 0;
@@ -2096,7 +1965,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       ++countermove_hits_;
     const int futility_margin = node_volatility >= 55 ? 190
         : (node_volatility <= 22 ? 75 : 120);
-    if (modern && move_index > 0 && depth == 1 && quiet && !in_check &&
+    if (move_index > 0 && depth == 1 && quiet && !in_check &&
         static_score + futility_margin <= alpha) {
       ++late_move_prunes_;
       ++move_index;
@@ -2104,7 +1973,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     }
 
     bool singular = false;
-    if (modern && !excluded && found && tt_move &&
+    if (!excluded && found && tt_move &&
         pack_move(move) == tt_move && depth >= 6 &&
         found->depth >= depth - 2 && found->flag >= 0 &&
         std::abs(tt_score) < mate_score - 1'000) {
@@ -2143,7 +2012,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
          (move.same_coordinates(killers_[ply][0]) ||
           move.same_coordinates(killers_[ply][1])));
     const int lmp_threshold = 6 + depth * 3;
-    if (modern && !pv_node && !in_check && quiet && depth <= 3 &&
+    if (!pv_node && !in_check && quiet && depth <= 3 &&
         move_index >= lmp_threshold && history < 0 &&
         node_volatility < 55 && !protected_quiet) {
       repetition_keys_.pop_back();
@@ -2154,13 +2023,13 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     }
 
     int extension = 0;
-    if (modern && extensions < 2 &&
+    if (extensions < 2 &&
         (singular || forced_reply || dangerous_passer || recapture ||
          checking_net))
       extension = 1;
     const int child_extensions = extensions + extension;
     int child_depth = depth - 1 + extension;
-    const bool reduce = modern && child_depth >= 2 && move_index >= 3 &&
+    const bool reduce = child_depth >= 2 && move_index >= 3 &&
                         quiet && !in_check && !gives_check && !singular;
     int score;
     if (reduce) {
@@ -2611,25 +2480,14 @@ std::uint64_t perft(Position position, Color side, int depth,
   return total;
 }
 
-EngineConfig default_config(EngineKind kind) {
-  EngineConfig config; config.kind = kind;
-  switch (kind) {
-    case EngineKind::turochamp:
-      config.name = "TUROCHAMP (1948)"; config.author = "Alan Turing and David Champernowne";
-      config.depth = 2; config.noise_millipawns = 10; config.hash_mb = 0; break;
-    case EngineKind::sargon:
-      config.name = "SARGON (1978)"; config.author = "Dan and Kathe Spracklen";
-      config.depth = 1; config.noise_millipawns = 10; config.hash_mb = 0; config.own_book = true; break;
-    case EngineKind::bernstein:
-      config.name = "BERNSTEIN (1957)";
-      config.author = "Alex Bernstein, Michael de V. Roberts, Timothy Arbuckle and Martin Belsky";
-      config.depth = 4; config.branch = 7; config.noise_millipawns = 0; config.hash_mb = 0; config.own_book = true; break;
-    default:
-      config.name = "Eloi"; config.author = "Sahil Das";
-      config.depth = 8; config.hash_mb = 32; config.noise_millipawns = 0;
-      config.own_book = true;
-      break;
-  }
+EngineConfig default_config() {
+  EngineConfig config;
+  config.name = "Eloi";
+  config.author = "Sahil Das";
+  config.depth = 8;
+  config.hash_mb = 32;
+  config.noise_millipawns = 0;
+  config.own_book = true;
   return config;
 }
 

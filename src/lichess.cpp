@@ -417,7 +417,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     ponder_expected_moves = append_move(ponder_base_moves, opponent_uci);
     ponder_result.reset();
     ponder_stopped.store(false, std::memory_order_relaxed);
-    EngineConfig engine = default_config(EngineKind::eloi);
+    EngineConfig engine = default_config();
     engine.depth = config.depth;
     engine.hash_mb = config.hash_mb;
     engine.move_overhead_ms = config.move_overhead_ms;
@@ -471,7 +471,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       std::cout << "game " << game_id << " ponder hit depth "
                 << result.depth << '\n';
     } else {
-      EngineConfig engine = default_config(EngineKind::eloi);
+      EngineConfig engine = default_config();
       engine.depth = config.depth;
       engine.hash_mb = config.hash_mb;
       engine.move_overhead_ms = config.move_overhead_ms;

@@ -200,18 +200,14 @@ std::optional<Board> chess960_start(int index);
 std::string to_fen(const Board& board);
 std::string board_ascii(const Board& board);
 
-enum class EngineKind { eloi, turochamp, sargon, bernstein };
 enum class ExactEndgame { none, draw, white_win, black_win };
 
 ExactEndgame probe_exact_endgame(const Board& board);
 
 struct EngineConfig {
-  EngineKind kind{EngineKind::eloi};
   std::string name{"Eloi"};
   std::string author{"herohde"};
   int depth{0};
-  int branch{0};
-  int material_factor{20};
   int noise_millipawns{0};
   int hash_mb{64};
   int move_overhead_ms{50};
@@ -329,10 +325,6 @@ class Searcher {
       Board board, SearchLimits limits,
       const std::function<void(const SearchResult&)>& info);
   int evaluate(const Board& board);
-  int material(const Position& pos, Color side, const std::array<int, 7>& values) const;
-  int turochamp_eval(const Board& board) const;
-  int sargon_eval(const Board& board) const;
-  int bernstein_eval(const Board& board) const;
   int volatility(const Board& board, std::size_t legal_count,
                  int evaluation_swing = 0) const;
   bool qualifying_quiet_check(const Board& board_after,
@@ -370,7 +362,7 @@ std::optional<BookMove> opening_move(const EngineConfig& config,
                                      const Board& board);
 std::size_t opening_book_size();
 std::size_t opening_book_node_count();
-EngineConfig default_config(EngineKind kind);
+EngineConfig default_config();
 int run_engine(EngineConfig config, int argc, char** argv);
 int run_perft(int argc, char** argv);
 int run_benchmark(int argc, char** argv);

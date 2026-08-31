@@ -14,7 +14,7 @@
 
 int main(int argc, char** argv) {
   using namespace eloi;
-  auto config = default_config(EngineKind::eloi);
+  auto config = default_config();
 
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "--version") == 0 ||

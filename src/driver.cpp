@@ -76,9 +76,6 @@ void usage(const EngineConfig& config, const char* program) {
             << "  --noise N     evaluation noise in millipawns\n"
             << "  --hash N      transposition table size in MB\n"
             << "  --move-overhead N  clock/network safety margin in ms\n";
-  if (config.kind == EngineKind::bernstein)
-    std::cerr << "  --branch N    plausible-move branch limit\n"
-              << "  --material N  material evaluation multiplier\n";
 }
 
 void parse_engine_options(EngineConfig& config, int argc, char** argv) {
@@ -91,8 +88,6 @@ void parse_engine_options(EngineConfig& config, int argc, char** argv) {
     else if (arg == "--noise" || arg == "-noise") take(config.noise_millipawns);
     else if (arg == "--hash" || arg == "-hash") take(config.hash_mb);
     else if (arg == "--move-overhead") take(config.move_overhead_ms);
-    else if (arg == "--branch" || arg == "-branch") take(config.branch);
-    else if (arg == "--material" || arg == "-material") take(config.material_factor);
     else if (arg == "--help" || arg == "-h" || arg == "-help") {
       usage(config, argv[0]);
       std::exit(0);
@@ -359,7 +354,7 @@ int run_benchmark(int argc, char** argv) {
       std::string_view{"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"},
       std::string_view{"2r2rk1/pp1bqppp/2n1pn2/1B1p4/3P4/2N1PN2/PPQ2PPP/2RR2K1 w - - 3 14"},
       std::string_view{"8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1"}};
-  auto config = default_config(EngineKind::eloi);
+  auto config = default_config();
   config.own_book = false;
   config.depth = depth;
   std::atomic_bool stopped{false};

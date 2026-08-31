@@ -632,7 +632,7 @@ void start_engine(App& app) {
                    static_cast<WPARAM>(generation), 0);
       return;
     }
-    auto config = default_config(EngineKind::eloi);
+    auto config = default_config();
     config.depth = depth;
     config.own_book = config.own_book && !root.chess960 && !root.horde;
     Searcher searcher(config, app.stop);
