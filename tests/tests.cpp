@@ -151,6 +151,7 @@ struct EpdCase {
   int depth{4};
   std::optional<int> expected_score;
   std::optional<std::pair<int, int>> stable_depths;
+  std::optional<int> maximum_swing;
 };
 
 std::string unquote(std::string value) {
@@ -204,6 +205,8 @@ std::vector<EpdCase> load_epd(const std::filesystem::path& path) {
       if (depths >> shallow >> deep)
         test.stable_depths = std::pair{shallow, deep};
     }
+    if (values.contains("swing"))
+      test.maximum_swing = std::stoi(values["swing"]);
     result.push_back(std::move(test));
   }
   return result;
@@ -1018,7 +1021,7 @@ int main() {
     const auto epd_path = std::filesystem::path(ELOI_TEST_DATA_DIR) /
                           "epd" / "v2_5_regressions.epd";
     const auto regressions = load_epd(epd_path);
-    expect(regressions.size() == 14,
+    expect(regressions.size() == 15,
            "v2.5 EPD corpus loads every categorized regression");
     std::set<std::string> categories;
     for (const EpdCase& test : regressions) {
@@ -1044,6 +1047,13 @@ int main() {
         const auto deep = fixed_depth_search(*board, test.stable_depths->second);
         expect(best_uci(shallow) == best_uci(deep),
                test.id + ": best move remains stable across quiescence depths");
+        if (test.maximum_swing)
+          expect(std::abs(shallow.score_cp - deep.score_cp) <=
+                     *test.maximum_swing,
+                 test.id + ": fixed-depth score swing " +
+                     std::to_string(std::abs(
+                         shallow.score_cp - deep.score_cp)) +
+                     " exceeds " + std::to_string(*test.maximum_swing));
       }
     }
     constexpr std::array required_categories{

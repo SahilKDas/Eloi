@@ -7,13 +7,14 @@ r3r3/pQNk1ppp/1qnR1n2/1B6/8/8/PPP3PP/5R1K b - - bm d7d6; acd 6; id "lichess-000l
 r1b1k1nr/ppp2pbp/3p1qp1/4p3/2BnP3/N2P2QP/PPP2PP1/R1B1K2R w KQkq - bm c1g5; acd 6; id "lichess-009FP"; c0 "trapped_piece";
 8/8/1p6/k7/P7/1KR4r/8/8 b - - bm h3c3; acd 6; id "lichess-002Uy"; c0 "quiet_defense";
 5r1k/B1p3pp/2Qb1p2/3Pq3/P6P/8/2P2K2/3R1R2 b - - bm f8e8; acd 6; id "lichess-002mG"; c0 "quiet_defense";
-2r2rk1/pbq1bppp/8/8/2p1N3/P1Bn2P1/2Q2PBP/1R3RK1 w - - bm b1b7; acd 7; id "lichess-001XA"; c0 "horizon_sacrifice";
+2r2rk1/pbq1bppp/8/8/2p1N3/P1Bn2P1/2Q2PBP/1R3RK1 w - - bm b1b7; acd 7; stable 5 7; swing 250; id "lichess-001XA"; c0 "horizon_sacrifice";
 1rb3k1/q4rP1/4p2p/3p3p/3P1P2/2P5/2QK3P/3R2R1 w - - bm c2h7; acd 5; id "lichess-001w5"; c0 "passed_pawn_race";
 8/2p5/3k2p1/1p1P1p2/1P3P2/3K2Pp/7P/8 w - - bm d3d4; acd 8; id "lichess-000o3"; c0 "passed_pawn_race";
 7k/6Q1/6K1/8/8/8/8/8 b - - ce -30000; acd 1; id "forced-mate-distance"; c0 "mate_distance";
 7k/8/8/8/8/8/8/K7 w - - ce 0; acd 2; id "bare-kings"; c0 "fortress_insufficient";
 7k/8/8/8/8/8/6B1/K7 w - - ce 0; acd 2; id "bishop-versus-king"; c0 "fortress_insufficient";
 7k/8/8/8/8/8/8/K7 w - - ce 0; acd 2; hmvc 100; fmvn 51; id "fifty-move-draw"; c0 "repetition_fifty";
-4k3/8/8/3q4/3R4/8/8/4K3 w - - bm d4d5; stable 1 3; id "free-queen-capture"; c0 "quiescence_stability";
+4k3/8/8/3q4/3R4/8/8/4K3 w - - bm d4d5; stable 1 3; swing 200; id "free-queen-capture"; c0 "quiescence_stability";
+3rk3/8/8/3p4/3Q4/8/8/4K3 w - - am d4d5; acd 3; stable 1 3; swing 250; id "poisoned-pawn-capture"; c0 "horizon_sacrifice";
 2rqk2r/2p1bppp/p1np4/1p1Pp3/2b1P1n1/1PP2N2/P1B2PPP/RNBQR1K1 b k - am c6a7; acd 6; id "online-Lc65wiSv-bishop-hang"; c0 "online_catastrophe";
 2rqk2r/pbpp1ppp/1pn2n2/4P3/2P5/P2BPN2/1PQB1PPP/R3K2R b KQk - am c6e5; acd 7; id "online-bIw09dp9-knight-hang"; c0 "online_catastrophe";
