@@ -1,0 +1,37 @@
+{
+  "acquisition_script": "scripts/acquire_nnue_samples.py",
+  "prefix_limit_bytes_per_source": 16777216,
+  "retained_inputs": {
+    "evaluations": {
+      "content_range": "bytes 0-16777215/21681515630",
+      "license": "CC0 1.0",
+      "prefix_bytes": 16777216,
+      "prefix_sha256": "81938C23AAAE46CD60C3A0E07387044ABE0F3CB912F85BE95B896DD052DC1BB9",
+      "sample_bytes": 12770131,
+      "sample_filename": "lichess-evaluations-2026-08-02.jsonl",
+      "sample_method": "first complete records from exact zstd byte prefix",
+      "sample_rows": 20000,
+      "sample_sha256": "48FF13470E057235714A6EB485475597109BFF8B39A2581DCCC4F2CBA4E193B2",
+      "source_url": "https://database.lichess.org/lichess_db_eval.jsonl.zst",
+      "upstream_etag": "\"6a6fbb7e-50c51ac6e\"",
+      "upstream_last_modified": "Sun, 02 Aug 2026 21:49:50 GMT",
+      "upstream_total_bytes": 21681515630
+    },
+    "puzzles": {
+      "content_range": "bytes 0-16777215/304384407",
+      "license": "CC0 1.0",
+      "prefix_bytes": 16777216,
+      "prefix_sha256": "848C95DACB8288EAE4EB58703C4E0BE18B7AC7E14E36C570C502B22EA8A96B28",
+      "sample_bytes": 3702406,
+      "sample_filename": "lichess-puzzles-2026-08-02.csv",
+      "sample_method": "first complete records from exact zstd byte prefix",
+      "sample_rows": 20000,
+      "sample_sha256": "C76047D88F8785EE485BDA1CB0DECF40D61B894BF54F472BE42484E3C686449D",
+      "source_url": "https://database.lichess.org/lichess_db_puzzle.csv.zst",
+      "upstream_etag": "\"6a6ef08b-12248997\"",
+      "upstream_last_modified": "Sun, 02 Aug 2026 07:23:55 GMT",
+      "upstream_total_bytes": 304384407
+    }
+  },
+  "schema": 1
+}

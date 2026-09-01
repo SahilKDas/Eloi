@@ -32,3 +32,12 @@ hashes, parameters, validation metrics, and the selected compact-header hash.
 Its temporary workspace has a hard 7 GiB ceiling and unsuccessful candidate
 artifacts are removed. NumPy and python-chess are generation-time tools only;
 they are not runtime or normal-build dependencies.
+
+`scripts/acquire_nnue_samples.py` reproduces the bounded local inputs without
+storing either complete upstream archive. It verifies the official
+2026-08-02 Lichess archive size, ETag, Last-Modified value, and HTTP byte range;
+downloads only the first 16 MiB of each zstd stream; retains 20,000 complete
+records per source; hashes the compressed prefixes and retained samples; and
+deletes the prefixes. The tracked `data/nnue_input_manifest.json` records those
+identities and hashes. The approximately 16 MiB of retained CSV/JSONL inputs
+remain ignored under `.deps/nnue-inputs` and are never packaged.
