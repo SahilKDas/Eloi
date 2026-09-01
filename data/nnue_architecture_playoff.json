@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "started_utc": "2026-09-01T03:50:09.966523+00:00",
+  "finished_utc": "2026-09-01T04:29:37.249287+00:00",
+  "candidate": {
+    "hidden": 128,
+    "weights_sha256": "39482481A6A9A6607F169A4962119BFC0507C98101E25B4ACF43A0D601D04825",
+    "executable_sha256": "E1D4F5AC42FFF272191607FBDE99B106A9429897E39EF3A3EB1936FA47AEFF26"
+  },
+  "baseline": {
+    "hidden": 64,
+    "weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E",
+    "executable_sha256": "8AB79376A98F7BC983D0F5120AB61549BE1E3364BBB5259D02DCE3DE907EC844"
+  },
+  "settings": {
+    "suite_sha256": "CA252742023A982D7B2ACA44D0E16DA95A0A38E731E329648056D84FCE773858",
+    "movetime_ms": 250,
+    "max_plies": 200,
+    "threads": 3,
+    "hash_mb": 32,
+    "own_book": false,
+    "mirrored_openings": 55,
+    "select_128_at_score": 0.55,
+    "select_64_at_or_below_score": 0.45
+  },
+  "sample_history": {
+    "original_planned_games": 250,
+    "completed_games": 110,
+    "shortened_after_start": true,
+    "changes": [
+      "After game 79, user reduced the target from 250 to 100 games.",
+      "After game 96, user extended the target from 100 to 110 games."
+    ]
+  },
+  "result": {
+    "wins": 31,
+    "draws": 34,
+    "losses": 45,
+    "raw_win_rate": 0.281818181818182,
+    "score": 0.436363636363636,
+    "estimated_elo_difference": -44.4601808490667,
+    "selected_hidden": 64,
+    "selection_reason": "candidate-scored-at-most-45-percent"
+  },
+  "evidence": {
+    "finalized_json_sha256": "2F4C93771A494906B15A0F5E04300F2941A0BB7111180A7513C7E720763DBE80",
+    "markdown_sha256": "0BFEFAE753A8449543B727D6DD5F9D53849ACE61E22BCDE95BFBC6EEC66B8EE8",
+    "pgn_sha256": "113348AAF8936CE827A925BE7600193D874E721E25F9E720277F82FAF3DA525B",
+    "raw_250_identity_checkpoint_sha256": "A9D2322CAF99CA7F36DAE232D46B307B657CFA9B90D2C460876DA83E7F3A940B"
+  }
+}

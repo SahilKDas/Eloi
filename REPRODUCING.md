@@ -180,7 +180,10 @@ claiming that v1.9 passed its final strength gate.
 
 These unit tests keep the architecture playoff's score thresholds distinct
 from the final gauntlet's raw-win requirement and ensure an incomplete playoff
-cannot select an architecture.
+cannot select an architecture. They also validate the shortened-playoff
+finalizer, which requires an exact even result count, matching PGN count and
+engine hashes, archives the original checkpoint identity, and records every
+post-start sample-size change.
 
 After generating the two candidate directories described there, build and
 validate both without installing either one:

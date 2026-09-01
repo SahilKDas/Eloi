@@ -9,6 +9,7 @@ import hashlib
 import json
 import math
 import pathlib
+import shutil
 import statistics
 import sys
 import time
@@ -523,6 +524,61 @@ def summarize_strength(result: dict[str, Any]) -> None:
     result.update(summary)
 
 
+def count_pgn_games(path: pathlib.Path) -> int:
+    count = 0
+    with path.open(encoding="utf-8") as stream:
+        while chess.pgn.read_game(stream) is not None:
+            count += 1
+    return count
+
+
+def finalize_shortened_playoff(
+        candidate_path: pathlib.Path, baseline_path: pathlib.Path,
+        checkpoint_path: pathlib.Path, pgn_path: pathlib.Path,
+        archive_path: pathlib.Path, games: int,
+        plan_changes: list[str]) -> dict[str, Any]:
+    if games <= 0 or games % 2:
+        raise ValueError("shortened playoff games must be positive and even")
+    if not plan_changes:
+        raise ValueError("at least one --plan-change is required")
+    result = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    if result.get("kind") != "architecture-playoff":
+        raise ValueError("checkpoint is not an architecture playoff")
+    original_identity = result["identity"]
+    if original_identity["candidate_sha256"] != sha256(candidate_path):
+        raise ValueError("candidate hash does not match checkpoint")
+    if original_identity["baseline_sha256"] != sha256(baseline_path):
+        raise ValueError("baseline hash does not match checkpoint")
+    if original_identity["games"] <= games:
+        raise ValueError("final game count must shorten the original plan")
+    if len(result["results"]) != games:
+        raise ValueError(
+            "checkpoint must contain exactly the requested completed games")
+    pgn_games = count_pgn_games(pgn_path)
+    if pgn_games != games:
+        raise ValueError(
+            f"PGN contains {pgn_games} games, expected exactly {games}")
+    if archive_path.exists():
+        raise ValueError(f"raw checkpoint archive already exists: {archive_path}")
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+    source_hash = sha256(checkpoint_path)
+    shutil.copyfile(checkpoint_path, archive_path)
+    result["original_identity"] = original_identity
+    result["identity"] = {**original_identity, "games": games}
+    result["shortened_after_start"] = True
+    result["plan_changes"] = plan_changes
+    result["raw_interrupted_checkpoint"] = {
+        "path": str(archive_path),
+        "sha256": source_hash,
+    }
+    result["pgn_sha256"] = sha256(pgn_path)
+    result["finished_utc"] = utc_now()
+    summarize_strength(result)
+    atomic_json(checkpoint_path, result)
+    write_markdown(checkpoint_path.with_suffix(".md"), result)
+    return result
+
+
 def write_markdown(path: pathlib.Path, result: dict[str, Any]) -> None:
     lines = ["# Eloi Engine Lab report", "",
              f"Generated: {result.get('finished_utc', utc_now())}", ""]
@@ -559,6 +615,15 @@ def write_markdown(path: pathlib.Path, result: dict[str, Any]) -> None:
                 f"- Selection reason: {result['selection_reason']}",
                 f"- Completed: {'YES' if result['passed'] else 'NO'}",
             ]
+            if result.get("shortened_after_start"):
+                lines += [
+                    f"- Original planned games: "
+                    f"{result['original_identity']['games']}",
+                    "- Shortened after start: YES",
+                    "- Plan changes:",
+                    *(f"  - {change}" for change in result["plan_changes"]),
+                    f"- PGN SHA-256: `{result['pgn_sha256']}`",
+                ]
         else:
             lines += [
                 f"- Required raw wins: {result['identity']['required_wins']} "
@@ -652,6 +717,15 @@ def main() -> int:
     playoff.add_argument("--games", type=int, default=250)
     playoff.add_argument("--movetime-ms", type=int, default=250)
     playoff.add_argument("--max-plies", type=int, default=200)
+    finalize = subparsers.add_parser("finalize-playoff")
+    finalize.add_argument(
+        "--checkpoint", type=pathlib.Path, required=True)
+    finalize.add_argument("--pgn", type=pathlib.Path, required=True)
+    finalize.add_argument("--archive", type=pathlib.Path, required=True)
+    finalize.add_argument("--games", type=int, required=True)
+    finalize.add_argument(
+        "--plan-change", action="append", required=True,
+        help="repeatable truthful description of a post-start sample change")
     ladder = subparsers.add_parser("ladder")
     ladder.add_argument(
         "--output", type=pathlib.Path,
@@ -665,7 +739,12 @@ def main() -> int:
     candidate = args.candidate.resolve()
     baseline = args.baseline.resolve()
     verify_baseline(baseline, args.allow_unverified_baseline)
-    if args.command == "speed":
+    if args.command == "finalize-playoff":
+        result = finalize_shortened_playoff(
+            candidate, baseline, args.checkpoint.resolve(),
+            args.pgn.resolve(), args.archive.resolve(), args.games,
+            args.plan_change)
+    elif args.command == "speed":
         result = speed_gate(
             candidate, baseline, args.output.resolve(), tuple(args.depths),
             args.samples, args.minimum_seconds)
