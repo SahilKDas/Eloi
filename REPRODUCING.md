@@ -143,6 +143,15 @@ staged output, aborts before an estimated write could exceed the quota, and
 removes unsuccessful candidate artifacts after selection:
 
 ```powershell
+python .\scripts\test_train_nnue.py
+```
+
+That regression test proves that combined and solo architecture runs produce
+identical per-candidate metrics and weight hashes, repeated comparisons are
+deterministic, report-only mode cannot replace model outputs, provenance
+records the generation environment, and temporary staging is removed.
+
+```powershell
 python .\scripts\train_nnue.py `
   --puzzles C:\path\to\lichess-puzzles.csv `
   --evaluations C:\path\to\lichess-evaluations.jsonl `

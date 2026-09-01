@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import pathlib
+import platform
 import random
 import shutil
 import sys
@@ -403,6 +404,25 @@ def model_quality(metrics):
     )
 
 
+def train_candidate(hidden, dataset, epochs):
+    """Train one architecture without mutating the shared dataset order."""
+    weights, bias, output = initialize(hidden)
+    weights, bias, output = train_evaluations(
+        weights, bias, output, list(dataset.train_evaluations)
+    )
+    weights, bias, output = train_pairs(
+        weights, bias, output, list(dataset.train_pairs), epochs
+    )
+    metrics = validation_metrics(
+        weights,
+        bias,
+        output,
+        dataset.validation_evaluations,
+        dataset.validation_pairs,
+    )
+    return metrics, weights, bias, output
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -443,6 +463,14 @@ def main():
         "--architectures", type=int, nargs="+", default=[64, 128]
     )
     parser.add_argument("--validation-fraction", type=float, default=0.1)
+    parser.add_argument(
+        "--report-only",
+        action="store_true",
+        help=(
+            "compare architectures and write provenance without replacing "
+            "the configured weight or architecture outputs"
+        ),
+    )
     args = parser.parse_args()
 
     if not 0 < args.max_temp_gb <= 7.0:
@@ -451,6 +479,8 @@ def main():
         parser.error("--validation-fraction must be between 0 and 0.5")
     if any(hidden not in (64, 128) for hidden in args.architectures):
         parser.error("--architectures accepts only 64 and 128")
+    if args.report_only and len(set(args.architectures)) < 2:
+        parser.error("--report-only requires at least two architectures")
     if not args.puzzles.is_file() or not args.evaluations.is_file():
         parser.error("both streamed NNUE input files must exist")
 
@@ -483,19 +513,8 @@ def main():
     candidates = []
     for hidden in sorted(set(args.architectures)):
         print(f"training {hidden}-hidden-unit candidate")
-        weights, bias, output = initialize(hidden)
-        weights, bias, output = train_evaluations(
-            weights, bias, output, dataset.train_evaluations
-        )
-        weights, bias, output = train_pairs(
-            weights, bias, output, dataset.train_pairs, args.epochs
-        )
-        metrics = validation_metrics(
-            weights,
-            bias,
-            output,
-            dataset.validation_evaluations,
-            dataset.validation_pairs,
+        metrics, weights, bias, output = train_candidate(
+            hidden, dataset, args.epochs
         )
         print(f"validation {hidden}: {json.dumps(metrics, sort_keys=True)}")
         candidates.append((model_quality(metrics), hidden, metrics,
@@ -504,6 +523,33 @@ def main():
     _, hidden, selected_metrics, weights, bias, output = max(
         candidates, key=lambda candidate: candidate[0]
     )
+    candidate_stage = args.temp_dir / "candidates"
+    if candidate_stage.exists():
+        shutil.rmtree(candidate_stage)
+    candidate_stage.mkdir(parents=True)
+    candidate_documents = []
+    for candidate in candidates:
+        candidate_path = candidate_stage / f"nnue_weights_{candidate[1]}.hpp"
+        enforce_budget(
+            args.temp_dir,
+            budget_bytes,
+            additional=FEATURES * candidate[1] * 5 + candidate[1] * 24 + 1024,
+        )
+        write_header(
+            candidate_path,
+            candidate[3],
+            candidate[4],
+            candidate[5],
+            counts,
+            dataset.themes,
+        )
+        candidate_documents.append({
+            "hidden": candidate[1],
+            **candidate[2],
+            "weights_sha256": file_sha256(candidate_path),
+        })
+        enforce_budget(args.temp_dir, budget_bytes)
+
     stage = args.temp_dir / "selected"
     if stage.exists():
         shutil.rmtree(stage)
@@ -523,6 +569,8 @@ def main():
 
     provenance = {
         "schema": 1,
+        "mode": "comparison-report-only" if args.report_only else "selected-output",
+        "outputs_written": not args.report_only,
         "seed": SEED,
         "temporary_disk_hard_limit_bytes": MAX_TEMP_BYTES,
         "temporary_disk_configured_limit_bytes": budget_bytes,
@@ -536,6 +584,12 @@ def main():
                 "sha256": file_sha256(args.evaluations),
             },
         },
+        "environment": {
+            "python_implementation": platform.python_implementation(),
+            "python_version": platform.python_version(),
+            "numpy_version": np.__version__,
+            "python_chess_version": getattr(chess, "__version__", "unknown"),
+        },
         "parameters": {
             "architectures": sorted(set(args.architectures)),
             "epochs": args.epochs,
@@ -544,10 +598,7 @@ def main():
             "validation_fraction": args.validation_fraction,
         },
         "counts": counts,
-        "candidates": [
-            {"hidden": candidate[1], **candidate[2]}
-            for candidate in candidates
-        ],
+        "candidates": candidate_documents,
         "selected_hidden": hidden,
         "selected_validation": selected_metrics,
         "selected_weights_sha256": file_sha256(staged_weights),
@@ -560,12 +611,25 @@ def main():
     )
     enforce_budget(args.temp_dir, budget_bytes)
 
+    if args.report_only:
+        args.provenance.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(staged_provenance, args.provenance)
+        shutil.rmtree(stage)
+        shutil.rmtree(candidate_stage)
+        enforce_budget(args.temp_dir, budget_bytes)
+        print(
+            f"recommended {hidden} hidden units; comparison provenance written "
+            "without replacing model outputs"
+        )
+        return
+
     for target in (args.output, args.architecture_output, args.provenance):
         target.parent.mkdir(parents=True, exist_ok=True)
     os.replace(staged_weights, args.output)
     os.replace(staged_architecture, args.architecture_output)
     os.replace(staged_provenance, args.provenance)
     shutil.rmtree(stage)
+    shutil.rmtree(candidate_stage)
     enforce_budget(args.temp_dir, budget_bytes)
     print(
         f"selected {hidden} hidden units; compact outputs written and "
