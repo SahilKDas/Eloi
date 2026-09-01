@@ -1,0 +1,60 @@
+{
+  "candidates": [
+    {
+      "evaluation_mae_cp": 470.8468522065291,
+      "hidden": 64,
+      "tactical_accuracy": 0.8064187468160978,
+      "weights_sha256": "9D548FB20999074FAFCA9F74395BF2E78D5C6D863F3463298E0FCBF40C1B7A6C"
+    },
+    {
+      "evaluation_mae_cp": 473.9278014190326,
+      "hidden": 128,
+      "tactical_accuracy": 0.803871625063678,
+      "weights_sha256": "C545D829298B300BA0F5B9D62DEF557E2774F7922C2E89A1CEC9CCBDAF216E11"
+    }
+  ],
+  "counts": {
+    "train_evaluations": 12000,
+    "train_pairs": 12000,
+    "validation_evaluations": 1958,
+    "validation_pairs": 1963
+  },
+  "environment": {
+    "numpy_version": "2.4.4",
+    "python_chess_version": "1.11.2",
+    "python_implementation": "CPython",
+    "python_version": "3.11.9"
+  },
+  "inputs": {
+    "evaluations": {
+      "path": ".deps/nnue-inputs/lichess-evaluations-2026-08-02.jsonl",
+      "sha256": "48FF13470E057235714A6EB485475597109BFF8B39A2581DCCC4F2CBA4E193B2"
+    },
+    "puzzles": {
+      "path": ".deps/nnue-inputs/lichess-puzzles-2026-08-02.csv",
+      "sha256": "C76047D88F8785EE485BDA1CB0DECF40D61B894BF54F472BE42484E3C686449D"
+    }
+  },
+  "mode": "comparison-report-only",
+  "outputs_written": false,
+  "parameters": {
+    "architectures": [
+      64,
+      128
+    ],
+    "epochs": 3,
+    "evaluation_limit_per_split": 12000,
+    "puzzle_limit_per_split": 12000,
+    "validation_fraction": 0.1
+  },
+  "schema": 1,
+  "seed": 57601,
+  "selected_hidden": 64,
+  "selected_validation": {
+    "evaluation_mae_cp": 470.8468522065291,
+    "tactical_accuracy": 0.8064187468160978
+  },
+  "selected_weights_sha256": "9D548FB20999074FAFCA9F74395BF2E78D5C6D863F3463298E0FCBF40C1B7A6C",
+  "temporary_disk_configured_limit_bytes": 7516192768,
+  "temporary_disk_hard_limit_bytes": 7516192768
+}
