@@ -607,6 +607,11 @@ void add_move(const Position& pos, Color side, MoveList& out, int from, int to,
 
 }  // namespace
 
+int static_exchange_evaluation(const Position& position, Color side,
+                               const Move& move) {
+  return static_exchange_score(position, side, move);
+}
+
 bool Move::is_capture() const {
   return type == MoveType::capture || type == MoveType::capture_promotion ||
          type == MoveType::en_passant;

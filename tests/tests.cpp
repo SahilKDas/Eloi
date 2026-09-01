@@ -15,6 +15,41 @@
 
 using namespace eloi;
 
+namespace eloi {
+struct SearcherTestAccess {
+  struct Entry {
+    std::uint64_t key{};
+    int score{};
+    int static_eval{};
+    int depth{};
+    PackedMove best{};
+    int flag{};
+    int generation{};
+  };
+
+  static void store(Searcher& searcher, std::uint64_t key, int depth,
+                    int score, int static_eval, int flag,
+                    const Move& best, int ply) {
+    searcher.store(key, depth, score, static_eval, flag, best, ply);
+  }
+
+  static std::optional<Entry> lookup(Searcher& searcher, std::uint64_t key) {
+    const Searcher::TTEntry* found = searcher.probe(key);
+    if (!found) return std::nullopt;
+    return Entry{found->key, found->score, found->static_eval, found->depth,
+                 found->best, found->flag, found->generation};
+  }
+
+  static std::size_t bucket_count(const Searcher& searcher) {
+    return searcher.table_.size();
+  }
+
+  static void next_generation(Searcher& searcher) {
+    searcher.advance_generation();
+  }
+};
+}  // namespace eloi
+
 namespace {
 int failures = 0;
 
@@ -188,6 +223,14 @@ SearchResult fixed_depth_search(const Board& board, int depth) {
 std::string best_uci(const SearchResult& result) {
   return result.pv.empty() ? std::string{} : result.pv.front().uci();
 }
+
+std::optional<Move> legal_move(const Board& board, std::string_view uci) {
+  const auto parsed = parse_uci_move(uci);
+  if (!parsed) return std::nullopt;
+  for (const Move& move : board.legal_moves())
+    if (move.same_coordinates(*parsed)) return move;
+  return std::nullopt;
+}
 }  // namespace
 
 int main() {
@@ -300,6 +343,91 @@ int main() {
            "winning TT mate distance normalizes across plies");
     expect(score_from_tt(stored_loss, 3) == -30'000 + 3,
            "losing TT mate distance normalizes across plies");
+  }
+  {
+    auto expect_see = [](std::string_view fen, std::string_view uci,
+                         int expected, std::string_view label) {
+      auto board = parse_fen(fen);
+      expect(board.has_value(), std::string(label) + ": SEE FEN parses");
+      if (!board) return;
+      const auto move = legal_move(*board, uci);
+      expect(move.has_value(), std::string(label) + ": SEE move is legal");
+      if (!move) return;
+      const int actual = static_exchange_evaluation(
+          board->position, board->turn, *move);
+      expect(actual == expected,
+             std::string(label) + ": expected SEE " +
+                 std::to_string(expected) + ", got " +
+                 std::to_string(actual));
+    };
+    expect_see("4k3/8/8/3q4/3R4/8/8/4K3 w - - 0 1",
+               "d4d5", 900, "free queen capture");
+    expect_see("3rk3/8/8/3q4/3R4/8/8/4K3 w - - 0 1",
+               "d4d5", 400, "defended queen capture");
+    expect_see("3rk3/8/8/3p4/3Q4/8/8/4K3 w - - 0 1",
+               "d4d5", -800, "poisoned pawn capture");
+    expect_see("k6r/6P1/8/8/8/8/8/4K3 w - - 0 1",
+               "g7h8q", 1300, "capture promotion");
+  }
+  {
+    auto config = default_config();
+    config.own_book = false;
+    config.hash_mb = 1;
+    std::atomic_bool stopped{false};
+    Searcher searcher(config, stopped);
+    const auto best = parse_uci_move("a2a3").value();
+    const std::size_t buckets = SearcherTestAccess::bucket_count(searcher);
+    expect(buckets > 0 && std::has_single_bit(buckets),
+           "TT test table has a power-of-two bucket count");
+
+    for (int flag : {-1, 0, 1}) {
+      const std::uint64_t key = 100 + static_cast<std::uint64_t>(flag + 1) *
+          buckets;
+      SearcherTestAccess::store(searcher, key, 6, 120 + flag, -35,
+                                flag, best, 0);
+      const auto entry = SearcherTestAccess::lookup(searcher, key);
+      expect(entry && entry->flag == flag && entry->depth == 6 &&
+                 entry->score == 120 + flag && entry->static_eval == -35,
+             "TT preserves exact/lower/upper bound metadata");
+    }
+
+    const std::uint64_t mate_key = 777;
+    SearcherTestAccess::store(searcher, mate_key, 9, 30'000 - 7,
+                              500, 0, best, 7);
+    const auto mate = SearcherTestAccess::lookup(searcher, mate_key);
+    expect(mate && score_from_tt(mate->score, 3) == 30'000 - 3,
+           "TT stored mate score decodes relative to the probing ply");
+
+    const std::uint64_t deep_key = 991;
+    SearcherTestAccess::store(searcher, deep_key, 8, 80, 20, 0, best, 0);
+    SearcherTestAccess::store(searcher, deep_key, 3, -400, -20, -1,
+                              best, 0);
+    const auto deep = SearcherTestAccess::lookup(searcher, deep_key);
+    expect(deep && deep->depth == 8 && deep->score == 80,
+           "TT refuses to overwrite a deeper same-key entry");
+
+    Searcher collision_table(config, stopped);
+    const std::size_t collision_stride =
+        SearcherTestAccess::bucket_count(collision_table);
+    constexpr std::uint64_t bucket = 7;
+    for (int index = 0; index < 4; ++index)
+      SearcherTestAccess::store(
+          collision_table,
+          bucket + static_cast<std::uint64_t>(index) * collision_stride,
+          index + 1, 10 * index, 0, 0, best, 0);
+    const std::uint64_t replacement_key = bucket + 4 * collision_stride;
+    SearcherTestAccess::store(collision_table, replacement_key, 5, 50,
+                              0, 0, best, 0);
+    expect(!SearcherTestAccess::lookup(collision_table, bucket) &&
+               SearcherTestAccess::lookup(collision_table, replacement_key),
+           "four-way TT collision replaces the shallowest entry");
+
+    SearcherTestAccess::next_generation(collision_table);
+    const std::uint64_t fresh_key = bucket + 5 * collision_stride;
+    SearcherTestAccess::store(collision_table, fresh_key, 0, 5,
+                              0, 0, best, 0);
+    expect(SearcherTestAccess::lookup(collision_table, fresh_key).has_value(),
+           "new TT generation replaces stale entries even at shallow depth");
   }
   {
     std::string error;

@@ -69,6 +69,9 @@ PackedMove pack_move(const Move& move);
 Move unpack_move(PackedMove move);
 int score_to_tt(int score, int ply);
 int score_from_tt(int score, int ply);
+struct Position;
+int static_exchange_evaluation(const Position& position, Color side,
+                               const Move& move);
 
 class MoveList {
  public:
@@ -305,6 +308,7 @@ class Searcher {
                          const std::function<void(const SearchResult&)>& info = {});
 
  private:
+  friend struct SearcherTestAccess;
   struct TTEntry {
     std::uint64_t key{};
     std::int32_t score{};
