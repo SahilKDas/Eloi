@@ -45,6 +45,9 @@ remain ignored under `.deps/nnue-inputs` and are never packaged.
 The repeated full 64/128 report-only run is recorded in
 `data/nnue_training_comparison.json`. It binds the input hashes, interpreter
 and library versions, fixed parameters, split counts, validation metrics, and
-both candidate-header hashes. This offline comparison recommends 64 hidden
-units, but it does not replace the production network or waive the engine-level
-architecture playoff in `V1.9_VALIDATION_PLAN.md`.
+both candidate-header hashes. The offline comparison recommended 64 hidden
+units. Both architectures then passed identical engine correctness gates, and
+the completed 110-game architecture sample selected 64 after the 128 candidate
+scored 43.64%. `data/nnue_architecture_playoff.json` records the post-start
+sample-size changes, result, selected architecture, and hashes for all retained
+evidence. Future larger-data candidates must repeat these gates.

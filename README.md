@@ -23,12 +23,13 @@ exactly-three-lane engine, Engine Lab, hash-bound benchmark harness, expanded
 move-generation differential tests, deterministic NNUE training pipeline, and
 the two golden Windows package builders.
 
-The embedded production NNUE still has 64 hidden units. A fair 64-versus-128
-retraining/playoff has **not** been run, and neither has the separate 250-game
-final release gauntlet. The current candidate is therefore an RC under
-validation, not a completed strength-qualified release. The preregistered
-remaining procedure—including the trainer-ordering fix required before its
-results can be trusted—is in
+The embedded production NNUE has 64 hidden units selected from deterministic
+64-versus-128 retraining. Both candidates passed clean builds and correctness
+tests; in the user-shortened 110-game architecture playoff, 128 scored 43.64%,
+so the frozen threshold selected 64. The sample-size changes and every evidence
+hash are recorded in `data/nnue_architecture_playoff.json`. The separate
+250-game final release gauntlet has not run, so the current candidate remains
+an RC under validation rather than a completed strength-qualified release. See
 [V1.9_VALIDATION_PLAN.md](V1.9_VALIDATION_PLAN.md).
 
 ## Repository map
@@ -438,8 +439,8 @@ two-build proof, packaged UCI/config/GUI smoke tests, and a 96-position exact
 legal-move differential run: 32 Standard, 32 Chess960, and 32 Horde positions
 against python-chess. Packaging checks also prove that the Exoskeleton main
 engine does not import WinHTTP while `EloiLichess.exe` does. See
-[V1.9_VALIDATION_PLAN.md](V1.9_VALIDATION_PLAN.md) for the remaining NNUE
-playoff and final release decision.
+[V1.9_VALIDATION_PLAN.md](V1.9_VALIDATION_PLAN.md) for the selected-NNUE
+reproducibility gate and remaining final release decision.
 
 ## Artwork and licenses
 
