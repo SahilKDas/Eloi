@@ -214,8 +214,12 @@ Assert-ZeroPeTimestamp $lichessExe
 Invoke-UciHandshake $mainExe
 & $lichessExe --check-config
 if ($LASTEXITCODE -ne 0) { throw 'Exoskeleton Lichess config check failed' }
+$savedErrorPreference = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
 $mainLichess = & $mainExe --lichess 2>&1
-if ($LASTEXITCODE -ne 2 -or
+$mainLichessExitCode = $LASTEXITCODE
+$ErrorActionPreference = $savedErrorPreference
+if ($mainLichessExitCode -ne 2 -or
     ($mainLichess -join "`n") -notmatch 'EloiLichess.exe') {
   throw 'Main executable did not redirect native Lichess users to the bridge'
 }
@@ -236,7 +240,9 @@ if (& git -C $projectRoot status --porcelain) { $commit += '-dirty' }
 $manifestPath = Join-Path $packageRoot 'SHA256SUMS.txt'
 $manifest = foreach ($file in Get-ChildItem -LiteralPath $packageRoot -File -Recurse |
     Where-Object FullName -ne $manifestPath | Sort-Object FullName) {
-  $relative = [IO.Path]::GetRelativePath($packageRoot, $file.FullName).Replace('\', '/')
+  # Windows PowerShell 5.1 runs on a framework without Path.GetRelativePath.
+  # Every enumerated file is already a descendant of the absolute package root.
+  $relative = $file.FullName.Substring($packageRoot.Length).TrimStart('\', '/').Replace('\', '/')
   $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
   "$hash  $relative"
 }

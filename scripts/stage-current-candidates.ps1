@@ -17,7 +17,7 @@ $prerelease = ''
 if ($cmakeSource -match 'set\(ELOI_PRERELEASE "([^"]*)"\)' -and $Matches[1]) {
   $prerelease = '-' + $Matches[1]
 }
-$candidate = "Eloi-v$version$prerelease-rc.current-windows-x64"
+$candidate = "Eloi-v$version$prerelease-windows-x64"
 
 function Assert-UnderDist {
   param([string] $Path)
@@ -69,8 +69,7 @@ if ($LASTEXITCODE -ne 0 -or $entries.Count -ne 2 -or
 Remove-Item -LiteralPath $standaloneRoot -Recurse -Force
 
 & (Join-Path $PSScriptRoot 'build-windows-exoskeleton-zip.ps1') `
-  -AllowDirty -SkipDefenderScan -OutputRoot $currentRoot `
-  -CandidateLabel 'rc.current'
+  -AllowDirty -SkipDefenderScan -OutputRoot $currentRoot
 if ($LASTEXITCODE -ne 0) { throw 'Exoskeleton candidate staging failed.' }
 
 $archives = @(Get-ChildItem -LiteralPath $currentRoot -File -Filter '*.zip')
