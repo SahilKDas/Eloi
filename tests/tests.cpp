@@ -616,7 +616,10 @@ int main() {
     auto config = default_config();
     config.own_book = false;
     std::atomic_bool stopped{false};
-    SearchLimits limits; limits.depth = 6;
+    // The singular-extension precondition starts at depth six, but whether a
+    // qualifying TT entry already exists there depends on the NNUE move order.
+    // Depth eight exercises the mechanism for both validated architectures.
+    SearchLimits limits; limits.depth = 8;
     Searcher searcher(config, stopped);
     const auto result = searcher.iterative(board, limits);
     expect(result.singular_extensions > 0,
