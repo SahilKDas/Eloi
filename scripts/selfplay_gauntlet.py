@@ -37,7 +37,8 @@ def seeded_board(index: int) -> chess.Board:
     return board
 
 
-def configure(engine: chess.engine.SimpleEngine, *, timed: bool) -> None:
+def configure(engine: chess.engine.SimpleEngine, *, timed: bool,
+              parallel_mode: str) -> None:
     options = engine.options
     settings = {}
     if "OwnBook" in options:
@@ -46,6 +47,9 @@ def configure(engine: chess.engine.SimpleEngine, *, timed: bool) -> None:
         settings["Hash"] = 32
     if timed and "Depth" in options:
         settings["Depth"] = 0
+    if "ParallelMode" not in options:
+        raise RuntimeError("engine does not expose the ParallelMode UCI option")
+    settings["ParallelMode"] = parallel_mode
     if settings:
         engine.configure(settings)
 
@@ -80,6 +84,18 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidate", required=True, type=pathlib.Path)
     parser.add_argument("--baseline", required=True, type=pathlib.Path)
+    parser.add_argument(
+        "--candidate-parallel-mode",
+        choices=("RootSplit", "LazySMP"), default="RootSplit",
+    )
+    parser.add_argument(
+        "--baseline-parallel-mode",
+        choices=("RootSplit", "LazySMP"), default="RootSplit",
+    )
+    parser.add_argument(
+        "--correctness-test", type=pathlib.Path,
+        help="run the same deterministic test executable for both modes before play",
+    )
     parser.add_argument("--games", type=int, default=200)
     parser.add_argument(
         "--start-game", type=int, default=0,
@@ -122,6 +138,23 @@ def main() -> int:
             parser.error("--idle-priority is currently supported only on Windows")
         popen_args["creationflags"] = subprocess.IDLE_PRIORITY_CLASS
 
+    preflight_ok = True
+    if args.correctness_test:
+        checked = []
+        for label, mode in (("candidate", args.candidate_parallel_mode),
+                            ("baseline", args.baseline_parallel_mode)):
+            if mode in checked:
+                continue
+            checked.append(mode)
+            command = [str(args.correctness_test), "--parallel", mode]
+            print(f"{label} correctness preflight: {' '.join(command)}",
+                  flush=True)
+            completed = subprocess.run(command, check=False, timeout=120)
+            passed = completed.returncode == 0
+            preflight_ok = preflight_ok and passed
+            print(f"{mode} correctness: {'PASS' if passed else 'FAIL'}",
+                  flush=True)
+
     scores = []
     engine_timeout = 60.0 if args.idle_priority else 10.0
     candidate = chess.engine.SimpleEngine.popen_uci(
@@ -129,8 +162,10 @@ def main() -> int:
     baseline = chess.engine.SimpleEngine.popen_uci(
         [str(args.baseline), "--uci"], timeout=engine_timeout, **popen_args)
     try:
-        configure(candidate, timed=args.movetime_ms is not None)
-        configure(baseline, timed=args.movetime_ms is not None)
+        configure(candidate, timed=args.movetime_ms is not None,
+                  parallel_mode=args.candidate_parallel_mode)
+        configure(baseline, timed=args.movetime_ms is not None,
+                  parallel_mode=args.baseline_parallel_mode)
         for game in range(args.start_game, args.start_game + args.games):
             score = play_game(candidate, baseline, game, limit, args.max_plies)
             scores.append(score)
@@ -151,8 +186,12 @@ def main() -> int:
         search_label = f"depth {args.depth}"
     else:
         search_label = f"movetime {args.movetime_ms}ms"
-    print(f"gauntlet games {len(scores)} {search_label} wins {wins} "
+    print(f"gauntlet candidate {args.candidate_parallel_mode} baseline "
+          f"{args.baseline_parallel_mode} games {len(scores)} {search_label} wins {wins} "
           f"draws {draws} losses {losses} score {percentage:.2f}%")
+    if not preflight_ok:
+        print("selection: REJECTED because at least one mode failed correctness")
+        return 2
     return 0 if percentage > args.required_score else 1
 
 
