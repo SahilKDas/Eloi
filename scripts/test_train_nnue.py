@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -14,6 +16,37 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TRAINER = ROOT / "scripts" / "train_nnue.py"
+
+
+def compiler_path() -> str | None:
+    configured = os.environ.get("CXX")
+    if configured:
+        return configured
+    pinned = pathlib.Path("C:/msys64/ucrt64/bin/c++.exe")
+    if pinned.is_file():
+        return str(pinned)
+    return shutil.which("c++") or shutil.which("g++") or shutil.which("clang++")
+
+
+def assert_header_compiles(root: pathlib.Path, header: pathlib.Path) -> None:
+    compiler = compiler_path()
+    if compiler is None:
+        raise AssertionError("a C++ compiler is required to validate NNUE headers")
+    source = root / f"compile-{header.parent.name}.cpp"
+    source.write_text(
+        f'#include "{header.as_posix()}"\n'
+        "int main() {\n"
+        "  return eloi::nnue_weights::input[0];\n"
+        "}\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    subprocess.run(
+        [compiler, "-std=c++2c", "-fsyntax-only", str(source)],
+        cwd=ROOT,
+        check=True,
+        timeout=180,
+    )
 
 
 def write_fixtures(root: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
@@ -143,6 +176,7 @@ class TrainNnueTests(unittest.TestCase):
                     candidate["weights_sha256"], solo["selected_weights_sha256"]
                 )
                 self.assertTrue(output.is_file())
+                assert_header_compiles(root, output)
 
 
 if __name__ == "__main__":

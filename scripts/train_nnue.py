@@ -368,7 +368,7 @@ def write_header(path, weights, bias, output, counts, themes):
             out.write(", ".join(map(str, array.tolist())) + "\n}};\n")
         out.write(
             f"inline constexpr std::array<std::int8_t, {values.size}> "
-            "input{{{{\n"
+            "input{{\n"
         )
         for start in range(0, values.size, 32):
             out.write(

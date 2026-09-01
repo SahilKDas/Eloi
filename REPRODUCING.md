@@ -149,7 +149,8 @@ python .\scripts\test_train_nnue.py
 That regression test proves that combined and solo architecture runs produce
 identical per-candidate metrics and weight hashes, repeated comparisons are
 deterministic, report-only mode cannot replace model outputs, provenance
-records the generation environment, and temporary staging is removed.
+records the generation environment, every selected generated header compiles
+as C++26, and temporary staging is removed.
 
 ```powershell
 python .\scripts\train_nnue.py `
