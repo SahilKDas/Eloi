@@ -1,14 +1,58 @@
 # Eloi
 
-Eloi is a C++26 chess engine and native Windows chess application. The
-production build creates one main executable, `Eloi.exe`, with five runtime
-modes:
+Eloi is a C++26 chess engine and native Windows chess application. The current
+source version is **1.9.0-rc.1**. The production build creates one main
+executable, `Eloi.exe`, with five primary runtime modes:
 
 - no arguments or `--gui`: the Skia GUI
 - `--uci`: UCI mode for chess tools and Lichess bot bridges
 - `--lichess`: native Lichess bot mode using `config.yml`
 - `--perft`: legal move-generator validation
 - `--bench`: deterministic search benchmark
+
+Additional flags launch Engine Lab/Version Match and render deterministic GUI
+screenshots for validation. Official binaries and release packaging currently
+target Windows x64 only; Linux, macOS, ARM64, and Windows ARM64 builds have not
+been validated or published.
+
+## Current project status
+
+The latest tagged release baseline is `v1.5.0-beta.1`; `main` is preparing
+`v1.9.0-rc.1`. The v1.9 source contains the cached-board/search overhaul,
+exactly-three-lane engine, Engine Lab, hash-bound benchmark harness, expanded
+move-generation differential tests, deterministic NNUE training pipeline, and
+the two golden Windows package builders.
+
+The embedded production NNUE still has 64 hidden units. A fair 64-versus-128
+retraining/playoff has **not** been run, and neither has the separate 250-game
+final release gauntlet. The current candidate is therefore an RC under
+validation, not a completed strength-qualified release. The preregistered
+remaining procedure—including the trainer-ordering fix required before its
+results can be trusted—is in
+[V1.9_VALIDATION_PLAN.md](V1.9_VALIDATION_PLAN.md).
+
+## Repository map
+
+- `include/eloi/chess.hpp` and `src/chess.cpp` contain board rules, evaluation,
+  time management, and search. `src/nnue.cpp` contains NNUE runtime updates and
+  dispatch.
+- `src/gui.cpp` owns the Skia human-play UI and Engine Lab. `src/driver.cpp`
+  owns UCI, perft, and benchmark modes. `src/lichess.cpp` owns the native Bot
+  API client, chat, rematches, pondering, and Arena/Swiss pairing handling.
+- `include/eloi/opening_data.hpp`, `include/eloi/nnue_weights.hpp`, and
+  `include/eloi/nnue_architecture.hpp` are tracked generated inputs embedded in
+  standalone builds; CMake does not regenerate them implicitly.
+- `scripts/engine_lab.py` is the hash-bound speed/strength/deep harness,
+  `scripts/differential_movegen.py` checks exact legal moves, and
+  `scripts/train_nnue.py` is the bounded deterministic NNUE trainer.
+- `REPRODUCING.md` and `reproducibility.lock.json` define the build provenance
+  contract. `CONTRIBUTING.md` defines engineering/release invariants, and
+  `V1.9_VALIDATION_PLAN.md` defines the remaining NNUE and final-gauntlet work.
+- `data/games` and `data/tournaments` retain reference/historical PGNs. They
+  are not runtime dependencies and are not embedded in either Windows package.
+- `.deps`, `tmp`, `build-*`, `dist`, private `config.yml`, executables, and
+  runtime DLLs are intentionally ignored. Do not treat ignored local artifacts
+  as source or commit real Lichess credentials.
 
 ## Two golden release packages
 
@@ -54,22 +98,34 @@ Never disable antivirus protection to run Eloi. If Defender retains the old
 cached verdict, update its security intelligence and rescan the file.
 
 The engine uses iterative deepening, aspiration-window PVS/alpha-beta,
-TT-backed quiescence, a compact four-way table with packed moves and normalized
-mate scores, reversible in-place search moves, and TT-reconstructed principal
-variations. Move ordering combines killer, butterfly, capture, continuation,
-and countermove history with static exchange evaluation. Guarded verified null
+TT-backed quiescence, compact four-way transposition tables with packed moves
+and normalized mate scores, reversible in-place search moves, and
+TT-reconstructed principal variations. Position state keeps a readable
+mailbox synchronized with cached piece/color bitboards, occupancy, king
+squares, Zobrist identity, and NNUE accumulators. Precomputed attacks and
+passed-pawn masks avoid repeated board scans; sliding attacks use runtime BMI2
+PEXT tables when available and a portable scalar fallback otherwise. NNUE
+updates similarly dispatch to AVX2 when available without making AVX2 a hard
+runtime requirement.
+
+Move ordering combines killer, butterfly, capture, continuation, and
+countermove history with static exchange evaluation. Guarded verified null
 move, ProbCut, razoring, futility and late-move pruning, singular/selective
-extensions, volatility-aware LMR, and an incrementally updated quantized NNUE
-complete the search. Every calculated move uses exactly three deterministic
-Lazy-SMP lanes. Eloi exposes a fixed UCI `Threads` value of 3; it cannot claim
-more processors or be configured to use fewer.
+extensions, volatility-aware LMR, and the incrementally updated quantized NNUE
+complete the search. Every calculated move uses exactly three persistent,
+deterministic cooperative search lanes. Root work is split among them, each
+lane has private TT storage within the single configured hash budget, and UCI,
+GUI, and native Lichess sessions reuse their searcher instead of recreating its
+threads and tables every move. Eloi exposes a fixed UCI `Threads` value of 3;
+it cannot claim more processors or be configured to use fewer.
 
 Eloi has a deliberate opening personality. As White it forces the Italian
 Game with `1.e4 e5 2.Nf3 Nc6 3.Bc4` whenever Black permits it. As Black it
 forces the Nimzo-Indian with `1.d4 Nf6 2.c4 e6 3.Nc3 Bb4` whenever White
-permits it. An embedded position graph with 8,000-plus weighted edges across
-ECO A00-E99 supplies sound fallbacks and variations; transpositions merge into
-shared nodes instead of duplicating branches. No runtime database is needed.
+permits it. An embedded position graph with 5,480 nodes and 8,092 weighted
+edges across ECO A00-E99 supplies sound fallbacks and variations;
+transpositions merge into shared nodes instead of duplicating branches. No
+runtime database is needed.
 
 ## Search-depth limits
 
@@ -105,6 +161,17 @@ Release compilation uses fixed single-partition LTO, remapped build paths, a
 fixed build epoch and a zero PE timestamp. The verifier refuses a dirty
 worktree and stages the two-file package only after both builds and test runs
 produce byte-identical files.
+
+From that clean commit, build both golden archives and scan their executables
+and ZIPs with the locally installed Microsoft Defender definitions:
+
+```powershell
+powershell -ExecutionPolicy Bypass `
+  -File .\scripts\build-windows-release.ps1
+```
+
+On success, `dist/artifacts` contains exactly the standalone ZIP and the
+Exoskeleton ZIP—no extracted staging duplicate.
 
 Skia and development-only libraries are downloaded into `.deps/`, which is
 intentionally ignored by git. Release builds statically link them and embed the
@@ -338,23 +405,41 @@ overhead bounds, phase scaling, every pressure mode, hard ceilings, and legal
 fallback under a near-expired deadline.
 
 The older `selfplay_gauntlet.py` runner remains available for quick historical
-diagnostics, but its eight-seed/55%-score result is not a current acceptance
-gate. Current claims use the hash-bound `engine_lab.py` protocol above.
+diagnostics, but its old result is not a current acceptance gate. Current
+claims use the hash-bound `engine_lab.py` protocol above.
 
-Against the pinned `dad44d4` Windows Release baseline, five deterministic
-depth-six benchmark runs reduced the median from 2,181 ms and 194,320 nodes to
-803 ms and 103,560 nodes. The candidate checksum was identical on every run.
-In the historical mirrored 200-game, 2,000-node gauntlet it scored 66.00%
-(100 wins, 64 draws, 36 losses), passing that pass's former 55% gate. The default
-transposition-table allocation remains 32 MB.
+### v1.9.0-rc.1 evidence and open gates
 
-For the fixed-three-thread pass, the immediately preceding executable was
-preserved as `Eloi.previous.exe`. Five depth-six runs on the development
-machine reduced median wall time from 782 ms to 568 ms while increasing the
-searched nodes from 103,560 to 268,698 (2.59x). All five candidate runs shared
-the same checksum, and the current-versus-previous UCI version-match smoke test
-passed. The three transposition-table slices together remain within the one
-configured hash budget rather than tripling it.
+The reproducible standalone candidate executable used by the final shallow
+speed report has SHA-256
+`C86A883AB5E3CAF2FDB1037468E1652EB7318730E86C6E77A1F6C47611D20FCA`.
+Against the hash-verified official beta baseline, its measured medians were:
+
+| Depth | Baseline | v1.9 candidate | Speedup | 5.00x gate |
+|---:|---:|---:|---:|:---:|
+| 1 | 5,529.253 ms | 585.934 ms | 9.437x | PASS |
+| 5 | 3,967.747 ms | 950.923 ms | 4.173x | **FAIL** |
+| 10 | 26,899.311 ms | 4,295.656 ms | 6.262x | PASS |
+
+Depth 5 remains below the declared hard speed gate; it is not rounded into a
+pass. A five-second development deep ladder generally reached farther depths
+than beta.1 and measured one completed depth-15 pair at 9.677x, but the other
+depth-15/20/30/40 rows were correctly recorded as censored. The release-grade
+ten-minute deep report has not been run.
+
+A 40-game development precursor scored 25 wins, 14 draws, and 1 loss at the
+final 250 ms/move settings. That binary did **not** have the final candidate
+hash, and 40 games are not the 250-game gate, so this is encouraging diagnostic
+evidence only. The exact final candidate has not passed the required 250-game,
+150-raw-win gauntlet.
+
+The completed correctness evidence includes the C++ test suite, reproducible
+two-build proof, packaged UCI/config/GUI smoke tests, and a 96-position exact
+legal-move differential run: 32 Standard, 32 Chess960, and 32 Horde positions
+against python-chess. Packaging checks also prove that the Exoskeleton main
+engine does not import WinHTTP while `EloiLichess.exe` does. See
+[V1.9_VALIDATION_PLAN.md](V1.9_VALIDATION_PLAN.md) for the remaining NNUE
+playoff and final release decision.
 
 ## Artwork and licenses
 
