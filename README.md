@@ -1,7 +1,7 @@
 # Eloi
 
 Eloi is a C++26 chess engine and native Windows chess application. The current
-source version is **1.9.0-rc.1**. The production build creates one main
+source version is **1.9.6-rc.1**. The production build creates one main
 executable, `Eloi.exe`, with five primary runtime modes:
 
 - no arguments or `--gui`: the Skia GUI
@@ -18,7 +18,7 @@ been validated or published.
 ## Current project status
 
 The latest tagged release baseline is `v1.5.0-beta.1`; `main` is preparing
-`v1.9.0-rc.1`. The v1.9 source contains the cached-board/search overhaul,
+`v1.9.6-rc.1`. The v1.9 source contains the cached-board/search overhaul,
 exactly-three-lane engine, Engine Lab, hash-bound benchmark harness, expanded
 move-generation differential tests, deterministic NNUE training pipeline, and
 the two golden Windows package builders.
@@ -409,7 +409,7 @@ The older `selfplay_gauntlet.py` runner remains available for quick historical
 diagnostics, but its old result is not a current acceptance gate. Current
 claims use the hash-bound `engine_lab.py` protocol above.
 
-### v1.9.0-rc.1 evidence and open gates
+### v1.9.6-rc.1 evidence and open gates
 
 The reproducible standalone candidate executable used by the final shallow
 speed report has SHA-256
