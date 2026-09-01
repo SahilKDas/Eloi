@@ -7,8 +7,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <set>
+#include <sstream>
 #include <string>
+#include <vector>
 
 using namespace eloi;
 
@@ -102,6 +105,88 @@ void expect_search_round_trip(std::string_view fen, std::string_view uci) {
              board->has_castled == before_castled,
          std::string(uci) + " restores NNUE, key, and castling state");
   expect_position_caches(board->position, std::string(uci) + " restored");
+}
+
+struct EpdCase {
+  std::string fen;
+  std::string id;
+  std::string category;
+  std::string best;
+  std::string avoid;
+  int depth{4};
+  std::optional<int> expected_score;
+  std::optional<std::pair<int, int>> stable_depths;
+};
+
+std::string unquote(std::string value) {
+  while (!value.empty() &&
+         std::isspace(static_cast<unsigned char>(value.front())))
+    value.erase(value.begin());
+  while (!value.empty() &&
+         std::isspace(static_cast<unsigned char>(value.back())))
+    value.pop_back();
+  if (value.size() >= 2 && value.front() == '"' && value.back() == '"')
+    return value.substr(1, value.size() - 2);
+  return value;
+}
+
+std::vector<EpdCase> load_epd(const std::filesystem::path& path) {
+  std::ifstream input(path);
+  std::vector<EpdCase> result;
+  for (std::string line; std::getline(input, line);) {
+    if (line.empty() || line.front() == '#') continue;
+    std::istringstream fields(line);
+    std::array<std::string, 4> fen_fields;
+    if (!(fields >> fen_fields[0] >> fen_fields[1] >> fen_fields[2] >>
+          fen_fields[3]))
+      continue;
+    std::string operations;
+    std::getline(fields, operations);
+    std::map<std::string, std::string> values;
+    std::istringstream operation_stream(operations);
+    for (std::string operation; std::getline(operation_stream, operation, ';');) {
+      std::istringstream parts(operation);
+      std::string key;
+      if (!(parts >> key)) continue;
+      std::string value;
+      std::getline(parts, value);
+      values[key] = unquote(value);
+    }
+    const std::string halfmove = values.contains("hmvc") ? values["hmvc"] : "0";
+    const std::string fullmove = values.contains("fmvn") ? values["fmvn"] : "1";
+    EpdCase test;
+    test.fen = fen_fields[0] + " " + fen_fields[1] + " " + fen_fields[2] +
+               " " + fen_fields[3] + " " + halfmove + " " + fullmove;
+    test.id = values["id"];
+    test.category = values["c0"];
+    test.best = values["bm"];
+    test.avoid = values["am"];
+    if (values.contains("acd")) test.depth = std::stoi(values["acd"]);
+    if (values.contains("ce")) test.expected_score = std::stoi(values["ce"]);
+    if (values.contains("stable")) {
+      std::istringstream depths(values["stable"]);
+      int shallow = 0, deep = 0;
+      if (depths >> shallow >> deep)
+        test.stable_depths = std::pair{shallow, deep};
+    }
+    result.push_back(std::move(test));
+  }
+  return result;
+}
+
+SearchResult fixed_depth_search(const Board& board, int depth) {
+  auto config = default_config();
+  config.own_book = false;
+  config.hash_mb = 4;
+  std::atomic_bool stopped{false};
+  SearchLimits limits;
+  limits.depth = depth;
+  Searcher searcher(config, stopped);
+  return searcher.iterative(board, limits);
+}
+
+std::string best_uci(const SearchResult& result) {
+  return result.pv.empty() ? std::string{} : result.pv.front().uci();
 }
 }  // namespace
 
@@ -798,7 +883,49 @@ int main() {
                static_cast<int>(tactical_data::mateIn3.size()) * 3,
            "at least 75% of CC0 mate-in-three positions are solved exactly");
     expect(quiet_check_searches == 0,
-           "quiescence excludes non-capturing checks outside check evasions");
+            "quiescence excludes non-capturing checks outside check evasions");
+  }
+
+  {
+    const auto epd_path = std::filesystem::path(ELOI_TEST_DATA_DIR) /
+                          "epd" / "v2_5_regressions.epd";
+    const auto regressions = load_epd(epd_path);
+    expect(regressions.size() == 14,
+           "v2.5 EPD corpus loads every categorized regression");
+    std::set<std::string> categories;
+    for (const EpdCase& test : regressions) {
+      categories.insert(test.category);
+      auto board = parse_fen(test.fen);
+      expect(board.has_value(), test.id + ": regression FEN parses");
+      if (!board) continue;
+      const auto result = fixed_depth_search(*board, test.depth);
+      const std::string move = best_uci(result);
+      if (!test.best.empty())
+        expect(move == test.best,
+               test.id + ": expected " + test.best + ", got " + move);
+      if (!test.avoid.empty())
+        expect(move != test.avoid,
+               test.id + ": forbidden online blunder repeated: " + move);
+      if (test.expected_score)
+        expect(result.score_cp == *test.expected_score,
+               test.id + ": expected score " +
+                   std::to_string(*test.expected_score) + ", got " +
+                   std::to_string(result.score_cp));
+      if (test.stable_depths) {
+        const auto shallow = fixed_depth_search(*board, test.stable_depths->first);
+        const auto deep = fixed_depth_search(*board, test.stable_depths->second);
+        expect(best_uci(shallow) == best_uci(deep),
+               test.id + ": best move remains stable across quiescence depths");
+      }
+    }
+    constexpr std::array required_categories{
+        "hanging_piece", "trapped_piece", "quiet_defense",
+        "horizon_sacrifice", "mate_distance", "repetition_fifty",
+        "passed_pawn_race", "fortress_insufficient",
+        "quiescence_stability", "online_catastrophe"};
+    for (const std::string_view category : required_categories)
+      expect(categories.contains(std::string(category)),
+             "v2.5 EPD corpus covers " + std::string(category));
   }
 
   if (failures) {

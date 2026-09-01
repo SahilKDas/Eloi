@@ -2628,6 +2628,12 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
   const MoveList fallback_moves = board.legal_moves();
   if (fallback_moves.empty()) {
     last.volatility = volatility(board, 0, 0);
+    const bool lost = board.horde_eliminated() ||
+                      board.position.in_check(board.turn);
+    if (lost) {
+      last.score_cp = -mate_score;
+      last.mate = -1;
+    }
     return last;
   }
   last.pv.push_back(fallback_moves.front());

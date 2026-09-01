@@ -166,6 +166,8 @@ if(ELOI_BUILD_TESTS)
   enable_testing()
   add_executable(eloi_tests tests/tests.cpp src/config_writer.cpp)
   target_link_libraries(eloi_tests PRIVATE eloi_core)
+  target_compile_definitions(eloi_tests PRIVATE
+    ELOI_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
   if(NOT MSVC)
     target_link_options(eloi_tests PRIVATE $<$<CONFIG:Release>:-flto=1>)
   endif()
