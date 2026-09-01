@@ -178,6 +178,16 @@ int run_engine(EngineConfig config, int argc, char** argv) {
   std::atomic_bool stopped{false}, active{false};
   std::thread worker;
   std::mutex output;
+  std::unique_ptr<Searcher> persistent_searcher;
+  std::optional<EngineConfig> persistent_config;
+  auto same_search_config = [](const EngineConfig& left,
+                               const EngineConfig& right) {
+    return left.name == right.name && left.author == right.author &&
+           left.noise_millipawns == right.noise_millipawns &&
+           left.hash_mb == right.hash_mb &&
+           left.move_overhead_ms == right.move_overhead_ms &&
+           left.own_book == right.own_book;
+  };
   auto stop_worker = [&] {
     stopped = true;
     if (worker.joinable()) worker.join();
@@ -191,11 +201,16 @@ int run_engine(EngineConfig config, int argc, char** argv) {
     snapshot.chess960 = chess960_mode;
     EngineConfig current = config;
     if (chess960_mode || snapshot.horde) current.own_book = false;
+    if (!persistent_searcher || !persistent_config ||
+        !same_search_config(*persistent_config, current)) {
+      persistent_searcher = std::make_unique<Searcher>(current, stopped);
+      persistent_config = current;
+    }
+    Searcher* active_searcher = persistent_searcher.get();
     worker = std::thread([&, snapshot=std::move(snapshot),
-                          current=std::move(current), limits,
+                          active_searcher, limits,
                           chess960_mode]() mutable {
-      Searcher searcher(current, stopped);
-      SearchResult result = searcher.iterative(
+      SearchResult result = active_searcher->iterative(
           snapshot, limits,
           [&](const SearchResult& info){
             print_info(info, output, snapshot, chess960_mode);
@@ -326,17 +341,19 @@ int run_engine(EngineConfig config, int argc, char** argv) {
 }
 
 int run_perft(int argc, char** argv) {
-  int depth=4; bool divide=false; std::string fen(initial_fen);
+  int depth=4; bool divide=false; bool horde=false; std::string fen(initial_fen);
   for(int i=1;i<argc;++i){std::string arg=argv[i];
     if((arg=="--depth"||arg=="-depth")&&i+1<argc)depth=integer(argv[++i]).value_or(depth);
     else if((arg=="--fen"||arg=="-fen")&&i+1<argc)fen=argv[++i];
+    else if(arg=="--variant"&&i+1<argc)horde=std::string_view(argv[++i])=="horde";
     else if(arg=="--divide"||arg=="-divide")divide=true;
-    else if(arg=="--help"||arg=="-h"){std::cout<<"usage: perft [--depth N] [--fen FEN] [--divide]\n";return 0;}
+    else if(arg=="--help"||arg=="-h"){std::cout<<"usage: perft [--depth N] [--fen FEN] [--variant standard|horde] [--divide]\n";return 0;}
   }
   std::string error;auto board=parse_fen(fen,&error);if(!board){std::cerr<<"invalid FEN: "<<error<<'\n';return 2;}
+  board->horde=horde;
   for(int d=1;d<=depth;++d){auto start=std::chrono::steady_clock::now();std::vector<std::pair<Move,std::uint64_t>> rows;
-    auto nodes=perft(board->position,board->turn,d,divide&&d==depth?&rows:nullptr);
-    if(divide&&d==depth)for(auto&[m,n]:rows)std::cout<<m.uci()<<": "<<n<<'\n';
+    auto nodes=perft(board->position,board->turn,d,divide&&d==depth?&rows:nullptr,horde);
+    if(divide&&d==depth)for(auto&[m,n]:rows)std::cout<<uci_move(m,board->position,board->chess960)<<": "<<n<<'\n';
     auto us=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-start).count();
     std::cout<<"perft,"<<fen<<','<<d<<','<<nodes<<','<<us<<"us\n";
   }

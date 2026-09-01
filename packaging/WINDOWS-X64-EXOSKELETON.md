@@ -1,7 +1,7 @@
-# Eloi Windows x64 split-runtime package
+# Eloi Windows x64 Exoskeleton ZIP
 
-This Defender-friendly ZIP is one of Eloi's two golden release packages. The
-other is the standalone ZIP containing only `Eloi.exe` and `config.yml`.
+The Exoskeleton ZIP is one of Eloi's two golden release packages. The other is
+the standalone ZIP containing only `Eloi.exe` and `config.yml`.
 
 Keep the entire extracted directory together. Its components are deliberately
 split to test antivirus classification of the monolithic standalone build:

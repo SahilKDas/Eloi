@@ -18,6 +18,7 @@ bin/
 dist/
 /build/
 /build-*/
+/tmp/
 /.deps/
 /config.yml
 *.o

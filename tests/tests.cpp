@@ -22,6 +22,33 @@ void expect(bool condition, const std::string& message) {
   }
 }
 
+void expect_position_caches(const Position& position,
+                            const std::string& context) {
+  std::array<std::array<std::uint64_t, 7>, 2> expected_pieces{};
+  std::array<std::uint64_t, 2> expected_colors{};
+  std::array<int, 2> expected_kings{-1, -1};
+  for (int square = 0; square < 64; ++square) {
+    const int cell = position.cells[square];
+    if (!cell) continue;
+    const int side = cell > 0 ? 0 : 1;
+    const int piece = std::abs(cell);
+    const std::uint64_t bit = std::uint64_t{1} << square;
+    expected_pieces[side][piece] |= bit;
+    expected_colors[side] |= bit;
+    if (piece == static_cast<int>(Piece::king))
+      expected_kings[side] = square;
+  }
+  expect(position.piece_bits == expected_pieces,
+         context + ": piece bitboards match mailbox");
+  expect(position.color_bits == expected_colors,
+         context + ": color bitboards match mailbox");
+  expect(position.occupied == (expected_colors[0] | expected_colors[1]),
+         context + ": occupied bitboard matches mailbox");
+  expect(position.king_square(Color::white) == expected_kings[0] &&
+             position.king_square(Color::black) == expected_kings[1],
+         context + ": cached king squares match mailbox");
+}
+
 void expect_perft(std::string_view fen, int depth, std::uint64_t expected,
                   bool horde = false) {
   std::string error;
@@ -57,6 +84,7 @@ void expect_search_round_trip(std::string_view fen, std::string_view uci) {
   const auto before_key = board->key;
   const auto before_castled = board->has_castled;
   const auto history_size = board->history.size();
+  expect_position_caches(board->position, std::string(uci) + " before");
   Board::SearchUndo undo;
   expect(board->make_search_move(legal, undo),
          std::string(uci) + " makes in place");
@@ -66,12 +94,14 @@ void expect_search_round_trip(std::string_view fen, std::string_view uci) {
          "search move keeps the incremental Zobrist key exact");
   expect(board->nnue == nnue_refresh(board->position),
          "search move keeps the incremental NNUE accumulator exact");
+  expect_position_caches(board->position, std::string(uci) + " after");
   board->unmake_search_move(undo);
   expect(to_fen(*board) == before_fen,
          std::string(uci) + " restores the complete board state");
   expect(board->nnue == before_nnue && board->key == before_key &&
              board->has_castled == before_castled,
          std::string(uci) + " restores NNUE, key, and castling state");
+  expect_position_caches(board->position, std::string(uci) + " restored");
 }
 }  // namespace
 
@@ -190,7 +220,10 @@ int main() {
     std::string error;
     auto board = parse_fen(initial_fen, &error);
     expect(board.has_value(), "initial FEN parses");
-    if (board) expect(to_fen(*board) == initial_fen, "initial FEN round trip");
+    if (board) {
+      expect(to_fen(*board) == initial_fen, "initial FEN round trip");
+      expect_position_caches(board->position, "initial position");
+    }
   }
 
   expect_perft(initial_fen, 1, 20);
@@ -396,6 +429,7 @@ int main() {
   {
     auto board = *parse_fen(horde_initial_fen);
     board.horde = true;
+    expect_position_caches(board.position, "initial Horde position");
     int white_pawns = 0;
     for (int square = 0; square < 64; ++square)
       if (board.position.color_at(square) == Color::white &&
@@ -760,8 +794,8 @@ int main() {
     expect(mate_three * 4 >=
                static_cast<int>(tactical_data::mateIn3.size()) * 3,
            "at least 75% of CC0 mate-in-three positions are solved exactly");
-    expect(quiet_check_searches > 0,
-           "filtered quiet checks are exercised by the tactical corpus");
+    expect(quiet_check_searches == 0,
+           "quiescence excludes non-capturing checks outside check evasions");
   }
 
   if (failures) {

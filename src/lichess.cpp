@@ -289,7 +289,9 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
   std::thread ponder_chat_thread;
   std::optional<Color> bot_side;
   std::optional<std::string> last_acted_moves;
-  std::atomic_bool ponder_stopped{false};
+  std::atomic_bool search_stopped{false};
+  std::unique_ptr<Searcher> game_searcher;
+  std::optional<EngineConfig> game_searcher_config;
   std::thread ponder_thread;
   std::optional<SearchResult> ponder_result;
   std::optional<SearchResult> last_search;
@@ -377,8 +379,17 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
 
   auto stop_ponder = [&] {
     if (!ponder_thread.joinable()) return;
-    ponder_stopped.store(true, std::memory_order_relaxed);
+    search_stopped.store(true, std::memory_order_relaxed);
     ponder_thread.join();
+  };
+
+  auto persistent_searcher = [&](const EngineConfig& engine) -> Searcher& {
+    if (!game_searcher || game_searcher_config != engine) {
+      game_searcher.reset();
+      game_searcher = std::make_unique<Searcher>(engine, search_stopped);
+      game_searcher_config = engine;
+    }
+    return *game_searcher;
   };
 
   auto take_ponder = [&](std::string_view moves, bool game_running)
@@ -416,19 +427,19 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     ponder_base_moves = append_move(moves_before_move, our_uci);
     ponder_expected_moves = append_move(ponder_base_moves, opponent_uci);
     ponder_result.reset();
-    ponder_stopped.store(false, std::memory_order_relaxed);
+    search_stopped.store(false, std::memory_order_relaxed);
     EngineConfig engine = default_config();
     engine.depth = config.depth;
     engine.hash_mb = config.hash_mb;
     engine.move_overhead_ms = config.move_overhead_ms;
     engine.own_book = config.own_book && !chess960 && !horde;
+    Searcher* searcher = &persistent_searcher(engine);
     ponder_thread = std::thread(
-        [&, predicted = std::move(predicted), engine = std::move(engine)]() mutable {
+        [&, predicted = std::move(predicted), searcher]() mutable {
           SearchLimits limits;
           limits.depth = config.depth;
           limits.move_overhead_ms = config.move_overhead_ms;
-          Searcher searcher(engine, ponder_stopped);
-          ponder_result = searcher.iterative(std::move(predicted), limits);
+          ponder_result = searcher->iterative(std::move(predicted), limits);
         });
     if (!ponder_chat_sent) {
       ponder_chat_sent = true;
@@ -483,9 +494,8 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       limits.increment_ms = json_int(
           state, *bot_side == Color::white ? "winc" : "binc").value_or(0);
       limits.move_overhead_ms = config.move_overhead_ms;
-      std::atomic_bool stopped{false};
-      Searcher searcher(engine, stopped);
-      result = searcher.iterative(*board, limits);
+      search_stopped.store(false, std::memory_order_relaxed);
+      result = persistent_searcher(engine).iterative(*board, limits);
     }
     last_search = result;
     if (result.pv.empty()) return;

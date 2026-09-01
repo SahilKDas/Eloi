@@ -31,6 +31,7 @@
 #include <filesystem>
 #include <fstream>
 #include <format>
+#include <iomanip>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -50,6 +51,8 @@ constexpr SkColor ink = SkColorSetRGB(235, 239, 248);
 constexpr SkColor muted = SkColorSetRGB(144, 153, 176);
 constexpr SkColor accent = SkColorSetRGB(121, 101, 255);
 constexpr SkColor mint = SkColorSetRGB(62, 211, 166);
+constexpr std::string_view official_beta1_sha256 =
+    "614CE6D601AFC749EA4EFD8FC94A8BAE79EF4537374B0984E292A92CA0A99B7F";
 
 struct UiRect {
   float left{};
@@ -252,13 +255,24 @@ struct App {
   std::atomic_bool thinking{false};
   std::atomic_uint64_t search_generation{0};
   std::thread worker;
+  std::unique_ptr<Searcher> local_searcher;
+  std::optional<EngineConfig> local_searcher_config;
   std::unique_ptr<UciVersionEngine> current_version_engine;
   std::unique_ptr<UciVersionEngine> previous_version_engine;
   std::filesystem::path previous_version_path;
   std::string previous_version_label;
+  std::string current_version_hash;
+  std::string previous_version_hash;
+  bool previous_version_verified{false};
+  std::uint64_t lab_wins{0};
+  std::uint64_t lab_draws{0};
+  std::uint64_t lab_losses{0};
+  bool lab_result_recorded{false};
   std::mutex result_mutex;
   std::optional<SearchResult> pending_result;
   std::string pending_error;
+  std::string pending_pv;
+  std::string last_pv;
   SearchResult last_result;
   Color last_result_side{Color::white};
   std::string last_engine{"Eloi"};
@@ -468,6 +482,18 @@ bool write_bmp(const std::filesystem::path& path, const SkPixmap& pixels) {
   return output.good();
 }
 
+void record_lab_result(App& app, std::optional<Color> winner) {
+  if (!app.version_match || app.lab_result_recorded) return;
+  app.lab_result_recorded = true;
+  if (!winner) {
+    ++app.lab_draws;
+  } else if (*winner == app.current_version_side) {
+    ++app.lab_wins;
+  } else {
+    ++app.lab_losses;
+  }
+}
+
 bool game_over(App& app) {
   if (app.clocked_game && app.clock_running &&
       clock_remaining(app, app.board.turn) <= 0) {
@@ -478,6 +504,7 @@ bool game_over(App& app) {
     return true;
   }
   if (app.board.horde_eliminated()) {
+    record_lab_result(app, Color::black);
     if (app.version_match) {
       app.status = app.current_version_side == Color::black
           ? "Horde eliminated — current Eloi wins"
@@ -494,8 +521,10 @@ bool game_over(App& app) {
   if (moves.empty()) {
     if (!app.board.position.in_check(app.board.turn)) {
       app.status = "Draw by stalemate";
+      record_lab_result(app, std::nullopt);
     } else if (app.version_match) {
       const Color winner = opponent(app.board.turn);
+      record_lab_result(app, winner);
       app.status = winner == app.current_version_side
           ? "Checkmate — current Eloi wins"
           : "Checkmate — previous Eloi wins";
@@ -508,16 +537,19 @@ bool game_over(App& app) {
   }
   if (app.board.is_threefold_repetition()) {
     app.status = "Draw by threefold repetition";
+    record_lab_result(app, std::nullopt);
     app.clock_running = false;
     return true;
   }
   if (app.board.is_fifty_move_draw()) {
     app.status = "Draw by fifty-move rule";
+    record_lab_result(app, std::nullopt);
     app.clock_running = false;
     return true;
   }
   if (!app.board.horde && app.board.position.insufficient_material()) {
     app.status = "Draw by insufficient material";
+    record_lab_result(app, std::nullopt);
     app.clock_running = false;
     return true;
   }
@@ -566,6 +598,7 @@ void stop_engine(App& app) {
   std::scoped_lock lock(app.result_mutex);
   app.pending_result.reset();
   app.pending_error.clear();
+  app.pending_pv.clear();
 }
 
 std::optional<Move> legal_uci_move(const Board& board,
@@ -619,6 +652,12 @@ void start_engine(App& app) {
       result.depth = uci.depth;
       result.nodes = uci.nodes;
       result.score_cp = uci.score_cp;
+      result.elapsed = std::chrono::milliseconds(uci.elapsed_ms);
+      std::string pv_text;
+      for (const std::string& move : uci.pv) {
+        if (!pv_text.empty()) pv_text += ' ';
+        pv_text += move;
+      }
       if (const auto move = legal_uci_move(root, uci.bestmove))
         result.pv.push_back(*move);
       else if (uci.error.empty())
@@ -627,6 +666,7 @@ void start_engine(App& app) {
         std::scoped_lock lock(app.result_mutex);
         if (!result.pv.empty()) app.pending_result = std::move(result);
         app.pending_error = std::move(uci.error);
+        app.pending_pv = std::move(pv_text);
       }
       PostMessageW(app.window, engine_finished_message,
                    static_cast<WPARAM>(generation), 0);
@@ -635,7 +675,11 @@ void start_engine(App& app) {
     auto config = default_config();
     config.depth = depth;
     config.own_book = config.own_book && !root.chess960 && !root.horde;
-    Searcher searcher(config, app.stop);
+    if (!app.local_searcher || app.local_searcher_config != config) {
+      app.local_searcher.reset();
+      app.local_searcher = std::make_unique<Searcher>(config, app.stop);
+      app.local_searcher_config = config;
+    }
     SearchLimits limits;
     limits.depth = depth;
     if (depth == 0) {
@@ -643,7 +687,7 @@ void start_engine(App& app) {
       limits.increment_ms = increment_ms;
       limits.move_overhead_ms = config.move_overhead_ms;
     }
-    auto result = searcher.iterative(root, limits);
+    auto result = app.local_searcher->iterative(root, limits);
     if (!app.stop.load()) {
       std::scoped_lock lock(app.result_mutex);
       app.pending_result = std::move(result);
@@ -744,6 +788,8 @@ void reset_version_game(App& app) {
   app.board = *parse_fen(initial_fen);
   app.selected = -1;
   app.last_result = {};
+  app.last_pv.clear();
+  app.lab_result_recorded = false;
   app.clocked_game = false;
   app.clock_running = false;
   app.last_engine = "No moves yet";
@@ -764,6 +810,9 @@ void toggle_version_match(App& app) {
     app.previous_version_engine.reset();
     app.previous_version_path.clear();
     app.previous_version_label.clear();
+    app.current_version_hash.clear();
+    app.previous_version_hash.clear();
+    app.previous_version_verified = false;
     app.version_match = false;
     reset_game(app, app.human);
     return;
@@ -795,6 +844,12 @@ void toggle_version_match(App& app) {
   app.previous_version_engine = std::make_unique<UciVersionEngine>(previous);
   app.previous_version_path = previous;
   app.previous_version_label = previous.filename().string();
+  app.current_version_hash = sha256_file(current);
+  app.previous_version_hash = sha256_file(previous);
+  app.previous_version_verified =
+      app.previous_version_hash == official_beta1_sha256;
+  app.lab_wins = app.lab_draws = app.lab_losses = 0;
+  app.lab_result_recorded = false;
   const std::filesystem::path metadata = previous.parent_path() /
       (previous.stem().string() + ".commit.txt");
   if (std::ifstream input(metadata); input) {
@@ -806,6 +861,83 @@ void toggle_version_match(App& app) {
   app.depth = std::max(1, app.depth);
   app.version_match = true;
   reset_version_game(app);
+}
+
+void export_engine_lab_report(App& app) {
+  std::wstring local(32768, L'\0');
+  const DWORD length = GetEnvironmentVariableW(
+      L"LOCALAPPDATA", local.data(), static_cast<DWORD>(local.size()));
+  if (!length || length >= local.size()) {
+    app.status = "Could not locate LOCALAPPDATA for report export";
+    return;
+  }
+  local.resize(length);
+  const auto directory =
+      std::filesystem::path(local) / "Eloi" / "Lab";
+  std::error_code error;
+  std::filesystem::create_directories(directory, error);
+  if (error) {
+    app.status = "Could not create the Engine Lab report directory";
+    return;
+  }
+  const auto games = app.lab_wins + app.lab_draws + app.lab_losses;
+  const double raw_rate = games
+      ? 100.0 * static_cast<double>(app.lab_wins) /
+            static_cast<double>(games)
+      : 0.0;
+  const double score_rate = games
+      ? (static_cast<double>(app.lab_wins) +
+         0.5 * static_cast<double>(app.lab_draws)) /
+            static_cast<double>(games)
+      : 0.5;
+  const double clipped_score = std::clamp(score_rate, 0.000001, 0.999999);
+  const double estimated_elo =
+      -400.0 * std::log10(1.0 / clipped_score - 1.0);
+  const auto markdown_path = directory / "engine-lab-latest.md";
+  const auto json_path = directory / "engine-lab-latest.json";
+  {
+    std::ofstream output(markdown_path);
+    output << "# Eloi Engine Lab live report\n\n"
+           << "- Candidate SHA-256: " << app.current_version_hash << "\n"
+           << "- Baseline SHA-256: " << app.previous_version_hash << "\n"
+           << "- Official beta-1 baseline: "
+           << (app.previous_version_verified ? "verified" : "NO") << "\n"
+           << "- Match depth: " << app.depth << "\n"
+           << "- Candidate W/D/L: " << app.lab_wins << '/' << app.lab_draws
+           << '/' << app.lab_losses << "\n"
+           << "- Raw win rate: " << std::fixed << std::setprecision(2)
+           << raw_rate << "%\n"
+           << "- Score: " << 100.0 * score_rate << "%\n"
+           << "- Estimated Elo difference: " << std::showpos
+           << std::setprecision(1) << estimated_elo << std::noshowpos
+           << "\n"
+           << "- Last search: depth " << app.last_result.depth << ", "
+           << app.last_result.nodes << " nodes, "
+           << app.last_result.elapsed.count() << " ms\n"
+           << "- Last PV: " << app.last_pv << "\n";
+  }
+  {
+    std::ofstream output(json_path);
+    output << "{\n"
+           << "  \"schema\": 1,\n"
+           << "  \"candidate_sha256\": \"" << app.current_version_hash
+           << "\",\n"
+           << "  \"baseline_sha256\": \"" << app.previous_version_hash
+           << "\",\n"
+           << "  \"baseline_verified\": "
+           << (app.previous_version_verified ? "true" : "false") << ",\n"
+           << "  \"depth\": " << app.depth << ",\n"
+           << "  \"wins\": " << app.lab_wins << ",\n"
+           << "  \"draws\": " << app.lab_draws << ",\n"
+           << "  \"losses\": " << app.lab_losses << ",\n"
+           << "  \"raw_win_rate\": " << std::fixed
+           << std::setprecision(6) << raw_rate / 100.0 << ",\n"
+           << "  \"score\": " << score_rate << ",\n"
+           << "  \"estimated_elo_difference\": "
+           << estimated_elo << "\n"
+           << "}\n";
+  }
+  app.status = "Engine Lab report exported to LOCALAPPDATA/Eloi/Lab";
 }
 
 void undo_turn(App& app) {
@@ -1199,12 +1331,29 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
              SkColorSetARGB(230, 27, 31, 46));
   text(canvas, app.status, layout.panel_left + 24, 151, 18,
        app.thinking.load() ? SkColorSetRGB(255, 205, 92) : mint, true);
+  const auto lab_games = app.lab_wins + app.lab_draws + app.lab_losses;
+  const double lab_raw_rate = lab_games
+      ? 100.0 * static_cast<double>(app.lab_wins) /
+            static_cast<double>(lab_games)
+      : 0.0;
+  const double lab_score_rate = lab_games
+      ? (static_cast<double>(app.lab_wins) +
+         0.5 * static_cast<double>(app.lab_draws)) /
+            static_cast<double>(lab_games)
+      : 0.5;
+  const double lab_clipped_score =
+      std::clamp(lab_score_rate, 0.000001, 0.999999);
+  const double lab_estimated_elo =
+      -400.0 * std::log10(1.0 / lab_clipped_score - 1.0);
   const std::string turn_text = app.version_match
-      ? std::format("{} to move · current is {}",
+      ? std::format("{} · C={} · {}/{}/{} · W{:.0f}% · S{:.0f}% · {:+.0f} Elo",
                     app.board.turn == Color::white ? "White" : "Black",
-                    app.current_version_side == Color::white ? "White" : "Black")
+                    app.current_version_side == Color::white ? "White" : "Black",
+                    app.lab_wins, app.lab_draws, app.lab_losses, lab_raw_rate,
+                    100.0 * lab_score_rate, lab_estimated_elo)
       : (app.board.turn == Color::white ? "White to move" : "Black to move");
-  text(canvas, turn_text, layout.panel_left + 24, 180, 14, muted);
+  text(canvas, turn_text, layout.panel_left + 24, 180,
+       app.version_match ? 12 : 14, muted);
   if (app.clocked_game) {
     const std::string clocks = std::format(
         "W {} · B {}", format_clock(clock_remaining(app, Color::white)),
@@ -1245,24 +1394,32 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
                    ? std::format("LAST MOVE · {}", app.last_engine)
                    : "LAST SEARCH",
        layout.panel_left + 24, 398, 12, muted, true);
+  const std::uint64_t last_nps = app.last_result.elapsed.count() > 0
+      ? app.last_result.nodes * 1000 /
+            static_cast<std::uint64_t>(app.last_result.elapsed.count())
+      : 0;
   const std::string stats = app.last_result.depth == 0
       ? (app.last_result.opening_family.empty()
              ? "No search yet"
              : std::format("Book · {}", app.last_result.opening_family))
-      : std::format("d{}  ·  {} nodes  ·  {:+.2f}",
+      : std::format("d{} · {} nodes · {} ms · {} Knps · {:+.2f}",
                     app.last_result.depth, app.last_result.nodes,
+                    app.last_result.elapsed.count(), last_nps / 1000,
                     app.last_result.score_cp / 100.0);
   text(canvas, stats, layout.panel_left + 24, 427, 14, ink);
-  if (app.last_result.depth > 0)
-    text(canvas, std::format("{} late-move reductions",
-                            app.last_result.lmr_reductions),
-         layout.panel_left + 24, 446, 12, muted);
+  if (app.last_result.depth > 0) {
+    const std::string detail = app.version_match
+        ? std::format("PV {}", app.last_pv.substr(0, 54))
+        : std::format("{} late-move reductions",
+                      app.last_result.lmr_reductions);
+    text(canvas, detail, layout.panel_left + 24, 446, 12, muted);
+  }
 
   button(canvas, layout.new_game,
-         app.version_match ? "RESTART VERSION MATCH" : "NEW GAME", accent,
+         app.version_match ? "RESTART ENGINE LAB" : "NEW GAME", accent,
          hover_value(app, App::HoverControl::new_game));
   button(canvas, layout.undo,
-         app.version_match ? "AUTOPLAY ACTIVE" : "UNDO TURN",
+         app.version_match ? "EXPORT ENGINE LAB REPORT" : "UNDO TURN",
          SkColorSetRGB(35, 40, 57),
          hover_value(app, App::HoverControl::undo));
   button(canvas, layout.flip, app.flipped ? "NORMAL VIEW" : "FLIP BOARD",
@@ -1275,14 +1432,23 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
          SkColorSetRGB(35, 40, 57),
          hover_value(app, App::HoverControl::side));
   button(canvas, layout.version_match,
-         app.version_match ? "EXIT VERSION MATCH" : "VERSION MATCH",
+         app.version_match ? "EXIT ENGINE LAB" : "ENGINE LAB",
          app.version_match ? SkColorSetRGB(65, 57, 105) : accent,
          hover_value(app, App::HoverControl::version_match));
 
-  if (app.version_match && !app.previous_version_path.empty())
+  if (app.version_match && !app.previous_version_path.empty()) {
     text(canvas,
-         std::format("Previous: {}", app.previous_version_label),
+         std::format("Baseline: {} · {}",
+                     app.previous_version_verified
+                         ? "OFFICIAL BETA-1 VERIFIED" : "UNVERIFIED",
+                     app.previous_version_hash.substr(0, 12)),
+         layout.panel_left, static_cast<float>(height) - 83, 11,
+         app.previous_version_verified ? mint
+                                       : SkColorSetRGB(255, 205, 92), true);
+    text(canvas,
+         std::format("Candidate: {}", app.current_version_hash.substr(0, 12)),
          layout.panel_left, static_cast<float>(height) - 67, 11, muted);
+  }
 
   text(canvas, "Maestro BW pieces · Kadagaden · CC BY 4.0",
        layout.panel_left, static_cast<float>(height) - 48, 11, muted);
@@ -1428,7 +1594,8 @@ void on_click(App& app, float x, float y) {
     else reset_game(app, app.human);
     return;
   } else if (layout.undo.contains(x, y)) {
-    if (!app.version_match) undo_turn(app);
+    if (app.version_match) export_engine_lab_report(app);
+    else undo_turn(app);
     return;
   } else if (layout.flip.contains(x, y)) {
     if (!app.animation.active) app.flipped = !app.flipped;
@@ -1503,16 +1670,20 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
         if (app->worker.joinable()) app->worker.join();
         std::optional<SearchResult> result;
         std::string pending_error;
+        std::string pending_pv;
         {
           std::scoped_lock lock(app->result_mutex);
           result = std::move(app->pending_result);
           app->pending_result.reset();
           pending_error = std::move(app->pending_error);
           app->pending_error.clear();
+          pending_pv = std::move(app->pending_pv);
+          app->pending_pv.clear();
         }
         app->thinking.store(false);
         if (result && !result->pv.empty()) {
           app->last_result = *result;
+          app->last_pv = std::move(pending_pv);
           app->last_result_side = app->board.turn;
           const bool current_moved = app->version_match &&
               app->board.turn == app->current_version_side;
@@ -1603,13 +1774,36 @@ int run_gui(int argc, char** argv) {
       launch_version_match = true;
   for (int i = 1; i + 1 < argc; ++i) {
     const std::string_view option(argv[i]);
-    if (option != "--screenshot" && option != "--screenshot-setup")
+    if (option != "--screenshot" && option != "--screenshot-setup" &&
+        option != "--screenshot-engine-lab")
       continue;
     if (option == "--screenshot-setup") {
       app.depth = 0;
       app.setup.active = true;
       app.setup_alpha = 1.0f;
       app.status = "Configure a clocked game";
+    } else if (option == "--screenshot-engine-lab") {
+      if (i + 2 >= argc) return 2;
+      app.version_match = true;
+      app.current_version_side = Color::white;
+      app.current_version_hash = sha256_file(running_executable());
+      app.previous_version_path = argv[i + 2];
+      app.previous_version_label =
+          app.previous_version_path.filename().string();
+      app.previous_version_hash =
+          sha256_file(app.previous_version_path);
+      app.previous_version_verified =
+          app.previous_version_hash == official_beta1_sha256;
+      app.lab_wins = 14;
+      app.lab_draws = 6;
+      app.lab_losses = 0;
+      app.last_result.depth = 10;
+      app.last_result.nodes = 3'453'951;
+      app.last_result.score_cp = 73;
+      app.last_result.elapsed = std::chrono::milliseconds(432);
+      app.last_pv = "e2e4 e7e5 g1f3 b8c6";
+      app.last_engine = "Current Eloi";
+      app.status = "Engine Lab · official beta baseline verified";
     }
     constexpr int width = 1180;
     constexpr int height = 850;

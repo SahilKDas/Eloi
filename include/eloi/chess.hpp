@@ -4,13 +4,18 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <random>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "eloi/nnue_architecture.hpp"
 
 namespace eloi {
 
@@ -21,7 +26,6 @@ inline constexpr std::string_view horde_initial_fen =
 inline constexpr int recommended_search_depth = 40;
 inline constexpr int maximum_gui_search_depth = 200;
 inline constexpr int maximum_search_depth = 17'697;
-inline constexpr int nnue_hidden_size = 64;
 inline constexpr int search_thread_count = 3;
 using NnueAccumulator = std::array<std::int32_t, nnue_hidden_size>;
 struct NnueState {
@@ -100,6 +104,13 @@ class MoveList {
 struct Position {
   // Positive entries are white pieces, negative entries are black pieces.
   std::array<std::int8_t, 64> cells{};
+  // Search-facing bitboards mirror cells. Keeping the mailbox makes FEN,
+  // Chess960, Horde, and the GUI straightforward while move generation and
+  // attack detection avoid rescanning all 64 squares at every node.
+  std::array<std::array<std::uint64_t, 7>, 2> piece_bits{};
+  std::array<std::uint64_t, 2> color_bits{};
+  std::uint64_t occupied{};
+  std::array<std::int8_t, 2> king_squares{-1, -1};
   std::uint8_t castling{white_king | white_queen | black_king | black_queen};
   // Rook origins for WK, WQ, BK, BQ rights. Chess960 castling always ends
   // with the king on g/c and rook on f/d, regardless of their start squares.
@@ -108,6 +119,11 @@ struct Position {
       square_of(7, 7), square_of(0, 7)};
   int en_passant{-1};
 
+  void clear_pieces();
+  void set_cell(int square, std::int8_t cell);
+  void rebuild_bitboards();
+  std::uint64_t pieces(Color side, Piece piece) const;
+  std::uint64_t occupancy(Color side) const;
   Piece piece_at(int square) const;
   std::optional<Color> color_at(int square) const;
   bool empty(int square) const;
@@ -128,6 +144,12 @@ void nnue_update_changed(NnueState& accumulator, const Position& before,
                          const Position& after,
                          const std::array<std::uint8_t, 4>& squares,
                          std::uint8_t count);
+void nnue_update_delta(NnueState& accumulator,
+                       const std::array<std::int8_t, 2>& before_kings,
+                       const Position& after,
+                       const std::array<std::uint8_t, 4>& squares,
+                       const std::array<std::int8_t, 4>& before_cells,
+                       std::uint8_t count);
 int nnue_evaluate(const NnueState& accumulator, Color side_to_move);
 std::uint64_t position_key(const Position& position, Color turn);
 
@@ -154,6 +176,8 @@ struct Board {
     std::uint8_t castling{};
     std::array<std::int8_t, 4> castling_rooks{};
     std::int8_t en_passant{-1};
+    std::int8_t effective_en_passant{-1};
+    std::array<std::int8_t, 2> king_squares{-1, -1};
     std::uint64_t key{};
     Move move{};
     std::array<std::uint8_t, 4> squares{};
@@ -212,6 +236,7 @@ struct EngineConfig {
   int hash_mb{64};
   int move_overhead_ms{50};
   bool own_book{false};
+  bool operator==(const EngineConfig&) const = default;
 };
 
 struct SearchLimits {
@@ -275,6 +300,7 @@ class Searcher {
  public:
   Searcher(EngineConfig config, std::atomic_bool& stopped);
   Searcher(EngineConfig config, std::atomic_bool& stopped, int lane);
+  ~Searcher();
   SearchResult iterative(Board board, SearchLimits limits,
                          const std::function<void(const SearchResult&)>& info = {});
 
@@ -319,16 +345,35 @@ class Searcher {
   std::vector<std::uint64_t> repetition_keys_;
   Move root_best_{};
   int lane_{0};
+  std::array<std::unique_ptr<Searcher>, search_thread_count - 1>
+      owned_helpers_{};
+  std::array<Searcher*, search_thread_count - 1> root_helpers_{};
+  std::array<std::thread, search_thread_count - 1> root_worker_threads_{};
+  std::mutex root_work_mutex_;
+  std::condition_variable root_work_ready_;
+  std::condition_variable root_work_done_;
+  std::function<void(int)> root_work_;
+  std::uint64_t root_work_epoch_{0};
+  int root_work_completed_{0};
+  bool root_work_shutdown_{false};
 
   bool halted();
+  void advance_generation();
+  void reset_statistics();
+  void prepare_root_helper(const Searcher& principal, const Board& root);
+  void absorb_statistics(const Searcher& helper);
+  std::optional<int> search_root_move(Board root, const Move& move, int depth,
+                                      int alpha, int beta, bool pv_node,
+                                      const Move& previous);
+  int parallel_root(Board& board, const MoveList& moves, int depth,
+                    int alpha, int beta, int static_score,
+                    const Move& previous);
   SearchResult iterative_single(
       Board board, SearchLimits limits,
       const std::function<void(const SearchResult&)>& info);
   int evaluate(const Board& board);
   int volatility(const Board& board, std::size_t legal_count,
                  int evaluation_swing = 0) const;
-  bool qualifying_quiet_check(const Board& board_after,
-                              const Move& move) const;
   int quiescence(Board& board, int alpha, int beta, int ply, int qply);
   int negamax(Board& board, int depth, int alpha, int beta, int ply,
               bool pv_node, const Move& previous, int extensions,

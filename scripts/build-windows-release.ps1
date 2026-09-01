@@ -62,13 +62,21 @@ if (-not $SkipDefenderScan) {
 
 $splitArguments = @{ OutputRoot = $resolvedArtifacts }
 if ($SkipDefenderScan) { $splitArguments.SkipDefenderScan = $true }
-& (Join-Path $PSScriptRoot 'build-windows-split-zip.ps1') @splitArguments
-if ($LASTEXITCODE -ne 0) { throw 'Split-runtime package build failed' }
+& (Join-Path $PSScriptRoot 'build-windows-exoskeleton-zip.ps1') @splitArguments
+if ($LASTEXITCODE -ne 0) { throw 'Exoskeleton package build failed' }
 
 $splitZip = Join-Path $resolvedArtifacts `
-  "Eloi-v$releaseVersion-windows-x64-split-runtime.zip"
+  "Eloi-v$releaseVersion-windows-x64-exoskeleton.zip"
 if (-not (Test-Path -LiteralPath $splitZip -PathType Leaf)) {
-  throw "Split-runtime ZIP was not created: $splitZip"
+  throw "Exoskeleton ZIP was not created: $splitZip"
+}
+$artifactEntries = @(Get-ChildItem -LiteralPath $resolvedArtifacts -Force)
+$expectedArtifacts = @($standaloneName, (Split-Path -Leaf $splitZip)) | Sort-Object
+if ($artifactEntries.Count -ne 2 -or
+    @($artifactEntries.Name | Sort-Object) -join ',' -ne
+      ($expectedArtifacts -join ',') -or
+    @($artifactEntries | Where-Object { -not $_.PSIsContainer }).Count -ne 2) {
+  throw 'Release artifacts must contain exactly the standalone and Exoskeleton ZIPs'
 }
 
 Write-Host 'Golden release artifacts:'

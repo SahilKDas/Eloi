@@ -16,8 +16,9 @@ Every Eloi release publishes exactly two Windows x64 archives:
 
 - `Eloi-vVERSION-windows-x64-standalone.zip`, whose extracted contents are
   exactly the following two files; and
-- `Eloi-vVERSION-windows-x64-split-runtime.zip`, the Defender-friendly package
-  with networking, runtime DLLs, and artwork deliberately separated.
+- `Eloi-vVERSION-windows-x64-exoskeleton.zip`, the Defender-friendly
+  Exoskeleton ZIP with networking, runtime DLLs, and artwork deliberately
+  separated.
 
 The canonical standalone archive contains:
 
@@ -33,10 +34,10 @@ Python, Go, external assets, downloaded data, or non-system DLLs.
 The native client accepts only the exact HTTPS origin `https://lichess.org`, so
 a changed configuration cannot redirect its bearer token to another host.
 
-The second golden package places piece PNGs and compiler runtime DLLs outside
+The Exoskeleton ZIP places piece PNGs and compiler runtime DLLs outside
 the main executable, and native Lichess networking runs in a separate
 `EloiLichess.exe`; the main `Eloi.exe` has no WinHTTP import. Build it with
-`scripts/build-windows-split-zip.ps1` and keep the extracted directory
+`scripts/build-windows-exoskeleton-zip.ps1` and keep the extracted directory
 together. Double-clicking `EloiLichess.exe` opens a native configuration window
 that reads and writes the adjacent `config.yml`; no text or development editor
 is required.
@@ -140,15 +141,17 @@ small commit-label file. Capturing again deliberately replaces that baseline,
 so old builds do not accumulate. These build-local files are ignored by Git
 and never enter either release package.
 
-After making the change, rebuild and open `Eloi.exe`, then click **VERSION
-MATCH**. Eloi automatically finds `Eloi.previous.exe`; if it is absent, a file
+After making the change, rebuild and open `Eloi.exe`, then click **ENGINE
+LAB**. Eloi automatically finds `Eloi.previous.exe`; if it is absent, a file
 picker can select any historical Eloi executable. The current and previous
 executables run as separate UCI child processes with equal settings: the GUI's
 selected depth, a 32 MB hash table each, and both opening books disabled. The
-board animates every move and identifies whose turn and last move it is. Use
-**RESTART VERSION MATCH** to replay, **SWAP COLORS** to reverse the sides, and
-**EXIT VERSION MATCH** to return to human play. No terminal match loop is
-required.
+board animates every move and identifies whose turn and last move it is. The
+screen also shows both hashes, official-beta verification, PV, depth, nodes,
+NPS, score, elapsed time, W/D/L, and raw-win rate. Use **RESTART ENGINE LAB**
+to replay, **SWAP COLORS** to reverse the sides, **EXPORT ENGINE LAB REPORT**
+to save Markdown and JSON under `%LOCALAPPDATA%\Eloi\Lab`, and **EXIT ENGINE
+LAB** to return to human play. No terminal match loop is required.
 
 To launch directly into autoplay from a terminal, use
 `.\build-release\Eloi.exe --version-match`.
@@ -161,23 +164,38 @@ For a non-visual integration check, run:
 ```
 
 A watched game is useful for spotting crashes, illegal moves, obvious tactical
-regressions, and style changes, but one game cannot establish strength. Brain
-changes still require paired, color-reversed equal-wall-time self-play; major
-strength claims retain the documented 200-game, above-55% gauntlet gate. A
-fixed total-node match is not a fair single-versus-three-lane comparison because
-the newer engine must divide one allowance among three independent trees.
+regressions, and style changes, but one game cannot establish strength. The
+current overhaul gate uses 125 positions from the committed neutral Standard
+suite twice with colors reversed: 250 games at equal 250 ms/move, three
+threads, 32 MB hash, and books disabled. Acceptance requires at least 150
+candidate wins (60% raw wins); draws do not count as wins. The official beta
+executable must have SHA-256
+`614CE6D601AFC749EA4EFD8FC94A8BAE79EF4537374B0984E292A92CA0A99B7F`.
 
-On a shared Windows computer, the gauntlet can create only its own test engines
-at Idle priority so live bot games and foreground applications always preempt
-them:
+Run the strict speed and strength gates with:
 
 ```powershell
 & '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
-  '.\scripts\selfplay_gauntlet.py' `
+  '.\scripts\engine_lab.py' `
   --candidate '.\build-release\Eloi.exe' `
-  --baseline '.\build-release\Eloi.previous.exe' `
-  --games 200 --movetime-ms 250 --required-score 55 --idle-priority
+  --baseline '.\path\to\official-beta-1\Eloi.exe' speed
+
+& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
+  '.\scripts\engine_lab.py' `
+  --candidate '.\build-release\Eloi.exe' `
+  --baseline '.\path\to\official-beta-1\Eloi.exe' strength
+
+& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
+  '.\scripts\engine_lab.py' `
+  --candidate '.\build-release\Eloi.exe' `
+  --baseline '.\path\to\official-beta-1\Eloi.exe' ladder
 ```
+
+Depths 1, 5, and 10 each require at least a 5.00x median wall-clock
+improvement. Depths 15, 20, 30, and 40 are bounded report-only probes: when a
+target does not complete within ten minutes per engine/position, the report
+records reached depth, nodes, NPS, time, and the result as censored rather than
+inventing a speedup.
 
 Eloi implements legal castling (including attacked-square restrictions), en
 passant, every underpromotion, checkmate, stalemate, threefold repetition, the
@@ -288,9 +306,16 @@ ctest --test-dir build-tests --output-on-failure
 .\build\Eloi.exe --perft --depth 4
 .\build\Eloi.exe --bench --depth 6
 .\build\Eloi.exe --screenshot .\build\eloi-gui.bmp
+.\build\Eloi.exe --screenshot-engine-lab `
+  .\build\engine-lab.bmp C:\path\to\official-beta-1\Eloi.exe
 
-python .\scripts\selfplay_gauntlet.py --candidate .\build\Eloi.exe `
-  --baseline C:\path\to\baseline\Eloi.exe --games 200 --nodes 2000
+& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
+  '.\scripts\engine_lab.py' --candidate '.\build\Eloi.exe' `
+  --baseline C:\path\to\official-beta-1\Eloi.exe speed
+
+& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
+  '.\scripts\differential_movegen.py' `
+  --engine '.\build\Eloi.exe' --samples 32
 ```
 
 Tests cover standard perft positions, en passant, both castling sides, every
@@ -305,19 +330,22 @@ squares, non-corner rights loss, and king/rook origin/destination overlaps.
 Horde tests cover the canonical 36-pawn position and reference perft, kingless
 White play, the special first-rank double-step without en passant, Horde
 elimination, and checkmating Black.
+The differential runner compares complete legal-move sets—not only counts—
+against python-chess for deterministic random Standard, Chess960, and Horde
+positions.
 Clock tests cover five-minute allocation, protected reserve, increment and
 overhead bounds, phase scaling, every pressure mode, hard ceilings, and legal
 fallback under a near-expired deadline.
 
-The development-only gauntlet runner uses eight neutral opening seeds, plays
-every seed with colours exchanged, disables both opening books, and returns a
-failure status unless the candidate's score exceeds 55% by default.
+The older `selfplay_gauntlet.py` runner remains available for quick historical
+diagnostics, but its eight-seed/55%-score result is not a current acceptance
+gate. Current claims use the hash-bound `engine_lab.py` protocol above.
 
 Against the pinned `dad44d4` Windows Release baseline, five deterministic
 depth-six benchmark runs reduced the median from 2,181 ms and 194,320 nodes to
 803 ms and 103,560 nodes. The candidate checksum was identical on every run.
-In the mirrored 200-game, 2,000-node gauntlet it scored 66.00% (100 wins,
-64 draws, 36 losses), passing the required 55% strength gate. The default
+In the historical mirrored 200-game, 2,000-node gauntlet it scored 66.00%
+(100 wins, 64 draws, 36 losses), passing that pass's former 55% gate. The default
 transposition-table allocation remains 32 MB.
 
 For the fixed-three-thread pass, the immediately preceding executable was

@@ -95,7 +95,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-windows-release.ps1
 
 That command reruns the canonical two-build proof, creates a standalone ZIP
 containing exactly `Eloi.exe` and `config.yml`, and builds the hash-manifested
-split-runtime ZIP. The GitHub release receives those two ZIPs only.
+Exoskeleton ZIP. The GitHub release receives those two ZIPs only.
 
 Use `-Keep` to preserve the temporary trees for diagnosis. Without it, the
 script removes only its uniquely named directory under the system temporary
@@ -120,10 +120,53 @@ with the hashes printed by the two-build verifier:
 Get-FileHash .\Eloi.exe, .\config.yml -Algorithm SHA256
 ```
 
-The split-runtime ZIP includes `SOURCE_COMMIT.txt` and `SHA256SUMS.txt`; verify
+The Exoskeleton ZIP includes `SOURCE_COMMIT.txt` and `SHA256SUMS.txt`; verify
 its ZIP hash from the release notes, then check every extracted file against
 the manifest. Matching hashes prove that the downloaded files are byte-identical to files
 produced from the tagged source with the locked inputs. They do not, by
 themselves, prove that the reviewed source is harmless; source review and local
 antivirus scanning remain separate security checks. Release binaries are currently
 unsigned, so signing is not part of the reproducibility claim.
+
+## Reproducing NNUE training
+
+NNUE regeneration is an explicit data-generation task and is never run by
+CMake. `scripts/train_nnue.py` streams the local Lichess CC0 puzzle CSV and
+evaluation JSONL, assigns related records to training or validation by a
+deterministic source hash, and compares 64- and 128-hidden-unit candidates.
+The selected compact header, architecture header, and provenance JSON are the
+only retained outputs.
+
+The trainer enforces a hard temporary-disk ceiling of 7 GiB. It rejects a
+higher configured quota, checks the temporary directory before and after each
+staged output, aborts before an estimated write could exceed the quota, and
+removes unsuccessful candidate artifacts after selection:
+
+```powershell
+python .\scripts\train_nnue.py `
+  --puzzles C:\path\to\lichess-puzzles.csv `
+  --evaluations C:\path\to\lichess-evaluations.jsonl `
+  --temp-dir .\tmp\nnue-training `
+  --max-temp-gb 7
+```
+
+`data/nnue_provenance.json` records both input SHA-256 hashes, the fixed
+seed, split fraction, limits, counts, candidate validation metrics, selected
+architecture, and selected header hash. A newly trained network is still only
+a candidate: it must be rebuilt into Eloi and pass the full speed, strength,
+correctness, and two-build reproducibility gates before replacing production
+weights.
+
+## Candidate evidence
+
+The complete architecture-playoff and final-gauntlet procedure is frozen in
+`V1.9_VALIDATION_PLAN.md`. Follow it before replacing the production NNUE or
+claiming that v1.9 passed its final strength gate.
+
+Before a release candidate is staged, run `scripts/engine_lab.py` against the
+official `v1.5.0-beta.1` executable whose SHA-256 is
+`614CE6D601AFC749EA4EFD8FC94A8BAE79EF4537374B0984E292A92CA0A99B7F`.
+Retain the final Markdown/JSON speed report and the completed 250-game PGN
+as release evidence, but keep development checkpoints and failed candidates
+under ignored `tmp/`. Depths 1, 5, and 10 are hard 5.00x median gates;
+depths 15, 20, 30, and 40 are ten-minute censored reports.

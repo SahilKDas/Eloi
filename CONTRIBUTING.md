@@ -43,7 +43,7 @@ ctest --test-dir build-release --output-on-failure
 Every change must preserve these requirements:
 
 - GitHub releases contain exactly two downloadable archives: the canonical
-  standalone ZIP and the Defender-friendly split-runtime ZIP.
+  standalone ZIP and the Defender-friendly Exoskeleton ZIP.
 - The standalone ZIP contains exactly `Eloi.exe` and `config.yml`.
 - `Eloi.exe` is standalone and imports no non-system DLL.
 - Piece PNGs, opening data, NNUE weights, and required attribution are embedded
@@ -59,7 +59,7 @@ Every change must preserve these requirements:
   `reproducibility.lock.json`, contain a zero PE timestamp, and reproduce
   byte-for-byte from two independent clean build trees.
 
-The split-runtime ZIP must isolate native networking in `EloiLichess.exe`, keep
+The Exoskeleton ZIP must isolate native networking in `EloiLichess.exe`, keep
 WinHTTP out of its main `Eloi.exe`, and retain all required DLLs, PNG assets,
 licenses, source revision, and per-file hashes. Both ZIP filenames include the
 version and `windows-x64`; neither package replaces the other.
@@ -68,7 +68,7 @@ Local development uses `dist/current` as a rolling release-candidate area, not
 an archive. After every build-affecting change, run
 `scripts/stage-current-candidates.ps1`. It deletes only the previous rolling
 candidate, rebuilds and tests both package forms, and leaves the newest
-standalone and split-runtime ZIPs together. Extracted staging duplicates and
+standalone and Exoskeleton ZIPs together. Extracted staging duplicates and
 older local candidates do not remain under `dist`.
 
 ## Versioning
@@ -92,10 +92,11 @@ candidate tags use `vMAJOR.MINOR.PATCH-rc.N`, and a stable release sets
   changed.
 - Guard selective-search optimizations against checks, zugzwang-prone endings,
   promotions, forced replies, and tactical positions as appropriate.
-- Do not claim an Elo gain from a few games. Three-lane strength changes should
-  use paired equal-wall-time or equal-depth self-play; a fixed total-node gate
-  unfairly fragments one budget across three independent trees. Major strength
-  claims still require an SPRT or the documented 200-game mirrored gauntlet.
+- Do not claim an Elo gain from a few games. The overhaul acceptance gate is
+  250 deterministic mirrored games at equal 250 ms/move against the
+  hash-verified official beta, with at least 150 raw candidate wins (60%).
+  Short
+  gauntlets are tuning diagnostics only.
 
 ### Brain-change regression protocol
 
@@ -108,27 +109,33 @@ powershell -ExecutionPolicy Bypass -File .\scripts\capture-brain-baseline.ps1
 
 This intentionally retains only `Eloi.previous.exe` beside the current build;
 running it again replaces the prior baseline. After rebuilding, open the GUI
-and run **VERSION MATCH** in both color assignments at the same depth. Both
+and run **ENGINE LAB** in both color assignments at the same depth. Both
 engines must start successfully, return legal moves, and finish or reach a
 stable test stopping point without hanging. Also run the command-line smoke:
 
 ```powershell
 .\build-release\Eloi.exe --version-match-smoke `
   .\build-release\Eloi.previous.exe
+& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
+  '.\scripts\differential_movegen.py' `
+  --engine '.\build-release\Eloi.exe' --samples 32
 ```
 
-Record noteworthy visual behavior in the pull request, but use a mirrored
-equal-wall-time gauntlet—not a single watched game—as the strength gate. Do not
-commit the retained executable or package it in a release. On a shared Windows
-machine, add `--idle-priority` so foreground applications and live bot games
-preempt the test engines.
+Record noteworthy visual behavior in the pull request, but use Engine Lab's
+hash-bound speed and strength harness—not a single watched game—as the
+acceptance gate. Do not commit retained executables, temporary checkpoints,
+PGNs, or failed-candidate reports, and never package them in a release.
 
 ```powershell
 & '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
-  '.\scripts\selfplay_gauntlet.py' `
+  '.\scripts\engine_lab.py' `
   --candidate '.\build-release\Eloi.exe' `
-  --baseline '.\build-release\Eloi.previous.exe' `
-  --games 200 --movetime-ms 250 --required-score 55 --idle-priority
+  --baseline '.\path\to\official-beta-1\Eloi.exe' speed
+
+& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
+  '.\scripts\engine_lab.py' `
+  --candidate '.\build-release\Eloi.exe' `
+  --baseline '.\path\to\official-beta-1\Eloi.exe' strength
 ```
 
 Run at minimum:
@@ -139,6 +146,9 @@ ctest --test-dir build-release --output-on-failure
 .\build-release\Eloi.exe --bench --depth 6
 .\build-release\Eloi.exe --screenshot .\build-release\smoke.bmp
 .\build-release\Eloi.exe --screenshot-setup .\build-release\setup-smoke.bmp
+.\build-release\Eloi.exe --screenshot-engine-lab `
+  .\build-release\engine-lab-smoke.bmp `
+  .\path\to\official-beta-1\Eloi.exe
 .\build-release\Eloi.exe --version-match-smoke `
   .\build-release\Eloi.previous.exe
 ```

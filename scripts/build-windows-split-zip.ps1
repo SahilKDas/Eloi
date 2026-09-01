@@ -22,12 +22,12 @@ if ($CandidateLabel) {
   }
   $releaseVersion += '-' + $CandidateLabel
 }
-$packageName = "Eloi-v$releaseVersion-windows-x64-split-runtime"
+$packageName = "Eloi-v$releaseVersion-windows-x64-exoskeleton"
 $buildRoot = Join-Path $projectRoot 'build-split-runtime'
 if ($OutputRoot) {
   $outputRoot = [IO.Path]::GetFullPath($OutputRoot)
 } else {
-  $outputRoot = Join-Path $projectRoot 'dist\split-runtime'
+  $outputRoot = Join-Path $projectRoot 'dist\exoskeleton'
 }
 $packageRoot = Join-Path $outputRoot $packageName
 $zipPath = Join-Path $outputRoot ($packageName + '.zip')
@@ -88,8 +88,41 @@ function Assert-ZeroPeTimestamp {
   }
 }
 
+function Invoke-UciHandshake {
+  param([string] $Path)
+  $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+  $startInfo.FileName = $Path
+  $startInfo.Arguments = '--uci'
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  $startInfo.RedirectStandardInput = $true
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  $process = New-Object System.Diagnostics.Process
+  $process.StartInfo = $startInfo
+  try {
+    if (-not $process.Start()) { throw "Could not start $Path" }
+    $process.StandardInput.WriteLine('uci')
+    $process.StandardInput.WriteLine('isready')
+    $process.StandardInput.WriteLine('quit')
+    $process.StandardInput.Close()
+    if (-not $process.WaitForExit(30000)) {
+      $process.Kill()
+      throw "UCI handshake timed out for $Path"
+    }
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    if ($process.ExitCode -ne 0 -or
+        $stdout -notmatch 'uciok' -or $stdout -notmatch 'readyok') {
+      throw "UCI handshake failed for $Path (exit $($process.ExitCode))`n$stdout`n$stderr"
+    }
+  } finally {
+    $process.Dispose()
+  }
+}
+
 if (-not $AllowDirty -and (& git -C $projectRoot status --porcelain)) {
-  throw 'Commit the exact source first; the split-runtime packager requires a clean worktree.'
+  throw 'Commit the exact source first; the Exoskeleton ZIP packager requires a clean worktree.'
 }
 $null = Assert-UnderProject $outputRoot
 
@@ -122,7 +155,7 @@ Copy-Item -LiteralPath (Join-Path $buildRoot 'Eloi.exe') -Destination $packageRo
 Copy-Item -LiteralPath (Join-Path $buildRoot 'EloiLichess.exe') -Destination $packageRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot 'config.example.yml') `
   -Destination (Join-Path $packageRoot 'config.yml')
-Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\WINDOWS-X64-SPLIT-RUNTIME.md') `
+Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\WINDOWS-X64-EXOSKELETON.md') `
   -Destination (Join-Path $packageRoot 'README.md')
 
 $assetParent = Join-Path $packageRoot 'assets'
@@ -178,21 +211,18 @@ if (@(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'assets\chess_maestro_b
 Assert-ZeroPeTimestamp $mainExe
 Assert-ZeroPeTimestamp $lichessExe
 
-$uci = "uci`nisready`nquit`n" | & $mainExe --uci 2>&1
-if (-not ($uci -match 'uciok') -or -not ($uci -match 'readyok')) {
-  throw 'Split-runtime packaged UCI handshake failed'
-}
+Invoke-UciHandshake $mainExe
 & $lichessExe --check-config
-if ($LASTEXITCODE -ne 0) { throw 'Split-runtime Lichess config check failed' }
+if ($LASTEXITCODE -ne 0) { throw 'Exoskeleton Lichess config check failed' }
 $mainLichess = & $mainExe --lichess 2>&1
 if ($LASTEXITCODE -ne 2 -or
     ($mainLichess -join "`n") -notmatch 'EloiLichess.exe') {
   throw 'Main executable did not redirect native Lichess users to the bridge'
 }
-$smoke = Join-Path $outputRoot 'split-runtime-gui-smoke.bmp'
+$smoke = Join-Path $outputRoot 'exoskeleton-gui-smoke.bmp'
 & $mainExe --screenshot $smoke
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $smoke)) {
-  throw 'Split-runtime GUI/assets screenshot smoke test failed'
+  throw 'Exoskeleton GUI/assets screenshot smoke test failed'
 }
 Remove-Item -LiteralPath $smoke -Force
 
@@ -225,7 +255,10 @@ if (-not $SkipDefenderScan) {
 }
 
 $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
-Write-Host "Split-runtime package: $zipPath"
+$reportedMainImports = $mainImports -join ', '
+$reportedLichessImports = $lichessImports -join ', '
+Remove-SafeDirectory $packageRoot
+Write-Host "Exoskeleton ZIP: $zipPath"
 Write-Host "SHA-256: $zipHash"
-Write-Host "Main imports: $($mainImports -join ', ')"
-Write-Host "Lichess imports: $($lichessImports -join ', ')"
+Write-Host "Main imports: $reportedMainImports"
+Write-Host "Lichess imports: $reportedLichessImports"

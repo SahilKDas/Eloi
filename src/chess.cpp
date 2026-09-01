@@ -10,6 +10,13 @@
 #include <sstream>
 #include <thread>
 
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+#include <immintrin.h>
+#define ELOI_GNU_X86_BITOPS 1
+#else
+#define ELOI_GNU_X86_BITOPS 0
+#endif
+
 namespace eloi {
 namespace {
 
@@ -42,7 +49,203 @@ Piece char_piece(char c) {
   }
 }
 
-bool inside(int file, int rank) { return file >= 0 && file < 8 && rank >= 0 && rank < 8; }
+constexpr bool inside(int file, int rank) {
+  return file >= 0 && file < 8 && rank >= 0 && rank < 8;
+}
+
+constexpr std::uint64_t square_bit(int square) {
+  return square >= 0 && square < 64 ? (std::uint64_t{1} << square) : 0;
+}
+
+int pop_square(std::uint64_t& bits) {
+  const int square = static_cast<int>(std::countr_zero(bits));
+  bits &= bits - 1;
+  return square;
+}
+
+using AttackTable = std::array<std::uint64_t, 64>;
+
+consteval AttackTable make_step_attacks(
+    const std::array<std::array<int, 2>, 8>& steps) {
+  AttackTable table{};
+  for (int square = 0; square < 64; ++square) {
+    for (const auto& step : steps) {
+      const int file = file_of(square) + step[0];
+      const int rank = rank_of(square) + step[1];
+      if (inside(file, rank)) table[square] |= square_bit(square_of(file, rank));
+    }
+  }
+  return table;
+}
+
+consteval std::array<AttackTable, 2> make_pawn_attacks() {
+  std::array<AttackTable, 2> tables{};
+  for (int square = 0; square < 64; ++square) {
+    for (int side = 0; side < 2; ++side) {
+      const int rank_step = side == 0 ? 1 : -1;
+      for (int file_step : {-1, 1}) {
+        const int file = file_of(square) + file_step;
+        const int rank = rank_of(square) + rank_step;
+        if (inside(file, rank))
+          tables[side][square] |= square_bit(square_of(file, rank));
+      }
+    }
+  }
+  return tables;
+}
+
+consteval std::array<AttackTable, 2> make_passed_pawn_masks() {
+  std::array<AttackTable, 2> tables{};
+  for (int side = 0; side < 2; ++side) {
+    const int direction = side == 0 ? 1 : -1;
+    for (int square = 0; square < 64; ++square) {
+      for (int file = std::max(0, file_of(square) - 1);
+           file <= std::min(7, file_of(square) + 1); ++file)
+        for (int rank = rank_of(square) + direction; inside(file, rank);
+             rank += direction)
+          tables[side][square] |= square_bit(square_of(file, rank));
+    }
+  }
+  return tables;
+}
+
+inline constexpr auto knight_attack_table = make_step_attacks({{
+    {{1, 2}}, {{2, 1}}, {{2, -1}}, {{1, -2}},
+    {{-1, -2}}, {{-2, -1}}, {{-2, 1}}, {{-1, 2}},
+}});
+inline constexpr auto king_attack_table = make_step_attacks({{
+    {{1, 0}}, {{1, 1}}, {{0, 1}}, {{-1, 1}},
+    {{-1, 0}}, {{-1, -1}}, {{0, -1}}, {{1, -1}},
+}});
+inline constexpr auto pawn_attack_table = make_pawn_attacks();
+inline constexpr auto passed_pawn_masks = make_passed_pawn_masks();
+
+std::uint64_t sliding_attacks_scalar(int square, std::uint64_t occupied,
+                                     bool diagonal) {
+  constexpr std::array<std::array<int, 2>, 4> rook_directions{{
+      {{1, 0}}, {{-1, 0}}, {{0, 1}}, {{0, -1}},
+  }};
+  constexpr std::array<std::array<int, 2>, 4> bishop_directions{{
+      {{1, 1}}, {{1, -1}}, {{-1, 1}}, {{-1, -1}},
+  }};
+  const auto& directions = diagonal ? bishop_directions : rook_directions;
+  std::uint64_t attacks = 0;
+  for (const auto& direction : directions) {
+    int file = file_of(square) + direction[0];
+    int rank = rank_of(square) + direction[1];
+    while (inside(file, rank)) {
+      const int target = square_of(file, rank);
+      const std::uint64_t target_bit = square_bit(target);
+      attacks |= target_bit;
+      if (occupied & target_bit) break;
+      file += direction[0];
+      rank += direction[1];
+    }
+  }
+  return attacks;
+}
+
+std::uint64_t slider_relevant_mask(int square, bool diagonal) {
+  constexpr std::array<std::array<int, 2>, 4> rook_directions{{
+      {{1, 0}}, {{-1, 0}}, {{0, 1}}, {{0, -1}},
+  }};
+  constexpr std::array<std::array<int, 2>, 4> bishop_directions{{
+      {{1, 1}}, {{1, -1}}, {{-1, 1}}, {{-1, -1}},
+  }};
+  const auto& directions = diagonal ? bishop_directions : rook_directions;
+  std::uint64_t mask = 0;
+  for (const auto& direction : directions) {
+    int file = file_of(square) + direction[0];
+    int rank = rank_of(square) + direction[1];
+    while (inside(file, rank)) {
+      const int beyond_file = file + direction[0];
+      const int beyond_rank = rank + direction[1];
+      if (!inside(beyond_file, beyond_rank)) break;
+      mask |= square_bit(square_of(file, rank));
+      file = beyond_file;
+      rank = beyond_rank;
+    }
+  }
+  return mask;
+}
+
+std::uint64_t expand_occupancy(std::uint64_t index, std::uint64_t mask) {
+  std::uint64_t occupied = 0;
+  int bit_index = 0;
+  while (mask) {
+    const int square = pop_square(mask);
+    if (index & (std::uint64_t{1} << bit_index))
+      occupied |= square_bit(square);
+    ++bit_index;
+  }
+  return occupied;
+}
+
+struct SliderAttackTables {
+  std::array<std::uint64_t, 64> rook_masks{};
+  std::array<std::uint64_t, 64> bishop_masks{};
+  std::array<std::vector<std::uint64_t>, 64> rook{};
+  std::array<std::vector<std::uint64_t>, 64> bishop{};
+
+  SliderAttackTables() {
+    for (int square = 0; square < 64; ++square) {
+      rook_masks[square] = slider_relevant_mask(square, false);
+      bishop_masks[square] = slider_relevant_mask(square, true);
+      const std::size_t rook_size =
+          std::size_t{1} << std::popcount(rook_masks[square]);
+      const std::size_t bishop_size =
+          std::size_t{1} << std::popcount(bishop_masks[square]);
+      rook[square].resize(rook_size);
+      bishop[square].resize(bishop_size);
+      for (std::size_t index = 0; index < rook_size; ++index) {
+        const auto occupied = expand_occupancy(index, rook_masks[square]);
+        rook[square][index] =
+            sliding_attacks_scalar(square, occupied, false);
+      }
+      for (std::size_t index = 0; index < bishop_size; ++index) {
+        const auto occupied = expand_occupancy(index, bishop_masks[square]);
+        bishop[square][index] =
+            sliding_attacks_scalar(square, occupied, true);
+      }
+    }
+  }
+};
+
+const SliderAttackTables& slider_attack_tables() {
+  static const SliderAttackTables tables;
+  return tables;
+}
+
+#if ELOI_GNU_X86_BITOPS
+bool runtime_has_bmi2() {
+  static const bool available = [] {
+    __builtin_cpu_init();
+    return __builtin_cpu_supports("bmi2");
+  }();
+  return available;
+}
+
+__attribute__((target("bmi2")))
+std::uint64_t sliding_attacks_bmi2(int square, std::uint64_t occupied,
+                                   bool diagonal) {
+  const auto& tables = slider_attack_tables();
+  const std::uint64_t mask = diagonal
+      ? tables.bishop_masks[square] : tables.rook_masks[square];
+  const std::size_t index =
+      static_cast<std::size_t>(_pext_u64(occupied, mask));
+  return diagonal ? tables.bishop[square][index]
+                  : tables.rook[square][index];
+}
+#endif
+
+std::uint64_t sliding_attacks(int square, std::uint64_t occupied,
+                              bool diagonal) {
+#if ELOI_GNU_X86_BITOPS
+  if (runtime_has_bmi2())
+    return sliding_attacks_bmi2(square, occupied, diagonal);
+#endif
+  return sliding_attacks_scalar(square, occupied, diagonal);
+}
 
 std::vector<std::string> split(std::string_view value) {
   std::istringstream input{std::string(value)};
@@ -85,29 +288,6 @@ bool pawn_attacks(Color side, int from, int target) {
   const int step = side == Color::white ? 1 : -1;
   return rank_of(target) - rank_of(from) == step &&
          std::abs(file_of(target) - file_of(from)) == 1;
-}
-
-bool piece_attacks_square(const Position& position, Color side, int from,
-                          Piece piece, int target) {
-  const int df = file_of(target) - file_of(from);
-  const int dr = rank_of(target) - rank_of(from);
-  if (piece == Piece::pawn) return pawn_attacks(side, from, target);
-  if (piece == Piece::knight)
-    return (std::abs(df) == 1 && std::abs(dr) == 2) ||
-           (std::abs(df) == 2 && std::abs(dr) == 1);
-  if (piece == Piece::king) return std::max(std::abs(df), std::abs(dr)) == 1;
-  const bool diagonal = std::abs(df) == std::abs(dr) && df != 0;
-  const bool straight = (df == 0) != (dr == 0);
-  if ((piece == Piece::bishop && !diagonal) ||
-      (piece == Piece::rook && !straight) ||
-      (piece == Piece::queen && !diagonal && !straight)) return false;
-  if (piece != Piece::bishop && piece != Piece::rook && piece != Piece::queen)
-    return false;
-  const int sf = (df > 0) - (df < 0), sr = (dr > 0) - (dr < 0);
-  for (int f = file_of(from) + sf, r = rank_of(from) + sr;
-       f != file_of(target) || r != rank_of(target); f += sf, r += sr)
-    if (!position.empty(square_of(f, r))) return false;
-  return true;
 }
 
 // Exact KPK knowledge. The table is solved as a win/draw reachability graph at
@@ -298,32 +478,29 @@ bool wrong_bishop_rook_pawn_draw(const Position& position) {
 }
 
 bool opposite_colored_bishops(const Position& position) {
-  std::array<int, 2> bishops{-1, -1};
-  for (int square = 0; square < 64; ++square) {
-    const Piece piece = position.piece_at(square);
-    if (piece == Piece::none || piece == Piece::king || piece == Piece::pawn)
-      continue;
-    if (piece != Piece::bishop) return false;
-    const int side = color_index(*position.color_at(square));
-    if (bishops[side] >= 0) return false;
-    bishops[side] = square;
-  }
-  return bishops[0] >= 0 && bishops[1] >= 0 &&
-         ((file_of(bishops[0]) + rank_of(bishops[0])) & 1) !=
-         ((file_of(bishops[1]) + rank_of(bishops[1])) & 1);
+  const std::uint64_t white_bishops =
+      position.pieces(Color::white, Piece::bishop);
+  const std::uint64_t black_bishops =
+      position.pieces(Color::black, Piece::bishop);
+  if (std::popcount(white_bishops) != 1 ||
+      std::popcount(black_bishops) != 1)
+    return false;
+  const std::uint64_t allowed =
+      white_bishops | black_bishops |
+      position.pieces(Color::white, Piece::king) |
+      position.pieces(Color::black, Piece::king) |
+      position.pieces(Color::white, Piece::pawn) |
+      position.pieces(Color::black, Piece::pawn);
+  if (allowed != position.occupied) return false;
+  const int white = static_cast<int>(std::countr_zero(white_bishops));
+  const int black = static_cast<int>(std::countr_zero(black_bishops));
+  return ((file_of(white) + rank_of(white)) & 1) !=
+         ((file_of(black) + rank_of(black)) & 1);
 }
 
 bool passed_pawn(const Position& position, Color side, int square) {
-  const int direction = side == Color::white ? 1 : -1;
-  for (int file = std::max(0, file_of(square) - 1);
-       file <= std::min(7, file_of(square) + 1); ++file)
-    for (int rank = rank_of(square) + direction; inside(file, rank);
-         rank += direction) {
-      const int target = square_of(file, rank);
-      if (position.color_at(target) == opponent(side) &&
-          position.piece_at(target) == Piece::pawn) return false;
-    }
-  return true;
+  return !(position.pieces(opponent(side), Piece::pawn) &
+           passed_pawn_masks[color_index(side)][square]);
 }
 
 int endgame_knowledge(const Board& board) {
@@ -334,30 +511,38 @@ int endgame_knowledge(const Board& board) {
   std::array<int, 2> pawns{};
   std::array<int, 2> rook_square{-1, -1};
   std::array<int, 2> pawn_square{-1, -1};
-  for (int square = 0; square < 64; ++square) {
-    const auto color = position.color_at(square);
-    if (!color) continue;
-    const int side = color_index(*color);
-    const Piece piece = position.piece_at(square);
-    if (piece == Piece::pawn) {
-      ++pawns[side];
-      pawn_square[side] = square;
-      if (passed_pawn(position, *color, square)) {
-        const int advance = *color == Color::white ? rank_of(square)
-                                                   : 7 - rank_of(square);
+  for (Color color : {Color::white, Color::black}) {
+    const int side = color_index(color);
+    const std::uint64_t bishops = position.pieces(color, Piece::bishop);
+    const std::uint64_t knights = position.pieces(color, Piece::knight);
+    const std::uint64_t rook_bits = position.pieces(color, Piece::rook);
+    const std::uint64_t queens = position.pieces(color, Piece::queen);
+    non_pawn_material[side] =
+        300 * (std::popcount(bishops) + std::popcount(knights)) +
+        500 * std::popcount(rook_bits) + 900 * std::popcount(queens);
+    rooks[side] = std::popcount(rook_bits);
+    if (rooks[side] == 1)
+      rook_square[side] = static_cast<int>(std::countr_zero(rook_bits));
+
+    std::uint64_t pawn_bits = position.pieces(color, Piece::pawn);
+    pawns[side] = std::popcount(pawn_bits);
+    if (pawns[side] == 1)
+      pawn_square[side] = static_cast<int>(std::countr_zero(pawn_bits));
+    while (pawn_bits) {
+      const int square = pop_square(pawn_bits);
+      if (passed_pawn(position, color, square)) {
+        const int advance = color == Color::white ? rank_of(square)
+                                                  : 7 - rank_of(square);
         const int promotion = square_of(file_of(square),
-                                        *color == Color::white ? 7 : 0);
+                                        color == Color::white ? 7 : 0);
         int moves = 7 - advance;
-        if (board.turn == *color && advance == 1) --moves;
+        if (board.turn == color && advance == 1) --moves;
         const bool outside_square =
-            king_distance(position.king_square(opponent(*color)), promotion) >
+            king_distance(position.king_square(opponent(color)), promotion) >
             moves;
         int bonus = advance * 12 + (outside_square ? 90 : 0);
-        adjustment += board.turn == *color ? bonus : -bonus;
+        adjustment += board.turn == color ? bonus : -bonus;
       }
-    } else if (piece != Piece::king) {
-      non_pawn_material[side] += nominal(piece);
-      if (piece == Piece::rook) { ++rooks[side]; rook_square[side] = square; }
     }
   }
 
@@ -509,6 +694,74 @@ int score_from_tt(int score, int ply) {
   return score;
 }
 
+void Position::clear_pieces() {
+  cells.fill(0);
+  piece_bits = {};
+  color_bits = {};
+  occupied = 0;
+  king_squares = {-1, -1};
+}
+
+void Position::set_cell(int square, std::int8_t cell) {
+  if (square < 0 || square >= 64) return;
+  const std::int8_t previous = cells[square];
+  if (previous == cell) return;
+  const std::uint64_t bit = square_bit(square);
+  auto remove = [&](std::int8_t value) {
+    if (!value) return;
+    const int side = value > 0 ? 0 : 1;
+    const auto piece = static_cast<std::size_t>(
+        std::abs(static_cast<int>(value)));
+    piece_bits[side][piece] &= ~bit;
+    color_bits[side] &= ~bit;
+    if (piece == static_cast<std::size_t>(Piece::king) &&
+        king_squares[side] == square)
+      king_squares[side] = -1;
+  };
+  auto add = [&](std::int8_t value) {
+    if (!value) return;
+    const int side = value > 0 ? 0 : 1;
+    const auto piece = static_cast<std::size_t>(
+        std::abs(static_cast<int>(value)));
+    piece_bits[side][piece] |= bit;
+    color_bits[side] |= bit;
+    if (piece == static_cast<std::size_t>(Piece::king))
+      king_squares[side] = static_cast<std::int8_t>(square);
+  };
+  remove(previous);
+  cells[square] = cell;
+  add(cell);
+  occupied = color_bits[0] | color_bits[1];
+}
+
+void Position::rebuild_bitboards() {
+  piece_bits = {};
+  color_bits = {};
+  occupied = 0;
+  king_squares = {-1, -1};
+  for (int square = 0; square < 64; ++square) {
+    const std::int8_t cell = cells[square];
+    if (!cell) continue;
+    const int side = cell > 0 ? 0 : 1;
+    const auto piece = static_cast<std::size_t>(
+        std::abs(static_cast<int>(cell)));
+    const std::uint64_t bit = square_bit(square);
+    piece_bits[side][piece] |= bit;
+    color_bits[side] |= bit;
+    if (piece == static_cast<std::size_t>(Piece::king))
+      king_squares[side] = static_cast<std::int8_t>(square);
+  }
+  occupied = color_bits[0] | color_bits[1];
+}
+
+std::uint64_t Position::pieces(Color side, Piece piece) const {
+  return piece_bits[color_index(side)][static_cast<std::size_t>(piece)];
+}
+
+std::uint64_t Position::occupancy(Color side) const {
+  return color_bits[color_index(side)];
+}
+
 Piece Position::piece_at(int square) const {
   if (square < 0 || square >= 64) return Piece::none;
   return static_cast<Piece>(std::abs(static_cast<int>(cells[square])));
@@ -522,59 +775,21 @@ std::optional<Color> Position::color_at(int square) const {
 bool Position::empty(int square) const { return !color_at(square).has_value(); }
 
 int Position::king_square(Color side) const {
-  const int target = side == Color::white ? static_cast<int>(Piece::king)
-                                           : -static_cast<int>(Piece::king);
-  for (int sq = 0; sq < 64; ++sq)
-    if (cells[sq] == target) return sq;
-  return -1;
+  return king_squares[color_index(side)];
 }
 
 int Position::attackers(Color side, int target) const {
   if (target < 0 || target >= 64) return 0;
-  int count = 0;
-  const int tf = file_of(target), tr = rank_of(target);
-  const int pawn_rank = tr + (side == Color::white ? -1 : 1);
-  for (int df : {-1, 1}) {
-    const int f = tf + df;
-    if (!inside(f, pawn_rank)) continue;
-    const int sq = square_of(f, pawn_rank);
-    if (color_at(sq) == side && piece_at(sq) == Piece::pawn) ++count;
-  }
-
-  constexpr int knight_steps[8][2] = {
-      {1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2}};
-  for (auto& step : knight_steps) {
-    int f = tf + step[0], r = tr + step[1];
-    if (inside(f, r)) {
-      int sq = square_of(f, r);
-      if (color_at(sq) == side && piece_at(sq) == Piece::knight) ++count;
-    }
-  }
-
-  for (int df = -1; df <= 1; ++df) for (int dr = -1; dr <= 1; ++dr) {
-    if ((!df && !dr) || !inside(tf + df, tr + dr)) continue;
-    int sq = square_of(tf + df, tr + dr);
-    if (color_at(sq) == side && piece_at(sq) == Piece::king) ++count;
-  }
-
-  constexpr int dirs[8][2] = {
-      {1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}};
-  for (int i = 0; i < 8; ++i) {
-    int f = tf + dirs[i][0], r = tr + dirs[i][1];
-    while (inside(f, r)) {
-      int sq = square_of(f, r);
-      if (!empty(sq)) {
-        if (color_at(sq) == side) {
-          Piece p = piece_at(sq);
-          if (p == Piece::queen || (i < 4 && p == Piece::rook) ||
-              (i >= 4 && p == Piece::bishop)) ++count;
-        }
-        break;
-      }
-      f += dirs[i][0]; r += dirs[i][1];
-    }
-  }
-  return count;
+  std::uint64_t sources = 0;
+  sources |= pawn_attack_table[color_index(opponent(side))][target] &
+             pieces(side, Piece::pawn);
+  sources |= knight_attack_table[target] & pieces(side, Piece::knight);
+  sources |= king_attack_table[target] & pieces(side, Piece::king);
+  sources |= sliding_attacks(target, occupied, false) &
+             (pieces(side, Piece::rook) | pieces(side, Piece::queen));
+  sources |= sliding_attacks(target, occupied, true) &
+             (pieces(side, Piece::bishop) | pieces(side, Piece::queen));
+  return std::popcount(sources);
 }
 
 bool Position::attacked_by(Color side, int square) const { return attackers(side, square) > 0; }
@@ -649,17 +864,17 @@ bool castling_king_path_safe(const Position& position, Color side,
                              int king_from, int rook_from, int king_to) {
   if (position.in_check(side)) return false;
   Position probe = position;
-  probe.cells[king_from] = 0;
-  probe.cells[rook_from] = 0;
+  probe.set_cell(king_from, 0);
+  probe.set_cell(rook_from, 0);
   const int step = (file_of(king_to) > file_of(king_from)) -
                    (file_of(king_to) < file_of(king_from));
   if (!step) return true;
   for (int file = file_of(king_from) + step;; file += step) {
     const int square = square_of(file, rank_of(king_from));
-    probe.cells[square] = static_cast<std::int8_t>(
-        (side == Color::white ? 1 : -1) * static_cast<int>(Piece::king));
+    probe.set_cell(square, static_cast<std::int8_t>(
+        (side == Color::white ? 1 : -1) * static_cast<int>(Piece::king)));
     const bool attacked = probe.attacked_by(opponent(side), square);
-    probe.cells[square] = 0;
+    probe.set_cell(square, 0);
     if (attacked) return false;
     if (file == file_of(king_to)) break;
   }
@@ -688,108 +903,111 @@ void clear_castling_rights(Position& position, const Move& move,
 MoveList Position::pseudo_legal(Color side, bool horde) const {
   MoveList out;
   out.reserve(64);
-  constexpr int knight_steps[8][2] = {
-      {1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2}};
-  constexpr int king_steps[8][2] = {
-      {1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1}};
-  constexpr int rook_dirs[4][2] = {{1,0},{-1,0},{0,1},{0,-1}};
-  constexpr int bishop_dirs[4][2] = {{1,1},{1,-1},{-1,1},{-1,-1}};
+  const std::uint64_t ours = occupancy(side);
+  const int step = side == Color::white ? 1 : -1;
+  const int start_rank = side == Color::white ? 1 : 6;
+  const int promotion_rank = side == Color::white ? 7 : 0;
 
-  for (int from = 0; from < 64; ++from) {
-    if (color_at(from) != side) continue;
-    Piece piece = piece_at(from);
-    int f = file_of(from), r = rank_of(from);
-    if (piece == Piece::pawn) {
-      int step = side == Color::white ? 1 : -1;
-      int start = side == Color::white ? 1 : 6;
-      int promo = side == Color::white ? 7 : 0;
-      int to_rank = r + step;
-      if (inside(f, to_rank) && empty(square_of(f, to_rank))) {
-        int to = square_of(f, to_rank);
-        if (to_rank == promo) {
-          for (Piece p : {Piece::queen, Piece::rook, Piece::knight, Piece::bishop})
-            out.push_back({MoveType::promotion, from, to, piece, p, Piece::none});
+  std::uint64_t pawns = pieces(side, Piece::pawn);
+  while (pawns) {
+    const int from = pop_square(pawns);
+    const int file = file_of(from);
+    const int rank = rank_of(from);
+    const int target_rank = rank + step;
+    if (inside(file, target_rank)) {
+      const int to = square_of(file, target_rank);
+      if (!(occupied & square_bit(to))) {
+        if (target_rank == promotion_rank) {
+          for (Piece promotion :
+               {Piece::queen, Piece::rook, Piece::knight, Piece::bishop})
+            out.push_back({MoveType::promotion, from, to, Piece::pawn,
+                           promotion, Piece::none});
         } else {
-          out.push_back({MoveType::push, from, to, piece, Piece::none, Piece::none});
-          int jump_rank = r + 2 * step;
-          if (r == start && empty(square_of(f, jump_rank)))
-            out.push_back({MoveType::jump, from, square_of(f, jump_rank), piece,
-                           Piece::none, Piece::none});
-          else if (horde && side == Color::white && r == 0 &&
-                   empty(square_of(f, jump_rank)))
-            out.push_back({MoveType::horde_jump, from,
-                           square_of(f, jump_rank), piece,
-                           Piece::none, Piece::none});
+          out.push_back({MoveType::push, from, to, Piece::pawn});
+          const int jump_rank = rank + 2 * step;
+          if (inside(file, jump_rank) &&
+              !(occupied & square_bit(square_of(file, jump_rank)))) {
+            if (rank == start_rank)
+              out.push_back({MoveType::jump, from,
+                             square_of(file, jump_rank), Piece::pawn});
+            else if (horde && side == Color::white && rank == 0)
+              out.push_back({MoveType::horde_jump, from,
+                             square_of(file, jump_rank), Piece::pawn});
+          }
         }
       }
-      for (int df : {-1, 1}) {
-        int cf = f + df;
-        if (!inside(cf, to_rank)) continue;
-        int to = square_of(cf, to_rank);
+      for (int file_step : {-1, 1}) {
+        const int capture_file = file + file_step;
+        if (!inside(capture_file, target_rank)) continue;
+        const int to = square_of(capture_file, target_rank);
         if (color_at(to) == opponent(side)) {
-          Piece captured = piece_at(to);
-          if (to_rank == promo) {
-            for (Piece p : {Piece::queen, Piece::rook, Piece::knight, Piece::bishop})
-              out.push_back({MoveType::capture_promotion, from, to, piece, p, captured});
+          const Piece captured = piece_at(to);
+          if (target_rank == promotion_rank) {
+            for (Piece promotion :
+                 {Piece::queen, Piece::rook, Piece::knight, Piece::bishop})
+              out.push_back({MoveType::capture_promotion, from, to,
+                             Piece::pawn, promotion, captured});
           } else {
-            out.push_back({MoveType::capture, from, to, piece, Piece::none, captured});
+            out.push_back({MoveType::capture, from, to, Piece::pawn,
+                           Piece::none, captured});
           }
         } else if (to == en_passant) {
-          int victim = to - step * 8;
-          if (color_at(victim) == opponent(side) && piece_at(victim) == Piece::pawn)
-            out.push_back({MoveType::en_passant, from, to, piece, Piece::none, Piece::pawn});
+          const int victim = to - step * 8;
+          if (color_at(victim) == opponent(side) &&
+              piece_at(victim) == Piece::pawn)
+            out.push_back({MoveType::en_passant, from, to, Piece::pawn,
+                           Piece::none, Piece::pawn});
         }
       }
-      continue;
     }
-    if (piece == Piece::knight) {
-      for (auto& s : knight_steps) {
-        int nf = f + s[0], nr = r + s[1];
-        if (inside(nf, nr)) add_move(*this, side, out, from, square_of(nf, nr), piece);
-      }
-      continue;
-    }
-    if (piece == Piece::king) {
-      for (auto& s : king_steps) {
-        int nf = f + s[0], nr = r + s[1];
-        if (inside(nf, nr)) add_move(*this, side, out, from, square_of(nf, nr), piece);
-      }
-      const int home_rank = side == Color::white ? 0 : 7;
-      if (rank_of(from) == home_rank) {
-        for (const bool king_side : {true, false}) {
-          const int slot = castling_slot(side, king_side);
-          const std::uint8_t right = castling_right(side, king_side);
-          const int rook_from = castling_rooks[slot];
-          const int king_to = castling_king_destination(side, king_side);
-          const int rook_to = castling_rook_destination(side, king_side);
-          if ((castling & right) && rook_from >= 0 && rook_from < 64 &&
-              color_at(rook_from) == side &&
-              piece_at(rook_from) == Piece::rook &&
-              castling_path_clear(*this, from, rook_from, king_to, rook_to))
-            out.push_back({king_side ? MoveType::king_castle
-                                     : MoveType::queen_castle,
-                           from, king_to, piece});
-        }
-      }
-      continue;
-    }
-    const int (*dirs)[2] = piece == Piece::bishop ? bishop_dirs : rook_dirs;
-    int dir_count = 4;
-    auto slide = [&](const int direction[2]) {
-      int nf = f + direction[0], nr = r + direction[1];
-      while (inside(nf, nr)) {
-        int to = square_of(nf, nr);
-        if (color_at(to) == side) break;
+  }
+
+  auto add_targets = [&](Piece piece, std::uint64_t sources,
+                         auto attacks) {
+    while (sources) {
+      const int from = pop_square(sources);
+      std::uint64_t targets = attacks(from) & ~ours;
+      while (targets) {
+        const int to = pop_square(targets);
         add_move(*this, side, out, from, to, piece);
-        if (!empty(to)) break;
-        nf += direction[0]; nr += direction[1];
       }
-    };
-    if (piece == Piece::queen) {
-      for (auto& d : rook_dirs) slide(d);
-      for (auto& d : bishop_dirs) slide(d);
-    } else {
-      for (int i = 0; i < dir_count; ++i) slide(dirs[i]);
+    }
+  };
+  add_targets(Piece::knight, pieces(side, Piece::knight),
+              [](int from) { return knight_attack_table[from]; });
+  add_targets(Piece::bishop, pieces(side, Piece::bishop),
+              [&](int from) { return sliding_attacks(from, occupied, true); });
+  add_targets(Piece::rook, pieces(side, Piece::rook),
+              [&](int from) { return sliding_attacks(from, occupied, false); });
+  add_targets(Piece::queen, pieces(side, Piece::queen), [&](int from) {
+    return sliding_attacks(from, occupied, false) |
+           sliding_attacks(from, occupied, true);
+  });
+
+  std::uint64_t kings = pieces(side, Piece::king);
+  if (kings) {
+    const int from = pop_square(kings);
+    std::uint64_t targets = king_attack_table[from] & ~ours;
+    while (targets) {
+      const int to = pop_square(targets);
+      add_move(*this, side, out, from, to, Piece::king);
+    }
+    const int home_rank = side == Color::white ? 0 : 7;
+    if (rank_of(from) == home_rank) {
+      for (const bool king_side : {true, false}) {
+        const int slot = castling_slot(side, king_side);
+        const std::uint8_t right = castling_right(side, king_side);
+        const int rook_from = castling_rooks[slot];
+        const int king_to = castling_king_destination(side, king_side);
+        const int rook_to = castling_rook_destination(side, king_side);
+        if ((castling & right) && rook_from >= 0 && rook_from < 64 &&
+            color_at(rook_from) == side &&
+            piece_at(rook_from) == Piece::rook &&
+            castling_path_clear(*this, from, rook_from, king_to, rook_to))
+          out.push_back({king_side ? MoveType::king_castle
+                                   : MoveType::queen_castle,
+                         from, king_to, Piece::king});
+      }
     }
   }
   return out;
@@ -815,12 +1033,12 @@ std::optional<Position> Position::apply(const Move& move) const {
         !castling_king_path_safe(*this, side, move.from, rook_from, king_to))
       return std::nullopt;
     Position next = *this;
-    next.cells[move.from] = 0;
-    next.cells[rook_from] = 0;
-    next.cells[king_to] = static_cast<std::int8_t>(
-        sign * static_cast<int>(Piece::king));
-    next.cells[rook_to] = static_cast<std::int8_t>(
-        sign * static_cast<int>(Piece::rook));
+    next.set_cell(move.from, 0);
+    next.set_cell(rook_from, 0);
+    next.set_cell(king_to, static_cast<std::int8_t>(
+        sign * static_cast<int>(Piece::king)));
+    next.set_cell(rook_to, static_cast<std::int8_t>(
+        sign * static_cast<int>(Piece::rook)));
     next.en_passant = -1;
     clear_castling_rights(next, move, moving, side);
     if (next.in_check(side)) return std::nullopt;
@@ -828,13 +1046,14 @@ std::optional<Position> Position::apply(const Move& move) const {
   }
   if (color_at(move.to) == side) return std::nullopt;
   Position next = *this;
-  next.cells[move.from] = 0;
+  next.set_cell(move.from, 0);
   if (move.type == MoveType::en_passant) {
     int victim = move.to + (side == Color::white ? -8 : 8);
-    next.cells[victim] = 0;
+    next.set_cell(victim, 0);
   }
   Piece placed = move.is_promotion() ? move.promotion : moving;
-  next.cells[move.to] = static_cast<std::int8_t>(sign * static_cast<int>(placed));
+  next.set_cell(move.to, static_cast<std::int8_t>(
+      sign * static_cast<int>(placed)));
   next.en_passant = move.type == MoveType::jump ? (move.from + move.to) / 2 : -1;
   clear_castling_rights(next, move, moving, side);
   if (next.in_check(side)) return std::nullopt;
@@ -888,6 +1107,7 @@ void unpack_cells(Position& position,
         (packed[square / 16] >> ((square % 16) * 4)) & 0x0fU);
     position.cells[square] = static_cast<std::int8_t>(value - 6);
   }
+  position.rebuild_bitboards();
 }
 
 std::uint64_t cell_key(std::int8_t cell, int square) {
@@ -898,8 +1118,8 @@ std::uint64_t cell_key(std::int8_t cell, int square) {
       (color * 6 + piece) * 64 + square));
 }
 
-std::uint64_t castling_key(const Position& position, int bit) {
-  const int file = file_of(position.castling_rooks[bit]);
+std::uint64_t castling_key_for_rook(int rook_square, int bit) {
+  const int file = file_of(rook_square);
   const int orthodox_file = (bit & 1) ? 0 : 7;
   // Preserve all historical standard-chess keys because the embedded opening
   // table is keyed with them. Nonstandard rook origins use disjoint space.
@@ -907,6 +1127,10 @@ std::uint64_t castling_key(const Position& position, int bit) {
       ? 768 + bit
       : 781 + bit * 8 + file;
   return zobrist_value(index);
+}
+
+std::uint64_t castling_key(const Position& position, int bit) {
+  return castling_key_for_rook(position.castling_rooks[bit], bit);
 }
 
 std::uint64_t updated_position_key(std::uint64_t key,
@@ -931,27 +1155,27 @@ std::uint64_t updated_position_key(std::uint64_t key,
   return key;
 }
 
-std::uint64_t updated_search_key(
-    std::uint64_t key, const Position& before, Color before_turn,
-    const Position& after, Color after_turn,
-    const std::array<std::uint8_t, 4>& squares, std::uint8_t count) {
-  for (std::uint8_t changed = 0; changed < count; ++changed) {
-    const int square = squares[changed];
-    key ^= cell_key(before.cells[square], square);
+std::uint64_t updated_search_key_delta(
+    std::uint64_t key, const Board::SearchUndo& undo,
+    const Position& after, Color after_turn) {
+  for (std::uint8_t changed = 0; changed < undo.changed; ++changed) {
+    const int square = undo.squares[changed];
+    key ^= cell_key(undo.cells[changed], square);
     key ^= cell_key(after.cells[square], square);
   }
   for (int bit = 0; bit < 4; ++bit) {
     const std::uint8_t right = static_cast<std::uint8_t>(1U << bit);
-    if ((before.castling & right) == (after.castling & right)) continue;
-    if (before.castling & right) key ^= castling_key(before, bit);
-    if (after.castling & right) key ^= castling_key(after, bit);
+    if ((undo.castling & right) == (after.castling & right)) continue;
+    if (undo.castling & right)
+      key ^= castling_key_for_rook(undo.castling_rooks[bit], bit);
+    if (after.castling & right)
+      key ^= castling_key(after, bit);
   }
-  if (before_turn != after_turn) key ^= zobrist_value(772);
-  const int before_ep = before.en_passant >= 0
-      ? effective_en_passant(before, before_turn) : -1;
+  if (undo.turn != after_turn) key ^= zobrist_value(772);
+  if (undo.effective_en_passant >= 0)
+    key ^= zobrist_value(773 + file_of(undo.effective_en_passant));
   const int after_ep = after.en_passant >= 0
       ? effective_en_passant(after, after_turn) : -1;
-  if (before_ep >= 0) key ^= zobrist_value(773 + file_of(before_ep));
   if (after_ep >= 0) key ^= zobrist_value(773 + file_of(after_ep));
   return key;
 }
@@ -1042,6 +1266,10 @@ bool Board::make_search_move(const Move& move, SearchUndo& undo) {
   undo.castling = position.castling;
   undo.castling_rooks = position.castling_rooks;
   undo.en_passant = static_cast<std::int8_t>(position.en_passant);
+  undo.effective_en_passant = static_cast<std::int8_t>(
+      position.en_passant >= 0
+          ? effective_en_passant(position, turn) : -1);
+  undo.king_squares = position.king_squares;
   undo.key = key;
   undo.move = move;
 
@@ -1057,7 +1285,6 @@ bool Board::make_search_move(const Move& move, SearchUndo& undo) {
 
   const Color side = turn;
   const Piece moving = position.piece_at(move.from);
-  const Position before = position;
   const int sign = side == Color::white ? 1 : -1;
   if (move.is_castle()) {
     const auto next = position.apply(move);
@@ -1068,15 +1295,15 @@ bool Board::make_search_move(const Move& move, SearchUndo& undo) {
   } else {
     remember(move.from);
     remember(move.to);
-    position.cells[move.from] = 0;
+    position.set_cell(move.from, 0);
     if (move.type == MoveType::en_passant) {
       const int victim = move.to + (side == Color::white ? -8 : 8);
       remember(victim);
-      position.cells[victim] = 0;
+      position.set_cell(victim, 0);
     }
     const Piece placed = move.is_promotion() ? move.promotion : moving;
-    position.cells[move.to] = static_cast<std::int8_t>(
-        sign * static_cast<int>(placed));
+    position.set_cell(move.to, static_cast<std::int8_t>(
+        sign * static_cast<int>(placed)));
     position.en_passant = move.type == MoveType::jump
         ? (move.from + move.to) / 2 : -1;
     clear_castling_rights(position, move, moving, side);
@@ -1084,28 +1311,31 @@ bool Board::make_search_move(const Move& move, SearchUndo& undo) {
 
   if (position.in_check(side)) {
     for (int index = 0; index < undo.changed; ++index)
-      position.cells[undo.squares[index]] = undo.cells[index];
+      position.set_cell(undo.squares[index], undo.cells[index]);
     position.castling = undo.castling;
     position.castling_rooks = undo.castling_rooks;
     position.en_passant = undo.en_passant;
     return false;
   }
 
-  nnue_update_changed(nnue, before, position, undo.squares, undo.changed);
+  nnue_update_delta(nnue, undo.king_squares, position, undo.squares,
+                    undo.cells, undo.changed);
   if (move.is_castle()) has_castled[color_index(side)] = true;
   halfmove = moving == Piece::pawn || move.is_capture() || move.is_castle()
       ? 0 : halfmove + 1;
   if (side == Color::black) ++fullmove;
   turn = opponent(side);
-  key = updated_search_key(undo.key, before, side, position, turn,
-                           undo.squares, undo.changed);
+  key = updated_search_key_delta(undo.key, undo, position, turn);
   return true;
 }
 
 void Board::unmake_search_move(const SearchUndo& undo) {
-  const Position after = position;
-  for (int index = 0; index < undo.changed; ++index)
-    position.cells[undo.squares[index]] = undo.cells[index];
+  const auto after_kings = position.king_squares;
+  std::array<std::int8_t, 4> after_cells{};
+  for (int index = 0; index < undo.changed; ++index) {
+    after_cells[index] = position.cells[undo.squares[index]];
+    position.set_cell(undo.squares[index], undo.cells[index]);
+  }
   position.castling = undo.castling;
   position.castling_rooks = undo.castling_rooks;
   position.en_passant = undo.en_passant;
@@ -1114,7 +1344,8 @@ void Board::unmake_search_move(const SearchUndo& undo) {
   fullmove = undo.fullmove;
   has_castled = undo.has_castled;
   if (!undo.null_move)
-    nnue_update_changed(nnue, after, position, undo.squares, undo.changed);
+    nnue_update_delta(nnue, after_kings, position, undo.squares,
+                      after_cells, undo.changed);
   key = undo.key;
 }
 
@@ -1127,13 +1358,18 @@ void Board::make_null_move(SearchUndo& undo) {
   undo.castling = position.castling;
   undo.castling_rooks = position.castling_rooks;
   undo.en_passant = static_cast<std::int8_t>(position.en_passant);
+  undo.effective_en_passant = static_cast<std::int8_t>(
+      position.en_passant >= 0
+          ? effective_en_passant(position, turn) : -1);
+  undo.king_squares = position.king_squares;
   undo.key = key;
   undo.null_move = true;
-  const Position before = position;
+  if (undo.effective_en_passant >= 0)
+    key ^= zobrist_value(773 + file_of(undo.effective_en_passant));
+  key ^= zobrist_value(772);
   position.en_passant = -1;
   ++halfmove;
   turn = opponent(turn);
-  key = updated_position_key(key, before, undo.turn, position, turn);
 }
 
 std::optional<Move> Board::last_move() const {
@@ -1170,10 +1406,7 @@ bool Board::is_threefold_repetition() const { return repetition_count() >= 3; }
 bool Board::is_fifty_move_draw() const { return halfmove >= 100; }
 
 bool Board::horde_eliminated() const {
-  if (!horde) return false;
-  for (int square = 0; square < 64; ++square)
-    if (position.color_at(square) == Color::white) return false;
-  return true;
+  return horde && position.occupancy(Color::white) == 0;
 }
 
 std::optional<Color> Board::variant_winner() const {
@@ -1230,7 +1463,7 @@ std::optional<Board> parse_fen(std::string_view fen, std::string* error) {
   };
   auto fields = split(fen);
   if (fields.size() != 6) return fail("FEN must contain six fields");
-  Board board; board.position.cells.fill(0); board.position.castling = 0;
+  Board board; board.position.clear_pieces(); board.position.castling = 0;
   int rank = 7, file = 0;
   for (char c : fields[0]) {
     if (c == '/') {
@@ -1241,7 +1474,9 @@ std::optional<Board> parse_fen(std::string_view fen, std::string* error) {
     Piece piece = char_piece(c);
     if (piece == Piece::none || file >= 8) return fail("invalid piece placement");
     int sign = std::isupper(static_cast<unsigned char>(c)) ? 1 : -1;
-    board.position.cells[square_of(file++, rank)] = static_cast<std::int8_t>(sign * static_cast<int>(piece));
+    board.position.set_cell(square_of(file++, rank),
+                            static_cast<std::int8_t>(
+                                sign * static_cast<int>(piece)));
   }
   if (rank != 0 || file != 8) return fail("invalid piece placement");
   if (fields[1] == "w") board.turn = Color::white;
@@ -1445,6 +1680,42 @@ Searcher::Searcher(EngineConfig config, std::atomic_bool& stopped, int lane)
     const std::size_t buckets = std::bit_floor(std::max<std::size_t>(1, requested));
     table_.resize(buckets);
   }
+  if (lane_ == 0) {
+    for (int index = 0; index < search_thread_count - 1; ++index) {
+      owned_helpers_[index] =
+          std::make_unique<Searcher>(config_, stopped_, index + 1);
+      root_helpers_[index] = owned_helpers_[index].get();
+      root_worker_threads_[index] = std::thread([this, index] {
+        std::uint64_t observed_epoch = 0;
+        std::unique_lock lock(root_work_mutex_);
+        for (;;) {
+          root_work_ready_.wait(lock, [&] {
+            return root_work_shutdown_ ||
+                   root_work_epoch_ != observed_epoch;
+          });
+          if (root_work_shutdown_) return;
+          observed_epoch = root_work_epoch_;
+          auto work = root_work_;
+          lock.unlock();
+          work(index + 1);
+          lock.lock();
+          ++root_work_completed_;
+          root_work_done_.notify_one();
+        }
+      });
+    }
+  }
+}
+
+Searcher::~Searcher() {
+  if (lane_ != 0) return;
+  {
+    std::scoped_lock lock(root_work_mutex_);
+    root_work_shutdown_ = true;
+  }
+  root_work_ready_.notify_all();
+  for (std::thread& worker : root_worker_threads_)
+    if (worker.joinable()) worker.join();
 }
 
 bool Searcher::halted() {
@@ -1454,8 +1725,163 @@ bool Searcher::halted() {
   return false;
 }
 
+void Searcher::advance_generation() {
+  if (++generation_ != 0) return;
+  generation_ = 1;
+  for (TTBucket& bucket : table_)
+    for (TTEntry& entry : bucket.entries)
+      entry.depth = -1;
+}
+
+void Searcher::reset_statistics() {
+  nodes_ = qnodes_ = tt_hits_ = beta_cutoffs_ = lmr_reductions_ = 0;
+  quiet_checks_ = null_cutoffs_ = probcut_cutoffs_ = 0;
+  singular_extensions_ = late_move_prunes_ = 0;
+  history_hits_ = countermove_hits_ = 0;
+}
+
+void Searcher::prepare_root_helper(const Searcher& principal,
+                                   const Board&) {
+  limits_ = principal.limits_;
+  started_ = principal.started_;
+  repetition_keys_ = principal.repetition_keys_;
+  reset_statistics();
+  advance_generation();
+}
+
+void Searcher::absorb_statistics(const Searcher& helper) {
+  nodes_ += helper.nodes_;
+  qnodes_ += helper.qnodes_;
+  tt_hits_ += helper.tt_hits_;
+  beta_cutoffs_ += helper.beta_cutoffs_;
+  lmr_reductions_ += helper.lmr_reductions_;
+  quiet_checks_ += helper.quiet_checks_;
+  null_cutoffs_ += helper.null_cutoffs_;
+  probcut_cutoffs_ += helper.probcut_cutoffs_;
+  singular_extensions_ += helper.singular_extensions_;
+  late_move_prunes_ += helper.late_move_prunes_;
+  history_hits_ += helper.history_hits_;
+  countermove_hits_ += helper.countermove_hits_;
+}
+
+std::optional<int> Searcher::search_root_move(
+    Board root, const Move& move, int depth, int alpha, int beta,
+    bool pv_node, const Move& previous) {
+  const Color side = root.turn;
+  Board::SearchUndo undo;
+  if (!root.make_search_move(move, undo)) return std::nullopt;
+  repetition_keys_.push_back(root.key);
+  const bool gives_check = root.position.in_check(root.turn);
+  const int relative_rank = move.piece == Piece::pawn
+      ? (side == Color::white ? rank_of(move.to) : 7 - rank_of(move.to))
+      : 0;
+  const bool dangerous_passer = move.piece == Piece::pawn &&
+      relative_rank >= 6 && passed_pawn(root.position, side, move.to);
+  const bool recapture = move.is_capture() && previous.is_capture() &&
+      move.to == previous.to &&
+      static_exchange_score(root.position, side, move) >= 0;
+  const int extension = (gives_check || dangerous_passer || recapture) ? 1 : 0;
+  const int score = -negamax(
+      root, std::max(0, depth - 1 + extension), -beta, -alpha, 1,
+      pv_node, move, extension);
+  repetition_keys_.pop_back();
+  return score;
+}
+
+int Searcher::parallel_root(Board& board, const MoveList& moves, int depth,
+                            int alpha, int beta, int static_score,
+                            const Move& previous) {
+  const int original_alpha = alpha;
+  std::vector<std::optional<int>> speculative(moves.size());
+  std::size_t first = 0;
+  for (; first < moves.size(); ++first) {
+    speculative[first] = search_root_move(
+        board, moves[first], depth, alpha, beta, true, previous);
+    if (speculative[first]) break;
+  }
+  if (first == moves.size())
+    return board.position.in_check(board.turn) ? -mate_score : 0;
+
+  Move best = moves[first];
+  int best_score = *speculative[first];
+  root_best_ = best;
+  root_scores_.push_back({best, best_score});
+  alpha = std::max(alpha, best_score);
+  if (alpha >= beta) {
+    ++beta_cutoffs_;
+    store(board.key, depth, best_score, static_score, 1, best, 0);
+    return best_score;
+  }
+
+  for (Searcher* helper : root_helpers_)
+    helper->prepare_root_helper(*this, board);
+  const int speculative_alpha = alpha;
+  auto search_lane = [&](Searcher& worker, int lane) {
+    for (std::size_t index = first + 1; index < moves.size(); ++index) {
+      if (static_cast<int>((index - first - 1) % search_thread_count) != lane)
+        continue;
+      speculative[index] = worker.search_root_move(
+          board, moves[index], depth, speculative_alpha,
+          speculative_alpha + 1, false, previous);
+      if (worker.halted()) break;
+    }
+  };
+  {
+    std::scoped_lock lock(root_work_mutex_);
+    root_work_completed_ = 0;
+    root_work_ = [&](int lane) {
+      search_lane(*root_helpers_[lane - 1], lane);
+    };
+    ++root_work_epoch_;
+  }
+  root_work_ready_.notify_all();
+  search_lane(*this, 0);
+  {
+    std::unique_lock lock(root_work_mutex_);
+    root_work_done_.wait(lock, [&] {
+      return root_work_completed_ == search_thread_count - 1;
+    });
+    root_work_ = {};
+  }
+  absorb_statistics(*root_helpers_[0]);
+  absorb_statistics(*root_helpers_[1]);
+  if (halted()) return 0;
+
+  for (std::size_t index = first + 1; index < moves.size(); ++index) {
+    if (!speculative[index]) continue;
+    int score = *speculative[index];
+    if (score > speculative_alpha) {
+      const auto exact = search_root_move(
+          board, moves[index], depth, alpha, beta, true, previous);
+      if (!exact) continue;
+      score = *exact;
+      if (halted()) return 0;
+    }
+    root_scores_.push_back({moves[index], score});
+    if (score > best_score) {
+      best_score = score;
+      best = moves[index];
+      root_best_ = best;
+    }
+    alpha = std::max(alpha, score);
+    if (alpha >= beta) {
+      ++beta_cutoffs_;
+      break;
+    }
+  }
+  const int flag = best_score <= original_alpha
+      ? -1 : (best_score >= beta ? 1 : 0);
+  store(board.key, depth, best_score, static_score, flag, best, 0);
+  return best_score;
+}
+
 ExactEndgame probe_exact_endgame(const Board& board) {
   if (board.horde) return ExactEndgame::none;
+  // Every exact class currently recognized by Eloi has at most five pieces.
+  // This guard keeps several detailed classifiers out of the middlegame
+  // evaluation hot path without changing any covered endgame.
+  if (std::popcount(board.position.occupied) > 5)
+    return ExactEndgame::none;
   if (board.position.insufficient_material() ||
       wrong_bishop_rook_pawn_draw(board.position))
     return ExactEndgame::draw;
@@ -1519,71 +1945,27 @@ int Searcher::volatility(const Board& board, std::size_t legal_count,
   // here; exact attackers and SEE are already checked by the pruning rules
   // and move loop that consume this value.
   std::array<int, 2> advanced_pawns{};
-  for (int square = 0; square < 64; ++square) {
-    const auto side = board.position.color_at(square);
-    if (!side || board.position.piece_at(square) != Piece::pawn) continue;
-    const int advance = *side == Color::white ? rank_of(square)
-                                              : 7 - rank_of(square);
-    if (advance >= 5) ++advanced_pawns[color_index(*side)];
-  }
+  constexpr std::uint64_t white_advanced = 0xFFFFFF0000000000ULL;
+  constexpr std::uint64_t black_advanced = 0x0000000000FFFFFFULL;
+  advanced_pawns[0] = std::popcount(
+      board.position.pieces(Color::white, Piece::pawn) & white_advanced);
+  advanced_pawns[1] = std::popcount(
+      board.position.pieces(Color::black, Piece::pawn) & black_advanced);
   result += std::min(20, 8 * (advanced_pawns[0] + advanced_pawns[1]));
 
   for (Color side : {Color::white, Color::black}) {
     const int king = board.position.king_square(side);
     if (king < 0) continue;
-    int shield = 0;
     const int direction = side == Color::white ? 1 : -1;
-    const int shield_rank = rank_of(king) + direction;
-    for (int df = -1; df <= 1; ++df) {
-      const int file = file_of(king) + df;
-      if (!inside(file, shield_rank)) continue;
-      const int square = square_of(file, shield_rank);
-      if (board.position.color_at(square) == side &&
-          board.position.piece_at(square) == Piece::pawn)
-        ++shield;
-    }
+    const int forward = king + direction * 8;
+    const std::uint64_t shield_mask = pawn_attack_table[color_index(side)][king] |
+                                      square_bit(forward);
+    const int shield = std::popcount(
+        shield_mask & board.position.pieces(side, Piece::pawn));
     if (shield == 0) result += 6;
     else if (shield == 1) result += 2;
   }
   return std::clamp(result, 0, 100);
-}
-
-bool Searcher::qualifying_quiet_check(const Board& board_after,
-                                      const Move& move) const {
-  const Color defender = board_after.turn;
-  const Color attacker = opponent(defender);
-  if (!board_after.position.in_check(defender)) return false;
-  int king_moves = 0;
-  for (const Move& reply : board_after.legal_moves())
-    if (reply.piece == Piece::king) ++king_moves;
-  if (king_moves <= 2) return true;
-
-  const Piece moved = move.is_promotion() ? move.promotion : move.piece;
-  int secondary_targets = 0;
-  bool undefended_major = false;
-  for (int square = 0; square < 64; ++square) {
-    if (board_after.position.color_at(square) != defender ||
-        square == board_after.position.king_square(defender)) continue;
-    const Piece victim = board_after.position.piece_at(square);
-    if (!piece_attacks_square(board_after.position, attacker, move.to, moved,
-                              square)) continue;
-    if (nominal(victim) >= 300) ++secondary_targets;
-    if ((victim == Piece::rook || victim == Piece::queen) &&
-        board_after.position.attackers(defender, square) == 0)
-      undefended_major = true;
-  }
-  if (secondary_targets > 0 || undefended_major) return true;
-
-  const int king = board_after.position.king_square(defender);
-  int mating_net_pressure = 0;
-  for (int df = -1; df <= 1; ++df)
-    for (int dr = -1; dr <= 1; ++dr) {
-      const int file = file_of(king) + df, rank = rank_of(king) + dr;
-      if (inside(file, rank))
-        mating_net_pressure +=
-            board_after.position.attackers(attacker, square_of(file, rank));
-    }
-  return mating_net_pressure >= 5 && king_moves <= 3;
 }
 
 int Searcher::quiet_history(Color side, const Move& move,
@@ -1678,7 +2060,8 @@ Searcher::TTEntry* Searcher::probe(std::uint64_t key) {
   if (table_.empty()) return nullptr;
   TTBucket& bucket = table_[key & (table_.size() - 1)];
   for (TTEntry& entry : bucket.entries) {
-    if (entry.key == key && entry.depth >= 0) {
+    if (entry.key == key && entry.depth >= 0 &&
+        entry.generation == generation_) {
       ++tt_hits_;
       return &entry;
     }
@@ -1690,7 +2073,9 @@ const Searcher::TTEntry* Searcher::find(std::uint64_t key) const {
   if (table_.empty()) return nullptr;
   const TTBucket& bucket = table_[key & (table_.size() - 1)];
   for (const TTEntry& entry : bucket.entries)
-    if (entry.key == key && entry.depth >= 0) return &entry;
+    if (entry.key == key && entry.depth >= 0 &&
+        entry.generation == generation_)
+      return &entry;
   return nullptr;
 }
 
@@ -1717,8 +2102,10 @@ void Searcher::store(std::uint64_t key, int depth, int score, int static_eval,
 
 bool Searcher::search_draw(const Board& board, int ply) const {
   if (ply <= 0) return false;
-  if (board.is_fifty_move_draw() ||
-      (!board.horde && board.position.insufficient_material()))
+  if (board.is_fifty_move_draw())
+    return true;
+  if (!board.horde && std::popcount(board.position.occupied) <= 4 &&
+      board.position.insufficient_material())
     return true;
   int repetitions = 0;
   for (std::uint64_t key : repetition_keys_)
@@ -1775,34 +2162,28 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
     if (stand >= beta) return beta;
     alpha = std::max(alpha, stand);
   }
-  if (qply >= 20 || ply >= maximum_search_depth)
+  if (qply >= 4 || ply >= maximum_search_depth)
     return in_check ? evaluate(board) : alpha;
   const auto moves = ordered_moves(board, found ? found->best : 0, ply, {});
   if (moves.empty()) return in_check ? -mate_score + ply : 0;
-  int quiet_checks = 0;
   int legal_moves = 0;
   Move best;
   for (const auto& move : moves) {
     const bool quiet = !move.is_capture() && !move.is_promotion();
-    if (!in_check && quiet && (qply > 10 || quiet_checks >= 3)) continue;
+    // Non-capturing checks at every leaf produced most of Eloi's depth-five
+    // tree. A stable quiescence frontier searches captures/promotions and all
+    // evasions when checked; forcing quiet checks remain part of normal
+    // negamax instead of recursively extending the tactical horizon.
+    if (!in_check && quiet) continue;
     if (!in_check && !move.is_promotion() &&
-        !quiet && stand + nominal(move.capture) + 140 < alpha) continue;
+        !quiet && stand + nominal(move.capture) + 100 < alpha) continue;
     if (!in_check && move.is_capture() && !move.is_promotion() &&
-        static_exchange_score(board.position, board.turn, move) < -100)
+        static_exchange_score(board.position, board.turn, move) < 0)
       continue;
     Board::SearchUndo undo;
     if (!board.make_search_move(move, undo)) continue;
     ++legal_moves;
     repetition_keys_.push_back(board.key);
-    if (!in_check && quiet) {
-      if (!qualifying_quiet_check(board, move)) {
-        repetition_keys_.pop_back();
-        board.unmake_search_move(undo);
-        continue;
-      }
-      ++quiet_checks;
-      ++quiet_checks_;
-    }
     int score = -quiescence(board, -beta, -alpha, ply + 1, qply + 1);
     repetition_keys_.pop_back();
     board.unmake_search_move(undo);
@@ -1874,16 +2255,16 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   if (!pv_node && !excluded && depth >= 6 && !tt_move)
     --depth;
 
-  int non_pawn_value = 0;
-  int non_pawn_count = 0;
-  for (int square = 0; square < 64; ++square) {
-    if (board.position.color_at(square) != board.turn) continue;
-    const Piece piece = board.position.piece_at(square);
-    if (piece != Piece::pawn && piece != Piece::king) {
-      non_pawn_value += nominal(piece);
-      ++non_pawn_count;
-    }
-  }
+  const auto bishops = board.position.pieces(board.turn, Piece::bishop);
+  const auto knights = board.position.pieces(board.turn, Piece::knight);
+  const auto rooks = board.position.pieces(board.turn, Piece::rook);
+  const auto queens = board.position.pieces(board.turn, Piece::queen);
+  const int minor_count = std::popcount(bishops) + std::popcount(knights);
+  const int rook_count = std::popcount(rooks);
+  const int queen_count = std::popcount(queens);
+  const int non_pawn_value =
+      300 * minor_count + 500 * rook_count + 900 * queen_count;
+  const int non_pawn_count = minor_count + rook_count + queen_count;
 
   if (!board.horde && allow_null && !pv_node && !excluded && !in_check &&
       depth >= 3 && ply > 0 && board.halfmove < 80 &&
@@ -1917,6 +2298,10 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   if (moves.empty()) return in_check ? -mate_score + ply : 0;
   const int node_volatility = std::clamp(
       base_volatility + (moves.size() == 1 ? 24 : 0), 0, 100);
+
+  if (ply == 0 && !excluded && root_helpers_[0] && root_helpers_[1])
+    return parallel_root(
+        board, moves, depth, alpha, beta, static_score, previous);
 
   if (!pv_node && !excluded && !in_check && depth >= 5 &&
       node_volatility < 80 && beta < mate_score - 1'000) {
@@ -2011,7 +2396,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
         (ply < static_cast<int>(killers_.size()) &&
          (move.same_coordinates(killers_[ply][0]) ||
           move.same_coordinates(killers_[ply][1])));
-    const int lmp_threshold = 6 + depth * 3;
+    const int lmp_threshold = 4 + depth * 2;
     if (!pv_node && !in_check && quiet && depth <= 3 &&
         move_index >= lmp_threshold && history < 0 &&
         node_volatility < 55 && !protected_quiet) {
@@ -2029,11 +2414,13 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       extension = 1;
     const int child_extensions = extensions + extension;
     int child_depth = depth - 1 + extension;
-    const bool reduce = child_depth >= 2 && move_index >= 3 &&
+    const bool reduce = child_depth >= 2 && move_index >= 2 &&
                         quiet && !in_check && !gives_check && !singular;
     int score;
     if (reduce) {
-      int reduction = 1 + (depth >= 6 && move_index >= 8 ? 1 : 0);
+      int reduction = 1;
+      if (depth >= 4 && move_index >= 6) ++reduction;
+      if (!pv_node && depth >= 5 && move_index >= 12) ++reduction;
       if (history > 4'000 || node_volatility >= 55) --reduction;
       if (history < -2'000 && node_volatility <= 22 && depth >= 5)
         ++reduction;
@@ -2206,96 +2593,16 @@ SearchResult Searcher::iterative(Board board, SearchLimits limits,
   if (opening_move(config_, board))
     return iterative_single(std::move(board), limits, info);
 
-  std::array<SearchLimits, search_thread_count> lane_limits;
-  lane_limits.fill(limits);
-  if (limits.depth > 1 && !limits.deadline && limits.remaining_ms <= 0) {
-    // In fixed-depth analysis the principal lane defines the requested result.
-    // Let helpers diversify one ply shallower so a pathological helper tree
-    // cannot hold the GUI hostage after the principal depth is complete.
-    lane_limits[1].depth = limits.depth - 1;
-    lane_limits[2].depth = limits.depth - 1;
-  }
-  if (limits.nodes) {
-    // A fixed-node command is a total budget. Favor the principal lane so it
-    // retains a coherent tree instead of weakening all three equally.
-    lane_limits[0].nodes = std::max<std::uint64_t>(1, (limits.nodes + 1) / 2);
-    lane_limits[1].nodes = std::max<std::uint64_t>(1, (limits.nodes + 3) / 4);
-    lane_limits[2].nodes = std::max<std::uint64_t>(1, (limits.nodes + 3) / 4);
-  }
-
-  std::array<SearchResult, search_thread_count> results;
-  std::array<std::unique_ptr<Searcher>, search_thread_count - 1> helpers;
-  for (int index = 0; index < search_thread_count - 1; ++index) {
-    helpers[index] = std::make_unique<Searcher>(config_, stopped_, index + 1);
-  }
   lane_ = 0;
-
-  std::thread helper_one([&] {
-    results[1] = helpers[0]->iterative_single(board, lane_limits[1], {});
-  });
-  std::thread helper_two([&] {
-    results[2] = helpers[1]->iterative_single(board, lane_limits[2], {});
-  });
-  results[0] = iterative_single(std::move(board), lane_limits[0], info);
-  helper_one.join();
-  helper_two.join();
-
-  auto move_id = [](const SearchResult& result) -> std::uint32_t {
-    return result.pv.empty() ? 0x1'0000U : pack_move(result.pv.front());
-  };
-  const std::array<std::uint32_t, search_thread_count> moves{
-      move_id(results[0]), move_id(results[1]), move_id(results[2])};
-  int winner = 0;
-  for (int index = 1; index < search_thread_count; ++index) {
-    if (!results[index].pv.empty() &&
-        results[index].depth > results[winner].depth)
-      winner = index;
-  }
-  if (moves[1] == moves[2]) {
-    const int helper = results[1].depth >= results[2].depth ? 1 : 2;
-    // The principal lane owns the larger TT and the coherent search. Helper
-    // consensus is useful only when it finished a genuinely deeper iteration;
-    // at equal depth it must not replace the principal move with a perturbed
-    // ordering result (the shallow Na3 regression was exactly this case).
-    if (!results[helper].pv.empty() &&
-        results[helper].depth > results[0].depth)
-      winner = helper;
-  }
-
-  SearchResult combined = results[winner];
-  combined.nodes = combined.qnodes = combined.tt_hits = 0;
-  combined.beta_cutoffs = combined.lmr_reductions = combined.quiet_checks = 0;
-  combined.null_cutoffs = combined.probcut_cutoffs = 0;
-  combined.singular_extensions = combined.late_move_prunes = 0;
-  combined.history_hits = combined.countermove_hits = 0;
-  combined.elapsed = {};
-  for (const SearchResult& result : results) {
-    combined.nodes += result.nodes;
-    combined.qnodes += result.qnodes;
-    combined.tt_hits += result.tt_hits;
-    combined.beta_cutoffs += result.beta_cutoffs;
-    combined.lmr_reductions += result.lmr_reductions;
-    combined.quiet_checks += result.quiet_checks;
-    combined.null_cutoffs += result.null_cutoffs;
-    combined.probcut_cutoffs += result.probcut_cutoffs;
-    combined.singular_extensions += result.singular_extensions;
-    combined.late_move_prunes += result.late_move_prunes;
-    combined.history_hits += result.history_hits;
-    combined.countermove_hits += result.countermove_hits;
-    combined.elapsed = std::max(combined.elapsed, result.elapsed);
-  }
-  if (info) info(combined);
-  return combined;
+  SearchResult result = iterative_single(std::move(board), limits, info);
+  return result;
 }
 
 SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
                                  const std::function<void(const SearchResult&)>& info) {
   limits_ = limits;
   limits_.depth = std::clamp(limits_.depth, 0, maximum_search_depth);
-  nodes_ = qnodes_ = tt_hits_ = beta_cutoffs_ = lmr_reductions_ = 0;
-  quiet_checks_ = null_cutoffs_ = probcut_cutoffs_ = 0;
-  singular_extensions_ = late_move_prunes_ = 0;
-  history_hits_ = countermove_hits_ = 0;
+  reset_statistics();
   std::fill(killers_.begin(), killers_.end(),
             std::array<Move, 2>{});
   history_scores_ = {};
@@ -2307,7 +2614,7 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
   for (const Board::Snapshot& snapshot : board.history)
     repetition_keys_.push_back(snapshot.key);
   repetition_keys_.push_back(board.key);
-  if (++generation_ == 0) generation_ = 1;
+  advance_generation();
   started_ = std::chrono::steady_clock::now();
   SearchResult last;
   if (auto book = opening_move(config_, board)) {

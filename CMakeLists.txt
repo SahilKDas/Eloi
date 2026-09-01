@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
-project(Eloi VERSION 1.5.0 LANGUAGES CXX)
-set(ELOI_PRERELEASE "beta.1")
+project(Eloi VERSION 1.9.0 LANGUAGES CXX)
+set(ELOI_PRERELEASE "rc.1")
 if(ELOI_PRERELEASE)
   set(ELOI_VERSION "${PROJECT_VERSION}-${ELOI_PRERELEASE}")
 else()
@@ -31,7 +31,7 @@ option(ELOI_BUILD_APP "Build the production Eloi executable" ON)
 option(ELOI_SPLIT_PACKAGE
   "Build the Defender-friendly external-assets Windows release package" OFF)
 if(ELOI_SPLIT_PACKAGE AND NOT WIN32)
-  message(FATAL_ERROR "The split-runtime package is Windows-only")
+  message(FATAL_ERROR "The Exoskeleton package is Windows-only")
 endif()
 
 set(SKIA_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.deps/skia108/ucrt64"
@@ -50,7 +50,7 @@ else()
   target_compile_options(eloi_core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# Eloi is the sole production executable unless the split-runtime release
+# Eloi is the sole production executable unless the Exoskeleton release
 # option is selected. The default standalone target remains unchanged.
 if(ELOI_BUILD_APP)
   set(ELOI_APP_SOURCES
@@ -137,7 +137,7 @@ if(WIN32 AND ELOI_BUILD_APP)
     "${ELOI_STATIC_ROOT}/lib/libwebp.a"
     "${ELOI_STATIC_ROOT}/lib/libsharpyuv.a"
     "${ELOI_STATIC_ROOT}/lib/libzs.a"
-    gdi32 user32 comdlg32 shell32 ole32 oleaut32 uuid usp10 opengl32
+    gdi32 user32 comdlg32 shell32 ole32 oleaut32 uuid usp10 opengl32 bcrypt
   )
   target_link_libraries(Eloi PRIVATE ${ELOI_GUI_LIBRARIES})
   if(ELOI_SPLIT_PACKAGE)

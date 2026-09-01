@@ -32,10 +32,12 @@ int main(int argc, char** argv) {
     if (std::strcmp(argv[i], "--screenshot") == 0) return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--screenshot-setup") == 0)
       return run_gui(argc, argv);
+    if (std::strcmp(argv[i], "--screenshot-engine-lab") == 0)
+      return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--uci") == 0) return run_engine(config, argc, argv);
     if (std::strcmp(argv[i], "--lichess") == 0) {
 #ifdef ELOI_SEPARATE_LICHESS_EXE
-      std::cerr << "This split-runtime package isolates native Lichess networking.\n"
+      std::cerr << "This Exoskeleton package isolates native Lichess networking.\n"
                    "Run EloiLichess.exe instead.\n";
       return 2;
 #else
@@ -55,6 +57,7 @@ int main(int argc, char** argv) {
                    "  Eloi.exe --bench [--depth N]  run deterministic search benchmark\n"
                    "  Eloi.exe --screenshot FILE.bmp  render a GUI test frame\n"
                    "  Eloi.exe --screenshot-setup FILE.bmp  render clock setup\n"
+                   "  Eloi.exe --screenshot-engine-lab FILE.bmp PREVIOUS.exe  render Engine Lab\n"
                    "  Eloi.exe --version-match  launch the current-vs-previous arena\n"
                    "  Eloi.exe --version-match-smoke PREVIOUS.exe  test the UCI version arena\n"
                    "Depths above 40 plies are experimental and may take hours or days.\n"

@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace eloi {
 
@@ -15,6 +16,9 @@ struct UciVersionResult {
   int depth{0};
   int score_cp{0};
   std::uint64_t nodes{0};
+  std::uint64_t nps{0};
+  std::uint64_t elapsed_ms{0};
+  std::vector<std::string> pv;
 };
 
 class UciVersionEngine {
@@ -38,5 +42,6 @@ class UciVersionEngine {
 int run_version_match_smoke(const std::filesystem::path& current,
                             const std::filesystem::path& previous,
                             int depth = 2, int plies = 4);
+std::string sha256_file(const std::filesystem::path& path);
 
 }  // namespace eloi

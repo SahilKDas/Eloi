@@ -4,8 +4,12 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <bcrypt.h>
 
+#include <array>
 #include <charconv>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <sstream>
@@ -31,6 +35,68 @@ bool parse_number(std::string_view value, Number& output) {
 }
 
 }  // namespace
+
+std::string sha256_file(const std::filesystem::path& path) {
+  BCRYPT_ALG_HANDLE algorithm = nullptr;
+  BCRYPT_HASH_HANDLE hash = nullptr;
+  DWORD object_size = 0;
+  DWORD digest_size = 0;
+  DWORD copied = 0;
+  std::vector<unsigned char> object;
+  std::vector<unsigned char> digest;
+  auto close = [&] {
+    if (hash) BCryptDestroyHash(hash);
+    if (algorithm) BCryptCloseAlgorithmProvider(algorithm, 0);
+  };
+  if (BCryptOpenAlgorithmProvider(
+          &algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0) < 0 ||
+      BCryptGetProperty(
+          algorithm, BCRYPT_OBJECT_LENGTH,
+          reinterpret_cast<PUCHAR>(&object_size), sizeof(object_size),
+          &copied, 0) < 0 ||
+      BCryptGetProperty(
+          algorithm, BCRYPT_HASH_LENGTH,
+          reinterpret_cast<PUCHAR>(&digest_size), sizeof(digest_size),
+          &copied, 0) < 0) {
+    close();
+    return {};
+  }
+  object.resize(object_size);
+  digest.resize(digest_size);
+  if (BCryptCreateHash(algorithm, &hash, object.data(), object_size,
+                       nullptr, 0, 0) < 0) {
+    close();
+    return {};
+  }
+  std::ifstream input(path, std::ios::binary);
+  if (!input) {
+    close();
+    return {};
+  }
+  std::array<char, 64 * 1024> buffer{};
+  while (input) {
+    input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+    const auto count = input.gcount();
+    if (count > 0 &&
+        BCryptHashData(
+            hash, reinterpret_cast<PUCHAR>(buffer.data()),
+            static_cast<ULONG>(count), 0) < 0) {
+      close();
+      return {};
+    }
+  }
+  if (!input.eof() ||
+      BCryptFinishHash(hash, digest.data(), digest_size, 0) < 0) {
+    close();
+    return {};
+  }
+  close();
+  std::ostringstream output;
+  output << std::uppercase << std::hex << std::setfill('0');
+  for (unsigned char byte : digest)
+    output << std::setw(2) << static_cast<unsigned>(byte);
+  return output.str();
+}
 
 struct UciVersionEngine::Impl {
   explicit Impl(std::filesystem::path path)
@@ -170,6 +236,16 @@ struct UciVersionEngine::Impl {
           if (tokens[i] == "depth") parse_number(tokens[++i], result.depth);
           else if (tokens[i] == "nodes")
             parse_number(tokens[++i], result.nodes);
+          else if (tokens[i] == "nps")
+            parse_number(tokens[++i], result.nps);
+          else if (tokens[i] == "time")
+            parse_number(tokens[++i], result.elapsed_ms);
+          else if (tokens[i] == "pv") {
+            result.pv.assign(tokens.begin() +
+                                 static_cast<std::ptrdiff_t>(i + 1),
+                             tokens.end());
+            break;
+          }
           else if (tokens[i] == "score" && i + 2 < tokens.size()) {
             const std::string kind = tokens[++i];
             if (kind == "cp") parse_number(tokens[++i], result.score_cp);
@@ -285,6 +361,7 @@ int run_version_match_smoke(const std::filesystem::path&,
                             const std::filesystem::path&, int, int) {
   return 2;
 }
+std::string sha256_file(const std::filesystem::path&) { return {}; }
 }  // namespace eloi
 
 #endif

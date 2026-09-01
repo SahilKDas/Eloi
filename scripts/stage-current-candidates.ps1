@@ -68,10 +68,10 @@ if ($LASTEXITCODE -ne 0 -or $entries.Count -ne 2 -or
 }
 Remove-Item -LiteralPath $standaloneRoot -Recurse -Force
 
-& (Join-Path $PSScriptRoot 'build-windows-split-zip.ps1') `
+& (Join-Path $PSScriptRoot 'build-windows-exoskeleton-zip.ps1') `
   -AllowDirty -SkipDefenderScan -OutputRoot $currentRoot `
   -CandidateLabel 'rc.current'
-if ($LASTEXITCODE -ne 0) { throw 'Split-runtime candidate staging failed.' }
+if ($LASTEXITCODE -ne 0) { throw 'Exoskeleton candidate staging failed.' }
 
 $archives = @(Get-ChildItem -LiteralPath $currentRoot -File -Filter '*.zip')
 if ($archives.Count -ne 2) {
