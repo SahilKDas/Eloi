@@ -352,10 +352,12 @@ def score_label(board: chess.Board, candidate_is_white: bool) -> str:
 def play_game(candidate: chess.engine.SimpleEngine,
               baseline: chess.engine.SimpleEngine, fen: str,
               candidate_is_white: bool, movetime_ms: int,
-              max_plies: int, game_number: int) -> tuple[str, chess.pgn.Game]:
+              max_plies: int, game_number: int,
+              event: str = "Eloi Engine Lab strength gate"
+              ) -> tuple[str, chess.pgn.Game]:
     board = chess.Board(fen)
     game = chess.pgn.Game.from_board(board)
-    game.headers["Event"] = "Eloi Engine Lab strength gate"
+    game.headers["Event"] = event
     game.headers["Round"] = str(game_number)
     game.headers["CandidateColor"] = "White" if candidate_is_white else "Black"
     node = game
@@ -391,12 +393,13 @@ def strength_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
                   suite_path: pathlib.Path, checkpoint_path: pathlib.Path,
                   pgn_path: pathlib.Path, movetime_ms: int = 250,
                   games: int = 250, max_plies: int = 200,
-                  required_win_rate: float = 0.60) -> dict[str, Any]:
+                  required_win_rate: float = 0.60,
+                  architecture_playoff: bool = False) -> dict[str, Any]:
     suite = json.loads(suite_path.read_text(encoding="utf-8"))
     positions = suite["positions"]
     if games > len(positions) * 2 or games % 2:
         raise ValueError("games must be even and no larger than twice the suite")
-    if not 0.0 < required_win_rate <= 1.0:
+    if not architecture_playoff and not 0.0 < required_win_rate <= 1.0:
         raise ValueError("required win rate must be in (0, 1]")
     identity = {
         "candidate_sha256": sha256(candidate_path),
@@ -408,9 +411,20 @@ def strength_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
         "threads": 3,
         "hash_mb": 32,
         "own_book": False,
-        "required_win_rate": required_win_rate,
-        "required_wins": math.ceil(games * required_win_rate),
+        "gate_metric": "score" if architecture_playoff else "raw-wins",
     }
+    if architecture_playoff:
+        identity.update({
+            "candidate_hidden": 128,
+            "baseline_hidden": 64,
+            "select_candidate_at_score": 0.55,
+            "select_baseline_at_or_below_score": 0.45,
+        })
+    else:
+        identity.update({
+            "required_win_rate": required_win_rate,
+            "required_wins": math.ceil(games * required_win_rate),
+        })
     if checkpoint_path.exists():
         result = json.loads(checkpoint_path.read_text(encoding="utf-8"))
         if result["identity"] != identity:
@@ -418,7 +432,9 @@ def strength_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
     else:
         result = {
             "schema": 1,
-            "kind": "strength",
+            "kind": (
+                "architecture-playoff" if architecture_playoff else "strength"
+            ),
             "started_utc": utc_now(),
             "identity": identity,
             "results": [],
@@ -434,7 +450,12 @@ def strength_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
             candidate_is_white = index % 2 == 0
             label, game = play_game(
                 candidate, baseline, opening["fen"], candidate_is_white,
-                movetime_ms, max_plies, index + 1)
+                movetime_ms, max_plies, index + 1,
+                event=(
+                    "Eloi NNUE architecture playoff"
+                    if architecture_playoff
+                    else "Eloi Engine Lab strength gate"
+                ))
             result["results"].append({
                 "game": index + 1,
                 "opening": index // 2,
@@ -469,18 +490,37 @@ def summarize_strength(result: dict[str, Any]) -> None:
     raw_win_rate = wins / games if games else 0.0
     clipped = min(0.999_999, max(0.000_001, score))
     elo = -400.0 * math.log10(1.0 / clipped - 1.0)
-    result.update({
+    complete = games == result["identity"]["games"]
+    summary = {
         "wins": wins,
         "draws": draws,
         "losses": losses,
         "raw_win_rate": raw_win_rate,
         "score": score,
         "estimated_elo_difference": elo,
-        "passed": (
-            games == result["identity"]["games"]
-            and wins >= result["identity"]["required_wins"]
-        ),
-    })
+    }
+    if result["identity"].get("gate_metric") == "score":
+        selected = None
+        reason = "incomplete"
+        if complete and score >= result["identity"]["select_candidate_at_score"]:
+            selected = result["identity"]["candidate_hidden"]
+            reason = "candidate-scored-at-least-55-percent"
+        elif complete and score <= result["identity"]["select_baseline_at_or_below_score"]:
+            selected = result["identity"]["baseline_hidden"]
+            reason = "candidate-scored-at-most-45-percent"
+        elif complete:
+            selected = result["identity"]["baseline_hidden"]
+            reason = "inconclusive-band-prefers-smaller-faster-baseline"
+        summary.update({
+            "selected_hidden": selected,
+            "selection_reason": reason,
+            "passed": complete,
+        })
+    else:
+        summary["passed"] = (
+            complete and wins >= result["identity"]["required_wins"]
+        )
+    result.update(summary)
 
 
 def write_markdown(path: pathlib.Path, result: dict[str, Any]) -> None:
@@ -499,18 +539,32 @@ def write_markdown(path: pathlib.Path, result: dict[str, Any]) -> None:
                 f"{row['candidate_median_ns'] / 1e6:.3f} ms | "
                 f"{row['speedup']:.3f}x | "
                 f"{'PASS' if row['passed'] else 'FAIL'} |")
-    elif result["kind"] == "strength":
+    elif result["kind"] in ("strength", "architecture-playoff"):
+        heading = (
+            "NNUE architecture playoff"
+            if result["kind"] == "architecture-playoff"
+            else "Strength gate"
+        )
         lines += [
-            "## Strength gate", "",
+            f"## {heading}", "",
             f"- Games: {len(result['results'])}/{result['identity']['games']}",
             f"- Candidate W/D/L: {result['wins']}/{result['draws']}/{result['losses']}",
             f"- Raw win rate: {100 * result['raw_win_rate']:.2f}%",
-            f"- Required raw wins: {result['identity']['required_wins']} "
-            f"({100 * result['identity']['required_win_rate']:.2f}%)",
             f"- Score: {100 * result['score']:.2f}%",
             f"- Estimated Elo difference: {result['estimated_elo_difference']:+.1f}",
-            f"- Gate: {'PASS' if result['passed'] else 'FAIL'}",
         ]
+        if result["kind"] == "architecture-playoff":
+            lines += [
+                f"- Selected hidden units: {result['selected_hidden']}",
+                f"- Selection reason: {result['selection_reason']}",
+                f"- Completed: {'YES' if result['passed'] else 'NO'}",
+            ]
+        else:
+            lines += [
+                f"- Required raw wins: {result['identity']['required_wins']} "
+                f"({100 * result['identity']['required_win_rate']:.2f}%)",
+                f"- Gate: {'PASS' if result['passed'] else 'FAIL'}",
+            ]
     else:
         lines += [
             "## Censored deep-depth ladder", "",
@@ -585,6 +639,19 @@ def main() -> int:
     strength.add_argument("--movetime-ms", type=int, default=250)
     strength.add_argument("--max-plies", type=int, default=200)
     strength.add_argument("--required-win-rate", type=float, default=0.60)
+    playoff = subparsers.add_parser("playoff")
+    playoff.add_argument(
+        "--suite", type=pathlib.Path,
+        default=ROOT / "data" / "strength_openings.json")
+    playoff.add_argument(
+        "--checkpoint", type=pathlib.Path,
+        default=ROOT / "tmp" / "nnue-playoff" / "architecture-playoff.json")
+    playoff.add_argument(
+        "--pgn", type=pathlib.Path,
+        default=ROOT / "tmp" / "nnue-playoff" / "architecture-playoff.pgn")
+    playoff.add_argument("--games", type=int, default=250)
+    playoff.add_argument("--movetime-ms", type=int, default=250)
+    playoff.add_argument("--max-plies", type=int, default=200)
     ladder = subparsers.add_parser("ladder")
     ladder.add_argument(
         "--output", type=pathlib.Path,
@@ -602,12 +669,13 @@ def main() -> int:
         result = speed_gate(
             candidate, baseline, args.output.resolve(), tuple(args.depths),
             args.samples, args.minimum_seconds)
-    elif args.command == "strength":
+    elif args.command in ("strength", "playoff"):
         result = strength_gate(
             candidate, baseline, args.suite.resolve(),
             args.checkpoint.resolve(), args.pgn.resolve(),
             args.movetime_ms, args.games, args.max_plies,
-            args.required_win_rate)
+            args.required_win_rate if args.command == "strength" else 0.60,
+            architecture_playoff=args.command == "playoff")
     else:
         result = deep_ladder(
             candidate, baseline, args.output.resolve(), tuple(args.depths),

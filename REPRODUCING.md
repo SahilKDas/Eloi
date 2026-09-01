@@ -173,6 +173,15 @@ The complete architecture-playoff and final-gauntlet procedure is frozen in
 `V1.9_VALIDATION_PLAN.md`. Follow it before replacing the production NNUE or
 claiming that v1.9 passed its final strength gate.
 
+```powershell
+.\.deps\lichess-bot\.venv\Scripts\python.exe `
+  .\scripts\test_engine_lab.py
+```
+
+These unit tests keep the architecture playoff's score thresholds distinct
+from the final gauntlet's raw-win requirement and ensure an incomplete playoff
+cannot select an architecture.
+
 After generating the two candidate directories described there, build and
 validate both without installing either one:
 
