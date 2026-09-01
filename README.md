@@ -1,7 +1,7 @@
 # Eloi
 
 Eloi is a C++26 chess engine and native Windows chess application. The current
-source version is **1.9.6-rc.1**. The production build creates one main
+source version is **2.5.0-rc.1**. The production build creates one main
 executable, `Eloi.exe`, with five primary runtime modes:
 
 - no arguments or `--gui`: the Skia GUI
@@ -17,20 +17,23 @@ been validated or published.
 
 ## Current project status
 
-The latest tagged release baseline is `v1.5.0-beta.1`; `main` is preparing
-`v1.9.6-rc.1`. The v1.9 source contains the cached-board/search overhaul,
+The latest tagged release baseline is `v2.0.0-rc`; `main` is preparing
+`v2.5.0-rc.1`. The v2.5 source contains the cached-board/search overhaul,
 exactly-three-lane engine, Engine Lab, hash-bound benchmark harness, expanded
-move-generation differential tests, deterministic NNUE training pipeline, and
-the two golden Windows package builders.
+move-generation differential tests, deterministic NNUE training pipeline,
+categorized tactical regression gates, an experimental Lazy SMP comparison,
+and the two golden Windows package builders.
 
 The embedded production NNUE has 64 hidden units selected from deterministic
 64-versus-128 retraining. Both candidates passed clean builds and correctness
 tests; in the user-shortened 110-game architecture playoff, 128 scored 43.64%,
 so the frozen threshold selected 64. The sample-size changes and every evidence
-hash are recorded in `data/nnue_architecture_playoff.json`. The separate
-250-game final release gauntlet has not run, so the current candidate remains
-an RC under validation rather than a completed strength-qualified release. See
-[V1.9_VALIDATION_PLAN.md](V1.9_VALIDATION_PLAN.md).
+hash are recorded in `data/nnue_architecture_playoff.json`. The v2.5 search
+playoff retained RootSplit: it passed all correctness gates and scored 54.17%
+in the bounded 24-game paired comparison; experimental LazySMP failed two
+tactical regressions and scored 45.83%. Training a 256-unit NNUE remains
+deliberately deferred. The current source is an RC, not a stable
+strength-qualified release.
 
 ## Repository map
 
@@ -48,7 +51,8 @@ an RC under validation rather than a completed strength-qualified release. See
   `scripts/train_nnue.py` is the bounded deterministic NNUE trainer.
 - `REPRODUCING.md` and `reproducibility.lock.json` define the build provenance
   contract. `CONTRIBUTING.md` defines engineering/release invariants, and
-  `V1.9_VALIDATION_PLAN.md` defines the remaining NNUE and final-gauntlet work.
+  `V1.9_VALIDATION_PLAN.md` records the completed 64-versus-128 NNUE process.
+  `data/v2_5_parallel_playoff.json` records the v2.5 search-mode decision.
 - `data/games` and `data/tournaments` retain reference/historical PGNs. They
   are not runtime dependencies and are not embedded in either Windows package.
 - `.deps`, `tmp`, `build-*`, `dist`, private `config.yml`, executables, and
@@ -113,12 +117,20 @@ Move ordering combines killer, butterfly, capture, continuation, and
 countermove history with static exchange evaluation. Guarded verified null
 move, ProbCut, razoring, futility and late-move pruning, singular/selective
 extensions, volatility-aware LMR, and the incrementally updated quantized NNUE
-complete the search. Every calculated move uses exactly three persistent,
+complete the search. Every production move uses exactly three persistent,
 deterministic cooperative search lanes. Root work is split among them, each
 lane has private TT storage within the single configured hash budget, and UCI,
 GUI, and native Lichess sessions reuse their searcher instead of recreating its
 threads and tables every move. Eloi exposes a fixed UCI `Threads` value of 3;
 it cannot claim more processors or be configured to use fewer.
+
+UCI and the command line also expose `ParallelMode=LazySMP` as an experimental
+three-full-tree-lane implementation with a synchronized shared TT. It is not
+the production default: the identical v2.5 correctness preflight caught two
+tactical failures, and it lost the 24-game paired playoff. `RootSplit` remains
+the default and release-selected mode. Re-run the comparison with
+`scripts/selfplay_gauntlet.py`; both modes use the same binary, 64-unit NNUE,
+hash, openings, time, and fixed three-thread limit.
 
 Eloi has a deliberate opening personality. As White it forces the Italian
 Game with `1.e4 e5 2.Nf3 Nc6 3.Bc4` whenever Black permits it. As Black it
@@ -390,7 +402,8 @@ Tests cover standard perft positions, en passant, both castling sides, every
 promotion choice, checkmate, stalemate, threefold repetition and undo, the
 fifty-move rule, FEN round trips, incremental Zobrist and NNUE state, Italian
 and Nimzo personality/transpositions, an 8,000-entry minimum repertoire,
-mate-in-one/two/three tactics, packed TT moves and mate scores, exact search
+mate-in-one/two/three tactics, exact SEE values, packed TT moves, all TT bound
+types, collisions, replacement generations, mate-score normalization, exact search
 make/unmake and null-move restoration, search pruning exemptions, and activity
 from null move, ProbCut, singular extensions, LMR, LMP, and history ordering.
 Chess960 tests cover rook-file FEN rights, UCI notation, attacked transit
@@ -405,9 +418,31 @@ Clock tests cover five-minute allocation, protected reserve, increment and
 overhead bounds, phase scaling, every pressure mode, hard ceilings, and legal
 fallback under a near-expired deadline.
 
-The older `selfplay_gauntlet.py` runner remains available for quick historical
-diagnostics, but its old result is not a current acceptance gate. Current
-claims use the hash-bound `engine_lab.py` protocol above.
+The deterministic `tests/epd/v2_5_regressions.epd` corpus permanently covers
+static exchanges, hanging and trapped pieces, quiet defenses, horizon
+sacrifices, mate distance, repetition/fifty-move handling, passed-pawn races,
+fortresses/insufficient material, quiescence stability, and the two recorded
+online catastrophes. Run a mode-specific gate with
+`eloi_tests.exe --parallel RootSplit` or `--parallel LazySMP`.
+
+`selfplay_gauntlet.py` configures each engine's parallel mode independently and
+can run the same correctness executable before a bounded mirrored match. It
+rejects a candidate regardless of match score when that candidate fails
+correctness. Broader release-strength claims still use the hash-bound
+`engine_lab.py` protocol above.
+
+### v2.5.0-rc.1 search-mode decision
+
+The exact same executable and embedded 64-unit NNUE played both sides of a
+24-game mirrored comparison at 50 ms/move, 32 MB hash, books disabled, three
+threads per engine, and Windows Idle priority. LazySMP scored 7 wins, 8 draws,
+and 9 losses (45.83%); RootSplit therefore scored 54.17%. RootSplit also passed
+the complete deterministic gate while LazySMP failed `lichess-002mG` and
+repeated the forbidden `c6a7` bishop-hang move from game `Lc65wiSv`.
+
+Consequently RootSplit remains the production default. The hash-bound settings,
+binary, test corpus, transcript, outcome, and selection are recorded in
+[`data/v2_5_parallel_playoff.json`](data/v2_5_parallel_playoff.json).
 
 ### v1.9.6-rc.1 evidence and open gates
 

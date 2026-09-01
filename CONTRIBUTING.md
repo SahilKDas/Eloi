@@ -50,8 +50,10 @@ Every change must preserve these requirements:
   in the executable.
 - `config.yml` is readable text and contains no real credential in Git or
   published artifacts.
-- Eloi uses exactly three deterministic search threads, advertises a fixed UCI
-  `Threads` value of 3, and does not advertise pondering.
+- Production Eloi uses exactly three deterministic RootSplit search threads,
+  advertises a fixed UCI `Threads` value of 3, and does not advertise pondering.
+  Experimental search designs remain behind an explicit switch until they pass
+  every correctness gate and win a bounded same-binary paired comparison.
 - The engine warns above 40 plies, the GUI caps selection at 200 plies, and the
   absolute engine ceiling remains 17,697 plies.
 - Standard chess, Chess960, UCI, and native Lichess operation remain compatible.
@@ -125,6 +127,28 @@ Record noteworthy visual behavior in the pull request, but use Engine Lab's
 hash-bound speed and strength harness—not a single watched game—as the
 acceptance gate. Do not commit retained executables, temporary checkpoints,
 PGNs, or failed-candidate reports, and never package them in a release.
+
+For a search-parallelism change, run the same categorized correctness gate for
+each mode and then a same-binary paired match. Both engines must use the same
+embedded NNUE, hash, opening seeds, move time, and fixed three-thread setting:
+
+```powershell
+.\build-release\eloi_tests.exe --parallel RootSplit
+.\build-release\eloi_tests.exe --parallel LazySMP
+& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
+  '.\scripts\selfplay_gauntlet.py' `
+  --candidate '.\build-release\Eloi.exe' `
+  --baseline '.\build-release\Eloi.exe' `
+  --candidate-parallel-mode LazySMP `
+  --baseline-parallel-mode RootSplit `
+  --correctness-test '.\build-release\eloi_tests.exe' `
+  --games 24 --movetime-ms 50 --max-plies 120
+```
+
+A match score cannot rescue a correctness failure. The v2.5 comparison kept
+RootSplit because it passed the gate and scored 54.17%; LazySMP failed two
+tactical cases and scored 45.83%. The evidence hashes and settings are tracked
+in `data/v2_5_parallel_playoff.json`.
 
 ```powershell
 & '.\.deps\lichess-bot\.venv\Scripts\python.exe' `

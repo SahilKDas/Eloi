@@ -51,3 +51,13 @@ the completed 110-game architecture sample selected 64 after the 128 candidate
 scored 43.64%. `data/nnue_architecture_playoff.json` records the post-start
 sample-size changes, result, selected architecture, and hashes for all retained
 evidence. Future larger-data candidates must repeat these gates.
+
+## v2.5 tactical regression corpus
+
+`tests/epd/v2_5_regressions.epd` is a small, human-readable test corpus rather
+than an embedded runtime asset. Its Lichess puzzle positions were selected from
+the same ignored CC0 puzzle sample described above. Two additional factual FEN
+snapshots permanently reproduce Eloi's recorded online failures in Lichess
+games `Lc65wiSv` and `bIw09dp9`; the forbidden moves are `c6a7` and `c6e5`.
+The corpus contains no credentials, chat text, executable data, or downloaded
+PGN, and it is never packaged into either release ZIP.
