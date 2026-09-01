@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "source_commit": "4c191a42a32a2ed360e2fce5eac46b0edc6e0b91",
+  "comparison_provenance_sha256": "7CCCBCBB7495C2F05490C657BCB25C837675038246E6469A8F731E9F9B85EE0B",
+  "settings": {
+    "build_type": "Release",
+    "threads": 3,
+    "hash_mb": 32,
+    "own_book": false
+  },
+  "candidates": [
+    {
+      "hidden": 64,
+      "source_commit": "4c191a42a32a2ed360e2fce5eac46b0edc6e0b91",
+      "weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E",
+      "architecture_sha256": "CADABDEC8CBB9194AF83E5DD8F8E4084BBC3A0FB0F78BAF35FC9D509D23E2D2B",
+      "training_provenance_sha256": "C49BAC8CEED162A358082EEC3B700F33CD0DDFEA890ED5DFC43CE2CABCF7CC4B",
+      "executable_sha256": "8AB79376A98F7BC983D0F5120AB61549BE1E3364BBB5259D02DCE3DE907EC844",
+      "differential_report_sha256": "34F2A413348F02240F89F3B4A94DCFC8D22D6C94474DDD86C1D36F135A03447E",
+      "ctest_passed": true,
+      "perft_depth_4_passed": true,
+      "benchmark_depth_6_passed": true,
+      "differential_positions": 96,
+      "zero_pe_timestamp": true
+    },
+    {
+      "hidden": 128,
+      "source_commit": "4c191a42a32a2ed360e2fce5eac46b0edc6e0b91",
+      "weights_sha256": "39482481A6A9A6607F169A4962119BFC0507C98101E25B4ACF43A0D601D04825",
+      "architecture_sha256": "01AB52545A819D1BB050B6FA1F1C89481B137E7D5CEC75E184460B5F37C372BA",
+      "training_provenance_sha256": "9ED82E1286255D6AAAAE65F8A879662C40639140EF64E772156C19D501125640",
+      "executable_sha256": "E1D4F5AC42FFF272191607FBDE99B106A9429897E39EF3A3EB1936FA47AEFF26",
+      "differential_report_sha256": "0DD8DA3AAFA2B6145EE41F7462C1C2B012039FBD7CB98E24EF1DB7A3BE7706EC",
+      "ctest_passed": true,
+      "perft_depth_4_passed": true,
+      "benchmark_depth_6_passed": true,
+      "differential_positions": 96,
+      "zero_pe_timestamp": true
+    }
+  ]
+}

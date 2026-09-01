@@ -173,6 +173,20 @@ The complete architecture-playoff and final-gauntlet procedure is frozen in
 `V1.9_VALIDATION_PLAN.md`. Follow it before replacing the production NNUE or
 claiming that v1.9 passed its final strength gate.
 
+After generating the two candidate directories described there, build and
+validate both without installing either one:
+
+```powershell
+.\scripts\build-nnue-candidates.ps1
+```
+
+The harness verifies the pinned toolchain and candidate hashes, performs clean
+Release builds, runs CTest, perft depth 4, benchmark depth 6, and 96 seeded
+python-chess differential positions per candidate, verifies zero PE timestamps,
+then restores the tracked production headers byte-for-byte. Its tracked result
+is `data/nnue_candidate_builds.json`; candidate executables and detailed
+differential reports remain ignored under `tmp/nnue-playoff/`.
+
 Before a release candidate is staged, run `scripts/engine_lab.py` against the
 official `v1.5.0-beta.1` executable whose SHA-256 is
 `614CE6D601AFC749EA4EFD8FC94A8BAE79EF4537374B0984E292A92CA0A99B7F`.
