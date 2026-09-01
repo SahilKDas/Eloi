@@ -34,18 +34,31 @@ struct SearcherTestAccess {
   }
 
   static std::optional<Entry> lookup(Searcher& searcher, std::uint64_t key) {
-    const Searcher::TTEntry* found = searcher.probe(key);
+    const auto found = searcher.probe(key);
     if (!found) return std::nullopt;
     return Entry{found->key, found->score, found->static_eval, found->depth,
                  found->best, found->flag, found->generation};
   }
 
   static std::size_t bucket_count(const Searcher& searcher) {
-    return searcher.table_.size();
+    return searcher.table_ ? searcher.table_->buckets.size() : 0;
   }
 
   static void next_generation(Searcher& searcher) {
     searcher.advance_generation();
+  }
+
+  static std::size_t lane_count(const Searcher& searcher) {
+    return 1 + std::ranges::count_if(searcher.root_helpers_,
+                                     [](const Searcher* helper) {
+                                       return helper != nullptr;
+                                     });
+  }
+
+  static bool helpers_share_table(const Searcher& searcher) {
+    return searcher.root_helpers_[0] && searcher.root_helpers_[1] &&
+           searcher.table_ == searcher.root_helpers_[0]->table_ &&
+           searcher.table_ == searcher.root_helpers_[1]->table_;
   }
 };
 }  // namespace eloi
@@ -212,10 +225,13 @@ std::vector<EpdCase> load_epd(const std::filesystem::path& path) {
   return result;
 }
 
-SearchResult fixed_depth_search(const Board& board, int depth) {
+SearchResult fixed_depth_search(
+    const Board& board, int depth,
+    EngineConfig::ParallelMode mode = EngineConfig::ParallelMode::root_split) {
   auto config = default_config();
   config.own_book = false;
   config.hash_mb = 4;
+  config.parallel_mode = mode;
   std::atomic_bool stopped{false};
   SearchLimits limits;
   limits.depth = depth;
@@ -236,7 +252,17 @@ std::optional<Move> legal_move(const Board& board, std::string_view uci) {
 }
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
+  EngineConfig::ParallelMode regression_mode =
+      EngineConfig::ParallelMode::root_split;
+  if (argc == 3 && std::string_view(argv[1]) == "--parallel") {
+    const auto parsed = parse_parallel_mode(argv[2]);
+    if (!parsed) {
+      std::cerr << "unknown parallel mode: " << argv[2] << '\n';
+      return EXIT_FAILURE;
+    }
+    regression_mode = *parsed;
+  }
   static_assert(search_thread_count == 3,
                 "Eloi's search contract is fixed at exactly three threads");
   static_assert(recommended_search_depth == 40,
@@ -1018,42 +1044,69 @@ int main() {
   }
 
   {
+    expect(parse_parallel_mode("RootSplit") ==
+               EngineConfig::ParallelMode::root_split &&
+               parse_parallel_mode("lazy-smp") ==
+               EngineConfig::ParallelMode::lazy_smp &&
+               !parse_parallel_mode("four-threads"),
+           "parallel-mode parser accepts only the two three-lane designs");
+    std::atomic_bool stopped{false};
+    auto root_config = default_config();
+    root_config.hash_mb = 4;
+    Searcher root_splitter(root_config, stopped);
+    expect(SearcherTestAccess::lane_count(root_splitter) == 3 &&
+               !SearcherTestAccess::helpers_share_table(root_splitter),
+           "root splitter owns exactly three lanes with private TT shards");
+    auto lazy_config = root_config;
+    lazy_config.parallel_mode = EngineConfig::ParallelMode::lazy_smp;
+    Searcher lazy_smp(lazy_config, stopped);
+    expect(SearcherTestAccess::lane_count(lazy_smp) == 3 &&
+               SearcherTestAccess::helpers_share_table(lazy_smp),
+           "Lazy SMP owns exactly three full-tree lanes sharing one TT");
+  }
+
+  {
     const auto epd_path = std::filesystem::path(ELOI_TEST_DATA_DIR) /
                           "epd" / "v2_5_regressions.epd";
     const auto regressions = load_epd(epd_path);
     expect(regressions.size() == 15,
            "v2.5 EPD corpus loads every categorized regression");
     std::set<std::string> categories;
+    const auto mode = regression_mode;
+    const std::string prefix = std::string(parallel_mode_name(mode)) + ": ";
     for (const EpdCase& test : regressions) {
-      categories.insert(test.category);
-      auto board = parse_fen(test.fen);
-      expect(board.has_value(), test.id + ": regression FEN parses");
-      if (!board) continue;
-      const auto result = fixed_depth_search(*board, test.depth);
-      const std::string move = best_uci(result);
-      if (!test.best.empty())
-        expect(move == test.best,
-               test.id + ": expected " + test.best + ", got " + move);
-      if (!test.avoid.empty())
-        expect(move != test.avoid,
-               test.id + ": forbidden online blunder repeated: " + move);
-      if (test.expected_score)
-        expect(result.score_cp == *test.expected_score,
-               test.id + ": expected score " +
-                   std::to_string(*test.expected_score) + ", got " +
-                   std::to_string(result.score_cp));
-      if (test.stable_depths) {
-        const auto shallow = fixed_depth_search(*board, test.stable_depths->first);
-        const auto deep = fixed_depth_search(*board, test.stable_depths->second);
-        expect(best_uci(shallow) == best_uci(deep),
-               test.id + ": best move remains stable across quiescence depths");
-        if (test.maximum_swing)
-          expect(std::abs(shallow.score_cp - deep.score_cp) <=
-                     *test.maximum_swing,
-                 test.id + ": fixed-depth score swing " +
-                     std::to_string(std::abs(
-                         shallow.score_cp - deep.score_cp)) +
-                     " exceeds " + std::to_string(*test.maximum_swing));
+        categories.insert(test.category);
+        auto board = parse_fen(test.fen);
+        expect(board.has_value(), prefix + test.id + ": regression FEN parses");
+        if (!board) continue;
+        const auto result = fixed_depth_search(*board, test.depth, mode);
+        const std::string move = best_uci(result);
+        if (!test.best.empty())
+          expect(move == test.best,
+                 prefix + test.id + ": expected " + test.best + ", got " + move);
+        if (!test.avoid.empty())
+          expect(move != test.avoid,
+                 prefix + test.id + ": forbidden online blunder repeated: " + move);
+        if (test.expected_score)
+          expect(result.score_cp == *test.expected_score,
+                 prefix + test.id + ": expected score " +
+                     std::to_string(*test.expected_score) + ", got " +
+                     std::to_string(result.score_cp));
+        if (test.stable_depths) {
+          const auto shallow = fixed_depth_search(
+              *board, test.stable_depths->first, mode);
+          const auto deep = fixed_depth_search(
+              *board, test.stable_depths->second, mode);
+          expect(best_uci(shallow) == best_uci(deep),
+                 prefix + test.id +
+                     ": best move remains stable across quiescence depths");
+          if (test.maximum_swing)
+            expect(std::abs(shallow.score_cp - deep.score_cp) <=
+                       *test.maximum_swing,
+                   prefix + test.id + ": fixed-depth score swing " +
+                       std::to_string(std::abs(
+                           shallow.score_cp - deep.score_cp)) +
+                       " exceeds " + std::to_string(*test.maximum_swing));
       }
     }
     constexpr std::array required_categories{

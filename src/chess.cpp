@@ -1669,26 +1669,68 @@ std::string board_ascii(const Board& board) {
   return out.str();
 }
 
+std::string_view parallel_mode_name(EngineConfig::ParallelMode mode) {
+  switch (mode) {
+    case EngineConfig::ParallelMode::root_split: return "RootSplit";
+    case EngineConfig::ParallelMode::lazy_smp: return "LazySMP";
+  }
+  return "RootSplit";
+}
+
+std::optional<EngineConfig::ParallelMode> parse_parallel_mode(
+    std::string_view value) {
+  std::string normalized(value);
+  std::ranges::transform(normalized, normalized.begin(),
+                         [](unsigned char character) {
+                           return static_cast<char>(std::tolower(character));
+                         });
+  normalized.erase(std::remove_if(normalized.begin(), normalized.end(),
+                                  [](char character) {
+                                    return character == '-' || character == '_';
+                                  }),
+                   normalized.end());
+  if (normalized == "rootsplit")
+    return EngineConfig::ParallelMode::root_split;
+  if (normalized == "lazysmp")
+    return EngineConfig::ParallelMode::lazy_smp;
+  return std::nullopt;
+}
+
 Searcher::Searcher(EngineConfig config, std::atomic_bool& stopped)
-    : Searcher(std::move(config), stopped, 0) {}
+    : Searcher(std::move(config), stopped, 0, {}) {}
 
 Searcher::Searcher(EngineConfig config, std::atomic_bool& stopped, int lane)
+    : Searcher(std::move(config), stopped, lane, {}) {}
+
+Searcher::Searcher(EngineConfig config, std::atomic_bool& stopped, int lane,
+                   std::shared_ptr<TTStorage> shared_table)
     : config_(std::move(config)), stopped_(stopped),
       killers_(maximum_search_depth + 32), lane_(lane) {
-  if (config_.hash_mb > 0) {
+  table_ = std::move(shared_table);
+  if (!table_ && config_.hash_mb > 0) {
     // Keep half of the fixed memory budget on the coherent principal search;
     // the two diversified helpers receive one quarter each. This preserves
-    // the configured total instead of silently tripling memory usage.
-    const std::size_t budget_parts = lane_ == 0 ? 2 : 1;
+    // the configured total instead of silently tripling memory usage. Lazy
+    // SMP instead allocates the complete budget once and shares it.
+    const std::size_t budget_parts =
+        config_.parallel_mode == EngineConfig::ParallelMode::lazy_smp
+            ? 4 : (lane_ == 0 ? 2 : 1);
     const std::size_t requested = static_cast<std::size_t>(config_.hash_mb) *
         1024 * 1024 * budget_parts / 4 / sizeof(TTBucket);
     const std::size_t buckets = std::bit_floor(std::max<std::size_t>(1, requested));
-    table_.resize(buckets);
+    table_ = std::make_shared<TTStorage>();
+    table_->buckets.resize(buckets);
+    table_->synchronized =
+        config_.parallel_mode == EngineConfig::ParallelMode::lazy_smp;
   }
   if (lane_ == 0) {
     for (int index = 0; index < search_thread_count - 1; ++index) {
+      std::shared_ptr<TTStorage> helper_table;
+      if (config_.parallel_mode == EngineConfig::ParallelMode::lazy_smp)
+        helper_table = table_;
       owned_helpers_[index] =
-          std::make_unique<Searcher>(config_, stopped_, index + 1);
+          std::unique_ptr<Searcher>(new Searcher(
+              config_, stopped_, index + 1, std::move(helper_table)));
       root_helpers_[index] = owned_helpers_[index].get();
       root_worker_threads_[index] = std::thread([this, index] {
         std::uint64_t observed_epoch = 0;
@@ -1733,7 +1775,8 @@ bool Searcher::halted() {
 void Searcher::advance_generation() {
   if (++generation_ != 0) return;
   generation_ = 1;
-  for (TTBucket& bucket : table_)
+  if (!table_) return;
+  for (TTBucket& bucket : table_->buckets)
     for (TTEntry& entry : bucket.entries)
       entry.depth = -1;
 }
@@ -2061,48 +2104,82 @@ MoveList Searcher::ordered_moves(const Board& board, PackedMove tt_move,
   return moves;
 }
 
-Searcher::TTEntry* Searcher::probe(std::uint64_t key) {
-  if (table_.empty()) return nullptr;
-  TTBucket& bucket = table_[key & (table_.size() - 1)];
-  for (TTEntry& entry : bucket.entries) {
+std::optional<Searcher::TTEntry> Searcher::probe(std::uint64_t key) {
+  if (!table_ || table_->buckets.empty()) return std::nullopt;
+  const std::size_t index = key & (table_->buckets.size() - 1);
+  std::unique_lock<std::mutex> lock;
+  if (table_->synchronized)
+    lock = std::unique_lock(table_->stripes[index % table_->stripes.size()]);
+  const TTBucket& bucket = table_->buckets[index];
+  std::optional<TTEntry> principal_entry;
+  for (const TTEntry& entry : bucket.entries) {
     if (entry.key == key && entry.depth >= 0 &&
         entry.generation == generation_) {
-      ++tt_hits_;
-      return &entry;
+      if (entry.lane == lane_) {
+        ++tt_hits_;
+        return entry;
+      }
+      if (lane_ != 0 && entry.lane == 0) principal_entry = entry;
     }
   }
-  return nullptr;
+  if (principal_entry) ++tt_hits_;
+  return principal_entry;
 }
 
-const Searcher::TTEntry* Searcher::find(std::uint64_t key) const {
-  if (table_.empty()) return nullptr;
-  const TTBucket& bucket = table_[key & (table_.size() - 1)];
-  for (const TTEntry& entry : bucket.entries)
-    if (entry.key == key && entry.depth >= 0 &&
-        entry.generation == generation_)
-      return &entry;
-  return nullptr;
+std::optional<Searcher::TTEntry> Searcher::find(std::uint64_t key) const {
+  if (!table_ || table_->buckets.empty()) return std::nullopt;
+  const std::size_t index = key & (table_->buckets.size() - 1);
+  std::unique_lock<std::mutex> lock;
+  if (table_->synchronized)
+    lock = std::unique_lock(table_->stripes[index % table_->stripes.size()]);
+  const TTBucket& bucket = table_->buckets[index];
+  std::optional<TTEntry> principal_entry;
+  for (const TTEntry& entry : bucket.entries) {
+    if (entry.key != key || entry.depth < 0 ||
+        entry.generation != generation_)
+      continue;
+    if (entry.lane == lane_) return entry;
+    if (lane_ != 0 && entry.lane == 0) principal_entry = entry;
+  }
+  return principal_entry;
 }
 
 void Searcher::store(std::uint64_t key, int depth, int score, int static_eval,
                      int flag, const Move& best, int ply) {
-  if (table_.empty()) return;
-  TTBucket& bucket = table_[key & (table_.size() - 1)];
-  TTEntry* replacement = &bucket.entries[0];
+  if (!table_ || table_->buckets.empty()) return;
+  const std::size_t index = key & (table_->buckets.size() - 1);
+  std::unique_lock<std::mutex> lock;
+  if (table_->synchronized)
+    lock = std::unique_lock(table_->stripes[index % table_->stripes.size()]);
+  TTBucket& bucket = table_->buckets[index];
+  TTEntry* replacement = nullptr;
   for (TTEntry& entry : bucket.entries) {
-    if (entry.key == key) { replacement = &entry; break; }
-    const int entry_value = entry.depth - (entry.generation == generation_ ? 0 : 8);
-    const int replacement_value = replacement->depth -
-        (replacement->generation == generation_ ? 0 : 8);
+    if (entry.key == key && entry.lane == lane_) {
+      replacement = &entry;
+      break;
+    }
+    if (entry.depth < 0 || entry.generation != generation_) {
+      replacement = &entry;
+      break;
+    }
+    // Helpers may share and learn from principal entries, but never evict
+    // them. Eloi's selective pruning is currently too move-order-sensitive
+    // to let a speculative helper perturb the correctness-authoritative lane.
+    if (lane_ != 0 && entry.lane == 0) continue;
+    const int entry_value = entry.depth;
+    const int replacement_value = replacement ? replacement->depth : infinity;
     if (entry_value < replacement_value) replacement = &entry;
   }
-  if (replacement->key == key && replacement->depth > depth)
+  if (!replacement) return;
+  if (replacement->key == key && replacement->lane == lane_ &&
+      replacement->depth > depth)
     return;
   *replacement = {
       key, score_to_tt(score, ply),
       static_cast<std::int16_t>(std::clamp(static_eval, -32'000, 32'000)),
       static_cast<std::int16_t>(depth), pack_move(best),
-      static_cast<std::int8_t>(flag), generation_};
+      static_cast<std::int8_t>(flag), static_cast<std::int8_t>(lane_),
+      generation_};
 }
 
 bool Searcher::search_draw(const Board& board, int ply) const {
@@ -2139,7 +2216,7 @@ std::vector<Move> Searcher::reconstruct_pv(Board board, const Move& root,
     if (!board.push(legal)) break;
     if (std::find(seen.begin(), seen.end(), board.key) != seen.end()) break;
     seen.push_back(board.key);
-    const TTEntry* entry = find(board.key);
+    const auto entry = find(board.key);
     if (!entry || !entry->best) break;
     candidate = unpack_move(entry->best);
   }
@@ -2153,12 +2230,15 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
   if (board.horde_eliminated()) return -mate_score + ply;
   if (search_draw(board, ply)) return 0;
   const int original_alpha = alpha;
-  TTEntry* found = probe(board.key);
+  const auto found = probe(board.key);
+  const bool tt_authoritative = found && found->lane == lane_;
   if (found) {
     const int tt_score = score_from_tt(found->score, ply);
-    if (found->flag == 0) return tt_score;
-    if (found->flag < 0 && tt_score <= alpha) return tt_score;
-    if (found->flag > 0 && tt_score >= beta) return tt_score;
+    if (tt_authoritative && found->flag == 0) return tt_score;
+    if (tt_authoritative && found->flag < 0 && tt_score <= alpha)
+      return tt_score;
+    if (tt_authoritative && found->flag > 0 && tt_score >= beta)
+      return tt_score;
   }
   const bool in_check = board.position.in_check(board.turn);
   int stand = -infinity;
@@ -2232,10 +2312,15 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
 
   const int original_depth = depth;
   const int original_alpha = alpha;
-  TTEntry* found = probe(board.key);
+  const auto found = probe(board.key);
+  const bool tt_authoritative = found && found->lane == lane_;
   const PackedMove tt_move = found ? found->best : 0;
   const int tt_score = found ? score_from_tt(found->score, ply) : 0;
-  if (!excluded && found && found->depth >= depth) {
+  // A Lazy SMP helper may finish this root depth before the principal lane.
+  // Its TT score is useful for move ordering, but returning it here would
+  // leave the principal's root_best_ unset (or stale from the prior depth).
+  // Below the root, normal exact/lower/upper cutoffs remain enabled.
+  if (ply > 0 && !excluded && tt_authoritative && found->depth >= depth) {
     if (found->flag == 0) return tt_score;
     if (found->flag < 0 && tt_score <= alpha) return tt_score;
     if (found->flag > 0 && tt_score >= beta) return tt_score;
@@ -2304,7 +2389,8 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   const int node_volatility = std::clamp(
       base_volatility + (moves.size() == 1 ? 24 : 0), 0, 100);
 
-  if (ply == 0 && !excluded && root_helpers_[0] && root_helpers_[1])
+  if (config_.parallel_mode == EngineConfig::ParallelMode::root_split &&
+      ply == 0 && !excluded && root_helpers_[0] && root_helpers_[1])
     return parallel_root(
         board, moves, depth, alpha, beta, static_score, previous);
 
@@ -2363,7 +2449,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     }
 
     bool singular = false;
-    if (!excluded && found && tt_move &&
+    if (!excluded && tt_authoritative && tt_move &&
         pack_move(move) == tt_move && depth >= 6 &&
         found->depth >= depth - 2 && found->flag >= 0 &&
         std::abs(tt_score) < mate_score - 1'000) {
@@ -2599,12 +2685,80 @@ SearchResult Searcher::iterative(Board board, SearchLimits limits,
     return iterative_single(std::move(board), limits, info);
 
   lane_ = 0;
-  SearchResult result = iterative_single(std::move(board), limits, info);
+  if (config_.parallel_mode == EngineConfig::ParallelMode::root_split)
+    return iterative_single(std::move(board), limits, info);
+
+  // Lazy SMP searches the complete tree on all three lanes. Two agreeing
+  // lanes form a deterministic move consensus; the principal lane breaks a
+  // three-way disagreement. This prevents one speculative lane from
+  // overruling the other two while still letting independent searches matter.
+  // Generation is advanced exactly once before any lane starts so helpers
+  // neither invalidate one another nor race a wraparound clear.
+  advance_generation();
+  for (Searcher* helper : root_helpers_)
+    helper->generation_ = generation_;
+
+  std::array<SearchResult, search_thread_count - 1> helper_results;
+  {
+    std::scoped_lock lock(root_work_mutex_);
+    root_work_completed_ = 0;
+    root_work_ = [&](int lane) {
+      helper_results[static_cast<std::size_t>(lane - 1)] =
+          root_helpers_[static_cast<std::size_t>(lane - 1)]->iterative_single(
+              board, limits, {}, false);
+    };
+    ++root_work_epoch_;
+  }
+  root_work_ready_.notify_all();
+  SearchResult result = iterative_single(std::move(board), limits, info, false);
+  {
+    std::unique_lock lock(root_work_mutex_);
+    root_work_done_.wait(lock, [&] {
+      return root_work_completed_ == search_thread_count - 1;
+    });
+    root_work_ = {};
+  }
+
+  auto agrees = [](const SearchResult& left, const SearchResult& right) {
+    return !left.pv.empty() && !right.pv.empty() &&
+           left.pv.front().same_coordinates(right.pv.front());
+  };
+  const int principal_allocated_ms = result.allocated_ms;
+  const int principal_hard_limit_ms = result.hard_limit_ms;
+  const int principal_reserve_ms = result.clock_reserve_ms;
+  const ClockMode principal_clock_mode = result.clock_mode;
+  const auto principal_elapsed = result.elapsed;
+  if (!agrees(result, helper_results[0]) &&
+      agrees(helper_results[0], helper_results[1])) {
+    result = helper_results[0];
+    result.allocated_ms = principal_allocated_ms;
+    result.hard_limit_ms = principal_hard_limit_ms;
+    result.clock_reserve_ms = principal_reserve_ms;
+    result.clock_mode = principal_clock_mode;
+    result.elapsed = principal_elapsed;
+  }
+
+  auto add_statistics = [&](const SearchResult& helper) {
+    result.nodes += helper.nodes;
+    result.qnodes += helper.qnodes;
+    result.tt_hits += helper.tt_hits;
+    result.beta_cutoffs += helper.beta_cutoffs;
+    result.lmr_reductions += helper.lmr_reductions;
+    result.quiet_checks += helper.quiet_checks;
+    result.null_cutoffs += helper.null_cutoffs;
+    result.probcut_cutoffs += helper.probcut_cutoffs;
+    result.singular_extensions += helper.singular_extensions;
+    result.late_move_prunes += helper.late_move_prunes;
+    result.history_hits += helper.history_hits;
+    result.countermove_hits += helper.countermove_hits;
+  };
+  for (const SearchResult& helper : helper_results) add_statistics(helper);
   return result;
 }
 
 SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
-                                 const std::function<void(const SearchResult&)>& info) {
+                                 const std::function<void(const SearchResult&)>& info,
+                                 bool start_new_generation) {
   limits_ = limits;
   limits_.depth = std::clamp(limits_.depth, 0, maximum_search_depth);
   reset_statistics();
@@ -2619,7 +2773,7 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
   for (const Board::Snapshot& snapshot : board.history)
     repetition_keys_.push_back(snapshot.key);
   repetition_keys_.push_back(board.key);
-  advance_generation();
+  if (start_new_generation) advance_generation();
   started_ = std::chrono::steady_clock::now();
   SearchResult last;
   if (auto book = opening_move(config_, board)) {

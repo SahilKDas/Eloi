@@ -239,8 +239,14 @@ struct EngineConfig {
   int hash_mb{64};
   int move_overhead_ms{50};
   bool own_book{false};
+  enum class ParallelMode { root_split, lazy_smp };
+  ParallelMode parallel_mode{ParallelMode::root_split};
   bool operator==(const EngineConfig&) const = default;
 };
+
+std::string_view parallel_mode_name(EngineConfig::ParallelMode mode);
+std::optional<EngineConfig::ParallelMode> parse_parallel_mode(
+    std::string_view value);
 
 struct SearchLimits {
   int depth{0};
@@ -316,9 +322,15 @@ class Searcher {
     std::int16_t depth{-1};
     PackedMove best{};
     std::int8_t flag{};
+    std::int8_t lane{};
     std::uint8_t generation{};
   };
   struct TTBucket { std::array<TTEntry, 4> entries{}; };
+  struct TTStorage {
+    std::vector<TTBucket> buckets;
+    std::array<std::mutex, 256> stripes;
+    bool synchronized{false};
+  };
   EngineConfig config_;
   std::atomic_bool& stopped_;
   std::uint64_t nodes_{0};
@@ -336,7 +348,7 @@ class Searcher {
   SearchLimits limits_;
   std::chrono::steady_clock::time_point started_{};
   std::mt19937 random_{0};
-  std::vector<TTBucket> table_;
+  std::shared_ptr<TTStorage> table_;
   std::uint8_t generation_{1};
   std::vector<std::array<Move, 2>> killers_;
   std::array<std::array<std::array<std::int16_t, 64>, 64>, 2>
@@ -361,6 +373,8 @@ class Searcher {
   int root_work_completed_{0};
   bool root_work_shutdown_{false};
 
+  Searcher(EngineConfig config, std::atomic_bool& stopped, int lane,
+           std::shared_ptr<TTStorage> shared_table);
   bool halted();
   void advance_generation();
   void reset_statistics();
@@ -374,7 +388,8 @@ class Searcher {
                     const Move& previous);
   SearchResult iterative_single(
       Board board, SearchLimits limits,
-      const std::function<void(const SearchResult&)>& info);
+      const std::function<void(const SearchResult&)>& info,
+      bool start_new_generation = true);
   int evaluate(const Board& board);
   int volatility(const Board& board, std::size_t legal_count,
                  int evaluation_swing = 0) const;
@@ -392,8 +407,8 @@ class Searcher {
                             const Move& previous, int bonus);
   int quiet_history(Color side, const Move& move,
                     const Move& previous) const;
-  TTEntry* probe(std::uint64_t key);
-  const TTEntry* find(std::uint64_t key) const;
+  std::optional<TTEntry> probe(std::uint64_t key);
+  std::optional<TTEntry> find(std::uint64_t key) const;
   void store(std::uint64_t key, int depth, int score, int static_eval,
              int flag, const Move& best, int ply);
 };

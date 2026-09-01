@@ -75,6 +75,7 @@ void usage(const EngineConfig& config, const char* program) {
             << "  --ply N       default depth (0-17697; 40+ may be extremely slow)\n"
             << "  --noise N     evaluation noise in millipawns\n"
             << "  --hash N      transposition table size in MB\n"
+            << "  --parallel MODE  RootSplit or LazySMP\n"
             << "  --move-overhead N  clock/network safety margin in ms\n";
 }
 
@@ -87,6 +88,9 @@ void parse_engine_options(EngineConfig& config, int argc, char** argv) {
     if (arg == "--ply" || arg == "-ply") take(config.depth);
     else if (arg == "--noise" || arg == "-noise") take(config.noise_millipawns);
     else if (arg == "--hash" || arg == "-hash") take(config.hash_mb);
+    else if (arg == "--parallel" && i + 1 < argc) {
+      if (auto mode = parse_parallel_mode(argv[++i])) config.parallel_mode = *mode;
+    }
     else if (arg == "--move-overhead") take(config.move_overhead_ms);
     else if (arg == "--help" || arg == "-h" || arg == "-help") {
       usage(config, argv[0]);
@@ -168,6 +172,9 @@ int run_engine(EngineConfig config, int argc, char** argv) {
             << "option name Depth type spin default " << config.depth << " min 0 max " << maximum_search_depth << "\n"
             << "option name Hash type spin default " << config.hash_mb << " min 0 max 16384\n"
             << "option name Threads type spin default 3 min 3 max 3\n"
+            << "option name ParallelMode type combo default "
+            << parallel_mode_name(config.parallel_mode)
+            << " var RootSplit var LazySMP\n"
             << "option name Move Overhead type spin default " << config.move_overhead_ms << " min 0 max 5000\n"
             << "option name Noise type spin default " << config.noise_millipawns << " min 0 max 10000\n"
             << "option name UCI_Chess960 type check default false\n"
@@ -184,9 +191,10 @@ int run_engine(EngineConfig config, int argc, char** argv) {
                                const EngineConfig& right) {
     return left.name == right.name && left.author == right.author &&
            left.noise_millipawns == right.noise_millipawns &&
-           left.hash_mb == right.hash_mb &&
-           left.move_overhead_ms == right.move_overhead_ms &&
-           left.own_book == right.own_book;
+            left.hash_mb == right.hash_mb &&
+            left.move_overhead_ms == right.move_overhead_ms &&
+            left.parallel_mode == right.parallel_mode &&
+            left.own_book == right.own_book;
   };
   auto stop_worker = [&] {
     stopped = true;
@@ -263,6 +271,9 @@ int run_engine(EngineConfig config, int argc, char** argv) {
           else if(key=="Noise")config.noise_millipawns=*n;
         }
         if(key=="OwnBook") config.own_book=(val=="true"||val=="1");
+        if(key=="ParallelMode") {
+          if (auto mode = parse_parallel_mode(val)) config.parallel_mode = *mode;
+        }
         if(key=="UCI_Chess960") {
           uci_chess960=(val=="true"||val=="1");
           board.chess960=!board.horde && uci_chess960;
