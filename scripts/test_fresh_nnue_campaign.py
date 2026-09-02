@@ -49,6 +49,15 @@ class CampaignTests(unittest.TestCase):
         import inspect
         self.assertFalse(inspect.signature(campaign.load_evaluations).parameters['include_test'].default)
 
+    def test_learning_identity_ignores_unencoded_fen_fields(self):
+        placement = campaign.chess.STARTING_FEN.split()[0]
+        a = placement + ' w KQkq - 0 1'
+        b = placement + ' b - - 20 30'
+        self.assertEqual(campaign.learning_key(a), campaign.learning_key(b))
+        board = campaign.chess.Board(a)
+        board.push_uci('e2e4')
+        self.assertNotEqual(campaign.learning_key(a), campaign.learning_key(board.fen()))
+
     def test_export_roundtrip_and_cpp_syntax(self):
         model = campaign.trainer.load_quantized_header(campaign.ROOT / 'include/eloi/nnue_weights.hpp')
         scratch = campaign.WORK / 'integrity-checks' / str(time.time_ns())

@@ -149,6 +149,29 @@ partition is not claimed to be independent of all historical Eloi training.
 Stockfish is not linked or copied into Eloi packages; it is an offline research
 tool in ignored scratch only. No package is authorized by this campaign.
 
+### Pre-training NNUE-input identity correction
+
+An additional audit found two piece placements (four raw rows: two train, two
+test) which survived full-FEN-state deduplication because turn/castling differed.
+The current NNUE does not encode those fields. Before any candidate training,
+the loader was corrected to exclude all such placements from every partition,
+and legacy puzzle exclusions now use the same NNUE-visible identity. The raw
+positions and teacher labels remain intact. Exclusions are reproducibly recorded
+in `tmp/nnue-fresh-data/learning-identity-exclusions.json`; no test score was used
+to choose this correction. The affected count after confidence filtering will
+be reflected in actual loaded training/evaluation counts.
+
+The offline teacher was briefly stopped so its owning runner could exit and
+resume the saved labels with this corrected loader. No production engine was
+stopped. This necessary code reload also applies the already documented runtime
+extension via the continuation wrapper; it does not alter the teacher recipe.
+
+The corrected worker resumed as PID 6672, with preserved earlier logs and new
+`tmp/nnue-fresh-data/campaign-3.log` / `campaign-3.err`. Its first label progress
+confirmed 20,096 examined positions and 14,022 accepted, continuing the existing
+checkpoint. All 20 lightweight integrity tests pass (8 data, 12 campaign).
+This is a restart checkpoint, not a completed training or strength result.
+
 All candidate networks and build directories remain under
 `tmp/nnue-fresh-data/candidates/`. CMake's optional experimental include root
 avoids swapping the production header. The default build remains unchanged.

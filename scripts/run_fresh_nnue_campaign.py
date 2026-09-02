@@ -50,12 +50,39 @@ def check_identity():
     return current
 
 
+def learning_key(fen):
+    """The current NNUE encodes pieces/kings, not turn, castling or EP."""
+    return fen.split()[0]
+
+
+def learning_conflicts():
+    partitions = collections.defaultdict(set)
+    counts = collections.Counter()
+    with (WORK / 'positions.jsonl').open() as stream:
+        for line in stream:
+            row = json.loads(line)
+            key = learning_key(row['fen'])
+            partitions[key].add(row['partition'])
+            counts[key] += 1
+    conflicts = {key for key, parts in partitions.items() if len(parts) > 1}
+    data.immutable_json(WORK / 'learning-identity-exclusions.json', {
+        'reason': 'NNUE inputs omit side-to-move, castling rights, EP and move counters',
+        'positions_sha256': data.sha(WORK / 'positions.jsonl'),
+        'conflicting_piece_placements': sorted(conflicts),
+        'affected_raw_rows': sum(counts[key] for key in conflicts),
+        'policy': 'exclude every affected placement from all learning/evaluation partitions; raw labels preserved'})
+    return conflicts
+
+
 def load_evaluations(include_test=False):
+    conflicts = learning_conflicts()
     result = {'train': [], 'validation': [], 'test': []}
     with (WORK / 'labels.jsonl').open() as stream:
         for line in stream:
             row = json.loads(line)
             if not row['accepted'] or (row['partition'] == 'test' and not include_test):
+                continue
+            if learning_key(row['fen']) in conflicts:
                 continue
             board = chess.Board(row['fen'])
             result[row['partition']].append((trainer.features(board, chess.WHITE),
@@ -65,13 +92,14 @@ def load_evaluations(include_test=False):
 
 
 def load_training_puzzles():
-    held_groups, held_boards = set(), data.excluded_positions()
+    held_groups = set()
+    held_boards = {learning_key(fen) for fen in data.excluded_positions()}
     with (WORK / 'positions.jsonl').open() as stream:
         for line in stream:
             row = json.loads(line)
             if row['partition'] != 'train':
                 held_groups.add(row['group'])
-                held_boards.add(data.board_key(chess.Board(row['fen'])))
+                held_boards.add(learning_key(row['fen']))
     selected = []
     source = ROOT / '.deps/nnue-inputs-v2-broader1/canonical-puzzles.jsonl'
     expected = read(ROOT / 'data/nnue_broader_sample_manifest.json')['outputs']['canonical_puzzles']['sha256']
@@ -84,7 +112,7 @@ def load_training_puzzles():
                 continue
             board = chess.Board(row['decision_fen'])
             best = chess.Move.from_uci(row['best_move'])
-            if data.board_key(board) in held_boards or best not in board.legal_moves:
+            if learning_key(board.fen()) in held_boards or best not in board.legal_moves:
                 continue
             legal = sorted((m for m in board.legal_moves if m != best), key=lambda m: m.uci())
             if not legal:
@@ -93,7 +121,7 @@ def load_training_puzzles():
             best_board, alt_board = board.copy(), board.copy()
             best_board.push(best)
             alt_board.push(alt)
-            if data.board_key(best_board) in held_boards or data.board_key(alt_board) in held_boards:
+            if learning_key(best_board.fen()) in held_boards or learning_key(alt_board.fen()) in held_boards:
                 continue
             selected.append((data.digest(f'{trainer.SEED}|canonical-limit|{row["record_id"]}'), row,
                              best_board, alt_board, board.turn))
