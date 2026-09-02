@@ -1,0 +1,93 @@
+{
+  "allowed_repair_classes": [
+    "TT divergence",
+    "selectivity divergence",
+    "budget/ordering divergence"
+  ],
+  "amendments_after_first_game": "forbidden; interruption may resume identical protocol",
+  "baseline_release": "v2.0.0",
+  "baseline_sha256": "5F13AB2FEB05DE4171DB39E637FD1322409211872DEBB72AD7BEF88858B5AACF",
+  "confirmation": {
+    "attempts_per_selected_candidate": 1,
+    "games": 60,
+    "gate_metric": "score",
+    "max_plies": 200,
+    "nodes_per_move": 10000,
+    "required_score": 0.52
+  },
+  "correctness": "all unit/EPD/SEE/TT/quiescence/perft/differential/SIMD gates",
+  "development": {
+    "games": 60,
+    "max_plies": 200,
+    "nodes_per_move": 10000,
+    "purpose": "development-only; not a strength claim"
+  },
+  "engine": {
+    "hash_mb": 32,
+    "move_overhead_ms": 0,
+    "noise_millipawns": 0,
+    "own_book": false,
+    "parallel_mode": "RootSplit",
+    "priority": "Windows Idle",
+    "threads": 3
+  },
+  "final": {
+    "games": 300,
+    "gate_metric": "score",
+    "max_plies": 200,
+    "movetime_ms": 250,
+    "required_points": 165,
+    "required_score": 0.55,
+    "sealed_until_confirmation_passes": true
+  },
+  "maximum_evidence_selected_repairs": 1,
+  "name": "eloi-search-recovery-v1",
+  "ordering": "SHA256(UTF8(eloi-search-recovery-v1) + NUL + UTF8(FEN)); FEN tie-break",
+  "partitions": {
+    "confirmation": {
+      "count": 30,
+      "path": "data/search_recovery/confirmation.json",
+      "sha256": "49CC219C0C271DA887EACEC7ED04B543EDE3CC3E90C5F1A590C4B03B598505AD"
+    },
+    "development": {
+      "count": 30,
+      "path": "data/search_recovery/development.json",
+      "sha256": "FD98909A9ECA3A56CBE0D98E735C0B5A924C1586AAFF7245DFCD474D71E90291"
+    },
+    "diagnostic": {
+      "count": 20,
+      "path": "data/search_recovery/diagnostic.json",
+      "sha256": "C0768D67EDF2978D9BDA4FF67EC7B2DCB1A45AFBB75B921CA5233C621A38156A"
+    },
+    "final": {
+      "count": 150,
+      "path": "data/search_recovery/final.json",
+      "sha256": "3C25FBA17221D0E629BDC2BEE0AF481EA14C0E4C515336790C39DE52517CC32A"
+    },
+    "reserve": {
+      "count": 270,
+      "path": "data/search_recovery/reserve.json",
+      "sha256": "C90518A60C71A8F34FCBF3DADC8BC2D9B12A633C4544C238C732CC7C316D5138"
+    }
+  },
+  "performance": {
+    "depths": [
+      1,
+      5,
+      10
+    ],
+    "maximum_time_ratio_depth_5_10": 1.15,
+    "samples": 3
+  },
+  "release": {
+    "if_failed": "no package; retain v2.0 champion",
+    "if_passed": "2.5.0-rc.2",
+    "push_or_publish": false
+  },
+  "reproducibility": "two clean builds; exact executable equality",
+  "schema": 1,
+  "scratch_cap_bytes": 2000000000,
+  "source_suite_sha256": "CA252742023A982D7B2ACA44D0E16DA95A0A38E731E329648056D84FCE773858",
+  "total_temporary_cap_bytes": 10000000000,
+  "weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E"
+}

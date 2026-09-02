@@ -47,9 +47,14 @@ def configure(engine: chess.engine.SimpleEngine, *, timed: bool,
         settings["Hash"] = 32
     if timed and "Depth" in options:
         settings["Depth"] = 0
-    if "ParallelMode" not in options:
-        raise RuntimeError("engine does not expose the ParallelMode UCI option")
-    settings["ParallelMode"] = parallel_mode
+    if "ParallelMode" in options:
+        settings["ParallelMode"] = parallel_mode
+    elif parallel_mode != "RootSplit":
+        raise RuntimeError("this engine supports RootSplit only")
+    if "Threads" in options:
+        settings["Threads"] = 3
+    if "Noise" in options:
+        settings["Noise"] = 0
     if settings:
         engine.configure(settings)
 
@@ -146,7 +151,9 @@ def main() -> int:
             if mode in checked:
                 continue
             checked.append(mode)
-            command = [str(args.correctness_test), "--parallel", mode]
+            if mode != "RootSplit":
+                raise RuntimeError("current correctness executable validates RootSplit only")
+            command = [str(args.correctness_test)]
             print(f"{label} correctness preflight: {' '.join(command)}",
                   flush=True)
             completed = subprocess.run(command, check=False, timeout=120)

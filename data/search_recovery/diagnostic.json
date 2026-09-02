@@ -1,0 +1,88 @@
+{
+  "count": 20,
+  "name": "Search recovery diagnostic",
+  "partition": "diagnostic",
+  "positions": [
+    {
+      "fen": "r1bqkb1r/ppppn1pp/n7/4pp2/P1P2P2/R7/1P1PP1PP/1NBQKBNR w Kkq - 2 5",
+      "filter_cp": -28
+    },
+    {
+      "fen": "r3kbnr/ppp1pppp/nN1qb3/8/3p4/1P6/P1PPPPPP/RNBQKB1R w KQkq - 4 6",
+      "filter_cp": -15
+    },
+    {
+      "fen": "rnbqkb1r/pppp1p1p/4p1p1/4N3/1PPP4/6n1/P3PPPP/RNBQKB1R w KQkq - 0 6",
+      "filter_cp": -21
+    },
+    {
+      "fen": "r1bqkbr1/p1p1nppp/2n1p3/1p1pP3/8/P2P2P1/1PP1BP1P/RNBQK1NR w KQq - 1 7",
+      "filter_cp": 0
+    },
+    {
+      "fen": "rnb1k1nr/ppqp1ppp/B1pb4/4p3/2P1P3/7P/PP1P1PP1/RNBQK1NR w KQkq - 1 5",
+      "filter_cp": -46
+    },
+    {
+      "fen": "rnbqkbnr/pppp1ppp/8/4p3/QPP3P1/8/P2PPP1P/RNB1KBNR w KQkq - 3 5",
+      "filter_cp": 57
+    },
+    {
+      "fen": "rnb1q1nr/ppppkppp/8/2P1p3/1b5P/1P6/P2PPPP1/RNBQKBNR w KQ - 1 5",
+      "filter_cp": -60
+    },
+    {
+      "fen": "r1bqkb1r/p2ppppp/n7/1ppn4/2P3P1/3PPN2/PP3P1P/RNBQKB1R w KQkq - 0 6",
+      "filter_cp": 37
+    },
+    {
+      "fen": "1r1qkbnr/ppp1pp1p/2n1b3/3p2pP/P1P5/1P3N2/3PPPP1/RNBQKB1R w KQk - 1 7",
+      "filter_cp": -21
+    },
+    {
+      "fen": "rn1qkbnr/p2bppp1/7p/1p1p4/2p2P2/2NP1NP1/PPPKP2P/R1BQ1B1R w kq - 2 7",
+      "filter_cp": -63
+    },
+    {
+      "fen": "r1b1k1nr/pppp1ppp/n4q2/4p3/4PQ2/b7/PPPP1PPP/RNB1KBNR w KQkq - 6 5",
+      "filter_cp": 72
+    },
+    {
+      "fen": "rnbqkb1r/1pp2ppp/5n2/p3p3/P2pP3/1PP3P1/3P1P1P/RNBQKBNR w KQkq - 0 6",
+      "filter_cp": -11
+    },
+    {
+      "fen": "rn2kbnr/ppq1pppp/2p5/3pPb2/8/1PPB4/P2P1PPP/RNBQK1NR w KQkq - 1 6",
+      "filter_cp": 1
+    },
+    {
+      "fen": "r1b1k2r/ppppqppp/2nbpn2/8/2P5/2NBPQ2/PP1P1PPP/R1B1K1NR w KQkq - 4 6",
+      "filter_cp": 41
+    },
+    {
+      "fen": "rnbqk1nr/1ppp2pp/p2b4/4pp2/4P3/5N2/PPPP1PPP/RNBQKB1R w kq - 0 5",
+      "filter_cp": 79
+    },
+    {
+      "fen": "rn1qk1nr/pp3ppp/8/2pppb2/P2P4/b1P5/RP1BPPPP/1N1QKBNR w Kkq - 0 6",
+      "filter_cp": -35
+    },
+    {
+      "fen": "rn1qkb1r/pp1bpppp/2p2n2/3p4/2PP4/5N1P/PP2PPP1/RNBQKB1R w KQkq - 0 5",
+      "filter_cp": -71
+    },
+    {
+      "fen": "rn1qk1nr/ppp1pp1p/4b1pb/3p3P/3PP3/5P2/PPP3P1/RNBQKBNR w KQkq - 1 6",
+      "filter_cp": -39
+    },
+    {
+      "fen": "r2qkbnr/ppp1p3/2n1b1p1/3p1p1p/5P2/1NN3P1/PPPPP2P/R1BQKB1R w KQkq - 3 7",
+      "filter_cp": 27
+    },
+    {
+      "fen": "r1bqkbnr/p1pppppp/1p6/2n5/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 6",
+      "filter_cp": -3
+    }
+  ],
+  "schema": 1
+}

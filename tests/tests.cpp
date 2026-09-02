@@ -41,7 +41,7 @@ struct SearcherTestAccess {
   }
 
   static std::size_t bucket_count(const Searcher& searcher) {
-    return searcher.table_ ? searcher.table_->buckets.size() : 0;
+    return searcher.table_.size();
   }
 
   static void next_generation(Searcher& searcher) {
@@ -57,8 +57,8 @@ struct SearcherTestAccess {
 
   static bool helpers_share_table(const Searcher& searcher) {
     return searcher.root_helpers_[0] && searcher.root_helpers_[1] &&
-           searcher.table_ == searcher.root_helpers_[0]->table_ &&
-           searcher.table_ == searcher.root_helpers_[1]->table_;
+           searcher.table_.data() == searcher.root_helpers_[0]->table_.data() &&
+           searcher.table_.data() == searcher.root_helpers_[1]->table_.data();
   }
 };
 }  // namespace eloi
@@ -226,12 +226,10 @@ std::vector<EpdCase> load_epd(const std::filesystem::path& path) {
 }
 
 SearchResult fixed_depth_search(
-    const Board& board, int depth,
-    EngineConfig::ParallelMode mode = EngineConfig::ParallelMode::root_split) {
+    const Board& board, int depth) {
   auto config = default_config();
   config.own_book = false;
   config.hash_mb = 4;
-  config.parallel_mode = mode;
   std::atomic_bool stopped{false};
   SearchLimits limits;
   limits.depth = depth;
@@ -252,17 +250,7 @@ std::optional<Move> legal_move(const Board& board, std::string_view uci) {
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-  EngineConfig::ParallelMode regression_mode =
-      EngineConfig::ParallelMode::root_split;
-  if (argc == 3 && std::string_view(argv[1]) == "--parallel") {
-    const auto parsed = parse_parallel_mode(argv[2]);
-    if (!parsed) {
-      std::cerr << "unknown parallel mode: " << argv[2] << '\n';
-      return EXIT_FAILURE;
-    }
-    regression_mode = *parsed;
-  }
+int main() {
   static_assert(search_thread_count == 3,
                 "Eloi's search contract is fixed at exactly three threads");
   static_assert(recommended_search_depth == 40,
@@ -1067,12 +1055,6 @@ int main(int argc, char** argv) {
   }
 
   {
-    expect(parse_parallel_mode("RootSplit") ==
-               EngineConfig::ParallelMode::root_split &&
-               parse_parallel_mode("lazy-smp") ==
-               EngineConfig::ParallelMode::lazy_smp &&
-               !parse_parallel_mode("four-threads"),
-           "parallel-mode parser accepts only the two three-lane designs");
     std::atomic_bool stopped{false};
     auto root_config = default_config();
     root_config.hash_mb = 4;
@@ -1080,12 +1062,6 @@ int main(int argc, char** argv) {
     expect(SearcherTestAccess::lane_count(root_splitter) == 3 &&
                !SearcherTestAccess::helpers_share_table(root_splitter),
            "root splitter owns exactly three lanes with private TT shards");
-    auto lazy_config = root_config;
-    lazy_config.parallel_mode = EngineConfig::ParallelMode::lazy_smp;
-    Searcher lazy_smp(lazy_config, stopped);
-    expect(SearcherTestAccess::lane_count(lazy_smp) == 3 &&
-               SearcherTestAccess::helpers_share_table(lazy_smp),
-           "Lazy SMP owns exactly three full-tree lanes sharing one TT");
   }
 
   {
@@ -1095,14 +1071,13 @@ int main(int argc, char** argv) {
     expect(regressions.size() == 15,
            "v2.5 EPD corpus loads every categorized regression");
     std::set<std::string> categories;
-    const auto mode = regression_mode;
-    const std::string prefix = std::string(parallel_mode_name(mode)) + ": ";
+    const std::string prefix = "RootSplit: ";
     for (const EpdCase& test : regressions) {
         categories.insert(test.category);
         auto board = parse_fen(test.fen);
         expect(board.has_value(), prefix + test.id + ": regression FEN parses");
         if (!board) continue;
-        const auto result = fixed_depth_search(*board, test.depth, mode);
+        const auto result = fixed_depth_search(*board, test.depth);
         const std::string move = best_uci(result);
         if (!test.best.empty())
           expect(move == test.best,
@@ -1117,9 +1092,9 @@ int main(int argc, char** argv) {
                      std::to_string(result.score_cp));
         if (test.stable_depths) {
           const auto shallow = fixed_depth_search(
-              *board, test.stable_depths->first, mode);
+              *board, test.stable_depths->first);
           const auto deep = fixed_depth_search(
-              *board, test.stable_depths->second, mode);
+              *board, test.stable_depths->second);
           expect(best_uci(shallow) == best_uci(deep),
                  prefix + test.id +
                      ": best move remains stable across quiescence depths");

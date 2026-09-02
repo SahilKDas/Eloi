@@ -8,6 +8,9 @@ import datetime as dt
 import hashlib
 import json
 import math
+import os
+import subprocess
+from fractions import Fraction
 import pathlib
 import shutil
 import statistics
@@ -29,6 +32,9 @@ import chess.pgn
 
 OFFICIAL_BETA1_SHA256 = (
     "614CE6D601AFC749EA4EFD8FC94A8BAE79EF4537374B0984E292A92CA0A99B7F"
+)
+OFFICIAL_V2_SHA256 = (
+    "5F13AB2FEB05DE4171DB39E637FD1322409211872DEBB72AD7BEF88858B5AACF"
 )
 SPEED_FENS = (
     chess.STARTING_FEN,
@@ -74,13 +80,22 @@ def configure(engine: chess.engine.SimpleEngine) -> None:
         settings["Threads"] = 3
     if "Depth" in engine.options:
         settings["Depth"] = 0
+    if "Noise" in engine.options:
+        settings["Noise"] = 0
+    if "Move Overhead" in engine.options:
+        settings["Move Overhead"] = 0
     if settings:
         engine.configure(settings)
 
 
-def start_engine(path: pathlib.Path) -> chess.engine.SimpleEngine:
+def start_engine(path: pathlib.Path, idle_priority: bool = False) -> chess.engine.SimpleEngine:
+    kwargs = {}
+    if idle_priority:
+        if os.name != "nt":
+            raise ValueError("Windows Idle priority is unavailable on this platform")
+        kwargs["creationflags"] = subprocess.IDLE_PRIORITY_CLASS
     engine = chess.engine.SimpleEngine.popen_uci(
-        [str(path), "--uci"], timeout=720.0)
+        [str(path), "--uci"], timeout=720.0, **kwargs)
     configure(engine)
     return engine
 
@@ -258,7 +273,8 @@ def deep_ladder(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
 def speed_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
                output: pathlib.Path, depths: tuple[int, ...] = (1, 5, 10),
                sample_override: int | None = None,
-               minimum_seconds: float = 5.0) -> dict[str, Any]:
+               minimum_seconds: float = 5.0,
+               maximum_time_ratio: float | None = None) -> dict[str, Any]:
     result: dict[str, Any] = {
         "schema": 1,
         "kind": "speed",
@@ -276,7 +292,8 @@ def speed_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
             "hash_mb": 32,
             "own_book": False,
             "hard_depths": list(depths),
-            "hard_speedup": 5.0,
+            "hard_speedup": 5.0 if maximum_time_ratio is None else None,
+            "maximum_time_ratio_depth_5_10": maximum_time_ratio,
             "speed_positions": list(SPEED_FENS),
         },
         "depths": {},
@@ -328,7 +345,8 @@ def speed_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
                 "baseline_median_ns": baseline_median,
                 "candidate_median_ns": candidate_median,
                 "speedup": speedup,
-                "passed": speedup >= 5.0,
+                "passed": (speedup >= 5.0 if maximum_time_ratio is None else
+                           depth == 1 or candidate_median <= baseline_median * maximum_time_ratio),
             })
             atomic_json(output, result)
     finally:
@@ -352,132 +370,170 @@ def score_label(board: chess.Board, candidate_is_white: bool) -> str:
 
 def play_game(candidate: chess.engine.SimpleEngine,
               baseline: chess.engine.SimpleEngine, fen: str,
-              candidate_is_white: bool, movetime_ms: int,
+              candidate_is_white: bool, movetime_ms: int | None,
               max_plies: int, game_number: int,
-              event: str = "Eloi Engine Lab strength gate"
-              ) -> tuple[str, chess.pgn.Game]:
+              event: str = "Eloi Engine Lab strength gate",
+              nodes: int | None = None) -> tuple[str, chess.pgn.Game]:
     board = chess.Board(fen)
     game = chess.pgn.Game.from_board(board)
     game.headers["Event"] = event
     game.headers["Round"] = str(game_number)
     game.headers["CandidateColor"] = "White" if candidate_is_white else "Black"
+    game.headers["NodeLimit"] = str(nodes or 0)
+    game.headers["MoveTimeMs"] = str(movetime_ms or 0)
     node = game
     game_token = object()
+    limit = chess.engine.Limit(nodes=nodes, time=movetime_ms / 1000.0 if movetime_ms else None)
     while not board.is_game_over(claim_draw=True) and board.ply() < max_plies:
         candidate_turn = board.turn == candidate_is_white
         engine = candidate if candidate_turn else baseline
+        started = time.monotonic()
         try:
-            played = engine.play(
-                board, chess.engine.Limit(time=movetime_ms / 1000.0),
-                game=game_token)
-        except (chess.engine.EngineError, chess.engine.EngineTerminatedError):
-            label = "loss" if candidate_turn else "win"
-            game.headers["Termination"] = (
-                "candidate engine failure" if candidate_turn
-                else "baseline engine failure")
-            return label, game
+            played = engine.play(board, limit, game=game_token, info=chess.engine.INFO_BASIC)
+        except (chess.engine.EngineError, chess.engine.EngineTerminatedError, TimeoutError):
+            game.headers["Termination"] = "candidate engine failure" if candidate_turn else "baseline engine failure"
+            game.headers["Result"] = "0-1" if board.turn == chess.WHITE else "1-0"
+            game.headers["ProtocolFailure"] = "engine failure"
+            return ("loss" if candidate_turn else "win"), game
+        elapsed = time.monotonic() - started
+        if movetime_ms and elapsed > max(2.0, 10 * movetime_ms / 1000.0):
+            game.headers["ProtocolFailure"] = "move deadline exceeded watchdog tolerance"
         if played.move is None or played.move not in board.legal_moves:
-            label = "loss" if candidate_turn else "win"
             game.headers["Termination"] = "illegal or missing engine move"
-            return label, game
+            game.headers["ProtocolFailure"] = "illegal or missing engine move"
+            game.headers["Result"] = "0-1" if board.turn == chess.WHITE else "1-0"
+            return ("loss" if candidate_turn else "win"), game
         board.push(played.move)
         node = node.add_variation(played.move)
     label = score_label(board, candidate_is_white)
     outcome = board.outcome(claim_draw=True)
     game.headers["Result"] = outcome.result() if outcome else "1/2-1/2"
     if outcome is None:
-        game.headers["Termination"] = "200-ply adjudicated draw"
+        game.headers["Termination"] = f"{max_plies}-ply adjudicated draw"
     return label, game
+
+
+def validate_resume(result: dict, identity: dict, pgn_path: pathlib.Path) -> None:
+    if result["identity"] != identity:
+        raise ValueError("checkpoint identity does not match this run")
+    rows = result["results"]
+    if len(rows) > identity["games"] or any(
+            row.get("game") != index + 1 or row.get("result") not in ("win", "draw", "loss")
+            for index, row in enumerate(rows)):
+        raise ValueError("checkpoint contains invalid game sequence/results")
+    if not pgn_path.is_file() or result.get("pgn_sha256") != sha256(pgn_path):
+        raise ValueError("PGN hash differs from the committed checkpoint; refuse ambiguous resume")
+    if count_pgn_games(pgn_path) != len(rows):
+        raise ValueError("PGN game count differs from checkpoint")
 
 
 def strength_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
                   suite_path: pathlib.Path, checkpoint_path: pathlib.Path,
-                  pgn_path: pathlib.Path, movetime_ms: int = 250,
+                  pgn_path: pathlib.Path, movetime_ms: int | None = 250,
                   games: int = 250, max_plies: int = 200,
                   required_win_rate: float = 0.60,
-                  architecture_playoff: bool = False) -> dict[str, Any]:
+                  architecture_playoff: bool = False, *,
+                  nodes: int | None = None, gate_metric: str = "wins",
+                  required_score: float = 0.55, idle_priority: bool = False,
+                  protocol_path: pathlib.Path | None = None) -> dict[str, Any]:
     suite = json.loads(suite_path.read_text(encoding="utf-8"))
     positions = suite["positions"]
-    if games > len(positions) * 2 or games % 2:
-        raise ValueError("games must be even and no larger than twice the suite")
-    if not architecture_playoff and not 0.0 < required_win_rate <= 1.0:
-        raise ValueError("required win rate must be in (0, 1]")
+    if games < 2 or games > len(positions) * 2 or games % 2:
+        raise ValueError("games must be positive, even and no larger than twice the suite")
+    if (nodes is None) == (movetime_ms is None):
+        raise ValueError("choose exactly one of nodes or movetime")
+    if (nodes is not None and nodes <= 0) or (movetime_ms is not None and movetime_ms <= 0):
+        raise ValueError("search budget must be positive")
+    if max_plies <= 0 or gate_metric not in ("score", "wins"):
+        raise ValueError("invalid ply limit or gate metric")
+    if not 0.0 < required_win_rate <= 1.0 or not 0.0 < required_score <= 1.0:
+        raise ValueError("required win rate and score must be in (0, 1]")
+    if checkpoint_path.resolve() == pgn_path.resolve():
+        raise ValueError("checkpoint and PGN must be different files")
     identity = {
         "candidate_sha256": sha256(candidate_path),
         "baseline_sha256": sha256(baseline_path),
         "suite_sha256": sha256(suite_path),
-        "movetime_ms": movetime_ms,
-        "games": games,
-        "max_plies": max_plies,
-        "threads": 3,
-        "hash_mb": 32,
-        "own_book": False,
-        "gate_metric": "score" if architecture_playoff else "raw-wins",
+        "protocol_sha256": sha256(protocol_path) if protocol_path else None,
+        "movetime_ms": movetime_ms, "nodes_per_move": nodes,
+        "games": games, "max_plies": max_plies, "threads": 3, "hash_mb": 32,
+        "own_book": False, "noise_millipawns": 0, "move_overhead_ms": 0,
+        "priority": "Windows Idle" if idle_priority else "normal",
+        "gate_metric": "score" if architecture_playoff else gate_metric,
     }
     if architecture_playoff:
-        identity.update({
-            "candidate_hidden": 128,
-            "baseline_hidden": 64,
-            "select_candidate_at_score": 0.55,
-            "select_baseline_at_or_below_score": 0.45,
-        })
+        identity.update({"candidate_hidden": 128, "baseline_hidden": 64,
+                         "select_candidate_at_score": 0.55,
+                         "select_baseline_at_or_below_score": 0.45})
+    elif gate_metric == "score":
+        identity.update({"required_score": required_score,
+                         "required_half_points": math.ceil(Fraction(str(required_score)) * games * 2)})
     else:
-        identity.update({
-            "required_win_rate": required_win_rate,
-            "required_wins": math.ceil(games * required_win_rate),
-        })
+        identity.update({"required_win_rate": required_win_rate,
+                         "required_wins": math.ceil(Fraction(str(required_win_rate)) * games)})
     if checkpoint_path.exists():
         result = json.loads(checkpoint_path.read_text(encoding="utf-8"))
-        if result["identity"] != identity:
-            raise ValueError("checkpoint identity does not match this run")
+        validate_resume(result, identity, pgn_path)
+        result.setdefault("interruptions", []).append({"resumed_utc": utc_now(),
+                                                       "completed_games": len(result["results"])})
     else:
-        result = {
-            "schema": 1,
-            "kind": (
-                "architecture-playoff" if architecture_playoff else "strength"
-            ),
-            "started_utc": utc_now(),
-            "identity": identity,
-            "results": [],
-        }
+        if pgn_path.exists():
+            raise ValueError("unrecognized PGN exists without a matching checkpoint")
+        result = {"schema": 2, "kind": "architecture-playoff" if architecture_playoff else "strength",
+                  "started_utc": utc_now(), "identity": identity, "results": [], "interruptions": []}
         pgn_path.parent.mkdir(parents=True, exist_ok=True)
         pgn_path.write_text("", encoding="utf-8")
-
-    candidate = start_engine(candidate_path)
-    baseline = start_engine(baseline_path)
+        result["pgn_sha256"] = sha256(pgn_path)
+    # Persist the frozen protocol before starting either engine or game one.
+    atomic_json(checkpoint_path, result)
+    candidate = baseline = None
     try:
+        candidate = start_engine(candidate_path, idle_priority)
+        baseline = start_engine(baseline_path, idle_priority)
         for index in range(len(result["results"]), games):
             opening = positions[index // 2]
             candidate_is_white = index % 2 == 0
             label, game = play_game(
                 candidate, baseline, opening["fen"], candidate_is_white,
                 movetime_ms, max_plies, index + 1,
-                event=(
-                    "Eloi NNUE architecture playoff"
-                    if architecture_playoff
-                    else "Eloi Engine Lab strength gate"
-                ))
-            result["results"].append({
-                "game": index + 1,
-                "opening": index // 2,
-                "candidate_color": "white" if candidate_is_white else "black",
-                "result": label,
-            })
+                event="Eloi NNUE architecture playoff" if architecture_playoff else "Eloi Engine Lab strength gate",
+                nodes=nodes)
             with pgn_path.open("a", encoding="utf-8") as stream:
                 print(game, file=stream, end="\n\n")
+            result["results"].append({
+                "game": index + 1, "opening": index // 2,
+                "candidate_color": "white" if candidate_is_white else "black", "result": label,
+                "protocol_failure": game.headers.get("ProtocolFailure"),
+            })
+            result["pgn_sha256"] = sha256(pgn_path)
             summarize_strength(result)
             atomic_json(checkpoint_path, result)
-            print(
-                f"game {index + 1}/{games}: {label}; "
-                f"W/D/L {result['wins']}/{result['draws']}/{result['losses']}",
-                flush=True)
+            print(f"game {index + 1}/{games}: {label}; "
+                  f"W/D/L {result['wins']}/{result['draws']}/{result['losses']}; "
+                  f"score {100 * result['score']:.2f}%", flush=True)
+            if game.headers.get("ProtocolFailure"):
+                break
+    except BaseException as error:
+        result["interruptions"].append({"utc": utc_now(), "type": type(error).__name__,
+                                        "completed_games": len(result["results"])})
+        atomic_json(checkpoint_path, result)
+        raise
     finally:
-        candidate.quit()
-        baseline.quit()
+        for engine in (candidate, baseline):
+            if engine is not None:
+                try:
+                    engine.quit()
+                except (chess.engine.EngineError, TimeoutError):
+                    engine.close()
     result["finished_utc"] = utc_now()
     summarize_strength(result)
     atomic_json(checkpoint_path, result)
     write_markdown(checkpoint_path.with_suffix(".md"), result)
+    atomic_json(checkpoint_path.with_suffix(".evidence.json"), {
+        "identity": identity, "checkpoint_sha256": sha256(checkpoint_path),
+        "pgn_sha256": sha256(pgn_path),
+        "markdown_sha256": sha256(checkpoint_path.with_suffix(".md")),
+    })
     return result
 
 
@@ -500,7 +556,7 @@ def summarize_strength(result: dict[str, Any]) -> None:
         "score": score,
         "estimated_elo_difference": elo,
     }
-    if result["identity"].get("gate_metric") == "score":
+    if "candidate_hidden" in result["identity"]:
         selected = None
         reason = "incomplete"
         if complete and score >= result["identity"]["select_candidate_at_score"]:
@@ -517,10 +573,26 @@ def summarize_strength(result: dict[str, Any]) -> None:
             "selection_reason": reason,
             "passed": complete,
         })
+    elif result["identity"].get("gate_metric") == "score":
+        summary["passed"] = complete and wins * 2 + draws >= result["identity"]["required_half_points"]
     else:
-        summary["passed"] = (
-            complete and wins >= result["identity"]["required_wins"]
-        )
+        summary["passed"] = complete and wins >= result["identity"]["required_wins"]
+    summary["protocol_failures"] = sum(bool(row.get("protocol_failure")) for row in result["results"])
+    summary["passed"] = summary["passed"] and summary["protocol_failures"] == 0
+    summary["points"] = wins + 0.5 * draws
+    summary["color_split"] = {
+        color: {label: sum(row.get("candidate_color") == color and row["result"] == label
+                          for row in result["results"]) for label in ("win", "draw", "loss")}
+        for color in ("white", "black")
+    }
+    values = {"win": 1.0, "draw": 0.5, "loss": 0.0}
+    pairs = [(values[labels[i]] + values[labels[i + 1]]) / 2 for i in range(0, games - 1, 2)]
+    summary["paired_opening_scores"] = pairs
+    se = statistics.stdev(pairs) / math.sqrt(len(pairs)) if len(pairs) > 1 else None
+    summary["score_95pct_interval"] = (
+        [max(0.0, statistics.mean(pairs) - 1.96 * se),
+         min(1.0, statistics.mean(pairs) + 1.96 * se)] if se is not None else None)
+    summary["uncertainty_method"] = "normal approximation over mirrored opening-pair scores; descriptive only"
     result.update(summary)
 
 
@@ -624,6 +696,10 @@ def write_markdown(path: pathlib.Path, result: dict[str, Any]) -> None:
                     *(f"  - {change}" for change in result["plan_changes"]),
                     f"- PGN SHA-256: `{result['pgn_sha256']}`",
                 ]
+        elif result["identity"].get("gate_metric") == "score":
+            lines += [f"- Required score: {100 * result['identity']['required_score']:.2f}%",
+                      f"- Required points: {result['identity']['required_half_points'] / 2:g}",
+                      f"- Gate: {'PASS' if result['passed'] else 'FAIL'}"]
         else:
             lines += [
                 f"- Required raw wins: {result['identity']['required_wins']} "
@@ -665,9 +741,9 @@ def write_markdown(path: pathlib.Path, result: dict[str, Any]) -> None:
 
 def verify_baseline(path: pathlib.Path, allow_unverified: bool) -> None:
     digest = sha256(path)
-    if digest != OFFICIAL_BETA1_SHA256 and not allow_unverified:
+    if digest not in (OFFICIAL_BETA1_SHA256, OFFICIAL_V2_SHA256) and not allow_unverified:
         raise SystemExit(
-            "baseline SHA-256 is not the official v1.5.0-beta.1 executable: "
+            "baseline SHA-256 is not an accepted official v1.5.0-beta.1 or v2.0.0 executable: "
             f"{digest}")
 
 
@@ -690,6 +766,7 @@ def main() -> int:
     speed.add_argument(
         "--minimum-seconds", type=float, default=5.0,
         help="minimum aggregate time for each shallow sample")
+    speed.add_argument("--maximum-time-ratio", type=float)
     strength = subparsers.add_parser("strength")
     strength.add_argument(
         "--suite", type=pathlib.Path,
@@ -701,7 +778,13 @@ def main() -> int:
         "--pgn", type=pathlib.Path,
         default=ROOT / "tmp" / "engine-lab" / "strength.pgn")
     strength.add_argument("--games", type=int, default=250)
-    strength.add_argument("--movetime-ms", type=int, default=250)
+    budget = strength.add_mutually_exclusive_group()
+    budget.add_argument("--movetime-ms", type=int)
+    budget.add_argument("--nodes", type=int)
+    strength.add_argument("--gate-metric", choices=("score", "wins"), default="wins")
+    strength.add_argument("--required-score", type=float, default=0.55)
+    strength.add_argument("--idle-priority", action="store_true")
+    strength.add_argument("--protocol", type=pathlib.Path)
     strength.add_argument("--max-plies", type=int, default=200)
     strength.add_argument("--required-win-rate", type=float, default=0.60)
     playoff = subparsers.add_parser("playoff")
@@ -747,14 +830,19 @@ def main() -> int:
     elif args.command == "speed":
         result = speed_gate(
             candidate, baseline, args.output.resolve(), tuple(args.depths),
-            args.samples, args.minimum_seconds)
+            args.samples, args.minimum_seconds, args.maximum_time_ratio)
     elif args.command in ("strength", "playoff"):
         result = strength_gate(
             candidate, baseline, args.suite.resolve(),
             args.checkpoint.resolve(), args.pgn.resolve(),
-            args.movetime_ms, args.games, args.max_plies,
+            (args.movetime_ms if args.movetime_ms is not None else
+             None if getattr(args, "nodes", None) is not None else 250), args.games, args.max_plies,
             args.required_win_rate if args.command == "strength" else 0.60,
-            architecture_playoff=args.command == "playoff")
+            architecture_playoff=args.command == "playoff",
+            nodes=getattr(args, "nodes", None), gate_metric=getattr(args, "gate_metric", "wins"),
+            required_score=getattr(args, "required_score", 0.55),
+            idle_priority=getattr(args, "idle_priority", False),
+            protocol_path=getattr(args, "protocol", None))
     else:
         result = deep_ladder(
             candidate, baseline, args.output.resolve(), tuple(args.depths),
