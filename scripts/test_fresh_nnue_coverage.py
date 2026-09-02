@@ -20,7 +20,7 @@ class CoverageTests(unittest.TestCase):
     def test_exclusions_apply_before_target_access(self):
         row = self.row()
         del row['high']
-        result = coverage.summarize([row], {'board'})
+        result = coverage.summarize([row], {coverage.learning_key(row['fen'])})
         self.assertEqual(result['counts']['accepted_identity_exclusions'], 1)
         self.assertEqual(result['usable_partitions'], {})
 

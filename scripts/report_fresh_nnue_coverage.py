@@ -9,6 +9,7 @@ import hashlib
 import json
 import statistics
 import fresh_nnue_data as data
+from run_fresh_nnue_campaign import learning_key
 
 
 def summarize(rows, excluded=()):
@@ -29,7 +30,7 @@ def summarize(rows, excluded=()):
                 training_rejections.update(row['reasons'])
             continue
         counts['accepted_before_identity_exclusions'] += 1
-        if row['fen'].split()[0] in excluded:
+        if learning_key(row['fen']) in excluded:
             counts['accepted_identity_exclusions'] += 1
             continue
         counts['usable'] += 1
@@ -70,8 +71,8 @@ def summarize(rows, excluded=()):
 
 
 def report():
-    exclusion_path = data.WORK / 'learning-identity-exclusions.json'
-    exclusions = json.loads(exclusion_path.read_text())['conflicting_piece_placements']
+    exclusion_path = data.WORK / 'learning-equivalence-exclusions.json'
+    exclusions = json.loads(exclusion_path.read_text())['conflicting_learning_keys']
     prefix_hash = hashlib.sha256()
     prefix_bytes = 0
 

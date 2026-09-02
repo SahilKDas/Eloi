@@ -51,8 +51,10 @@ def check_identity():
 
 
 def learning_key(fen):
-    """The current NNUE encodes pieces/kings, not turn, castling or EP."""
-    return fen.split()[0]
+    """Ignore absent inputs and group the NNUE's exact color-mirror symmetry."""
+    placement = fen.split()[0]
+    mirrored = '/'.join(reversed(placement.split('/'))).swapcase()
+    return min(placement, mirrored)
 
 
 def learning_conflicts():
@@ -65,10 +67,11 @@ def learning_conflicts():
             partitions[key].add(row['partition'])
             counts[key] += 1
     conflicts = {key for key, parts in partitions.items() if len(parts) > 1}
-    data.immutable_json(WORK / 'learning-identity-exclusions.json', {
-        'reason': 'NNUE inputs omit side-to-move, castling rights, EP and move counters',
+    data.immutable_json(WORK / 'learning-equivalence-exclusions.json', {
+        'identity_schema': 'piece-placement-plus-color-mirror-v1',
+        'reason': 'NNUE omits turn/castling/EP/counters; swapping colors and mirroring ranks swaps its perspective inputs',
         'positions_sha256': data.sha(WORK / 'positions.jsonl'),
-        'conflicting_piece_placements': sorted(conflicts),
+        'conflicting_learning_keys': sorted(conflicts),
         'affected_raw_rows': sum(counts[key] for key in conflicts),
         'policy': 'exclude every affected placement from all learning/evaluation partitions; raw labels preserved'})
     return conflicts

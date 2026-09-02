@@ -182,6 +182,33 @@ after `labels-complete.json` exists. The latter requires its exact label hash
 before retaining `tmp/nnue-fresh-data/coverage.json`. All 25 lightweight tests
 pass (8 data, 14 campaign, 3 coverage). Full engine gates are still separate.
 
+### Exact color-mirror equivalence correction
+
+Before training, a further metadata audit checked the NNUE's exact antisymmetry:
+swapping piece colors and mirroring ranks swaps the white/black feature arrays
+and negates the network score. Such boards cannot be treated as independent
+learning inputs merely because their piece-placement strings differ.
+
+The audit found five additional cross-partition equivalence groups. Together
+with the two earlier groups, seven groups affect 14 raw rows. The loader and
+legacy puzzle exclusions now canonicalize this symmetry. The coverage reporter
+uses the same key. New tests prove exact feature-array swapping, score negation,
+and removal of mirrored cross-partition rows. All 27 lightweight tests pass
+(8 data, 16 campaign, 3 coverage). No validation/test score informed the change.
+
+The earlier exclusion report remains intact. The authoritative updated report
+is `tmp/nnue-fresh-data/learning-equivalence-exclusions.json`. A separate full
+metadata scan found zero overlap between the raw sample and the 514 canonical
+regression/match-opening keys, including color-mirror equivalence.
+
+Only the verified offline teacher was stopped to reload this pre-training fix;
+its runner exited and preserved the append-only label checkpoint. The corrected
+worker resumed as PID 26776, at Idle priority, using the continuation wrapper.
+Current logs are `tmp/nnue-fresh-data/campaign-4.log` and `campaign-4.err`.
+The first verified post-resume checkpoint reached 33,920 examined and 23,603
+accepted positions. Earlier logs remain intact. No production engine was
+stopped, no model had yet been trained, and no quality threshold changed.
+
 All candidate networks and build directories remain under
 `tmp/nnue-fresh-data/candidates/`. CMake's optional experimental include root
 avoids swapping the production header. The default build remains unchanged.

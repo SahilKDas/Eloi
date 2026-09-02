@@ -68,10 +68,11 @@ class CampaignTests(unittest.TestCase):
         with mock.patch('pathlib.Path.open', return_value=stream), \
              mock.patch.object(campaign.data, 'sha', return_value='sample'), \
              mock.patch.object(campaign.data, 'immutable_json') as record:
-            self.assertEqual(campaign.learning_conflicts(), {placement})
+            expected_key = campaign.learning_key(rows[0]['fen'])
+            self.assertEqual(campaign.learning_conflicts(), {expected_key})
             report = record.call_args.args[1]
             self.assertEqual(report['affected_raw_rows'], 2)
-            self.assertEqual(report['conflicting_piece_placements'], [placement])
+            self.assertEqual(report['conflicting_learning_keys'], [expected_key])
 
     def test_loader_actually_filters_conflicts_and_seals_test(self):
         start = campaign.chess.STARTING_FEN
@@ -87,12 +88,39 @@ class CampaignTests(unittest.TestCase):
         payload = ''.join(json.dumps(row) + '\n' for row in rows)
         for open_test in (False, True):
             with mock.patch('pathlib.Path.open', return_value=io.StringIO(payload)), \
-                 mock.patch.object(campaign, 'learning_conflicts', return_value={start.split()[0]}):
+                 mock.patch.object(campaign, 'learning_conflicts', return_value={campaign.learning_key(start)}):
                 result = campaign.load_evaluations(include_test=open_test)
             self.assertEqual(len(result['train']), 1)
             self.assertEqual(len(result['validation']), 1)
             self.assertEqual(len(result['test']), int(open_test))
             self.assertEqual(result['train'][0][-1]['record_id'], '2')
+
+    def test_color_mirror_is_exact_nnue_equivalence(self):
+        board = campaign.chess.Board()
+        board.push_uci('e2e4')
+        mirror = board.mirror()
+        self.assertNotEqual(board.board_fen(), mirror.board_fen())
+        self.assertEqual(campaign.learning_key(board.fen()), campaign.learning_key(mirror.fen()))
+        white = campaign.trainer.features(board, campaign.chess.WHITE)
+        black = campaign.trainer.features(board, campaign.chess.BLACK)
+        mirror_white = campaign.trainer.features(mirror, campaign.chess.WHITE)
+        mirror_black = campaign.trainer.features(mirror, campaign.chess.BLACK)
+        np.testing.assert_array_equal(np.sort(white), np.sort(mirror_black))
+        np.testing.assert_array_equal(np.sort(black), np.sort(mirror_white))
+        model = campaign.trainer.load_quantized_header(campaign.ROOT / 'include/eloi/nnue_weights.hpp')
+        self.assertEqual(campaign.trainer.forward_quantized(*model, white, black)[0],
+                         -campaign.trainer.forward_quantized(*model, mirror_white, mirror_black)[0])
+
+    def test_mirrored_cross_partition_rows_are_excluded(self):
+        board = campaign.chess.Board()
+        board.push_uci('e2e4')
+        rows = [{'fen': board.fen(), 'partition': 'train'},
+                {'fen': board.mirror().fen(), 'partition': 'test'}]
+        stream = io.StringIO(''.join(json.dumps(row) + '\n' for row in rows))
+        with mock.patch('pathlib.Path.open', return_value=stream), \
+             mock.patch.object(campaign.data, 'sha', return_value='sample'), \
+             mock.patch.object(campaign.data, 'immutable_json'):
+            self.assertEqual(campaign.learning_conflicts(), {campaign.learning_key(board.fen())})
 
     def test_export_roundtrip_and_cpp_syntax(self):
         model = campaign.trainer.load_quantized_header(campaign.ROOT / 'include/eloi/nnue_weights.hpp')

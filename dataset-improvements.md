@@ -1839,6 +1839,13 @@ because omitted FEN fields differed. The loader now excludes all such
 placements, and puzzle isolation uses the same piece-placement identity.
 Raw input and label files remain intact. No test score informed this repair.
 
+A subsequent pre-training check also grouped exact color-swapped/rank-mirrored
+NNUE equivalents. Five additional groups were found: seven groups and 14 raw
+rows in total. The same canonical identity is used for evaluation and puzzle
+isolation. The earlier report is preserved; the updated exclusion evidence is
+`tmp/nnue-fresh-data/learning-equivalence-exclusions.json`. No equivalent-input
+overlap was found against the 514 stored regression and match-opening keys.
+
 Candidate headers and binaries remain isolated in ignored scratch. Production
 weights stay byte-identical. Lower validation error only establishes one
 eligibility condition: every deterministic engine gate, an independent
