@@ -1556,6 +1556,13 @@ report-only and has not changed a production NNUE artifact.
 
 Exit criterion: D1 passes the frozen offline rule.
 
+**Completed 2026-09-01.** D1 was trained twice, report-only, and reproduced the
+same 64-unit header hash. Production and D1 were evaluated on identical frozen
+validation rows. D1 improved quantized MAE by 23.33 cp and tactical pairwise
+accuracy by 8.65 percentage points. It passes the rule frozen in
+data/nnue_offline_selection_rule.json. Compact evidence is tracked in
+data/nnue_d1_report.json. The test partition remains sealed.
+
 ### Stage 5: add hard negatives if needed
 
 - generate D2 from the selected broader corpus;
@@ -1667,7 +1674,7 @@ These decisions should be made from a profile run, not guessed:
 - [x] Freeze the Stage 1 analysis ID, root seed, and analysis-only scope.
 - [x] Estimate peak bytes and output counts for the retained-input prototype.
 - [x] Confirm no conflicting heavy task or active executable replacement.
-- [ ] Freeze offline and match selection rules.
+- [x] Freeze the offline selection rule before opening test.
 
 ### Acquisition
 
@@ -1699,15 +1706,15 @@ These decisions should be made from a profile run, not guessed:
 ### Training
 
 - [x] Reproduce B0 first, including exact production header hashes.
-- [ ] Train 64-unit candidate report-only.
-- [ ] Record every parameter and environment version.
-- [ ] Measure peak temporary storage.
-- [ ] Produce float and quantized reports.
-- [ ] Keep production headers untouched.
+- [x] Train 64-unit D1 candidate report-only and reproduce its header.
+- [x] Record every D1 parameter and environment version.
+- [x] Measure peak temporary storage.
+- [x] Produce float and quantized validation reports.
+- [x] Keep production headers untouched.
 
 ### Validation
 
-- [ ] Apply frozen offline selection rule.
+- [x] Apply frozen offline selection rule to D1 validation.
 - [ ] Open untouched test only after recipe freeze.
 - [ ] Run generated-header and dimension checks.
 - [ ] Build candidate separately.
