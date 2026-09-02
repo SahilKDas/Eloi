@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "purpose": "Production-network diagnostic on accepted fresh TRAIN groups only; not candidate selection or strength evidence",
+  "sample": "First 2000 accepted training rows in fixed seeded-hash order",
+  "weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E",
+  "count": 2000,
+  "game_groups": 1906,
+  "mae_cp": 209.817,
+  "median_absolute_error_cp": 175.0,
+  "rmse_cp": 266.3138468048554,
+  "sign_accuracy_outside_25cp": 0.6015574302401038,
+  "mean_absolute_teacher_cp": 165.227,
+  "mean_absolute_prediction_cp": 214.407,
+  "phase_mae_cp": {"opening": 183.5804347826087, "middlegame": 223.86427320490367, "endgame": 199.83417085427135},
+  "phase_counts": {"opening": 460, "middlegame": 1142, "endgame": 398},
+  "limitations": "Teacher labels are bounded-search estimates. The network alone is measured, not the complete engine evaluation or search. This diagnostic does not establish dataset causality or playing strength. No held-out test targets were inspected. Frozen candidate recipes are unchanged."
+}

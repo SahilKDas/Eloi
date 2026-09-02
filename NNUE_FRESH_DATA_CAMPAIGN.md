@@ -117,6 +117,21 @@ tests). Candidate compilation, full engine correctness, training outcomes, and
 matches have **not yet completed** at this checkpoint. Do not report the runner
 as fully end-to-end validated merely because its unit tests passed.
 
+Subsequent active checks increased this to 17 tests, including identical header
+serialization, exact array round-trip, a C++ syntax-only compile of the exported
+header, incomplete-match rejection, and the exact 165/300-point boundary. These
+do not substitute for compiling and testing each trained engine.
+
+A separate read-only audit on the first 2,000 accepted TRAIN positions from
+1,906 game groups found production-NNUE MAE 209.817 cp, median error 175 cp,
+and sign accuracy 60.16% outside +/-25 cp. These labels exclude mates and have
+passed the teacher stability filters. Thus substantial static-network error is
+present without the historical mate-target artifact. This is not a causal proof
+that data alone is responsible, not a full-engine evaluation comparison, and
+not a strength result. The audit did not change the frozen training recipes.
+Reproduce with `scripts/audit_fresh_nnue_training.py --limit 2000`; compact
+evidence is in `data/nnue_fresh_data_training_audit.json`.
+
 New-corpus game/board isolation is enforced. Unknown overlap with the historical
 production network's original training data cannot be ruled out; the new test
 partition is not claimed to be independent of all historical Eloi training.

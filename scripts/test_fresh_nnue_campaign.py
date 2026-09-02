@@ -3,6 +3,8 @@ import unittest
 from unittest import mock
 import run_fresh_nnue_campaign as campaign
 import numpy as np
+import subprocess
+import time
 
 
 class CampaignTests(unittest.TestCase):
@@ -44,6 +46,45 @@ class CampaignTests(unittest.TestCase):
     def test_test_labels_excluded_by_default(self):
         import inspect
         self.assertFalse(inspect.signature(campaign.load_evaluations).parameters['include_test'].default)
+
+    def test_export_roundtrip_and_cpp_syntax(self):
+        model = campaign.trainer.load_quantized_header(campaign.ROOT / 'include/eloi/nnue_weights.hpp')
+        scratch = campaign.WORK / 'integrity-checks' / str(time.time_ns())
+        scratch.mkdir(parents=True)
+        campaign.data.preflight(5_000_000)
+        header = scratch / 'weights.hpp'
+        duplicate = scratch / 'duplicate.hpp'
+        params = tuple(a.astype(np.float32) for a in model)
+        counts = {'train_evaluations': 32000, 'train_pairs': 0}
+        for output in (header, duplicate):
+            campaign.trainer.write_header(output, *params, counts, set(),
+                source_description='Offline label export integrity check')
+        self.assertEqual(campaign.data.sha(header), campaign.data.sha(duplicate))
+        for before, after in zip(model, campaign.trainer.load_quantized_header(header)):
+            np.testing.assert_array_equal(before, after)
+        compiler = campaign.MSYS + '/c++.exe'
+        source = f'#include "{header.as_posix()}"\nstatic_assert(eloi::nnue_weights::input.size() == 6144 * 64);\nint main(){{return 0;}}\n'
+        result = subprocess.run([compiler, '-std=c++2c', '-x', 'c++', '-fsyntax-only', '-'],
+                                input=source, text=True, capture_output=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_incomplete_match_does_not_pass(self):
+        result = {'identity': {'games': 300, 'gate_metric': 'score', 'required_half_points': 330},
+                  'results': [{'result': 'win', 'candidate_color': 'white'}] * 299}
+        campaign.engine_lab.summarize_strength(result)
+        self.assertFalse(result['passed'])
+
+    def test_exact_final_threshold(self):
+        result = {'identity': {'games': 300, 'gate_metric': 'score', 'required_half_points': 330},
+                  'results': ([{'result': 'win', 'candidate_color': 'white'}] * 100
+                              + [{'result': 'draw', 'candidate_color': 'black'}] * 130
+                              + [{'result': 'loss', 'candidate_color': 'white'}] * 70)}
+        campaign.engine_lab.summarize_strength(result)
+        self.assertEqual(result['points'], 165)
+        self.assertTrue(result['passed'])
+        result['results'][100]['result'] = 'loss'
+        campaign.engine_lab.summarize_strength(result)
+        self.assertFalse(result['passed'])
 
 
 if __name__ == '__main__':
