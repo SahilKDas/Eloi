@@ -1515,6 +1515,15 @@ bounds.
 Exit criterion: the proposed corpus composition is documented before candidate
 training.
 
+**Completed 2026-09-01.** A bounded 128 MiB sequential prefix of each pinned
+Lichess source produced 200,000 complete source records per source. After
+legality filtering, the deterministic sampler retained 100,000 evaluations and
+100,000 puzzles. Compared with the retained 20,000-row prefixes, phase, score,
+tactical, rating, and theme proportions remain broadly similar; the most
+material label shift is evaluation confidence (high 47.6% to 40.1%, medium
+43.2% to 49.2%, low 9.3% to 10.7%). There is no evidence-based reason to invent
+additional class rebalancing before testing the coverage-only D1 hypothesis.
+
 ### Stage 3: generate dataset candidate D1
 
 - retain the current objective and random-negative behavior;
@@ -1522,6 +1531,14 @@ training.
 - generate a manifest and immutable sample hashes.
 
 Exit criterion: D1 is reproducible and passes integrity checks.
+
+**Completed 2026-09-01.** D1 is frozen at 100,000 canonical evaluations and
+100,000 canonical puzzles with group-first 80/10/10 assignment. Two clean runs
+produced byte-identical canonical files and manifests. The exact source
+metadata, distributions, rejection counts, quotas, sample ID, and output hashes
+are tracked in `data/nnue_broader_sample_manifest.json`; independent-run proof
+is tracked in `data/nnue_broader_sample_reproduction.json`. D1 remains
+report-only and has not changed a production NNUE artifact.
 
 ### Stage 4: train 64-unit D1
 
@@ -1647,12 +1664,12 @@ These decisions should be made from a profile run, not guessed:
 
 ### Acquisition
 
-- [ ] Pin source URL, size, ETag, Last-Modified, date, and license.
-- [ ] Choose full-stream or explicitly bounded sequential mode.
-- [ ] Enforce byte and row caps before writes.
-- [ ] Validate decompression and source schema.
-- [ ] Record records seen, accepted, rejected, and retained.
-- [ ] Hash canonical outputs.
+- [x] Pin source URL, size, ETag, Last-Modified, date, and license.
+- [x] Choose explicitly bounded sequential mode for D1.
+- [x] Enforce byte and row caps before writes.
+- [x] Validate decompression and source schema.
+- [x] Record records seen, accepted, rejected, and retained.
+- [x] Hash canonical outputs.
 
 ### Curation
 
@@ -1712,25 +1729,18 @@ analysis produced byte-identical canonical evaluation, canonical puzzle, and
 report hashes. The two canonical files total 41,829,872 bytes before the small
 report, far below the device limits.
 
-Do not begin with a 256-unit network or a full upstream download.
+**Stages 2 and 3 result (2026-09-01): completed.** The bounded broader-source
+sampler retained a five-times-larger, 200,000-row D1 corpus in 210,081,790 bytes
+of canonical data. Two clean acquisitions and canonicalization runs produced
+the same sample ID, output hashes, and manifest hash. Compressed prefixes were
+deleted after each source. The corpus has only two exact cross-source learning
+state overlaps, and connected groups keep them in one partition.
 
-The next concrete change should be an **analysis-only, deterministic sampler
-prototype** that runs against the already retained 20,000-row files and emits:
-
-- canonical records;
-- legality and rejection counts;
-- position and group identities;
-- train/validation/test assignments;
-- proposed strata and counts;
-- mate, depth, knode, phase, score, rating, and theme distributions;
-- cross-source overlap measurements;
-- a projected byte and memory model for 100,000, 250,000, and 500,000 records;
-- no production NNUE changes.
-
-That prototype can validate the schema, determinism, quotas, and reports cheaply.
-That prototype is now complete. The next stage is a bounded broader-source
-profile and sampler implementation; it must remain report-only until its source
-budget and frozen D1 composition are documented.
+Do not begin with a 256-unit network or a full upstream download. The next
+concrete change is Stage 4: extend the existing 64-unit report-only trainer to
+consume D1's frozen group partitions, reproduce B0 in the same environment,
+and report both float and exact quantized validation metrics. Production NNUE
+headers remain immutable until every later gate passes.
 
 ## 36. Final decision principle
 

@@ -1,0 +1,48 @@
+{
+  "cross_source_overlap": {"exact_learning_state_count": 2, "group_components": 199966, "sample_keys": ["359390922EBAC4158DDEF4E3C0A764CB013C8B34D2B3B4AF06C9EC2DC79D95BB", "C84C0C20B2179E0B706AE2D35DC74A4EC42A81FA31CA624C67BDC7CD6FD9EC89"]},
+  "distributions": {
+    "evaluations": {
+      "confidence_bucket": {"high": 40145, "low": 10666, "medium": 49189},
+      "partition": {"test": 10006, "train": 80039, "validation": 9955},
+      "phase_bucket": {"endgame": 16839, "low-material-ending": 22089, "middlegame": 14795, "opening": 46277},
+      "score_bucket": {"0-25": 28456, "201-500": 10595, "26-75": 20765, "501-1500": 7840, "76-200": 12707, "mate": 18620, "saturated": 1017},
+      "score_type": {"cp": 81380, "mate": 18620},
+      "tactical_surface": {"capture-available": 67305, "in-check": 7852, "promotion-available": 976, "quiet": 23867}
+    },
+    "puzzles": {
+      "best_move_class": {"capture": 18562, "castle": 21, "check": 61709, "promotion": 275, "quiet": 19433},
+      "partition": {"test": 9937, "train": 80090, "validation": 9973},
+      "phase_bucket": {"endgame": 51890, "low-material-ending": 11001, "middlegame": 32916, "opening": 4193},
+      "rating_bucket": {"1000-1499": 32641, "1500-1999": 26016, "2000-2499": 15248, "2500-plus": 3797, "under-1000": 22298},
+      "theme_family": {"defense": 1477, "endgame": 26010, "hanging-or-trapped": 3701, "mate": 31719, "other": 18302, "pawn": 8324, "tactical": 10467}
+    }
+  },
+  "kind": "bounded-broader-nnue-sample",
+  "mode": "analysis-only",
+  "outputs": {
+    "canonical_evaluations": {"bytes": 100109643, "path": "canonical-evaluations.jsonl", "sha256": "325C964495CBE4C8836469DA8934B3DA4D1A4845ABD37051C559958857C46DC3"},
+    "canonical_puzzles": {"bytes": 109972147, "path": "canonical-puzzles.jsonl", "sha256": "D3E78A34A458964DDE73A3A3316F6195D3455E23AEAD5094303396074A903016"}
+  },
+  "parameters": {"max_output_bytes": 536870912, "prefix_bytes_per_source": 134217728, "record_limit_per_source": 200000, "retain_per_source": 100000, "strict_current_limit_bytes": 7516192768, "total_temp_limit_bytes": 10000000000, "training_temp_limit_bytes": 8000000000},
+  "production_outputs_written": false,
+  "resource_usage": {"analysis_output_bytes_before_manifest": 210081881, "analysis_output_limit_bytes": 536870912, "compressed_prefixes_retained": false},
+  "sample_id": "A8B74970AF537B30A6A59289EEF46C1711ADB7F6EBBAC078A9B35C567B1B0555",
+  "schema": 2,
+  "seed": "eloi/nnue-dataset-v2/analysis-1/broader-1",
+  "sources": {
+    "evaluations": {
+      "complete_lines": 200000, "content_range": "bytes 0-134217727/21681515630", "duplicate_learning_states_seen": 0, "license": "CC0 1.0", "prefix_bytes": 134217728, "prefix_sha256": "3989B7568BCBCCF23414BBC0004D2CCADD9325E4613DA10600E5E51DA96D835A", "records_accepted": 199004, "records_retained": 100000, "records_seen": 200000,
+      "rejections": {"invalid-standard-position/bad-castling-rights": 976, "invalid-standard-position/too-many-black-pawns": 3, "invalid-standard-position/too-many-white-pawns": 8, "invalid-standard-position/too-many-white-pawns+too-many-white-pieces": 2, "invalid-standard-position/too-many-white-pieces": 6, "invalid-standard-position/too-many-white-pieces+too-many-black-pieces": 1},
+      "sample_method": "deterministic priority-plus-coverage reservoir over complete valid records in a bounded sequential prefix", "source_url": "https://database.lichess.org/lichess_db_eval.jsonl.zst", "stopped_at_record_limit": true, "upstream_etag": "\"6a6fbb7e-50c51ac6e\"", "upstream_last_modified": "Sun, 02 Aug 2026 21:49:50 GMT", "upstream_total_bytes": 21681515630
+    },
+    "puzzles": {
+      "complete_lines": 200000, "content_range": "bytes 0-134217727/304384407", "duplicate_learning_states_seen": 118, "license": "CC0 1.0", "prefix_bytes": 134217728, "prefix_sha256": "6177794371621F6774958ED2130799DD8DEF6DA51514E191867C48DFD21D9F99", "records_accepted": 200000, "records_retained": 100000, "records_seen": 200000, "rejections": {},
+      "sample_method": "deterministic priority-plus-coverage reservoir over complete valid records in a bounded sequential prefix", "source_url": "https://database.lichess.org/lichess_db_puzzle.csv.zst", "stopped_at_record_limit": true, "upstream_etag": "\"6a6ef08b-12248997\"", "upstream_last_modified": "Sun, 02 Aug 2026 07:23:55 GMT", "upstream_total_bytes": 304384407
+    }
+  },
+  "status": "complete",
+  "storage_model": {
+    "evaluations": {"mean_canonical_bytes_per_record": 1001.09643, "mean_piece_count": 20.98494, "measured_python_bytes_per_record": 2271.901, "projections": {"100000": {"canonical_bytes": 100109643, "estimated_feature_array_bytes": 17587952, "python_object_bytes": 227190099}, "250000": {"canonical_bytes": 250274107, "estimated_feature_array_bytes": 43969880, "python_object_bytes": 567975250}, "500000": {"canonical_bytes": 500548215, "estimated_feature_array_bytes": 87939760, "python_object_bytes": 1135950500}}, "records": 100000},
+    "puzzles": {"mean_canonical_bytes_per_record": 1099.72147, "mean_piece_count": 18.33908, "measured_python_bytes_per_record": 3200.113, "projections": {"100000": {"canonical_bytes": 109972147, "estimated_feature_array_bytes": 30142528, "python_object_bytes": 320011300}, "250000": {"canonical_bytes": 274930367, "estimated_feature_array_bytes": 75356320, "python_object_bytes": 800028250}, "500000": {"canonical_bytes": 549860735, "estimated_feature_array_bytes": 150712640, "python_object_bytes": 1600056500}}, "records": 100000}
+  }
+}
