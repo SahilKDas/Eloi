@@ -1,5 +1,47 @@
 # ABC100: user-requested exploratory match
 
+## Current outcome: watchdog pause, not 100-game completion
+
+At 23:43:56 UTC on 2026-09-02, the runner paused after **89 completed automated
+games plus the completed human exhibition**. In game 90 (B's 30th game, B playing
+Black), **the official v2.0.0 opponent** returned a legal move after **3.171 s**,
+exceeding the frozen 2.5-second watchdog. The late move was not applied or scored.
+Game 90 is saved after 76 played plies. There are no recorded illegal engine
+moves; all 89 completed engine PGNs and the human PGN independently replay and
+their results validate.
+
+| Candidate | Completed games | W / D / L | Non-losses | Numerical threshold |
+| --- | ---: | ---: | ---: | --- |
+| A | 30 | 18 / 7 / 5 | 25 | Clinched |
+| B | 29 | 15 / 4 / 10 | 19 | Clinched |
+| C | 30 | 19 / 8 / 3 | 27 | Clinched |
+
+All three have mathematically secured the user's at-least-17-non-loss criterion
+and also banked more than 16.5 chess points. This does **not** mean the full
+scheduled run finished or passed its timing protocol. No final outcome was
+assigned to the interrupted game. The human game ended 0-1 by the user's
+resignation after 28 plies, and is separate from candidate results.
+
+Three bounded, single-position diagnostic searches in a fresh official-baseline
+process returned legal `h7b7` at 250 ms each. They do not reproduce the earlier
+search-cache state and do not establish the original delay's cause. Smaller
+late-run timing spikes occurred in more than one engine; OS scheduling is a
+possibility, not a demonstrated cause.
+
+Evidence: `data/nnue_abc100_timing_interruption.json` and
+`data/nnue_abc100_paused_results.json`. The latter retains all completed PGNs,
+independent validations, original identities and per-game file hashes.
+The OpenAI Docs-guided scheduled follow-up is paused pending user direction;
+the local board server remains available. No limits have changed, no automatic
+resume is authorized, and no completed game has been replayed.
+
+The report-only checker is `scripts/report_abc100.py`; seven additional in-memory
+tests in `scripts/test_report_abc100.py` cover wrong outcomes, changed pairings,
+premature adjudication and the odd-game separation. Final `--retain` refuses to
+run without all 100 results and the runner's final export. `--retain-paused`
+explicitly labels this incomplete, error-paused snapshot and cannot overwrite a
+different existing snapshot.
+
 This is a new experiment, not a continuation or retroactive pass of the frozen
 fresh-data campaign. Its candidates failed that campaign's deterministic
 regression gate. The user explicitly requested playing A, B and C anyway.
