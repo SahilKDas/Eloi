@@ -1563,6 +1563,13 @@ accuracy by 8.65 percentage points. It passes the rule frozen in
 data/nnue_offline_selection_rule.json. Compact evidence is tracked in
 data/nnue_d1_report.json. The test partition remains sealed.
 
+**One-time test result (2026-09-01): passed.** After D1 was selected and its
+rule frozen, the test partition was opened once. Against production on identical
+test rows, D1 improved quantized MAE by 21.37 cp, median error by 30 cp, and
+tactical pairwise/top-1 accuracy by 8.79 percentage points. D1 reproduced the
+same header hash again. The test did not influence selection. Compact evidence
+is tracked in data/nnue_d1_test_report.json.
+
 ### Stage 5: add hard negatives if needed
 
 - generate D2 from the selected broader corpus;
@@ -1729,7 +1736,7 @@ These decisions should be made from a profile run, not guessed:
 ### Validation
 
 - [x] Apply frozen offline selection rule to D1 validation.
-- [ ] Open untouched test only after recipe freeze.
+- [x] Open untouched test once after the D1 recipe freeze.
 - [ ] Run generated-header and dimension checks.
 - [ ] Build candidate separately.
 - [ ] Run unit, perft, move-generation, tactical, and SIMD checks.
