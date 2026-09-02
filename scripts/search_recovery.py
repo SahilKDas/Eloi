@@ -175,8 +175,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("prepare", "preflight"))
     parser.add_argument("--acquire-baseline", action="store_true")
+    parser.add_argument("--projected-bytes", type=int, default=0)
     args = parser.parse_args()
-    report = prepare(args.acquire_baseline) if args.command == "prepare" else resource_check()
+    report = prepare(args.acquire_baseline) if args.command == "prepare" else resource_check(args.projected_bytes)
     print(json.dumps(report, indent=2))
 
 

@@ -21,7 +21,7 @@ The latest tagged release baseline is `v2.0.0`; `main` is preparing
 `v2.5.0-rc.1`. The v2.5 source contains the cached-board/search overhaul,
 exactly-three-lane engine, Engine Lab, hash-bound benchmark harness, expanded
 move-generation differential tests, deterministic NNUE training pipeline,
-categorized tactical regression gates, an experimental Lazy SMP comparison,
+categorized tactical regression gates, retained historical Lazy SMP evidence,
 and the two golden Windows package builders.
 
 The embedded production NNUE has 64 hidden units selected from deterministic
@@ -43,6 +43,15 @@ of more than 70% raw wins and the user's final mid-run amendment requiring an
 strength grounds. The frozen settings, binary and suite hashes, criteria
 history, checkpoint, and all 250 PGNs are recorded in
 `data/v2_5_vs_v2_0_strength_gauntlet.json` and `data/games/`.
+
+The search-first recovery restored v2.0's private TT shards and authoritative
+RootSplit, removed the LazySMP implementation and public `ParallelMode` option,
+and kept the production NNUE frozen. Its one evidence-selected root-ordering
+repair failed the stored bishop-hang regression and was reverted immediately.
+No recovery gauntlet, installation, rc.2 bump, or release package was produced.
+The passing restoration and diagnostic tooling remain; published v2.0.0 remains
+the strength champion. See [SEARCH_RECOVERY.md](SEARCH_RECOVERY.md) and
+`data/search_recovery_rejection.json` for the protocol, evidence, and stop decision.
 
 ## Repository map
 
@@ -133,13 +142,11 @@ GUI, and native Lichess sessions reuse their searcher instead of recreating its
 threads and tables every move. Eloi exposes a fixed UCI `Threads` value of 3;
 it cannot claim more processors or be configured to use fewer.
 
-UCI and the command line also expose `ParallelMode=LazySMP` as an experimental
-three-full-tree-lane implementation with a synchronized shared TT. It is not
-the production default: the identical v2.5 correctness preflight caught two
-tactical failures, and it lost the 24-game paired playoff. `RootSplit` remains
-the default and release-selected mode. Re-run the comparison with
-`scripts/selfplay_gauntlet.py`; both modes use the same binary, 64-unit NNUE,
-hash, openings, time, and fixed three-thread limit.
+RootSplit is now the only production search design. The removed LazySMP/shared-
+TT implementation remains reproducible from historical commits; its playoff
+evidence is retained. `--diagnose-search --fen FEN --depth N --profile
+production|full-width --json PATH` records depth/root/PV/SEE/TT/pruning traces.
+Full-width is a bounded diagnostic control, not a UCI mode or a strength claim.
 
 Eloi has a deliberate opening personality. As White it forces the Italian
 Game with `1.e4 e5 2.Nf3 Nc6 3.Bc4` whenever Black permits it. As Black it
@@ -431,14 +438,13 @@ The deterministic `tests/epd/v2_5_regressions.epd` corpus permanently covers
 static exchanges, hanging and trapped pieces, quiet defenses, horizon
 sacrifices, mate distance, repetition/fifty-move handling, passed-pawn races,
 fortresses/insufficient material, quiescence stability, and the two recorded
-online catastrophes. Run a mode-specific gate with
-`eloi_tests.exe --parallel RootSplit` or `--parallel LazySMP`.
+online catastrophes. Run the complete current gate with `eloi_tests.exe`.
 
-`selfplay_gauntlet.py` configures each engine's parallel mode independently and
-can run the same correctness executable before a bounded mirrored match. It
-rejects a candidate regardless of match score when that candidate fails
-correctness. Broader release-strength claims still use the hash-bound
-`engine_lab.py` protocol above.
+`selfplay_gauntlet.py` accepts current RootSplit-only binaries and historical
+mode-selectable binaries. Recovery runs use `scripts/run_search_recovery.py`,
+which refuses to advance without hash-matching earlier gates. Engine Lab now
+supports `--gate-metric score|wins` and mutually exclusive `--nodes` /
+`--movetime-ms` budgets. Its recovery score gate is 165/300 points, not 165 wins.
 
 ### v2.5.0-rc.1 search-mode decision
 

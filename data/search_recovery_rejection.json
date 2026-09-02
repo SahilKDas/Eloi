@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "status": "rejected_at_deterministic_correctness",
+  "campaign": "eloi-search-recovery-v1",
+  "protocol_sha256": "CF4632B6B706731BE9320F0620B976CD3216AA301488F83565CE4348E5DDA50B",
+  "baseline": {
+    "release": "v2.0.0",
+    "sha256": "5F13AB2FEB05DE4171DB39E637FD1322409211872DEBB72AD7BEF88858B5AACF",
+    "reacquired_from_official_release": true
+  },
+  "frozen_nnue": {
+    "weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E",
+    "architecture_sha256": "CADABDEC8CBB9194AF83E5DD8F8E4084BBC3A0FB0F78BAF35FC9D509D23E2D2B",
+    "unchanged": true
+  },
+  "implementation_checkpoints": [
+    "3bc582a",
+    "a0eb878"
+  ],
+  "selected_repair": {
+    "category": "budget/ordering divergence",
+    "description": "Preserve complete previous-iteration root ordering and prevent helper diversification at root",
+    "attempts": 1,
+    "maximum_attempts": 1,
+    "evidence": "63 prior top-five root entries moved to index >=10 on the next iteration; many prior scores were upper bounds, not exact values.",
+    "source_base_commit": "a0eb878d9307a43d283b1d6ab2f9445234b6aafa",
+    "source_state_sha256": "F901109E0CEF65EF9269135F1F1D28306280E96AE51634EBEED185D7FBFC4DED",
+    "candidate_sha256": "6BF5BE2F07DA9A71E83BF82C7DFDC4C3313FB7A2B110C68F3A0785E92E5A3C9C",
+    "test_sha256": "EDF66D1A0DBE3D0B1BDA2C96FA484D566286743BE231AE1EE549F7747B63948B",
+    "failure": {
+      "id": "online-Lc65wiSv-bishop-hang",
+      "depth": 6,
+      "forbidden_move": "c6a7",
+      "actual_move": "c6a7",
+      "unit_exit_code": 1
+    },
+    "patch_reverted": true
+  },
+  "retained_implementation": {
+    "root_split": "authoritative v2.0 private TT shards",
+    "lazy_smp_removed": true,
+    "public_parallel_mode_removed": true,
+    "terminal_fixes_preserved": true,
+    "diagnostics": true,
+    "full_width_diagnostic_only": true,
+    "binary_sha256": "5D7DABBE8BBCB92C680E38BFA2542CB9239EE2AA5E8AFA60760E1040A189287A",
+    "binary_path": "tmp/search-recovery/restored/Eloi.exe",
+    "source_state_sha256": "1F3106053E72DC64D77E8E322DBD52BB1161BADB1E96203A7219D0A96DD435FA",
+    "installed": false,
+    "strength_qualified": false
+  },
+  "verification": {
+    "cpp_suite": "passed after revert, including 15 EPD regressions and scalar/AVX2 equality",
+    "perft_depth_4": 197281,
+    "differential_positions": 96,
+    "differential_failures": 0,
+    "python_gate_tests": 14,
+    "terminal_diagnostic_smoke": "passed",
+    "uci_parallel_mode_absent": true,
+    "verifier_powershell_syntax": "passed; two-build execution intentionally not run for rejected candidate"
+  },
+  "findings": {
+    "full_width_bishop": "c6a7 at depth 6",
+    "full_width_knight": "c6e5 at last completed depth 6; requested depth 7 was node-censored",
+    "historical_handoff_correction": "D1 rejection JSON lists two puzzle and two depth-stability failures, not both online catastrophes.",
+    "node_budget_probe": {
+      "requested_nodes": 10000,
+      "aggregate_nodes": 12260,
+      "policy": "inherited v2.0 lane-local behavior; not repaired in this campaign"
+    }
+  },
+  "skipped_after_rejection": [
+    "two-build candidate qualification",
+    "performance gate",
+    "60-game development pilot",
+    "60-game confirmation pilot",
+    "300-game final gate",
+    "installation",
+    "version bump to 2.5.0-rc.2",
+    "standalone ZIP",
+    "Exoskeleton ZIP",
+    "external publication"
+  ],
+  "recovery_games_played": 0,
+  "sealed_final_used_for_tuning": false,
+  "outcome": "Retain published v2.0.0 as strength champion. Keep passing restoration and tooling. One-repair allowance exhausted; no second speculative repair.",
+  "resource_snapshot": {
+    "conservative_total_bytes": 725956363,
+    "recovery_scratch_bytes": 48337717,
+    "total_cap_bytes": 10000000000,
+    "recovery_scratch_cap_bytes": 2000000000,
+    "active_eloi_processes": 0,
+    "existing_release_packages_modified": false
+  },
+  "evidence": [
+    {
+      "path": "data/search_recovery/root-ordering-rejected.patch",
+      "sha256": "A0169FB7CE132E8858460A41677E1BB0C0D41E789A634270BE1EC037B7921DD1"
+    },
+    {
+      "path": "data/search_recovery/diagnosis.json",
+      "sha256": "7E72306BAE6FE02E6C799FF463C7CEF884B16D898F7BEB2B9157E474613FC214"
+    },
+    {
+      "path": "data/search_recovery/catastrophe-traces.json",
+      "sha256": "A47E58AC5834B824A7834FAAAC11DAE7056E0758322422FBD6BD305ED9CEBE55"
+    },
+    {
+      "path": "data/search_recovery/rejected-correctness.json",
+      "sha256": "150C08F4CE1ADC649D0F51F59F38F6900A04A3306E99B05C9E6454777DFC67B4"
+    },
+    {
+      "path": "data/search_recovery/restored-correctness.json",
+      "sha256": "440BE834D995AD9D030A795D60E8D661AF28B08AA68F8C793E68B3DAFC122F1C"
+    }
+  ]
+}

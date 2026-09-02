@@ -1,0 +1,4 @@
+# Frozen search-recovery text identities must survive Windows checkouts.
+data/search_recovery/*.json text eol=lf
+data/search_recovery/*.patch -text -diff
+data/search_recovery_*.json text eol=lf

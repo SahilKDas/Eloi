@@ -1,0 +1,5961 @@
+{
+  "discarded_previous_order_examples": [
+    {
+      "id": "lichess-009FP",
+      "move": "c1g5",
+      "next_search_index": 15,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 2
+    },
+    {
+      "id": "lichess-009FP",
+      "move": "c4b3",
+      "next_search_index": 17,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 3
+    },
+    {
+      "id": "lichess-009FP",
+      "move": "c4b5",
+      "next_search_index": 18,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 4
+    },
+    {
+      "id": "lichess-009FP",
+      "move": "a1b1",
+      "next_search_index": 22,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-009FP",
+      "move": "c1d2",
+      "next_search_index": 13,
+      "previous_bound": "exact",
+      "previous_depth": 2,
+      "previous_rank": 3
+    },
+    {
+      "id": "lichess-009FP",
+      "move": "b2b4",
+      "next_search_index": 25,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-002Uy",
+      "move": "a5a6",
+      "next_search_index": 13,
+      "previous_bound": "upper",
+      "previous_depth": 2,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-002Uy",
+      "move": "a5a6",
+      "next_search_index": 13,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-002Uy",
+      "move": "a5a6",
+      "next_search_index": 14,
+      "previous_bound": "upper",
+      "previous_depth": 4,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-002Uy",
+      "move": "a5a6",
+      "next_search_index": 14,
+      "previous_bound": "upper",
+      "previous_depth": 5,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-002mG",
+      "move": "e5e4",
+      "next_search_index": 27,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 2
+    },
+    {
+      "id": "lichess-002mG",
+      "move": "e5f4",
+      "next_search_index": 28,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 3
+    },
+    {
+      "id": "lichess-002mG",
+      "move": "e5f5",
+      "next_search_index": 29,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 4
+    },
+    {
+      "id": "lichess-002mG",
+      "move": "e5g5",
+      "next_search_index": 30,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-002mG",
+      "move": "f6f5",
+      "next_search_index": 20,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 3
+    },
+    {
+      "id": "lichess-002mG",
+      "move": "g7g6",
+      "next_search_index": 21,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 4
+    },
+    {
+      "id": "lichess-002mG",
+      "move": "g7g5",
+      "next_search_index": 22,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-002mG",
+      "move": "e5a1",
+      "next_search_index": 30,
+      "previous_bound": "upper",
+      "previous_depth": 4,
+      "previous_rank": 3
+    },
+    {
+      "id": "lichess-002mG",
+      "move": "e5e1",
+      "next_search_index": 31,
+      "previous_bound": "upper",
+      "previous_depth": 4,
+      "previous_rank": 4
+    },
+    {
+      "id": "lichess-002mG",
+      "move": "e5b2",
+      "next_search_index": 32,
+      "previous_bound": "upper",
+      "previous_depth": 4,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "g2h1",
+      "next_search_index": 15,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 2
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "g2f3",
+      "next_search_index": 16,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 3
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "g2h3",
+      "next_search_index": 17,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 4
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "c3b2",
+      "next_search_index": 20,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "e4c5",
+      "next_search_index": 12,
+      "previous_bound": "upper",
+      "previous_depth": 2,
+      "previous_rank": 4
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "e4g5",
+      "next_search_index": 13,
+      "previous_bound": "upper",
+      "previous_depth": 2,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "f2f3",
+      "next_search_index": 38,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "b1e1",
+      "next_search_index": 18,
+      "previous_bound": "upper",
+      "previous_depth": 4,
+      "previous_rank": 4
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "b1b3",
+      "next_search_index": 20,
+      "previous_bound": "upper",
+      "previous_depth": 4,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "b1e1",
+      "next_search_index": 18,
+      "previous_bound": "upper",
+      "previous_depth": 5,
+      "previous_rank": 4
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "b1b3",
+      "next_search_index": 20,
+      "previous_bound": "upper",
+      "previous_depth": 5,
+      "previous_rank": 5
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "b1e1",
+      "next_search_index": 14,
+      "previous_bound": "upper",
+      "previous_depth": 6,
+      "previous_rank": 3
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "b1b3",
+      "next_search_index": 16,
+      "previous_bound": "upper",
+      "previous_depth": 6,
+      "previous_rank": 4
+    },
+    {
+      "id": "lichess-001XA",
+      "move": "f1e1",
+      "next_search_index": 30,
+      "previous_bound": "upper",
+      "previous_depth": 6,
+      "previous_rank": 5
+    },
+    {
+      "id": "free-queen-capture",
+      "move": "e1d2",
+      "next_search_index": 14,
+      "previous_bound": "upper",
+      "previous_depth": 2,
+      "previous_rank": 2
+    },
+    {
+      "id": "free-queen-capture",
+      "move": "e1d1",
+      "next_search_index": 12,
+      "previous_bound": "upper",
+      "previous_depth": 2,
+      "previous_rank": 3
+    },
+    {
+      "id": "free-queen-capture",
+      "move": "d4h4",
+      "next_search_index": 11,
+      "previous_bound": "upper",
+      "previous_depth": 2,
+      "previous_rank": 5
+    },
+    {
+      "id": "free-queen-capture",
+      "move": "e1d2",
+      "next_search_index": 13,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 2
+    },
+    {
+      "id": "free-queen-capture",
+      "move": "e1d1",
+      "next_search_index": 16,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 3
+    },
+    {
+      "id": "free-queen-capture",
+      "move": "d4g4",
+      "next_search_index": 11,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 4
+    },
+    {
+      "id": "free-queen-capture",
+      "move": "d4h4",
+      "next_search_index": 12,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 5
+    },
+    {
+      "id": "poisoned-pawn-capture",
+      "move": "d4h8",
+      "next_search_index": 24,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 2
+    },
+    {
+      "id": "poisoned-pawn-capture",
+      "move": "e1d1",
+      "next_search_index": 25,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 3
+    },
+    {
+      "id": "poisoned-pawn-capture",
+      "move": "e1f1",
+      "next_search_index": 26,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 4
+    },
+    {
+      "id": "poisoned-pawn-capture",
+      "move": "e1d2",
+      "next_search_index": 27,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 5
+    },
+    {
+      "id": "poisoned-pawn-capture",
+      "move": "d4e3",
+      "next_search_index": 11,
+      "previous_bound": "upper",
+      "previous_depth": 2,
+      "previous_rank": 3
+    },
+    {
+      "id": "poisoned-pawn-capture",
+      "move": "d4a4",
+      "next_search_index": 12,
+      "previous_bound": "upper",
+      "previous_depth": 2,
+      "previous_rank": 4
+    },
+    {
+      "id": "poisoned-pawn-capture",
+      "move": "d4e4",
+      "next_search_index": 15,
+      "previous_bound": "upper",
+      "previous_depth": 2,
+      "previous_rank": 5
+    },
+    {
+      "id": "online-Lc65wiSv-bishop-hang",
+      "move": "c6a7",
+      "next_search_index": 19,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 2
+    },
+    {
+      "id": "online-Lc65wiSv-bishop-hang",
+      "move": "e7h4",
+      "next_search_index": 24,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 3
+    },
+    {
+      "id": "online-Lc65wiSv-bishop-hang",
+      "move": "c6b4",
+      "next_search_index": 17,
+      "previous_bound": "exact",
+      "previous_depth": 1,
+      "previous_rank": 4
+    },
+    {
+      "id": "online-Lc65wiSv-bishop-hang",
+      "move": "c6d4",
+      "next_search_index": 18,
+      "previous_bound": "upper",
+      "previous_depth": 1,
+      "previous_rank": 5
+    },
+    {
+      "id": "online-Lc65wiSv-bishop-hang",
+      "move": "c6b4",
+      "next_search_index": 28,
+      "previous_bound": "exact",
+      "previous_depth": 3,
+      "previous_rank": 2
+    },
+    {
+      "id": "online-Lc65wiSv-bishop-hang",
+      "move": "c6d4",
+      "next_search_index": 29,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 3
+    },
+    {
+      "id": "online-Lc65wiSv-bishop-hang",
+      "move": "c6a7",
+      "next_search_index": 31,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 4
+    },
+    {
+      "id": "online-Lc65wiSv-bishop-hang",
+      "move": "c4e2",
+      "next_search_index": 34,
+      "previous_bound": "upper",
+      "previous_depth": 3,
+      "previous_rank": 5
+    },
+    {
+      "id": "online-Lc65wiSv-bishop-hang",
+      "move": "f7f5",
+      "next_search_index": 17,
+      "previous_bound": "exact",
+      "previous_depth": 5,
+      "previous_rank": 2
+    },
+    {
+      "id": "online-bIw09dp9-knight-hang",
+      "move": "c6b4",
+      "next_search_index": 11,
+      "previous_bound": "upper",
+      "previous_depth": 2,
+      "previous_rank": 2
+    },
+    {
+      "id": "online-bIw09dp9-knight-hang",
+      "move": "c6d4",
+      "next_search_index": 12,
+      "previous_bound": "upper",
+      "previous_depth": 2,
+      "previous_rank": 3
+    },
+    {
+      "id": "online-bIw09dp9-knight-hang",
+      "move": "f6g4",
+      "next_search_index": 17,
+      "previous_bound": "exact",
+      "previous_depth": 2,
+      "previous_rank": 4
+    },
+    {
+      "id": "online-bIw09dp9-knight-hang",
+      "move": "c6d4",
+      "next_search_index": 15,
+      "previous_bound": "upper",
+      "previous_depth": 6,
+      "previous_rank": 3
+    },
+    {
+      "id": "online-bIw09dp9-knight-hang",
+      "move": "c6a5",
+      "next_search_index": 16,
+      "previous_bound": "upper",
+      "previous_depth": 6,
+      "previous_rank": 4
+    },
+    {
+      "id": "online-bIw09dp9-knight-hang",
+      "move": "c6b8",
+      "next_search_index": 18,
+      "previous_bound": "upper",
+      "previous_depth": 6,
+      "previous_rank": 5
+    }
+  ],
+  "engines": {
+    "official": "5F13AB2FEB05DE4171DB39E637FD1322409211872DEBB72AD7BEF88858B5AACF",
+    "pre_recovery": "A1144B8FE2E0C4109E5687F4960172ECB798246E7B99DB9FD568D78EDEAF0055",
+    "restored": "80ADBED5F9148CBC0B3A81914FB8A9318DACBF7CB7797FD54FF34D950B4C16EB"
+  },
+  "regressions": [
+    {
+      "category": "hanging_piece",
+      "depth": 6,
+      "expected": "d7d6",
+      "fen": "r3r3/pQNk1ppp/1qnR1n2/1B6/8/8/PPP3PP/5R1K b - - 0 1",
+      "forbidden": null,
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 46,
+            "pruning": {
+              "beta_cutoffs": 14,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8"
+            ],
+            "score_cp": 68,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 2,
+            "nodes": 545,
+            "pruning": {
+              "beta_cutoffs": 78,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "d6e5",
+              "b5c6",
+              "b6b7",
+              "c6b7"
+            ],
+            "score_cp": -223,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 3,
+            "nodes": 1365,
+            "pruning": {
+              "beta_cutoffs": 237,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "d6e5",
+              "b5c6",
+              "b6b7",
+              "c6b7"
+            ],
+            "score_cp": -223,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 4,
+            "nodes": 10315,
+            "pruning": {
+              "beta_cutoffs": 842,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "d6e5",
+              "b5c6",
+              "b6b7",
+              "c6b7"
+            ],
+            "score_cp": -223,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 5,
+            "nodes": 31798,
+            "pruning": {
+              "beta_cutoffs": 4309,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "d6e5",
+              "b5c6",
+              "b6b7",
+              "c6b7"
+            ],
+            "score_cp": -223,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 6,
+            "nodes": 202169,
+            "pruning": {
+              "beta_cutoffs": 15629,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "c6d4",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-000lC-full-width.json",
+        "sha256": "E83CFCEFC41B5D5395FABB211E05BB1B4E67F4BA23F7F76BFAB462B969C6155F",
+        "static_eval_cp": -223,
+        "total_nodes_consumed": 202169
+      },
+      "id": "lichess-000lC",
+      "official": {
+        "bestmove": "d7d6",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 46,
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8"
+            ],
+            "score_cp": 68,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 2,
+            "nodes": 128,
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "b5c6",
+              "b6b7",
+              "c6b7"
+            ],
+            "score_cp": -111,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 3,
+            "nodes": 439,
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "c6d4",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 4,
+            "nodes": 772,
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "c6d4",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 5,
+            "nodes": 1642,
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "c6d4",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 6,
+            "nodes": 4797,
+            "pv": [
+              "d7d6",
+              "f1d1",
+              "c6d4",
+              "c7e8",
+              "a8e8",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "d7d6",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 46,
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8"
+            ],
+            "score_cp": 68,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 2,
+            "nodes": 128,
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "b5c6",
+              "b6b7",
+              "c6b7"
+            ],
+            "score_cp": -111,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 3,
+            "nodes": 439,
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "c6d4",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 4,
+            "nodes": 772,
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "c6d4",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 5,
+            "nodes": 1642,
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "c6d4",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 6,
+            "nodes": 4797,
+            "pv": [
+              "d7d6",
+              "f1d1",
+              "c6d4",
+              "c7e8",
+              "a8e8",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 46,
+            "pruning": {
+              "beta_cutoffs": 14,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8"
+            ],
+            "score_cp": 68,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 2,
+            "nodes": 128,
+            "pruning": {
+              "beta_cutoffs": 29,
+              "futility_prunes": 65,
+              "internal_reductions": 0,
+              "late_move_prunes": 65,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 2,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "b5c6",
+              "b6b7",
+              "c6b7"
+            ],
+            "score_cp": -111,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 3,
+            "nodes": 439,
+            "pruning": {
+              "beta_cutoffs": 99,
+              "futility_prunes": 110,
+              "internal_reductions": 0,
+              "late_move_prunes": 110,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 9,
+              "reverse_futility_cutoffs": 44,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "c6d4",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 4,
+            "nodes": 772,
+            "pruning": {
+              "beta_cutoffs": 156,
+              "futility_prunes": 148,
+              "internal_reductions": 0,
+              "late_move_prunes": 148,
+              "lmr_reductions": 105,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 41,
+              "reverse_futility_cutoffs": 170,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "c6d4",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 5,
+            "nodes": 1642,
+            "pruning": {
+              "beta_cutoffs": 298,
+              "futility_prunes": 172,
+              "internal_reductions": 0,
+              "late_move_prunes": 190,
+              "lmr_reductions": 362,
+              "null_cutoffs": 1,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 86,
+              "reverse_futility_cutoffs": 566,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "c7e8",
+              "a8e8",
+              "f1d1",
+              "c6d4",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          },
+          {
+            "depth": 6,
+            "nodes": 4797,
+            "pruning": {
+              "beta_cutoffs": 929,
+              "futility_prunes": 482,
+              "internal_reductions": 0,
+              "late_move_prunes": 993,
+              "lmr_reductions": 1374,
+              "null_cutoffs": 5,
+              "probcut_cutoffs": 1,
+              "razor_cutoffs": 240,
+              "reverse_futility_cutoffs": 1613,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d7d6",
+              "f1d1",
+              "c6d4",
+              "c7e8",
+              "a8e8",
+              "b7b6",
+              "a7b6",
+              "b5e8",
+              "f6e8"
+            ],
+            "score_cp": -203,
+            "selected_move": "d7d6"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-000lC-production.json",
+        "sha256": "0E1284ECFE93A5A6115D30B420DD4B05FD578CCB3D8ADDDCE8FF3C7FB8A9E644",
+        "static_eval_cp": -223,
+        "total_nodes_consumed": 4797
+      }
+    },
+    {
+      "category": "trapped_piece",
+      "depth": 6,
+      "expected": "c1g5",
+      "fen": "r1b1k1nr/ppp2pbp/3p1qp1/4p3/2BnP3/N2P2QP/PPP2PP1/R1B1K2R w KQkq - 0 1",
+      "forbidden": null,
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 427,
+            "pruning": {
+              "beta_cutoffs": 17,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1d2"
+            ],
+            "score_cp": 186,
+            "selected_move": "c1d2"
+          },
+          {
+            "depth": 2,
+            "nodes": 2143,
+            "pruning": {
+              "beta_cutoffs": 321,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "e4f5",
+              "f6f5"
+            ],
+            "score_cp": 195,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 3,
+            "nodes": 8950,
+            "pruning": {
+              "beta_cutoffs": 773,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "e4f5",
+              "f6f5"
+            ],
+            "score_cp": 195,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 4,
+            "nodes": 39470,
+            "pruning": {
+              "beta_cutoffs": 4716,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1g5",
+              "e8d7",
+              "g5f6",
+              "g8f6",
+              "e1f1"
+            ],
+            "score_cp": 248,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 5,
+            "nodes": 399997,
+            "pruning": {
+              "beta_cutoffs": 30051,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "e4f5",
+              "f6f5",
+              "g5d2",
+              "g8f6"
+            ],
+            "score_cp": 133,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 6,
+            "nodes": 1202735,
+            "pruning": {
+              "beta_cutoffs": 117142,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "e4f5",
+              "f6f5",
+              "a3b5",
+              "f5d7",
+              "g5d2"
+            ],
+            "score_cp": 238,
+            "selected_move": "c1g5"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-009FP-full-width.json",
+        "sha256": "B338BBFE54FAD82892C030B50BA453C990DFB77821603F768EF71E5BCC803B5F",
+        "static_eval_cp": 95,
+        "total_nodes_consumed": 1202735
+      },
+      "id": "lichess-009FP",
+      "official": {
+        "bestmove": "c1g5",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 238,
+            "pv": [
+              "c1d2"
+            ],
+            "score_cp": 186,
+            "selected_move": "c1d2"
+          },
+          {
+            "depth": 2,
+            "nodes": 1303,
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "e4f5",
+              "f6f5"
+            ],
+            "score_cp": 195,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 3,
+            "nodes": 1746,
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "e4f5",
+              "f6f5"
+            ],
+            "score_cp": 195,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 4,
+            "nodes": 2858,
+            "pv": [
+              "c1g5",
+              "c8d7",
+              "g5f6",
+              "g8f6",
+              "a1c1"
+            ],
+            "score_cp": 249,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 5,
+            "nodes": 4457,
+            "pv": [
+              "c1g5",
+              "c8d7",
+              "g5f6",
+              "g8f6",
+              "e1f1",
+              "d7c6"
+            ],
+            "score_cp": 268,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 6,
+            "nodes": 12276,
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "g5f6",
+              "f5g3",
+              "f6g7",
+              "g3h1",
+              "g7h8"
+            ],
+            "score_cp": 174,
+            "selected_move": "c1g5"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "c1g5",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 238,
+            "pv": [
+              "c1d2"
+            ],
+            "score_cp": 186,
+            "selected_move": "c1d2"
+          },
+          {
+            "depth": 2,
+            "nodes": 1303,
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "e4f5",
+              "f6f5"
+            ],
+            "score_cp": 195,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 3,
+            "nodes": 1746,
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "e4f5",
+              "f6f5"
+            ],
+            "score_cp": 195,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 4,
+            "nodes": 2858,
+            "pv": [
+              "c1g5",
+              "c8d7",
+              "g5f6",
+              "g8f6",
+              "a1c1"
+            ],
+            "score_cp": 249,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 5,
+            "nodes": 4457,
+            "pv": [
+              "c1g5",
+              "c8d7",
+              "g5f6",
+              "g8f6",
+              "e1f1",
+              "d7c6"
+            ],
+            "score_cp": 268,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 6,
+            "nodes": 12276,
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "g5f6",
+              "f5g3",
+              "f6g7",
+              "g3h1",
+              "g7h8"
+            ],
+            "score_cp": 174,
+            "selected_move": "c1g5"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 238,
+            "pruning": {
+              "beta_cutoffs": 15,
+              "futility_prunes": 68,
+              "internal_reductions": 0,
+              "late_move_prunes": 68,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 1,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1d2"
+            ],
+            "score_cp": 186,
+            "selected_move": "c1d2"
+          },
+          {
+            "depth": 2,
+            "nodes": 1303,
+            "pruning": {
+              "beta_cutoffs": 232,
+              "futility_prunes": 142,
+              "internal_reductions": 0,
+              "late_move_prunes": 152,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 5,
+              "reverse_futility_cutoffs": 30,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "e4f5",
+              "f6f5"
+            ],
+            "score_cp": 195,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 3,
+            "nodes": 1746,
+            "pruning": {
+              "beta_cutoffs": 341,
+              "futility_prunes": 215,
+              "internal_reductions": 0,
+              "late_move_prunes": 234,
+              "lmr_reductions": 54,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 42,
+              "reverse_futility_cutoffs": 124,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "e4f5",
+              "f6f5"
+            ],
+            "score_cp": 195,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 4,
+            "nodes": 2858,
+            "pruning": {
+              "beta_cutoffs": 581,
+              "futility_prunes": 297,
+              "internal_reductions": 0,
+              "late_move_prunes": 482,
+              "lmr_reductions": 246,
+              "null_cutoffs": 29,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 76,
+              "reverse_futility_cutoffs": 355,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1g5",
+              "c8d7",
+              "g5f6",
+              "g8f6",
+              "a1c1"
+            ],
+            "score_cp": 249,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 5,
+            "nodes": 4457,
+            "pruning": {
+              "beta_cutoffs": 844,
+              "futility_prunes": 398,
+              "internal_reductions": 0,
+              "late_move_prunes": 750,
+              "lmr_reductions": 615,
+              "null_cutoffs": 65,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 103,
+              "reverse_futility_cutoffs": 726,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1g5",
+              "c8d7",
+              "g5f6",
+              "g8f6",
+              "e1f1",
+              "d7c6"
+            ],
+            "score_cp": 268,
+            "selected_move": "c1g5"
+          },
+          {
+            "depth": 6,
+            "nodes": 12276,
+            "pruning": {
+              "beta_cutoffs": 2468,
+              "futility_prunes": 2247,
+              "internal_reductions": 4,
+              "late_move_prunes": 4064,
+              "lmr_reductions": 2209,
+              "null_cutoffs": 176,
+              "probcut_cutoffs": 3,
+              "razor_cutoffs": 311,
+              "reverse_futility_cutoffs": 2481,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c1g5",
+              "d4f5",
+              "g5f6",
+              "f5g3",
+              "f6g7",
+              "g3h1",
+              "g7h8"
+            ],
+            "score_cp": 174,
+            "selected_move": "c1g5"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-009FP-production.json",
+        "sha256": "135491E41D9C16C78A31D5C852B523B2B796CF858FAF5C1F80E9A1D042986E95",
+        "static_eval_cp": 95,
+        "total_nodes_consumed": 12276
+      }
+    },
+    {
+      "category": "quiet_defense",
+      "depth": 6,
+      "expected": "h3c3",
+      "fen": "8/8/1p6/k7/P7/1KR4r/8/8 b - - 0 1",
+      "forbidden": null,
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 44,
+            "pruning": {
+              "beta_cutoffs": 1,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "h3c3",
+              "b3a2",
+              "a5a4"
+            ],
+            "score_cp": 720,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 2,
+            "nodes": 178,
+            "pruning": {
+              "beta_cutoffs": 20,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "h3c3",
+              "b3a2",
+              "a5b4"
+            ],
+            "score_cp": 881,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 3,
+            "nodes": 826,
+            "pruning": {
+              "beta_cutoffs": 104,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5b4",
+              "b2b1"
+            ],
+            "score_cp": 728,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 4,
+            "nodes": 2046,
+            "pruning": {
+              "beta_cutoffs": 289,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5b4",
+              "b2b1",
+              "c3b3",
+              "b1a1"
+            ],
+            "score_cp": 790,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 5,
+            "nodes": 7764,
+            "pruning": {
+              "beta_cutoffs": 934,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "c3c2",
+              "b2b3",
+              "c2c3"
+            ],
+            "score_cp": 790,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 6,
+            "nodes": 21339,
+            "pruning": {
+              "beta_cutoffs": 2728,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 2
+            },
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5a4",
+              "b2a2",
+              "a4a5",
+              "a2a1",
+              "a5b4",
+              "a1b1",
+              "c3c2",
+              "b1a1"
+            ],
+            "score_cp": 832,
+            "selected_move": "h3c3"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-002Uy-full-width.json",
+        "sha256": "BAC666AA6F4764F66050811CAD086B07CA411BE7ABEB9B9CB07DB401E394DA4C",
+        "static_eval_cp": -101,
+        "total_nodes_consumed": 21339
+      },
+      "id": "lichess-002Uy",
+      "official": {
+        "bestmove": "h3c3",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 40,
+            "pv": [
+              "h3c3",
+              "b3a2",
+              "a5a4"
+            ],
+            "score_cp": 720,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 2,
+            "nodes": 141,
+            "pv": [
+              "h3c3",
+              "b3a2",
+              "a5b4"
+            ],
+            "score_cp": 881,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 3,
+            "nodes": 282,
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5b4",
+              "b2b1"
+            ],
+            "score_cp": 728,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 4,
+            "nodes": 587,
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5b4",
+              "b2b1",
+              "c3b3",
+              "b1a1"
+            ],
+            "score_cp": 790,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 5,
+            "nodes": 970,
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5a4",
+              "b2a1",
+              "a4b5",
+              "a1b1"
+            ],
+            "score_cp": 740,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 6,
+            "nodes": 1347,
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5a4",
+              "b2a1",
+              "a4b5",
+              "a1a2",
+              "b5b4",
+              "a2b1",
+              "c3b3",
+              "b1a1"
+            ],
+            "score_cp": 832,
+            "selected_move": "h3c3"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "h3c3",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 40,
+            "pv": [
+              "h3c3",
+              "b3a2",
+              "a5a4"
+            ],
+            "score_cp": 720,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 2,
+            "nodes": 141,
+            "pv": [
+              "h3c3",
+              "b3a2",
+              "a5b4"
+            ],
+            "score_cp": 881,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 3,
+            "nodes": 282,
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5b4",
+              "b2b1"
+            ],
+            "score_cp": 728,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 4,
+            "nodes": 587,
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5b4",
+              "b2b1",
+              "c3b3",
+              "b1a1"
+            ],
+            "score_cp": 790,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 5,
+            "nodes": 970,
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5a4",
+              "b2a1",
+              "a4b5",
+              "a1b1"
+            ],
+            "score_cp": 740,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 6,
+            "nodes": 1347,
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5a4",
+              "b2a1",
+              "a4b5",
+              "a1a2",
+              "b5b4",
+              "a2b1",
+              "c3b3",
+              "b1a1"
+            ],
+            "score_cp": 832,
+            "selected_move": "h3c3"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 40,
+            "pruning": {
+              "beta_cutoffs": 1,
+              "futility_prunes": 4,
+              "internal_reductions": 0,
+              "late_move_prunes": 4,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "h3c3",
+              "b3a2",
+              "a5a4"
+            ],
+            "score_cp": 720,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 2,
+            "nodes": 141,
+            "pruning": {
+              "beta_cutoffs": 7,
+              "futility_prunes": 6,
+              "internal_reductions": 0,
+              "late_move_prunes": 6,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 2,
+              "reverse_futility_cutoffs": 13,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "h3c3",
+              "b3a2",
+              "a5b4"
+            ],
+            "score_cp": 881,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 3,
+            "nodes": 282,
+            "pruning": {
+              "beta_cutoffs": 20,
+              "futility_prunes": 48,
+              "internal_reductions": 0,
+              "late_move_prunes": 58,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 7,
+              "reverse_futility_cutoffs": 52,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5b4",
+              "b2b1"
+            ],
+            "score_cp": 728,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 4,
+            "nodes": 587,
+            "pruning": {
+              "beta_cutoffs": 51,
+              "futility_prunes": 67,
+              "internal_reductions": 0,
+              "late_move_prunes": 109,
+              "lmr_reductions": 24,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 11,
+              "reverse_futility_cutoffs": 87,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5b4",
+              "b2b1",
+              "c3b3",
+              "b1a1"
+            ],
+            "score_cp": 790,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 5,
+            "nodes": 970,
+            "pruning": {
+              "beta_cutoffs": 134,
+              "futility_prunes": 121,
+              "internal_reductions": 0,
+              "late_move_prunes": 199,
+              "lmr_reductions": 59,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 1,
+              "razor_cutoffs": 23,
+              "reverse_futility_cutoffs": 144,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5a4",
+              "b2a1",
+              "a4b5",
+              "a1b1"
+            ],
+            "score_cp": 740,
+            "selected_move": "h3c3"
+          },
+          {
+            "depth": 6,
+            "nodes": 1347,
+            "pruning": {
+              "beta_cutoffs": 189,
+              "futility_prunes": 181,
+              "internal_reductions": 0,
+              "late_move_prunes": 314,
+              "lmr_reductions": 116,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 3,
+              "razor_cutoffs": 33,
+              "reverse_futility_cutoffs": 216,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "h3c3",
+              "b3b2",
+              "a5a4",
+              "b2a1",
+              "a4b5",
+              "a1a2",
+              "b5b4",
+              "a2b1",
+              "c3b3",
+              "b1a1"
+            ],
+            "score_cp": 832,
+            "selected_move": "h3c3"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-002Uy-production.json",
+        "sha256": "5989EC2D288F64B037CD0BE4EAA9553F76C8986A48F3C861462E03C091759408",
+        "static_eval_cp": -101,
+        "total_nodes_consumed": 1347
+      }
+    },
+    {
+      "category": "quiet_defense",
+      "depth": 6,
+      "expected": "f8e8",
+      "fen": "5r1k/B1p3pp/2Qb1p2/3Pq3/P6P/8/2P2K2/3R1R2 b - - 0 1",
+      "forbidden": null,
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 186,
+            "pruning": {
+              "beta_cutoffs": 14,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h4"
+            ],
+            "score_cp": -259,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 2,
+            "nodes": 1097,
+            "pruning": {
+              "beta_cutoffs": 130,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h4"
+            ],
+            "score_cp": -259,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 3,
+            "nodes": 9549,
+            "pruning": {
+              "beta_cutoffs": 1343,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e5f4",
+              "f2e2",
+              "f4e4",
+              "e2f2",
+              "d6f4"
+            ],
+            "score_cp": -271,
+            "selected_move": "e5f4"
+          },
+          {
+            "depth": 4,
+            "nodes": 35453,
+            "pruning": {
+              "beta_cutoffs": 4406,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "f8e8",
+              "f1e1",
+              "e5g3",
+              "f2f1",
+              "g3h3",
+              "f1f2"
+            ],
+            "score_cp": -251,
+            "selected_move": "f8e8"
+          },
+          {
+            "depth": 5,
+            "nodes": 126457,
+            "pruning": {
+              "beta_cutoffs": 17555,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "f8e8",
+              "f1e1",
+              "e5g3",
+              "f2f1",
+              "g3h3",
+              "f1g1",
+              "d6h2",
+              "g1h1"
+            ],
+            "score_cp": -141,
+            "selected_move": "f8e8"
+          },
+          {
+            "depth": 6,
+            "nodes": 574565,
+            "pruning": {
+              "beta_cutoffs": 72121,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 1
+            },
+            "pv": [
+              "f8e8",
+              "f1e1",
+              "e5g3",
+              "f2f1",
+              "g3h3",
+              "f1g1",
+              "d6h2",
+              "g1h1"
+            ],
+            "score_cp": -141,
+            "selected_move": "f8e8"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-002mG-full-width.json",
+        "sha256": "8290DCFA1800DD3DFE4B459E746779CB31D8A5C4754942F90B75BBEC7380257F",
+        "static_eval_cp": -363,
+        "total_nodes_consumed": 574565
+      },
+      "id": "lichess-002mG",
+      "official": {
+        "bestmove": "f8e8",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 186,
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h4"
+            ],
+            "score_cp": -259,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 2,
+            "nodes": 351,
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h4"
+            ],
+            "score_cp": -259,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 3,
+            "nodes": 1905,
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h4",
+              "a7g1"
+            ],
+            "score_cp": -351,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 4,
+            "nodes": 3971,
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h3",
+              "a4a5",
+              "d6h2"
+            ],
+            "score_cp": -284,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 5,
+            "nodes": 10210,
+            "pv": [
+              "f8e8",
+              "f1e1",
+              "e5g3",
+              "f2f1",
+              "g3h3",
+              "f1g1",
+              "d6h2",
+              "g1h1"
+            ],
+            "score_cp": -141,
+            "selected_move": "f8e8"
+          },
+          {
+            "depth": 6,
+            "nodes": 12273,
+            "pv": [
+              "f8e8",
+              "f1e1",
+              "e5g3",
+              "f2f1",
+              "g3h3",
+              "f1g1",
+              "d6h2",
+              "g1h1"
+            ],
+            "score_cp": -141,
+            "selected_move": "f8e8"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "f8e8",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 186,
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h4"
+            ],
+            "score_cp": -259,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 2,
+            "nodes": 351,
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h4"
+            ],
+            "score_cp": -259,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 3,
+            "nodes": 1905,
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h4",
+              "a7g1"
+            ],
+            "score_cp": -351,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 4,
+            "nodes": 3971,
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h3",
+              "a4a5",
+              "d6h2"
+            ],
+            "score_cp": -284,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 5,
+            "nodes": 10210,
+            "pv": [
+              "f8e8",
+              "f1e1",
+              "e5g3",
+              "f2f1",
+              "g3h3",
+              "f1g1",
+              "d6h2",
+              "g1h1"
+            ],
+            "score_cp": -141,
+            "selected_move": "f8e8"
+          },
+          {
+            "depth": 6,
+            "nodes": 12273,
+            "pv": [
+              "f8e8",
+              "f1e1",
+              "e5g3",
+              "f2f1",
+              "g3h3",
+              "f1g1",
+              "d6h2",
+              "g1h1"
+            ],
+            "score_cp": -141,
+            "selected_move": "f8e8"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 186,
+            "pruning": {
+              "beta_cutoffs": 14,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h4"
+            ],
+            "score_cp": -259,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 2,
+            "nodes": 351,
+            "pruning": {
+              "beta_cutoffs": 61,
+              "futility_prunes": 100,
+              "internal_reductions": 0,
+              "late_move_prunes": 100,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 8,
+              "reverse_futility_cutoffs": 3,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h4"
+            ],
+            "score_cp": -259,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 3,
+            "nodes": 1720,
+            "pruning": {
+              "beta_cutoffs": 415,
+              "futility_prunes": 1032,
+              "internal_reductions": 0,
+              "late_move_prunes": 1064,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 45,
+              "reverse_futility_cutoffs": 33,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h4",
+              "a7g1"
+            ],
+            "score_cp": -351,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 4,
+            "nodes": 3897,
+            "pruning": {
+              "beta_cutoffs": 983,
+              "futility_prunes": 1903,
+              "internal_reductions": 0,
+              "late_move_prunes": 2236,
+              "lmr_reductions": 186,
+              "null_cutoffs": 20,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 152,
+              "reverse_futility_cutoffs": 277,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e5g3",
+              "f2e2",
+              "g3h3",
+              "a4a5",
+              "d6h2"
+            ],
+            "score_cp": -284,
+            "selected_move": "e5g3"
+          },
+          {
+            "depth": 5,
+            "nodes": 10097,
+            "pruning": {
+              "beta_cutoffs": 2488,
+              "futility_prunes": 2997,
+              "internal_reductions": 0,
+              "late_move_prunes": 4951,
+              "lmr_reductions": 1168,
+              "null_cutoffs": 74,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 419,
+              "reverse_futility_cutoffs": 1301,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "f8e8",
+              "f1e1",
+              "e5g3",
+              "f2f1",
+              "g3h3",
+              "f1g1",
+              "d6h2",
+              "g1h1"
+            ],
+            "score_cp": -141,
+            "selected_move": "f8e8"
+          },
+          {
+            "depth": 6,
+            "nodes": 12109,
+            "pruning": {
+              "beta_cutoffs": 2903,
+              "futility_prunes": 3244,
+              "internal_reductions": 6,
+              "late_move_prunes": 5788,
+              "lmr_reductions": 1778,
+              "null_cutoffs": 110,
+              "probcut_cutoffs": 1,
+              "razor_cutoffs": 547,
+              "reverse_futility_cutoffs": 1956,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "f8e8",
+              "f1e1",
+              "e5g3",
+              "f2f1",
+              "g3h3",
+              "f1g1",
+              "d6h2",
+              "g1h1"
+            ],
+            "score_cp": -141,
+            "selected_move": "f8e8"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-002mG-production.json",
+        "sha256": "A7C94F391330E7314D3C7FB2E06E66AC2F83B4F1293259C77B2082E6B539A9F6",
+        "static_eval_cp": -363,
+        "total_nodes_consumed": 12109
+      }
+    },
+    {
+      "category": "horizon_sacrifice",
+      "depth": 7,
+      "expected": "b1b7",
+      "fen": "2r2rk1/pbq1bppp/8/8/2p1N3/P1Bn2P1/2Q2PBP/1R3RK1 w - - 0 1",
+      "forbidden": null,
+      "full-width": {
+        "completed": false,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 431,
+            "pruning": {
+              "beta_cutoffs": 86,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e4f6",
+              "g7f6",
+              "b1b7"
+            ],
+            "score_cp": -127,
+            "selected_move": "e4f6"
+          },
+          {
+            "depth": 2,
+            "nodes": 1129,
+            "pruning": {
+              "beta_cutoffs": 188,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "g7f6",
+              "g2b7"
+            ],
+            "score_cp": 159,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 3,
+            "nodes": 5947,
+            "pruning": {
+              "beta_cutoffs": 479,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "g7f6",
+              "g2b7"
+            ],
+            "score_cp": 159,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 4,
+            "nodes": 80830,
+            "pruning": {
+              "beta_cutoffs": 7733,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "g7f6",
+              "g2b7",
+              "c8e8"
+            ],
+            "score_cp": 67,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 5,
+            "nodes": 302557,
+            "pruning": {
+              "beta_cutoffs": 22241,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "g7f6",
+              "g2b7",
+              "c8e8",
+              "c2a4"
+            ],
+            "score_cp": 159,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 6,
+            "nodes": 1269826,
+            "pruning": {
+              "beta_cutoffs": 115645,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "e7f6",
+              "g2b7",
+              "c8c5",
+              "c3b4"
+            ],
+            "score_cp": 150,
+            "selected_move": "b1b7"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-001XA-full-width.json",
+        "sha256": "97B05DD377B71580A5CE5ED0292B70F173C0C23C2542B6919CCCA1E4C03CA39F",
+        "static_eval_cp": -339,
+        "total_nodes_consumed": 6000000
+      },
+      "id": "lichess-001XA",
+      "official": {
+        "bestmove": "b1b7",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 431,
+            "pv": [
+              "e4f6",
+              "g7f6",
+              "b1b7"
+            ],
+            "score_cp": -127,
+            "selected_move": "e4f6"
+          },
+          {
+            "depth": 2,
+            "nodes": 519,
+            "pv": [
+              "e4f6",
+              "g7f6",
+              "b1b7"
+            ],
+            "score_cp": -127,
+            "selected_move": "e4f6"
+          },
+          {
+            "depth": 3,
+            "nodes": 1293,
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "e7f6",
+              "g2b7",
+              "f6c3",
+              "b7c8"
+            ],
+            "score_cp": 158,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 4,
+            "nodes": 1840,
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "g7f6",
+              "g2b7",
+              "c8e8"
+            ],
+            "score_cp": 67,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 5,
+            "nodes": 2574,
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "g7f6",
+              "g2b7",
+              "c8e8",
+              "c3f6"
+            ],
+            "score_cp": 147,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 6,
+            "nodes": 4661,
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "e7f6",
+              "g2b7",
+              "c8c5",
+              "c3b4",
+              "d3b4",
+              "a3b4"
+            ],
+            "score_cp": 150,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 7,
+            "nodes": 6240,
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "e7f6",
+              "g2b7",
+              "c8c5",
+              "c3f6",
+              "g7f6",
+              "c2a4"
+            ],
+            "score_cp": 159,
+            "selected_move": "b1b7"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "b1b7",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 431,
+            "pv": [
+              "e4f6",
+              "g7f6",
+              "b1b7"
+            ],
+            "score_cp": -127,
+            "selected_move": "e4f6"
+          },
+          {
+            "depth": 2,
+            "nodes": 519,
+            "pv": [
+              "e4f6",
+              "g7f6",
+              "b1b7"
+            ],
+            "score_cp": -127,
+            "selected_move": "e4f6"
+          },
+          {
+            "depth": 3,
+            "nodes": 1293,
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "e7f6",
+              "g2b7",
+              "f6c3",
+              "b7c8"
+            ],
+            "score_cp": 158,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 4,
+            "nodes": 1840,
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "g7f6",
+              "g2b7",
+              "c8e8"
+            ],
+            "score_cp": 67,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 5,
+            "nodes": 2574,
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "g7f6",
+              "g2b7",
+              "c8e8",
+              "c3f6"
+            ],
+            "score_cp": 147,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 6,
+            "nodes": 4661,
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "e7f6",
+              "g2b7",
+              "c8c5",
+              "c3b4",
+              "d3b4",
+              "a3b4"
+            ],
+            "score_cp": 150,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 7,
+            "nodes": 6240,
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "e7f6",
+              "g2b7",
+              "c8c5",
+              "c3f6",
+              "g7f6",
+              "c2a4"
+            ],
+            "score_cp": 159,
+            "selected_move": "b1b7"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 431,
+            "pruning": {
+              "beta_cutoffs": 86,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e4f6",
+              "g7f6",
+              "b1b7"
+            ],
+            "score_cp": -127,
+            "selected_move": "e4f6"
+          },
+          {
+            "depth": 2,
+            "nodes": 519,
+            "pruning": {
+              "beta_cutoffs": 99,
+              "futility_prunes": 41,
+              "internal_reductions": 0,
+              "late_move_prunes": 41,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 2,
+              "reverse_futility_cutoffs": 36,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e4f6",
+              "g7f6",
+              "b1b7"
+            ],
+            "score_cp": -127,
+            "selected_move": "e4f6"
+          },
+          {
+            "depth": 3,
+            "nodes": 1295,
+            "pruning": {
+              "beta_cutoffs": 265,
+              "futility_prunes": 249,
+              "internal_reductions": 0,
+              "late_move_prunes": 265,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 43,
+              "reverse_futility_cutoffs": 198,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "e7f6",
+              "g2b7",
+              "f6c3",
+              "b7c8"
+            ],
+            "score_cp": 158,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 4,
+            "nodes": 1844,
+            "pruning": {
+              "beta_cutoffs": 324,
+              "futility_prunes": 302,
+              "internal_reductions": 0,
+              "late_move_prunes": 334,
+              "lmr_reductions": 142,
+              "null_cutoffs": 7,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 53,
+              "reverse_futility_cutoffs": 448,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "g7f6",
+              "g2b7",
+              "c8e8"
+            ],
+            "score_cp": 67,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 5,
+            "nodes": 2582,
+            "pruning": {
+              "beta_cutoffs": 454,
+              "futility_prunes": 341,
+              "internal_reductions": 0,
+              "late_move_prunes": 489,
+              "lmr_reductions": 400,
+              "null_cutoffs": 17,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 62,
+              "reverse_futility_cutoffs": 701,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "g7f6",
+              "g2b7",
+              "c8e8",
+              "c3f6"
+            ],
+            "score_cp": 147,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 6,
+            "nodes": 4669,
+            "pruning": {
+              "beta_cutoffs": 883,
+              "futility_prunes": 446,
+              "internal_reductions": 1,
+              "late_move_prunes": 857,
+              "lmr_reductions": 738,
+              "null_cutoffs": 28,
+              "probcut_cutoffs": 2,
+              "razor_cutoffs": 115,
+              "reverse_futility_cutoffs": 1014,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "e7f6",
+              "g2b7",
+              "c8c5",
+              "c3b4",
+              "d3b4",
+              "a3b4"
+            ],
+            "score_cp": 150,
+            "selected_move": "b1b7"
+          },
+          {
+            "depth": 7,
+            "nodes": 6254,
+            "pruning": {
+              "beta_cutoffs": 1210,
+              "futility_prunes": 660,
+              "internal_reductions": 41,
+              "late_move_prunes": 1344,
+              "lmr_reductions": 1078,
+              "null_cutoffs": 74,
+              "probcut_cutoffs": 9,
+              "razor_cutoffs": 176,
+              "reverse_futility_cutoffs": 1304,
+              "singular_extensions": 3
+            },
+            "pv": [
+              "b1b7",
+              "c7b7",
+              "e4f6",
+              "e7f6",
+              "g2b7",
+              "c8c5",
+              "c3f6",
+              "g7f6",
+              "c2a4"
+            ],
+            "score_cp": 159,
+            "selected_move": "b1b7"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-001XA-production.json",
+        "sha256": "5A3660ADD41D10F56317BDA1825CF9AE725E84BF709FAB6DCF57334CD3B34312",
+        "static_eval_cp": -339,
+        "total_nodes_consumed": 6254
+      }
+    },
+    {
+      "category": "passed_pawn_race",
+      "depth": 5,
+      "expected": "c2h7",
+      "fen": "1rb3k1/q4rP1/4p2p/3p3p/3P1P2/2P5/2QK3P/3R2R1 w - - 0 1",
+      "forbidden": null,
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 126,
+            "pruning": {
+              "beta_cutoffs": 21,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c2h7",
+              "g8h7",
+              "g7g8q"
+            ],
+            "score_cp": 29997,
+            "selected_move": "c2h7"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-001w5-full-width.json",
+        "sha256": "CA7366D612B3F2070E0C67491D5A27F9EAA6B9AFE293375CEE64F67CAAC5D4F7",
+        "static_eval_cp": -140,
+        "total_nodes_consumed": 126
+      },
+      "id": "lichess-001w5",
+      "official": {
+        "bestmove": "c2h7",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 126,
+            "pv": [
+              "c2h7",
+              "g8h7",
+              "g7g8q"
+            ],
+            "score_cp": 29998,
+            "selected_move": "c2h7"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "c2h7",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 126,
+            "pv": [
+              "c2h7",
+              "g8h7",
+              "g7g8q"
+            ],
+            "score_cp": 29998,
+            "selected_move": "c2h7"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 126,
+            "pruning": {
+              "beta_cutoffs": 21,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c2h7",
+              "g8h7",
+              "g7g8q"
+            ],
+            "score_cp": 29997,
+            "selected_move": "c2h7"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-001w5-production.json",
+        "sha256": "4A9D67A792E2F776E85BCA97E52AC9C2BF4A588FF11C03F6398F73A274136F17",
+        "static_eval_cp": -140,
+        "total_nodes_consumed": 126
+      }
+    },
+    {
+      "category": "passed_pawn_race",
+      "depth": 8,
+      "expected": "d3d4",
+      "fen": "8/2p5/3k2p1/1p1P1p2/1P3P2/3K2Pp/7P/8 w - - 0 1",
+      "forbidden": null,
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 32,
+            "pruning": {
+              "beta_cutoffs": 4,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4"
+            ],
+            "score_cp": 25,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 2,
+            "nodes": 73,
+            "pruning": {
+              "beta_cutoffs": 11,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 3,
+            "nodes": 225,
+            "pruning": {
+              "beta_cutoffs": 25,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 4,
+            "nodes": 479,
+            "pruning": {
+              "beta_cutoffs": 92,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6",
+              "d4e5"
+            ],
+            "score_cp": -10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 5,
+            "nodes": 1462,
+            "pruning": {
+              "beta_cutoffs": 195,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6",
+              "d4e5",
+              "c6b6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 6,
+            "nodes": 3672,
+            "pruning": {
+              "beta_cutoffs": 662,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4",
+              "d6d7",
+              "d4c5",
+              "d7e8",
+              "c5c6",
+              "e8e7",
+              "c6c7"
+            ],
+            "score_cp": 62,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 7,
+            "nodes": 9559,
+            "pruning": {
+              "beta_cutoffs": 1578,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 1
+            },
+            "pv": [
+              "d3d4",
+              "d6d7",
+              "d4c5",
+              "d7e7",
+              "c5c6",
+              "e7f8",
+              "d5d6",
+              "c7d6",
+              "c6d6",
+              "f8f7"
+            ],
+            "score_cp": 86,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 8,
+            "nodes": 16611,
+            "pruning": {
+              "beta_cutoffs": 2976,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 5
+            },
+            "pv": [
+              "d3d4",
+              "d6d7",
+              "d4c5",
+              "d7e7",
+              "c5c6",
+              "e7f8",
+              "c6b5",
+              "c7c6",
+              "d5c6",
+              "g6g5",
+              "f4g5"
+            ],
+            "score_cp": 86,
+            "selected_move": "d3d4"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-000o3-full-width.json",
+        "sha256": "1B90965AE0743DF7A1DA63A4FE6ECE03E1887E7DEFF8DFD1FAE0588BD901CC9A",
+        "static_eval_cp": 10,
+        "total_nodes_consumed": 16611
+      },
+      "id": "lichess-000o3",
+      "official": {
+        "bestmove": "d3d4",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 32,
+            "pv": [
+              "d3d4"
+            ],
+            "score_cp": 25,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 2,
+            "nodes": 73,
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 3,
+            "nodes": 132,
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 4,
+            "nodes": 266,
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6",
+              "d4e5"
+            ],
+            "score_cp": -10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 5,
+            "nodes": 434,
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6",
+              "d4e5",
+              "c6b6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 6,
+            "nodes": 733,
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6",
+              "d4e5",
+              "c6b6",
+              "e5d6"
+            ],
+            "score_cp": 86,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 7,
+            "nodes": 1454,
+            "pv": [
+              "d3d4",
+              "d6d7",
+              "d4c5",
+              "d7e7",
+              "c5c6",
+              "e7f7",
+              "c6c7"
+            ],
+            "score_cp": 138,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 8,
+            "nodes": 2280,
+            "pv": [
+              "d3d4",
+              "d6d7",
+              "d4c5",
+              "d7e7",
+              "c5c6",
+              "e7f7",
+              "c6c7",
+              "f7e7",
+              "d5d6",
+              "e7e6"
+            ],
+            "score_cp": 108,
+            "selected_move": "d3d4"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "d3d4",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 32,
+            "pv": [
+              "d3d4"
+            ],
+            "score_cp": 25,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 2,
+            "nodes": 73,
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 3,
+            "nodes": 132,
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 4,
+            "nodes": 266,
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6",
+              "d4e5"
+            ],
+            "score_cp": -10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 5,
+            "nodes": 434,
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6",
+              "d4e5",
+              "c6b6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 6,
+            "nodes": 733,
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6",
+              "d4e5",
+              "c6b6",
+              "e5d6"
+            ],
+            "score_cp": 86,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 7,
+            "nodes": 1454,
+            "pv": [
+              "d3d4",
+              "d6d7",
+              "d4c5",
+              "d7e7",
+              "c5c6",
+              "e7f7",
+              "c6c7"
+            ],
+            "score_cp": 138,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 8,
+            "nodes": 2280,
+            "pv": [
+              "d3d4",
+              "d6d7",
+              "d4c5",
+              "d7e7",
+              "c5c6",
+              "e7f7",
+              "c6c7",
+              "f7e7",
+              "d5d6",
+              "e7e6"
+            ],
+            "score_cp": 108,
+            "selected_move": "d3d4"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 32,
+            "pruning": {
+              "beta_cutoffs": 4,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4"
+            ],
+            "score_cp": 25,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 2,
+            "nodes": 73,
+            "pruning": {
+              "beta_cutoffs": 11,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 3,
+            "nodes": 132,
+            "pruning": {
+              "beta_cutoffs": 22,
+              "futility_prunes": 23,
+              "internal_reductions": 0,
+              "late_move_prunes": 23,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 3,
+              "reverse_futility_cutoffs": 3,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 4,
+            "nodes": 293,
+            "pruning": {
+              "beta_cutoffs": 65,
+              "futility_prunes": 31,
+              "internal_reductions": 0,
+              "late_move_prunes": 32,
+              "lmr_reductions": 3,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 3,
+              "reverse_futility_cutoffs": 26,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6",
+              "d4e5"
+            ],
+            "score_cp": -10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 5,
+            "nodes": 468,
+            "pruning": {
+              "beta_cutoffs": 102,
+              "futility_prunes": 77,
+              "internal_reductions": 0,
+              "late_move_prunes": 78,
+              "lmr_reductions": 45,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 8,
+              "reverse_futility_cutoffs": 49,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6",
+              "d4e5",
+              "c6b6"
+            ],
+            "score_cp": 10,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 6,
+            "nodes": 775,
+            "pruning": {
+              "beta_cutoffs": 157,
+              "futility_prunes": 106,
+              "internal_reductions": 0,
+              "late_move_prunes": 115,
+              "lmr_reductions": 67,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 6,
+              "razor_cutoffs": 19,
+              "reverse_futility_cutoffs": 65,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d3d4",
+              "c7c6",
+              "d5c6",
+              "d6c6",
+              "d4e5",
+              "c6b6",
+              "e5d6"
+            ],
+            "score_cp": 86,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 7,
+            "nodes": 1496,
+            "pruning": {
+              "beta_cutoffs": 323,
+              "futility_prunes": 259,
+              "internal_reductions": 4,
+              "late_move_prunes": 280,
+              "lmr_reductions": 140,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 12,
+              "razor_cutoffs": 31,
+              "reverse_futility_cutoffs": 153,
+              "singular_extensions": 2
+            },
+            "pv": [
+              "d3d4",
+              "d6d7",
+              "d4c5",
+              "d7e7",
+              "c5c6",
+              "e7f7",
+              "c6c7"
+            ],
+            "score_cp": 138,
+            "selected_move": "d3d4"
+          },
+          {
+            "depth": 8,
+            "nodes": 2346,
+            "pruning": {
+              "beta_cutoffs": 495,
+              "futility_prunes": 359,
+              "internal_reductions": 8,
+              "late_move_prunes": 394,
+              "lmr_reductions": 244,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 19,
+              "razor_cutoffs": 53,
+              "reverse_futility_cutoffs": 263,
+              "singular_extensions": 3
+            },
+            "pv": [
+              "d3d4",
+              "d6d7",
+              "d4c5",
+              "d7e7",
+              "c5c6",
+              "e7f7",
+              "c6c7",
+              "f7e7",
+              "d5d6",
+              "e7e6"
+            ],
+            "score_cp": 108,
+            "selected_move": "d3d4"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\lichess-000o3-production.json",
+        "sha256": "3ED6616CB7BE5F4380DDC896DD41F7EFE81BCE7A04D28FA3EE48FE8CBE29E923",
+        "static_eval_cp": 10,
+        "total_nodes_consumed": 2346
+      }
+    },
+    {
+      "category": "mate_distance",
+      "depth": 1,
+      "expected": null,
+      "fen": "7k/6Q1/6K1/8/8/8/8/8 b - - 0 1",
+      "forbidden": null,
+      "full-width": {
+        "completed": true,
+        "iterations": [],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\forced-mate-distance-full-width.json",
+        "sha256": "4F70AADEBBE89AE60E490FFFB132E6E299F5240076E2D0444C0928651FE06E0E",
+        "static_eval_cp": -1146,
+        "total_nodes_consumed": 0
+      },
+      "id": "forced-mate-distance",
+      "official": {
+        "bestmove": "0000",
+        "iterations": []
+      },
+      "pre_recovery": {
+        "bestmove": "0000",
+        "iterations": []
+      },
+      "production": {
+        "completed": true,
+        "iterations": [],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\forced-mate-distance-production.json",
+        "sha256": "CE2ECB364F71E2C5E3DA89CFF268C5C9DCE9F4C03C31D6A4DF5CE711317EB69B",
+        "static_eval_cp": -1146,
+        "total_nodes_consumed": 0
+      }
+    },
+    {
+      "category": "fortress_insufficient",
+      "depth": 2,
+      "expected": null,
+      "fen": "7k/8/8/8/8/8/8/K7 w - - 0 1",
+      "forbidden": null,
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 4,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          },
+          {
+            "depth": 2,
+            "nodes": 8,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\bare-kings-full-width.json",
+        "sha256": "A4F41B83D0958BB9F1016218E5BB7A3262BDB4AE2BD12BDC37C335DBDAAB4CCD",
+        "static_eval_cp": 0,
+        "total_nodes_consumed": 8
+      },
+      "id": "bare-kings",
+      "official": {
+        "bestmove": "a1b1",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 4,
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          },
+          {
+            "depth": 2,
+            "nodes": 8,
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "a1b1",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 4,
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          },
+          {
+            "depth": 2,
+            "nodes": 8,
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 4,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          },
+          {
+            "depth": 2,
+            "nodes": 8,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\bare-kings-production.json",
+        "sha256": "F94C95BC3F35F0C997A77EB152A3877A129016B9715858ABAF2039109FE012B0",
+        "static_eval_cp": 0,
+        "total_nodes_consumed": 8
+      }
+    },
+    {
+      "category": "fortress_insufficient",
+      "depth": 2,
+      "expected": null,
+      "fen": "7k/8/8/8/8/8/6B1/K7 w - - 0 1",
+      "forbidden": null,
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 13,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "g2f1"
+            ],
+            "score_cp": 0,
+            "selected_move": "g2f1"
+          },
+          {
+            "depth": 2,
+            "nodes": 26,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "g2f1"
+            ],
+            "score_cp": 0,
+            "selected_move": "g2f1"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\bishop-versus-king-full-width.json",
+        "sha256": "F222BF3D7CAE589E42E0150AE4D2C9F21C7CCBF5FA01D1B331E3FB5F7059C5D2",
+        "static_eval_cp": 0,
+        "total_nodes_consumed": 26
+      },
+      "id": "bishop-versus-king",
+      "official": {
+        "bestmove": "g2f1",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 13,
+            "pv": [
+              "g2f1"
+            ],
+            "score_cp": 0,
+            "selected_move": "g2f1"
+          },
+          {
+            "depth": 2,
+            "nodes": 26,
+            "pv": [
+              "g2f1"
+            ],
+            "score_cp": 0,
+            "selected_move": "g2f1"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "g2f1",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 13,
+            "pv": [
+              "g2f1"
+            ],
+            "score_cp": 0,
+            "selected_move": "g2f1"
+          },
+          {
+            "depth": 2,
+            "nodes": 26,
+            "pv": [
+              "g2f1"
+            ],
+            "score_cp": 0,
+            "selected_move": "g2f1"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 13,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "g2f1"
+            ],
+            "score_cp": 0,
+            "selected_move": "g2f1"
+          },
+          {
+            "depth": 2,
+            "nodes": 26,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "g2f1"
+            ],
+            "score_cp": 0,
+            "selected_move": "g2f1"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\bishop-versus-king-production.json",
+        "sha256": "83BD9BF0B3FCE5ADAF8020A3603548957CA6487661A0BD0E9E92DD867D7B5222",
+        "static_eval_cp": 0,
+        "total_nodes_consumed": 26
+      }
+    },
+    {
+      "category": "repetition_fifty",
+      "depth": 2,
+      "expected": null,
+      "fen": "7k/8/8/8/8/8/8/K7 w - - 100 51",
+      "forbidden": null,
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 4,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          },
+          {
+            "depth": 2,
+            "nodes": 8,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\fifty-move-draw-full-width.json",
+        "sha256": "1F9484106C2DF1F018B3E9952A82AC30607C8144152E34945F5F9B63ECFB4E52",
+        "static_eval_cp": 0,
+        "total_nodes_consumed": 8
+      },
+      "id": "fifty-move-draw",
+      "official": {
+        "bestmove": "a1b1",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 4,
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          },
+          {
+            "depth": 2,
+            "nodes": 8,
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "a1b1",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 4,
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          },
+          {
+            "depth": 2,
+            "nodes": 8,
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 4,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          },
+          {
+            "depth": 2,
+            "nodes": 8,
+            "pruning": {
+              "beta_cutoffs": 0,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "a1b1"
+            ],
+            "score_cp": 0,
+            "selected_move": "a1b1"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\fifty-move-draw-production.json",
+        "sha256": "47434BC3271FB63747F6C4DB41B88BF4DDE96DF7D393A59DDC7995DC0C364575",
+        "static_eval_cp": 0,
+        "total_nodes_consumed": 8
+      }
+    },
+    {
+      "category": "quiescence_stability",
+      "depth": 4,
+      "expected": "d4d5",
+      "fen": "4k3/8/8/3q4/3R4/8/8/4K3 w - - 0 1",
+      "forbidden": null,
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 41,
+            "pruning": {
+              "beta_cutoffs": 1,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4d5"
+            ],
+            "score_cp": 200,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 2,
+            "nodes": 150,
+            "pruning": {
+              "beta_cutoffs": 25,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4d5",
+              "e8e7"
+            ],
+            "score_cp": 220,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 3,
+            "nodes": 499,
+            "pruning": {
+              "beta_cutoffs": 55,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4d5",
+              "e8e7",
+              "d5f5"
+            ],
+            "score_cp": 485,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 4,
+            "nodes": 1202,
+            "pruning": {
+              "beta_cutoffs": 210,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4d5",
+              "e8e7",
+              "d5e5",
+              "e7d7",
+              "e1f1"
+            ],
+            "score_cp": 485,
+            "selected_move": "d4d5"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\free-queen-capture-full-width.json",
+        "sha256": "5AF4BE6F6590CA9956B6023A81C784393DD38ADCD370A6C5A6C8C789409F86BD",
+        "static_eval_cp": -600,
+        "total_nodes_consumed": 1202
+      },
+      "id": "free-queen-capture",
+      "official": {
+        "bestmove": "d4d5",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 41,
+            "pv": [
+              "d4d5"
+            ],
+            "score_cp": 200,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 2,
+            "nodes": 69,
+            "pv": [
+              "d4d5",
+              "e8e7"
+            ],
+            "score_cp": 220,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 3,
+            "nodes": 96,
+            "pv": [
+              "d4d5",
+              "e8e7",
+              "d5d1"
+            ],
+            "score_cp": 373,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 4,
+            "nodes": 514,
+            "pv": [
+              "d4d5",
+              "e8e7",
+              "d5e5",
+              "e7f6",
+              "e5h5"
+            ],
+            "score_cp": 485,
+            "selected_move": "d4d5"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "d4d5",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 41,
+            "pv": [
+              "d4d5"
+            ],
+            "score_cp": 200,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 2,
+            "nodes": 69,
+            "pv": [
+              "d4d5",
+              "e8e7"
+            ],
+            "score_cp": 220,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 3,
+            "nodes": 96,
+            "pv": [
+              "d4d5",
+              "e8e7",
+              "d5d1"
+            ],
+            "score_cp": 373,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 4,
+            "nodes": 514,
+            "pv": [
+              "d4d5",
+              "e8e7",
+              "d5e5",
+              "e7f6",
+              "e5h5"
+            ],
+            "score_cp": 485,
+            "selected_move": "d4d5"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 41,
+            "pruning": {
+              "beta_cutoffs": 1,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4d5"
+            ],
+            "score_cp": 200,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 2,
+            "nodes": 69,
+            "pruning": {
+              "beta_cutoffs": 2,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 18,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4d5",
+              "e8e7"
+            ],
+            "score_cp": 220,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 3,
+            "nodes": 96,
+            "pruning": {
+              "beta_cutoffs": 5,
+              "futility_prunes": 18,
+              "internal_reductions": 0,
+              "late_move_prunes": 18,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 32,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4d5",
+              "e8e7",
+              "d5d1"
+            ],
+            "score_cp": 373,
+            "selected_move": "d4d5"
+          },
+          {
+            "depth": 4,
+            "nodes": 514,
+            "pruning": {
+              "beta_cutoffs": 53,
+              "futility_prunes": 18,
+              "internal_reductions": 0,
+              "late_move_prunes": 44,
+              "lmr_reductions": 4,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 4,
+              "reverse_futility_cutoffs": 56,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4d5",
+              "e8e7",
+              "d5e5",
+              "e7f6",
+              "e5h5"
+            ],
+            "score_cp": 485,
+            "selected_move": "d4d5"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\free-queen-capture-production.json",
+        "sha256": "619B21D77924FE69007B8347C2A4CA887EA5914A498A0AB7E902A342157EB373",
+        "static_eval_cp": -600,
+        "total_nodes_consumed": 514
+      }
+    },
+    {
+      "category": "horizon_sacrifice",
+      "depth": 3,
+      "expected": null,
+      "fen": "3rk3/8/8/3p4/3Q4/8/8/4K3 w - - 0 1",
+      "forbidden": "d4d5",
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 160,
+            "pruning": {
+              "beta_cutoffs": 5,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4g7"
+            ],
+            "score_cp": 515,
+            "selected_move": "d4g7"
+          },
+          {
+            "depth": 2,
+            "nodes": 524,
+            "pruning": {
+              "beta_cutoffs": 58,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4g7",
+              "d5d4"
+            ],
+            "score_cp": 523,
+            "selected_move": "d4g7"
+          },
+          {
+            "depth": 3,
+            "nodes": 2722,
+            "pruning": {
+              "beta_cutoffs": 339,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4g7",
+              "d8d7",
+              "g7g8",
+              "e8e7"
+            ],
+            "score_cp": 495,
+            "selected_move": "d4g7"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\poisoned-pawn-capture-full-width.json",
+        "sha256": "14440A5127FAA001AB677336364921F6FB1185051A7D43C0D66476B33226BF99",
+        "static_eval_cp": 383,
+        "total_nodes_consumed": 2722
+      },
+      "id": "poisoned-pawn-capture",
+      "official": {
+        "bestmove": "d4g7",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 160,
+            "pv": [
+              "d4g7"
+            ],
+            "score_cp": 515,
+            "selected_move": "d4g7"
+          },
+          {
+            "depth": 2,
+            "nodes": 219,
+            "pv": [
+              "d4g7",
+              "d5d4"
+            ],
+            "score_cp": 523,
+            "selected_move": "d4g7"
+          },
+          {
+            "depth": 3,
+            "nodes": 876,
+            "pv": [
+              "d4g7",
+              "d8d7",
+              "g7g8",
+              "e8e7"
+            ],
+            "score_cp": 495,
+            "selected_move": "d4g7"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "d4g7",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 160,
+            "pv": [
+              "d4g7"
+            ],
+            "score_cp": 515,
+            "selected_move": "d4g7"
+          },
+          {
+            "depth": 2,
+            "nodes": 219,
+            "pv": [
+              "d4g7",
+              "d5d4"
+            ],
+            "score_cp": 523,
+            "selected_move": "d4g7"
+          },
+          {
+            "depth": 3,
+            "nodes": 876,
+            "pv": [
+              "d4g7",
+              "d8d7",
+              "g7g8",
+              "e8e7"
+            ],
+            "score_cp": 495,
+            "selected_move": "d4g7"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 160,
+            "pruning": {
+              "beta_cutoffs": 5,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4g7"
+            ],
+            "score_cp": 515,
+            "selected_move": "d4g7"
+          },
+          {
+            "depth": 2,
+            "nodes": 218,
+            "pruning": {
+              "beta_cutoffs": 13,
+              "futility_prunes": 51,
+              "internal_reductions": 0,
+              "late_move_prunes": 51,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 4,
+              "reverse_futility_cutoffs": 22,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4g7",
+              "d5d4"
+            ],
+            "score_cp": 523,
+            "selected_move": "d4g7"
+          },
+          {
+            "depth": 3,
+            "nodes": 872,
+            "pruning": {
+              "beta_cutoffs": 127,
+              "futility_prunes": 312,
+              "internal_reductions": 0,
+              "late_move_prunes": 312,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 17,
+              "reverse_futility_cutoffs": 84,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "d4g7",
+              "d8d7",
+              "g7g8",
+              "e8e7"
+            ],
+            "score_cp": 495,
+            "selected_move": "d4g7"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\poisoned-pawn-capture-production.json",
+        "sha256": "BE372C48B08D3410D1036579132033615E59B82072BAD0409B13151309E30891",
+        "static_eval_cp": 383,
+        "total_nodes_consumed": 872
+      }
+    },
+    {
+      "category": "online_catastrophe",
+      "depth": 6,
+      "expected": null,
+      "fen": "2rqk2r/2p1bppp/p1np4/1p1Pp3/2b1P1n1/1PP2N2/P1B2PPP/RNBQR1K1 b k - 0 1",
+      "forbidden": "c6a7",
+      "full-width": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 199,
+            "pruning": {
+              "beta_cutoffs": 42,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6a5",
+              "b3c4",
+              "a5c4"
+            ],
+            "score_cp": 54,
+            "selected_move": "c6a5"
+          },
+          {
+            "depth": 2,
+            "nodes": 916,
+            "pruning": {
+              "beta_cutoffs": 110,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "g4f2",
+              "g1f2",
+              "e7h4",
+              "f3h4",
+              "d8h4",
+              "f2f3"
+            ],
+            "score_cp": 74,
+            "selected_move": "g4f2"
+          },
+          {
+            "depth": 3,
+            "nodes": 9282,
+            "pruning": {
+              "beta_cutoffs": 1513,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e7h4",
+              "f3h4",
+              "d8h4",
+              "b3c4"
+            ],
+            "score_cp": 75,
+            "selected_move": "e7h4"
+          },
+          {
+            "depth": 4,
+            "nodes": 23012,
+            "pruning": {
+              "beta_cutoffs": 3261,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e7h4",
+              "g2g3",
+              "c6b4",
+              "b3c4",
+              "b4c2",
+              "d1c2"
+            ],
+            "score_cp": 95,
+            "selected_move": "e7h4"
+          },
+          {
+            "depth": 5,
+            "nodes": 299179,
+            "pruning": {
+              "beta_cutoffs": 29818,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6a7",
+              "b3c4",
+              "e7h4",
+              "g2g3",
+              "h4f6"
+            ],
+            "score_cp": -46,
+            "selected_move": "c6a7"
+          },
+          {
+            "depth": 6,
+            "nodes": 788728,
+            "pruning": {
+              "beta_cutoffs": 84800,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6a7",
+              "b1d2",
+              "e7h4",
+              "g2g3",
+              "g4e3",
+              "f2e3"
+            ],
+            "score_cp": -78,
+            "selected_move": "c6a7"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\online-Lc65wiSv-bishop-hang-full-width.json",
+        "sha256": "158E76CB333D1E335632F74B2C4BA7A26F4DFFDCC29B35F468D8D1AA84B3EB9F",
+        "static_eval_cp": 184,
+        "total_nodes_consumed": 788728
+      },
+      "id": "online-Lc65wiSv-bishop-hang",
+      "official": {
+        "bestmove": "f7f5",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 199,
+            "pv": [
+              "c6a5",
+              "b3c4",
+              "a5c4"
+            ],
+            "score_cp": 54,
+            "selected_move": "c6a5"
+          },
+          {
+            "depth": 2,
+            "nodes": 358,
+            "pv": [
+              "c6a5",
+              "b3c4",
+              "a5c4"
+            ],
+            "score_cp": 54,
+            "selected_move": "c6a5"
+          },
+          {
+            "depth": 3,
+            "nodes": 4025,
+            "pv": [
+              "e7h4",
+              "f3h4",
+              "d8h4",
+              "b3c4"
+            ],
+            "score_cp": 75,
+            "selected_move": "e7h4"
+          },
+          {
+            "depth": 4,
+            "nodes": 6938,
+            "pv": [
+              "e7h4",
+              "g2g3",
+              "c6b4",
+              "b3c4",
+              "b4c2",
+              "d1c2"
+            ],
+            "score_cp": 95,
+            "selected_move": "e7h4"
+          },
+          {
+            "depth": 5,
+            "nodes": 25767,
+            "pv": [
+              "c6a7",
+              "b3c4",
+              "e7h4",
+              "g2g3",
+              "h4f6"
+            ],
+            "score_cp": -46,
+            "selected_move": "c6a7"
+          },
+          {
+            "depth": 6,
+            "nodes": 42904,
+            "pv": [
+              "f7f5",
+              "b3c4",
+              "f5e4",
+              "d5c6",
+              "e4f3",
+              "g2f3",
+              "g4f6"
+            ],
+            "score_cp": -45,
+            "selected_move": "f7f5"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "f7f5",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 199,
+            "pv": [
+              "c6a5",
+              "b3c4",
+              "a5c4"
+            ],
+            "score_cp": 54,
+            "selected_move": "c6a5"
+          },
+          {
+            "depth": 2,
+            "nodes": 358,
+            "pv": [
+              "c6a5",
+              "b3c4",
+              "a5c4"
+            ],
+            "score_cp": 54,
+            "selected_move": "c6a5"
+          },
+          {
+            "depth": 3,
+            "nodes": 4025,
+            "pv": [
+              "e7h4",
+              "f3h4",
+              "d8h4",
+              "b3c4"
+            ],
+            "score_cp": 75,
+            "selected_move": "e7h4"
+          },
+          {
+            "depth": 4,
+            "nodes": 6938,
+            "pv": [
+              "e7h4",
+              "g2g3",
+              "c6b4",
+              "b3c4",
+              "b4c2",
+              "d1c2"
+            ],
+            "score_cp": 95,
+            "selected_move": "e7h4"
+          },
+          {
+            "depth": 5,
+            "nodes": 25767,
+            "pv": [
+              "c6a7",
+              "b3c4",
+              "e7h4",
+              "g2g3",
+              "h4f6"
+            ],
+            "score_cp": -46,
+            "selected_move": "c6a7"
+          },
+          {
+            "depth": 6,
+            "nodes": 42904,
+            "pv": [
+              "f7f5",
+              "b3c4",
+              "f5e4",
+              "d5c6",
+              "e4f3",
+              "g2f3",
+              "g4f6"
+            ],
+            "score_cp": -45,
+            "selected_move": "f7f5"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 199,
+            "pruning": {
+              "beta_cutoffs": 42,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6a5",
+              "b3c4",
+              "a5c4"
+            ],
+            "score_cp": 54,
+            "selected_move": "c6a5"
+          },
+          {
+            "depth": 2,
+            "nodes": 367,
+            "pruning": {
+              "beta_cutoffs": 90,
+              "futility_prunes": 111,
+              "internal_reductions": 0,
+              "late_move_prunes": 111,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 1,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6a5",
+              "b3c4",
+              "a5c4"
+            ],
+            "score_cp": 54,
+            "selected_move": "c6a5"
+          },
+          {
+            "depth": 3,
+            "nodes": 4327,
+            "pruning": {
+              "beta_cutoffs": 957,
+              "futility_prunes": 825,
+              "internal_reductions": 0,
+              "late_move_prunes": 1048,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 14,
+              "reverse_futility_cutoffs": 208,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e7h4",
+              "f3h4",
+              "d8h4",
+              "b3c4"
+            ],
+            "score_cp": 75,
+            "selected_move": "e7h4"
+          },
+          {
+            "depth": 4,
+            "nodes": 7390,
+            "pruning": {
+              "beta_cutoffs": 1688,
+              "futility_prunes": 1155,
+              "internal_reductions": 0,
+              "late_move_prunes": 1920,
+              "lmr_reductions": 80,
+              "null_cutoffs": 5,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 63,
+              "reverse_futility_cutoffs": 593,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "e7h4",
+              "g2g3",
+              "c6b4",
+              "b3c4",
+              "b4c2",
+              "d1c2"
+            ],
+            "score_cp": 95,
+            "selected_move": "e7h4"
+          },
+          {
+            "depth": 5,
+            "nodes": 26305,
+            "pruning": {
+              "beta_cutoffs": 6314,
+              "futility_prunes": 3224,
+              "internal_reductions": 0,
+              "late_move_prunes": 9109,
+              "lmr_reductions": 1815,
+              "null_cutoffs": 44,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 419,
+              "reverse_futility_cutoffs": 2861,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6a7",
+              "b3c4",
+              "e7h4",
+              "g2g3",
+              "h4f6"
+            ],
+            "score_cp": -46,
+            "selected_move": "c6a7"
+          },
+          {
+            "depth": 6,
+            "nodes": 43603,
+            "pruning": {
+              "beta_cutoffs": 10569,
+              "futility_prunes": 5679,
+              "internal_reductions": 0,
+              "late_move_prunes": 18496,
+              "lmr_reductions": 3630,
+              "null_cutoffs": 96,
+              "probcut_cutoffs": 4,
+              "razor_cutoffs": 797,
+              "reverse_futility_cutoffs": 4637,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "f7f5",
+              "b3c4",
+              "f5e4",
+              "d5c6",
+              "e4f3",
+              "g2f3",
+              "g4f6"
+            ],
+            "score_cp": -45,
+            "selected_move": "f7f5"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\online-Lc65wiSv-bishop-hang-production.json",
+        "sha256": "78FA314F0F1EC281BD33A97567D87A2B280D2C9BBCB8BDBDA39730C7B7CC81DC",
+        "static_eval_cp": 184,
+        "total_nodes_consumed": 43603
+      }
+    },
+    {
+      "category": "online_catastrophe",
+      "depth": 7,
+      "expected": null,
+      "fen": "2rqk2r/pbpp1ppp/1pn2n2/4P3/2P5/P2BPN2/1PQB1PPP/R3K2R b KQk - 0 1",
+      "forbidden": "c6e5",
+      "full-width": {
+        "completed": false,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 94,
+            "pruning": {
+              "beta_cutoffs": 20,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "f6g4"
+            ],
+            "score_cp": -120,
+            "selected_move": "f6g4"
+          },
+          {
+            "depth": 2,
+            "nodes": 737,
+            "pruning": {
+              "beta_cutoffs": 64,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b6b5"
+            ],
+            "score_cp": -221,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 3,
+            "nodes": 3359,
+            "pruning": {
+              "beta_cutoffs": 289,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1"
+            ],
+            "score_cp": -213,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 4,
+            "nodes": 24753,
+            "pruning": {
+              "beta_cutoffs": 1458,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1",
+              "g2h3",
+              "g1g7"
+            ],
+            "score_cp": -201,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 5,
+            "nodes": 112480,
+            "pruning": {
+              "beta_cutoffs": 10213,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1",
+              "g2h3",
+              "c2c3"
+            ],
+            "score_cp": -213,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 6,
+            "nodes": 715063,
+            "pruning": {
+              "beta_cutoffs": 62113,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "e8e7",
+              "c2c3",
+              "d8g8",
+              "d3f5",
+              "c8e8"
+            ],
+            "score_cp": -221,
+            "selected_move": "c6e5"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\online-bIw09dp9-knight-hang-full-width.json",
+        "sha256": "919D4477D53B9716A1A0B755203AEB1949A499FC8E4F4EB07AF9834BAA301B6B",
+        "static_eval_cp": -100,
+        "total_nodes_consumed": 3129226
+      },
+      "id": "online-bIw09dp9-knight-hang",
+      "official": {
+        "bestmove": "f6g4",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 94,
+            "pv": [
+              "f6g4"
+            ],
+            "score_cp": -120,
+            "selected_move": "f6g4"
+          },
+          {
+            "depth": 2,
+            "nodes": 374,
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b6b5"
+            ],
+            "score_cp": -221,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 3,
+            "nodes": 1166,
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1"
+            ],
+            "score_cp": -213,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 4,
+            "nodes": 2301,
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1",
+              "g2h3",
+              "g1g7"
+            ],
+            "score_cp": -201,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 5,
+            "nodes": 3613,
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1",
+              "g2h3",
+              "g1g7"
+            ],
+            "score_cp": -201,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 6,
+            "nodes": 15356,
+            "pv": [
+              "f6g4",
+              "d3f5",
+              "c6e5",
+              "f3e5",
+              "g4e5",
+              "c2c3",
+              "d8e7",
+              "h1g1"
+            ],
+            "score_cp": -223,
+            "selected_move": "f6g4"
+          },
+          {
+            "depth": 7,
+            "nodes": 24266,
+            "pv": [
+              "f6g4",
+              "c2c3",
+              "g4e5",
+              "f3e5",
+              "d8g5",
+              "e5c6",
+              "b7c6",
+              "h1g1",
+              "c6f3"
+            ],
+            "score_cp": -220,
+            "selected_move": "f6g4"
+          }
+        ]
+      },
+      "pre_recovery": {
+        "bestmove": "f6g4",
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 94,
+            "pv": [
+              "f6g4"
+            ],
+            "score_cp": -120,
+            "selected_move": "f6g4"
+          },
+          {
+            "depth": 2,
+            "nodes": 374,
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b6b5"
+            ],
+            "score_cp": -221,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 3,
+            "nodes": 1166,
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1"
+            ],
+            "score_cp": -213,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 4,
+            "nodes": 2301,
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1",
+              "g2h3",
+              "g1g7"
+            ],
+            "score_cp": -201,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 5,
+            "nodes": 3613,
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1",
+              "g2h3",
+              "g1g7"
+            ],
+            "score_cp": -201,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 6,
+            "nodes": 15356,
+            "pv": [
+              "f6g4",
+              "d3f5",
+              "c6e5",
+              "f3e5",
+              "g4e5",
+              "c2c3",
+              "d8e7",
+              "h1g1"
+            ],
+            "score_cp": -223,
+            "selected_move": "f6g4"
+          },
+          {
+            "depth": 7,
+            "nodes": 24266,
+            "pv": [
+              "f6g4",
+              "c2c3",
+              "g4e5",
+              "f3e5",
+              "d8g5",
+              "e5c6",
+              "b7c6",
+              "h1g1",
+              "c6f3"
+            ],
+            "score_cp": -220,
+            "selected_move": "f6g4"
+          }
+        ]
+      },
+      "production": {
+        "completed": true,
+        "iterations": [
+          {
+            "depth": 1,
+            "nodes": 94,
+            "pruning": {
+              "beta_cutoffs": 20,
+              "futility_prunes": 0,
+              "internal_reductions": 0,
+              "late_move_prunes": 0,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 0,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "f6g4"
+            ],
+            "score_cp": -120,
+            "selected_move": "f6g4"
+          },
+          {
+            "depth": 2,
+            "nodes": 374,
+            "pruning": {
+              "beta_cutoffs": 77,
+              "futility_prunes": 109,
+              "internal_reductions": 0,
+              "late_move_prunes": 109,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 2,
+              "reverse_futility_cutoffs": 0,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b6b5"
+            ],
+            "score_cp": -221,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 3,
+            "nodes": 1175,
+            "pruning": {
+              "beta_cutoffs": 217,
+              "futility_prunes": 246,
+              "internal_reductions": 0,
+              "late_move_prunes": 280,
+              "lmr_reductions": 0,
+              "null_cutoffs": 0,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 27,
+              "reverse_futility_cutoffs": 38,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1"
+            ],
+            "score_cp": -213,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 4,
+            "nodes": 2457,
+            "pruning": {
+              "beta_cutoffs": 432,
+              "futility_prunes": 490,
+              "internal_reductions": 0,
+              "late_move_prunes": 524,
+              "lmr_reductions": 65,
+              "null_cutoffs": 8,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 46,
+              "reverse_futility_cutoffs": 547,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1",
+              "g2h3",
+              "g1g7"
+            ],
+            "score_cp": -201,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 5,
+            "nodes": 3920,
+            "pruning": {
+              "beta_cutoffs": 651,
+              "futility_prunes": 644,
+              "internal_reductions": 0,
+              "late_move_prunes": 707,
+              "lmr_reductions": 654,
+              "null_cutoffs": 50,
+              "probcut_cutoffs": 0,
+              "razor_cutoffs": 75,
+              "reverse_futility_cutoffs": 1219,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "c6e5",
+              "f3e5",
+              "b7g2",
+              "h1g1",
+              "g2h3",
+              "g1g7"
+            ],
+            "score_cp": -201,
+            "selected_move": "c6e5"
+          },
+          {
+            "depth": 6,
+            "nodes": 16338,
+            "pruning": {
+              "beta_cutoffs": 3311,
+              "futility_prunes": 4255,
+              "internal_reductions": 0,
+              "late_move_prunes": 6825,
+              "lmr_reductions": 1963,
+              "null_cutoffs": 104,
+              "probcut_cutoffs": 38,
+              "razor_cutoffs": 300,
+              "reverse_futility_cutoffs": 2220,
+              "singular_extensions": 0
+            },
+            "pv": [
+              "f6g4",
+              "d3f5",
+              "c6e5",
+              "f3e5",
+              "g4e5",
+              "c2c3",
+              "d8e7",
+              "h1g1"
+            ],
+            "score_cp": -223,
+            "selected_move": "f6g4"
+          },
+          {
+            "depth": 7,
+            "nodes": 25314,
+            "pruning": {
+              "beta_cutoffs": 5129,
+              "futility_prunes": 6091,
+              "internal_reductions": 24,
+              "late_move_prunes": 11230,
+              "lmr_reductions": 3198,
+              "null_cutoffs": 203,
+              "probcut_cutoffs": 58,
+              "razor_cutoffs": 430,
+              "reverse_futility_cutoffs": 3300,
+              "singular_extensions": 1
+            },
+            "pv": [
+              "f6g4",
+              "c2c3",
+              "g4e5",
+              "f3e5",
+              "d8g5",
+              "e5c6",
+              "b7c6",
+              "h1g1",
+              "c6f3"
+            ],
+            "score_cp": -220,
+            "selected_move": "f6g4"
+          }
+        ],
+        "path": "tmp\\search-recovery\\diagnostics-restored\\online-bIw09dp9-knight-hang-production.json",
+        "sha256": "FA70A7CB23CAAA3A5A679CE4C83B9693F06FBC52147EB3EA6696D018566D7F47",
+        "static_eval_cp": -100,
+        "total_nodes_consumed": 25314
+      }
+    }
+  ],
+  "schema": 1,
+  "settings": {
+    "hash_mb": 4,
+    "max_ms_per_profile": 15000,
+    "node_cap_per_profile": 2000000,
+    "threads": 3
+  },
+  "source_commit": "3bc582a8aa1a20e53a4306a141e1555eefc55441",
+  "weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E"
+}

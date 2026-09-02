@@ -95,7 +95,7 @@ def start_engine(path: pathlib.Path, idle_priority: bool = False) -> chess.engin
             raise ValueError("Windows Idle priority is unavailable on this platform")
         kwargs["creationflags"] = subprocess.IDLE_PRIORITY_CLASS
     engine = chess.engine.SimpleEngine.popen_uci(
-        [str(path), "--uci"], timeout=720.0, **kwargs)
+        [str(path), "--uci", "--move-overhead", "0"], timeout=720.0, **kwargs)
     configure(engine)
     return engine
 
@@ -417,6 +417,8 @@ def validate_resume(result: dict, identity: dict, pgn_path: pathlib.Path) -> Non
     if result["identity"] != identity:
         raise ValueError("checkpoint identity does not match this run")
     rows = result["results"]
+    if any(row.get("protocol_failure") for row in rows):
+        raise ValueError("a protocol-failed match cannot be resumed")
     if len(rows) > identity["games"] or any(
             row.get("game") != index + 1 or row.get("result") not in ("win", "draw", "loss")
             for index, row in enumerate(rows)):
@@ -490,6 +492,7 @@ def strength_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
     try:
         candidate = start_engine(candidate_path, idle_priority)
         baseline = start_engine(baseline_path, idle_priority)
+        candidate.timeout = baseline.timeout = 30.0
         for index in range(len(result["results"]), games):
             opening = positions[index // 2]
             candidate_is_white = index % 2 == 0

@@ -2823,6 +2823,9 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
       }
       last.root_moves = root_diagnostics_;
       last.static_eval_cp = evaluate(board);
+      last.root_tt_hit = false;
+      last.root_tt_depth = -1;
+      last.root_tt_bound = last.root_tt_score_cp = 0;
       if (const TTEntry* entry = find(board.key)) {
         last.root_tt_hit = true;
         last.root_tt_depth = entry->depth;

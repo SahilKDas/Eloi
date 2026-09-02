@@ -73,6 +73,12 @@ candidate, rebuilds and tests both package forms, and leaves the newest
 standalone and Exoskeleton ZIPs together. Extracted staging duplicates and
 older local candidates do not remain under `dist`.
 
+Exception: a search-recovery candidate must not be staged or packaged before
+the frozen gates in `SEARCH_RECOVERY.md` pass. A correctness rejection produces
+compact hash-bound evidence and no release package. This campaign uses a 55%
+score gate against exact published v2.0.0, superseding the older beta/raw-win
+experiment below for this campaign only.
+
 ## Versioning
 
 `CMakeLists.txt` is the single source of truth for Eloi's version. Its numeric
@@ -128,18 +134,16 @@ hash-bound speed and strength harness—not a single watched game—as the
 acceptance gate. Do not commit retained executables, temporary checkpoints,
 PGNs, or failed-candidate reports, and never package them in a release.
 
-For a search-parallelism change, run the same categorized correctness gate for
-each mode and then a same-binary paired match. Both engines must use the same
-embedded NNUE, hash, opening seeds, move time, and fixed three-thread setting:
+RootSplit is the only current search implementation. Historical LazySMP evidence
+is preserved, but its UCI option and shared TT code have been removed. Run the
+complete categorized gate before any comparison:
 
 ```powershell
-.\build-release\eloi_tests.exe --parallel RootSplit
-.\build-release\eloi_tests.exe --parallel LazySMP
+.\build-release\eloi_tests.exe
 & '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
   '.\scripts\selfplay_gauntlet.py' `
   --candidate '.\build-release\Eloi.exe' `
   --baseline '.\build-release\Eloi.exe' `
-  --candidate-parallel-mode LazySMP `
   --baseline-parallel-mode RootSplit `
   --correctness-test '.\build-release\eloi_tests.exe' `
   --games 24 --movetime-ms 50 --max-plies 120

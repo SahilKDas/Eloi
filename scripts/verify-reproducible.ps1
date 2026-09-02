@@ -1,6 +1,8 @@
 param(
   [switch] $Keep,
-  [switch] $StageRelease
+  [switch] $StageRelease,
+  [string] $EvidencePath,
+  [string] $ScratchParent
 )
 
 $ErrorActionPreference = 'Stop'
@@ -16,6 +18,18 @@ $windres = 'C:/msys64/ucrt64/bin/windres.exe'
 $skiaRoot = Join-Path $projectRoot '.deps\skia108\ucrt64'
 $staticRoot = Join-Path $projectRoot '.deps\static-runtime'
 $tempParent = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\')
+if ($ScratchParent) {
+  $allowedParent = [System.IO.Path]::GetFullPath((Join-Path $projectRoot 'tmp\search-recovery')).TrimEnd('\')
+  $resolvedParent = [System.IO.Path]::GetFullPath($ScratchParent).TrimEnd('\')
+  if ($resolvedParent -ne $allowedParent -and
+      -not $resolvedParent.StartsWith($allowedParent + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Recovery scratch must stay below $allowedParent"
+  }
+  $tempParent = $resolvedParent
+  & (Join-Path $projectRoot '.deps\lichess-bot\.venv\Scripts\python.exe') `
+    (Join-Path $projectRoot 'scripts\search_recovery.py') preflight --projected-bytes 1000000000
+  if ($LASTEXITCODE -ne 0) { throw 'Recovery resource preflight failed' }
+}
 $tempRoot = Join-Path $tempParent ("Eloi-repro-" + [guid]::NewGuid().ToString('N'))
 $archive = Join-Path $tempRoot 'source.zip'
 
@@ -88,6 +102,11 @@ function Assert-TwoFileRelease {
 
 function Build-Copy {
   param([string] $Name)
+  if ($ScratchParent) {
+    & (Join-Path $projectRoot '.deps\lichess-bot\.venv\Scripts\python.exe') `
+      (Join-Path $projectRoot 'scripts\search_recovery.py') preflight --projected-bytes 400000000 | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw 'Recovery build would exceed resource limits' }
+  }
   $source = Join-Path $tempRoot "$Name\source"
   $build = Join-Path $tempRoot "$Name\build"
   Expand-Archive -LiteralPath $archive -DestinationPath $source
@@ -154,6 +173,27 @@ try {
     }
     $hash = (Get-FileHash -LiteralPath $left -Algorithm SHA256).Hash
     Write-Host "$name SHA-256: $hash"
+  }
+
+  if ($EvidencePath) {
+    $evidence = [System.IO.Path]::GetFullPath($EvidencePath)
+    if (Test-Path -LiteralPath $evidence) { throw 'Reproducibility evidence already exists' }
+    $proof = [ordered]@{
+      schema = 1
+      passed = $true
+      source_commit = (& git -C $projectRoot rev-parse HEAD).Trim()
+      executable_sha256 = (Get-FileHash -LiteralPath (Join-Path $releaseA 'Eloi.exe') -Algorithm SHA256).Hash
+      build_a_sha256 = (Get-FileHash -LiteralPath (Join-Path $releaseA 'Eloi.exe') -Algorithm SHA256).Hash
+      build_b_sha256 = (Get-FileHash -LiteralPath (Join-Path $releaseB 'Eloi.exe') -Algorithm SHA256).Hash
+      build_a_path = $releaseA
+      build_b_path = $releaseB
+      weights_sha256 = (Get-FileHash -LiteralPath (Join-Path $projectRoot 'include\eloi\nnue_weights.hpp') -Algorithm SHA256).Hash
+      toolchain_lock_sha256 = (Get-FileHash -LiteralPath (Join-Path $projectRoot 'reproducibility.lock.json') -Algorithm SHA256).Hash
+      pe_timestamp = 0
+      both_ctest_passed = $true
+    }
+    [System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($evidence)) | Out-Null
+    [System.IO.File]::WriteAllText($evidence, (($proof | ConvertTo-Json -Depth 5) + "`n"), [System.Text.UTF8Encoding]::new($false))
   }
 
   if ($StageRelease) {

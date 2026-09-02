@@ -1,0 +1,55 @@
+{
+  "checks": [
+    {
+      "command": [
+        "C:\\SahilAppProjects\\Eloi\\tmp\\search-recovery\\restored\\eloi_tests.exe"
+      ],
+      "exit_code": 0,
+      "log": "tmp\\search-recovery\\runs\\5d7dabbe8bbcb92c\\unit-epd-see-tt-quiescence-simd.txt",
+      "name": "unit-epd-see-tt-quiescence-simd",
+      "sha256": "A95163B3DC82C0B84CEEB3216BEB945F4E85A847F01779C87115473C786F77DB"
+    },
+    {
+      "command": [
+        "C:\\SahilAppProjects\\Eloi\\tmp\\search-recovery\\restored\\Eloi.exe",
+        "--perft",
+        "--depth",
+        "4"
+      ],
+      "exit_code": 0,
+      "log": "tmp\\search-recovery\\runs\\5d7dabbe8bbcb92c\\perft-depth-4.txt",
+      "name": "perft-depth-4",
+      "sha256": "DADB5A140C8AC43B780C70460B59B4D37A3D474E83BFEEAC1C7D22911BCBEE7D"
+    },
+    {
+      "command": [
+        "C:\\SahilAppProjects\\Eloi\\.deps\\lichess-bot\\.venv\\Scripts\\python.exe",
+        "C:\\SahilAppProjects\\Eloi\\scripts\\differential_movegen.py",
+        "--engine",
+        "C:\\SahilAppProjects\\Eloi\\tmp\\search-recovery\\restored\\Eloi.exe",
+        "--samples",
+        "32",
+        "--output",
+        "C:\\SahilAppProjects\\Eloi\\tmp\\search-recovery\\runs\\5d7dabbe8bbcb92c\\differential.json"
+      ],
+      "exit_code": 0,
+      "log": "tmp\\search-recovery\\runs\\5d7dabbe8bbcb92c\\differential-96-positions.txt",
+      "name": "differential-96-positions",
+      "sha256": "A24E0D544AE7174A52E18D2BCB66802D453FBE7DB6FEAAE6B361837E16FC5019"
+    }
+  ],
+  "finished_utc": "2026-09-02T05:44:11.291724+00:00",
+  "identity": {
+    "candidate_sha256": "5D7DABBE8BBCB92C680E38BFA2542CB9239EE2AA5E8AFA60760E1040A189287A",
+    "epd_sha256": "BDB918E83B1A6F150669425BABFC8EFB5B7C18A7845FBB1943E3559E7443D94C",
+    "protocol_sha256": "CF4632B6B706731BE9320F0620B976CD3216AA301488F83565CE4348E5DDA50B",
+    "source_commit": "a0eb878d9307a43d283b1d6ab2f9445234b6aafa",
+    "source_state_sha256": "1F3106053E72DC64D77E8E322DBD52BB1161BADB1E96203A7219D0A96DD435FA",
+    "test_executable_sha256": "28386B1F4970FF8CC40076FE86B324A4415C802F07D7BE98ED05B3C011CAFD30",
+    "weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E"
+  },
+  "kind": "search-recovery-correctness",
+  "passed": true,
+  "schema": 1,
+  "started_utc": "2026-09-02T05:44:01.081714+00:00"
+}

@@ -1,0 +1,116 @@
+diff --git a/include/eloi/chess.hpp b/include/eloi/chess.hpp
+index 84f505a..03893ed 100644
+--- a/include/eloi/chess.hpp
++++ b/include/eloi/chess.hpp
+@@ -384,6 +384,7 @@ class Searcher {
+       capture_history_{};
+   std::array<std::int16_t, 16'384> continuation_history_{};
+   std::vector<std::pair<Move, int>> root_scores_;
++  std::vector<Move> previous_root_order_;
+   std::vector<RootMoveDiagnostic> root_diagnostics_;
+   std::vector<std::uint64_t> repetition_keys_;
+   Move root_best_{};
+diff --git a/src/chess.cpp b/src/chess.cpp
+index 1b8ef88..c9dd644 100644
+--- a/src/chess.cpp
++++ b/src/chess.cpp
+@@ -2077,7 +2077,7 @@ MoveList Searcher::ordered_moves(const Board& board, PackedMove tt_move,
+       const int history = quiet_history(board.turn, move, previous);
+       p += history;
+     }
+-    if (lane_ > 0) {
++    if (lane_ > 0 && ply > 0) {
+       const std::uint32_t mixed = static_cast<std::uint32_t>(pack_move(move)) *
+           0x9e3779b1U + static_cast<std::uint32_t>(lane_) * 0x85ebca6bU;
+       p += static_cast<int>(mixed % 31U) - 15;
+@@ -2087,6 +2087,18 @@ MoveList Searcher::ordered_moves(const Board& board, PackedMove tt_move,
+   std::array<int, MoveList::capacity> scores{};
+   for (std::size_t index = 0; index < moves.size(); ++index)
+     scores[index] = priority(moves[index]);
++  // Reuse the complete last completed iteration, not just the TT's winner.
++  // Failed aspiration passes never replace this order. Helpers diversify
++  // below the root only; the principal owns the authoritative root sequence.
++  if (ply == 0 && !previous_root_order_.empty()) {
++    for (std::size_t index = 0; index < moves.size(); ++index) {
++      const auto found = std::ranges::find_if(previous_root_order_, [&](const Move& move) {
++        return move.same_coordinates(moves[index]);
++      });
++      if (found != previous_root_order_.end())
++        scores[index] = 10'000'000 - static_cast<int>(found - previous_root_order_.begin());
++    }
++  }
+   for (std::size_t index = 1; index < moves.size(); ++index) {
+     const Move move = moves[index];
+     const int score = scores[index];
+@@ -2661,6 +2673,7 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
+   countermoves_ = {};
+   capture_history_ = {};
+   continuation_history_ = {};
++  previous_root_order_.clear();
+   repetition_keys_.clear();
+   repetition_keys_.reserve(board.history.size() + maximum_search_depth + 32);
+   for (const Board::Snapshot& snapshot : board.history)
+@@ -2756,6 +2769,18 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
+                      [](const auto& a, const auto& b) {
+                        return a.second > b.second;
+                      });
++    previous_root_order_.clear();
++    for (const auto& [move, root_score] : root_scores_) {
++      (void)root_score;
++      previous_root_order_.push_back(move);
++    }
++    // Draw/terminal shortcuts or bounded root passes can leave moves without
++    // scores. Retain all remaining legal moves in their deterministic order.
++    for (const Move& move : fallback_moves)
++      if (std::ranges::none_of(previous_root_order_, [&](const Move& previous) {
++            return previous.same_coordinates(move);
++          }))
++        previous_root_order_.push_back(move);
+     int root_gap = 0;
+     int credible_alternatives = 0;
+     if (root_scores_.size() >= 2) {
+diff --git a/tests/tests.cpp b/tests/tests.cpp
+index 827afef..692583b 100644
+--- a/tests/tests.cpp
++++ b/tests/tests.cpp
+@@ -48,6 +48,15 @@ struct SearcherTestAccess {
+     searcher.advance_generation();
+   }
+ 
++  static std::vector<std::string> root_order(Searcher& searcher, const Board& board,
++                                            const std::vector<Move>& previous) {
++    searcher.previous_root_order_ = previous;
++    std::vector<std::string> result;
++    for (const Move& move : searcher.ordered_moves(board, 0, 0, {}, true))
++      result.push_back(move.uci());
++    return result;
++  }
++
+   static std::size_t lane_count(const Searcher& searcher) {
+     return 1 + std::ranges::count_if(searcher.root_helpers_,
+                                      [](const Searcher* helper) {
+@@ -1120,6 +1129,24 @@ int main() {
+   if (failures) {
+     std::cerr << "production correctness gate failed before diagnostic tests\n";
+   }
++  {
++    const auto board = *parse_fen(initial_fen);
++    auto config = default_config();
++    config.hash_mb = 4;
++    std::atomic_bool stopped{false};
++    Searcher principal(config, stopped);
++    Searcher helper(config, stopped, 1);
++    expect(SearcherTestAccess::root_order(principal, board, {}) ==
++               SearcherTestAccess::root_order(helper, board, {}),
++           "helper diversification cannot perturb root ordering");
++    const auto legal = board.legal_moves();
++    std::vector<Move> previous(legal.begin(), legal.end());
++    std::ranges::reverse(previous);
++    std::vector<std::string> expected;
++    for (const Move& move : previous) expected.push_back(move.uci());
++    expect(SearcherTestAccess::root_order(principal, board, previous) == expected,
++           "complete previous root order takes precedence over fresh heuristic sorting");
++  }
+   {
+     auto board = parse_fen(initial_fen);
+     auto config = default_config();

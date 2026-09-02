@@ -166,7 +166,9 @@ int run_search_diagnostic(int argc, char** argv) {
     if (index) out << ',';
     result_json(out, completed[index], *board);
   }
-  out << "]}\n";
+  out << "],\"final_result\":";
+  result_json(out, last, *board);
+  out << "}\n";
   if (!destination.parent_path().empty()) std::filesystem::create_directories(destination.parent_path());
   std::ofstream output(destination, std::ios::binary);
   if (!output) { std::cerr << "cannot create diagnostic report\n"; return 2; }

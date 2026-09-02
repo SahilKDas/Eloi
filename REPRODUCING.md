@@ -169,6 +169,27 @@ weights.
 
 ## Candidate evidence
 
+The search-first recovery is specified in `SEARCH_RECOVERY.md` and
+`data/search_recovery_protocol.json`. Its official v2.0.0 baseline is also an
+accepted Engine Lab identity. The staged runner requires correctness,
+reproducibility, performance, development, and confirmation evidence before it
+can open the final partition. No recovery match has run because the single
+root-ordering repair failed correctness and was reverted.
+
+For an eligible future campaign, the two-build verifier can keep its scratch
+under the recovery cap and emit machine-readable proof:
+
+```powershell
+.\scripts\verify-reproducible.ps1 `
+  -ScratchParent .\tmp\search-recovery `
+  -EvidencePath .\tmp\search-recovery\two-build-proof.json
+```
+
+The proof records both independent executable hashes, source commit, frozen
+weights, toolchain lock, zero PE timestamp, and both CTest results. A proof for
+another executable cannot satisfy the recovery runner. This command was not
+run for the rejected repair; later gates were intentionally skipped.
+
 The complete architecture-playoff and final-gauntlet procedure is frozen in
 `V1.9_VALIDATION_PLAN.md`. Follow it before replacing the production NNUE or
 claiming that v1.9 passed its final strength gate.

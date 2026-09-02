@@ -9,9 +9,46 @@ from unittest.mock import patch, MagicMock
 
 import engine_lab as lab
 import search_recovery as recovery
+import run_search_recovery as runner
 
 
 class RecoveryTests(unittest.TestCase):
+    def test_engine_launch_sets_overhead_for_old_and_new_binaries(self):
+        with patch.object(lab.chess.engine.SimpleEngine, "popen_uci", return_value=MagicMock()) as start:
+            lab.start_engine(pathlib.Path("Eloi.exe"))
+            self.assertEqual(start.call_args.args[0], ["Eloi.exe", "--uci", "--move-overhead", "0"])
+
+    def test_failed_confirmation_cannot_open_final_match(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = pathlib.Path(raw)
+            candidate = root / "candidate.exe"
+            candidate.write_bytes(b"candidate")
+            baseline = root / "baseline/Eloi.exe"
+            baseline.parent.mkdir()
+            baseline.write_bytes(b"baseline")
+            digest = lab.sha256(candidate)
+            protocol = root / "protocol.json"
+            protocol.write_text("{}")
+            folder = root / "runs" / digest.lower()[:16]
+            folder.mkdir(parents=True)
+            identity = {"candidate_sha256": digest, "protocol_sha256": lab.sha256(protocol),
+                        "source_state_sha256": "source", "games": 2}
+            for stage in ("correctness", "reproducibility", "performance", "development", "confirmation"):
+                (folder / f"{stage}.json").write_text(json.dumps({
+                    "identity": identity, "passed": stage != "confirmation", "results": [{}, {}]}))
+            with patch.object(recovery, "SCRATCH", root), patch.object(recovery, "BASELINE", lab.sha256(baseline)), \
+                 patch.object(recovery, "resource_check"), patch.object(runner, "validate_protocol", return_value={}), \
+                 patch.object(runner, "PROTOCOL", protocol), patch.object(runner, "source_identity", return_value="source"), \
+                 patch.object(lab, "strength_gate") as match:
+                with self.assertRaisesRegex(ValueError, "earlier gate failed"):
+                    runner.run("final", candidate, None, None)
+                match.assert_not_called()
+
+    def test_missing_prerequisite_is_rejected(self):
+        with tempfile.TemporaryDirectory() as raw:
+            with self.assertRaisesRegex(ValueError, "missing"):
+                runner.require_report(pathlib.Path(raw) / "missing.json", "candidate")
+
     def test_partition_is_order_independent_disjoint_and_exact(self):
         rows = [{"fen": f"fixture-{i}"} for i in range(500)]
         first = recovery.partition_openings({"positions": rows})
