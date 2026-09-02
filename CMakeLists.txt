@@ -56,6 +56,7 @@ if(ELOI_BUILD_APP)
   set(ELOI_APP_SOURCES
     src/main.cpp
     src/driver.cpp
+    src/search_diagnostic.cpp
     src/gui.cpp
     src/version_match.cpp)
   if(ELOI_SPLIT_PACKAGE)

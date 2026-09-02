@@ -1118,6 +1118,38 @@ int main() {
   }
 
   if (failures) {
+    std::cerr << "production correctness gate failed before diagnostic tests\n";
+  }
+  {
+    auto board = parse_fen(initial_fen);
+    auto config = default_config();
+    config.own_book = false;
+    config.hash_mb = 4;
+    std::atomic_bool stopped{false};
+    SearchLimits limits;
+    limits.depth = 3;
+    Searcher plain(config, stopped);
+    const auto expected = plain.iterative(*board, limits);
+    limits.collect_diagnostics = true;
+    Searcher traced(config, stopped);
+    const auto actual = traced.iterative(*board, limits);
+    expect(actual.score_cp == expected.score_cp && actual.nodes == expected.nodes &&
+               best_uci(actual) == best_uci(expected),
+           "diagnostic collection does not change search results or nodes");
+    expect(actual.root_moves.size() == board->legal_moves().size(),
+           "diagnostics include every legal root move with explicit missing scores");
+    limits.profile = SearchProfile::full_width;
+    Searcher exhaustive(config, stopped);
+    const auto full = exhaustive.iterative(*board, limits);
+    expect(full.depth == 3 && full.razor_cutoffs == 0 &&
+               full.reverse_futility_cutoffs == 0 && full.internal_reductions == 0 &&
+               full.futility_prunes == 0 && full.late_move_prunes == 0 &&
+               full.lmr_reductions == 0 && full.null_cutoffs == 0 &&
+               full.probcut_cutoffs == 0,
+           "full-width diagnostic disables all declared selective pruning");
+  }
+
+  if (failures) {
     std::cerr << failures << " test(s) failed\n";
     return EXIT_FAILURE;
   }

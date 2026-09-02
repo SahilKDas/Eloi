@@ -1743,6 +1743,8 @@ void Searcher::reset_statistics() {
   quiet_checks_ = null_cutoffs_ = probcut_cutoffs_ = 0;
   singular_extensions_ = late_move_prunes_ = 0;
   history_hits_ = countermove_hits_ = 0;
+  razor_cutoffs_ = reverse_futility_cutoffs_ = 0;
+  internal_reductions_ = futility_prunes_ = 0;
 }
 
 void Searcher::prepare_root_helper(const Searcher& principal,
@@ -1767,6 +1769,35 @@ void Searcher::absorb_statistics(const Searcher& helper) {
   late_move_prunes_ += helper.late_move_prunes_;
   history_hits_ += helper.history_hits_;
   countermove_hits_ += helper.countermove_hits_;
+  razor_cutoffs_ += helper.razor_cutoffs_;
+  reverse_futility_cutoffs_ += helper.reverse_futility_cutoffs_;
+  internal_reductions_ += helper.internal_reductions_;
+  futility_prunes_ += helper.futility_prunes_;
+}
+
+void Searcher::record_root_diagnostic(
+    const Board& board, const Move& move, std::optional<int> score,
+    int alpha, int beta, const Searcher& worker) {
+  if (!limits_.collect_diagnostics) return;
+  Board child = board;
+  if (!child.push(move)) return;
+  RootMoveDiagnostic item;
+  item.move = move;
+  item.score_cp = score;
+  item.bound = score ? (*score <= alpha ? -1 : (*score >= beta ? 1 : 0)) : 0;
+  item.static_eval_cp = -evaluate(child);
+  item.see_cp = static_exchange_score(board.position, board.turn, move);
+  item.lane = worker.lane_;
+  // Snapshot of the owning shard after this root pass; a TT entry may have
+  // been displaced. Absence does not mean that the move was never searched.
+  if (const TTEntry* entry = worker.find(child.key)) {
+    item.tt_hit = true;
+    item.tt_depth = entry->depth;
+    item.tt_bound = entry->flag;
+    item.tt_score_cp = score_from_tt(entry->score, 1);
+  }
+  item.pv = worker.reconstruct_pv(board, move);
+  root_diagnostics_.push_back(std::move(item));
 }
 
 std::optional<int> Searcher::search_root_move(
@@ -1811,6 +1842,7 @@ int Searcher::parallel_root(Board& board, const MoveList& moves, int depth,
   int best_score = *speculative[first];
   root_best_ = best;
   root_scores_.push_back({best, best_score});
+  record_root_diagnostic(board, best, best_score, alpha, beta, *this);
   alpha = std::max(alpha, best_score);
   if (alpha >= beta) {
     ++beta_cutoffs_;
@@ -1855,7 +1887,14 @@ int Searcher::parallel_root(Board& board, const MoveList& moves, int depth,
   for (std::size_t index = first + 1; index < moves.size(); ++index) {
     if (!speculative[index]) continue;
     int score = *speculative[index];
+    const int source_lane = static_cast<int>((index - first - 1) % search_thread_count);
+    const Searcher* source = source_lane == 0 ? this : root_helpers_[source_lane - 1];
+    int searched_alpha = speculative_alpha;
+    int searched_beta = speculative_alpha + 1;
     if (score > speculative_alpha) {
+      source = this;
+      searched_alpha = alpha;
+      searched_beta = beta;
       const auto exact = search_root_move(
           board, moves[index], depth, alpha, beta, true, previous);
       if (!exact) continue;
@@ -1863,6 +1902,8 @@ int Searcher::parallel_root(Board& board, const MoveList& moves, int depth,
       if (halted()) return 0;
     }
     root_scores_.push_back({moves[index], score});
+    record_root_diagnostic(board, moves[index], score,
+                           searched_alpha, searched_beta, *source);
     if (score > best_score) {
       best_score = score;
       best = moves[index];
@@ -2246,19 +2287,24 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   const int base_volatility = depth >= 3
       ? volatility(board, 4) : (in_check ? 65 : 20);
 
-  if (!pv_node && !excluded && !in_check && depth <= 5 &&
+  const bool full_width = limits_.profile == SearchProfile::full_width;
+  if (!full_width && !pv_node && !excluded && !in_check && depth <= 5 &&
       base_volatility < 50 && std::abs(beta) < mate_score - 1'000 &&
-      static_score - (70 + 85 * depth) >= beta)
+      static_score - (70 + 85 * depth) >= beta) {
+    ++reverse_futility_cutoffs_;
     return static_score;
-
-  if (!pv_node && !excluded && !in_check && depth <= 2 &&
-      base_volatility < 55 && static_score + 180 * depth <= alpha) {
-    const int razor = quiescence(board, alpha, beta, ply, 0);
-    if (razor <= alpha) return razor;
   }
 
-  if (!pv_node && !excluded && depth >= 6 && !tt_move)
+  if (!full_width && !pv_node && !excluded && !in_check && depth <= 2 &&
+      base_volatility < 55 && static_score + 180 * depth <= alpha) {
+    const int razor = quiescence(board, alpha, beta, ply, 0);
+    if (razor <= alpha) { ++razor_cutoffs_; return razor; }
+  }
+
+  if (!full_width && !pv_node && !excluded && depth >= 6 && !tt_move) {
+    ++internal_reductions_;
     --depth;
+  }
 
   const auto bishops = board.position.pieces(board.turn, Piece::bishop);
   const auto knights = board.position.pieces(board.turn, Piece::knight);
@@ -2271,7 +2317,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       300 * minor_count + 500 * rook_count + 900 * queen_count;
   const int non_pawn_count = minor_count + rook_count + queen_count;
 
-  if (!board.horde && allow_null && !pv_node && !excluded && !in_check &&
+  if (!full_width && !board.horde && allow_null && !pv_node && !excluded && !in_check &&
       depth >= 3 && ply > 0 && board.halfmove < 80 &&
       base_volatility < 65 &&
       (non_pawn_value >= 500 || non_pawn_count >= 2) &&
@@ -2308,7 +2354,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     return parallel_root(
         board, moves, depth, alpha, beta, static_score, previous);
 
-  if (!pv_node && !excluded && !in_check && depth >= 5 &&
+  if (!full_width && !pv_node && !excluded && !in_check && depth >= 5 &&
       node_volatility < 80 && beta < mate_score - 1'000) {
     const int prob_beta = std::min(mate_score - ply - 1, beta + 140);
     int candidates = 0;
@@ -2355,8 +2401,9 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       ++countermove_hits_;
     const int futility_margin = node_volatility >= 55 ? 190
         : (node_volatility <= 22 ? 75 : 120);
-    if (move_index > 0 && depth == 1 && quiet && !in_check &&
+    if (!full_width && move_index > 0 && depth == 1 && quiet && !in_check &&
         static_score + futility_margin <= alpha) {
+      ++futility_prunes_;
       ++late_move_prunes_;
       ++move_index;
       continue;
@@ -2402,7 +2449,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
          (move.same_coordinates(killers_[ply][0]) ||
           move.same_coordinates(killers_[ply][1])));
     const int lmp_threshold = 4 + depth * 2;
-    if (!pv_node && !in_check && quiet && depth <= 3 &&
+    if (!full_width && !pv_node && !in_check && quiet && depth <= 3 &&
         move_index >= lmp_threshold && history < 0 &&
         node_volatility < 55 && !protected_quiet) {
       repetition_keys_.pop_back();
@@ -2419,7 +2466,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       extension = 1;
     const int child_extensions = extensions + extension;
     int child_depth = depth - 1 + extension;
-    const bool reduce = child_depth >= 2 && move_index >= 2 &&
+    const bool reduce = !full_width && child_depth >= 2 && move_index >= 2 &&
                         quiet && !in_check && !gives_check && !singular;
     int score;
     if (reduce) {
@@ -2684,6 +2731,7 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
     int score = 0;
     for (;;) {
       root_scores_.clear();
+      root_diagnostics_.clear();
       root_best_ = {};
       score = negamax(board, depth, alpha, beta, 0, true,
                       game_previous, 0);
@@ -2762,6 +2810,26 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
     last.late_move_prunes = late_move_prunes_;
     last.history_hits = history_hits_;
     last.countermove_hits = countermove_hits_;
+    last.razor_cutoffs = razor_cutoffs_;
+    last.reverse_futility_cutoffs = reverse_futility_cutoffs_;
+    last.internal_reductions = internal_reductions_;
+    last.futility_prunes = futility_prunes_;
+    if (limits_.collect_diagnostics) {
+      for (const Move& move : fallback_moves) {
+        if (std::ranges::none_of(root_diagnostics_, [&](const auto& row) {
+              return row.move.same_coordinates(move);
+            }))
+          record_root_diagnostic(board, move, std::nullopt, 0, 0, *this);
+      }
+      last.root_moves = root_diagnostics_;
+      last.static_eval_cp = evaluate(board);
+      if (const TTEntry* entry = find(board.key)) {
+        last.root_tt_hit = true;
+        last.root_tt_depth = entry->depth;
+        last.root_tt_bound = entry->flag;
+        last.root_tt_score_cp = score_from_tt(entry->score, 0);
+      }
+    }
     last.pv = std::move(pv);
     last.allocated_ms = adaptive_clock ? soft_budget_ms : last.allocated_ms;
     last.hard_limit_ms = adaptive_clock ? hard_budget_ms : last.hard_limit_ms;

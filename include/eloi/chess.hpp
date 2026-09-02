@@ -245,6 +245,8 @@ struct EngineConfig {
   bool operator==(const EngineConfig&) const = default;
 };
 
+enum class SearchProfile { production, full_width };
+
 struct SearchLimits {
   int depth{0};
   std::uint64_t nodes{0};
@@ -253,6 +255,9 @@ struct SearchLimits {
   int increment_ms{0};
   int moves_to_go{0};
   int move_overhead_ms{50};
+  // Diagnostic-only: never exposed as a production UCI tuning option.
+  SearchProfile profile{SearchProfile::production};
+  bool collect_diagnostics{false};
 };
 
 enum class ClockMode {
@@ -274,6 +279,20 @@ struct TimeBudget {
 std::string_view clock_mode_name(ClockMode mode);
 TimeBudget plan_time_budget(const Board& board, const SearchLimits& limits);
 
+struct RootMoveDiagnostic {
+  Move move{};
+  std::optional<int> score_cp;
+  int bound{0};  // -1 upper, 0 exact, +1 lower; meaningful only with a score.
+  int static_eval_cp{0};  // Root side's perspective after this move.
+  int see_cp{0};
+  int lane{0};
+  bool tt_hit{false};
+  int tt_depth{-1};
+  int tt_bound{0};
+  int tt_score_cp{0};  // Child side's perspective, decoded at ply one.
+  std::vector<Move> pv;
+};
+
 struct SearchResult {
   int depth{0};
   int score_cp{0};
@@ -290,6 +309,10 @@ struct SearchResult {
   std::uint64_t late_move_prunes{0};
   std::uint64_t history_hits{0};
   std::uint64_t countermove_hits{0};
+  std::uint64_t razor_cutoffs{0};
+  std::uint64_t reverse_futility_cutoffs{0};
+  std::uint64_t internal_reductions{0};
+  std::uint64_t futility_prunes{0};
   int allocated_ms{0};
   int hard_limit_ms{0};
   int clock_reserve_ms{0};
@@ -300,6 +323,12 @@ struct SearchResult {
   std::chrono::milliseconds elapsed{};
   std::vector<Move> pv;
   std::string opening_family;
+  std::vector<RootMoveDiagnostic> root_moves;
+  int static_eval_cp{0};
+  bool root_tt_hit{false};
+  int root_tt_depth{-1};
+  int root_tt_bound{0};
+  int root_tt_score_cp{0};
 };
 
 class Searcher {
@@ -309,6 +338,8 @@ class Searcher {
   ~Searcher();
   SearchResult iterative(Board board, SearchLimits limits,
                          const std::function<void(const SearchResult&)>& info = {});
+  int static_evaluation(const Board& board) { return evaluate(board); }
+  std::uint64_t nodes_searched() const { return nodes_; }
 
  private:
   friend struct SearcherTestAccess;
@@ -336,6 +367,10 @@ class Searcher {
   std::uint64_t late_move_prunes_{0};
   std::uint64_t history_hits_{0};
   std::uint64_t countermove_hits_{0};
+  std::uint64_t razor_cutoffs_{0};
+  std::uint64_t reverse_futility_cutoffs_{0};
+  std::uint64_t internal_reductions_{0};
+  std::uint64_t futility_prunes_{0};
   SearchLimits limits_;
   std::chrono::steady_clock::time_point started_{};
   std::mt19937 random_{0};
@@ -349,6 +384,7 @@ class Searcher {
       capture_history_{};
   std::array<std::int16_t, 16'384> continuation_history_{};
   std::vector<std::pair<Move, int>> root_scores_;
+  std::vector<RootMoveDiagnostic> root_diagnostics_;
   std::vector<std::uint64_t> repetition_keys_;
   Move root_best_{};
   int lane_{0};
@@ -369,6 +405,9 @@ class Searcher {
   void reset_statistics();
   void prepare_root_helper(const Searcher& principal, const Board& root);
   void absorb_statistics(const Searcher& helper);
+  void record_root_diagnostic(const Board& board, const Move& move,
+                              std::optional<int> score, int alpha, int beta,
+                              const Searcher& worker);
   std::optional<int> search_root_move(Board root, const Move& move, int depth,
                                       int alpha, int beta, bool pv_node,
                                       const Move& previous);
@@ -418,6 +457,7 @@ EngineConfig default_config();
 int run_engine(EngineConfig config, int argc, char** argv);
 int run_perft(int argc, char** argv);
 int run_benchmark(int argc, char** argv);
+int run_search_diagnostic(int argc, char** argv);
 int run_livechess_adapter(int argc, char** argv);
 int run_gui(int argc, char** argv);
 
