@@ -141,6 +141,8 @@ struct Position {
 };
 
 NnueState nnue_refresh(const Position& position);
+NnueState nnue_refresh_scalar_reference(const Position& position);
+bool nnue_runtime_has_avx2();
 void nnue_update(NnueState& accumulator, const Position& before,
                  const Position& after);
 void nnue_update_changed(NnueState& accumulator, const Position& before,

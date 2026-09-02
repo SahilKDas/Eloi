@@ -757,6 +757,29 @@ int main(int argc, char** argv) {
 
   {
     auto board = *parse_fen(initial_fen);
+    constexpr std::array moves{
+        "e2e4", "c7c5", "g1f3", "d7d6", "d2d4", "c5d4",
+        "f3d4", "g8f6", "b1c3", "a7a6", "c1e3", "e7e5"};
+    for (std::size_t ply = 0; ply <= moves.size(); ++ply) {
+      const auto dispatched = nnue_refresh(board.position);
+      const auto scalar = nnue_refresh_scalar_reference(board.position);
+      expect(dispatched == scalar,
+             "scalar and runtime-dispatched NNUE accumulators agree at ply " +
+                 std::to_string(ply));
+      expect(nnue_evaluate(dispatched, board.turn) ==
+                 nnue_evaluate(scalar, board.turn),
+             "scalar and runtime-dispatched NNUE scores agree at ply " +
+                 std::to_string(ply));
+      if (ply < moves.size())
+        expect(board.push_uci(moves[ply]),
+               "SIMD consistency sequence move is legal");
+    }
+    std::cout << "NNUE runtime path: "
+              << (nnue_runtime_has_avx2() ? "AVX2" : "scalar") << '\n';
+  }
+
+  {
+    auto board = *parse_fen(initial_fen);
     const auto config = default_config();
     expect(opening_book_size() >= 8000,
            "the embedded general repertoire contains at least 8,000 choices");

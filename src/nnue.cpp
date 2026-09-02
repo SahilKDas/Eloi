@@ -80,7 +80,7 @@ void add_feature_avx2(NnueAccumulator& accumulator, int feature, int sign) {
   }
 }
 
-bool runtime_has_avx2() {
+bool runtime_has_avx2_impl() {
   static const bool available = [] {
     __builtin_cpu_init();
     return __builtin_cpu_supports("avx2");
@@ -91,7 +91,7 @@ bool runtime_has_avx2() {
 
 void add_feature(NnueAccumulator& accumulator, int feature, int sign) {
 #if ELOI_GNU_X86_DISPATCH
-  if (runtime_has_avx2()) {
+  if (runtime_has_avx2_impl()) {
     add_feature_avx2(accumulator, feature, sign);
     return;
   }
@@ -128,6 +128,29 @@ NnueState nnue_refresh(const Position& position) {
   state.perspective[0] = refresh_perspective(position, Color::white);
   state.perspective[1] = refresh_perspective(position, Color::black);
   return state;
+}
+
+NnueState nnue_refresh_scalar_reference(const Position& position) {
+  NnueState state;
+  for (Color perspective : {Color::white, Color::black}) {
+    auto& accumulator = state.perspective[perspective_index(perspective)];
+    for (int hidden = 0; hidden < nnue_hidden_size; ++hidden)
+      accumulator[hidden] = nnue_weights::bias[hidden];
+    const int bucket = king_bucket(position, perspective);
+    for (int square = 0; square < 64; ++square)
+      add_feature_scalar(
+          accumulator,
+          feature_of(position.cells[square], square, bucket, perspective), 1);
+  }
+  return state;
+}
+
+bool nnue_runtime_has_avx2() {
+#if ELOI_GNU_X86_DISPATCH
+  return runtime_has_avx2_impl();
+#else
+  return false;
+#endif
 }
 
 void nnue_update(NnueState& state, const Position& before,
