@@ -1,0 +1,1529 @@
+{
+  "draws": 90,
+  "estimated_elo_difference": -0.0,
+  "finished_utc": "2026-09-02T02:51:29.375761+00:00",
+  "identity": {
+    "baseline_sha256": "5F13AB2FEB05DE4171DB39E637FD1322409211872DEBB72AD7BEF88858B5AACF",
+    "candidate_sha256": "A1144B8FE2E0C4109E5687F4960172ECB798246E7B99DB9FD568D78EDEAF0055",
+    "games": 250,
+    "gate_metric": "raw-wins",
+    "hash_mb": 32,
+    "max_plies": 200,
+    "movetime_ms": 250,
+    "own_book": false,
+    "required_win_rate": 0.704,
+    "required_wins": 176,
+    "suite_sha256": "CA252742023A982D7B2ACA44D0E16DA95A0A38E731E329648056D84FCE773858",
+    "threads": 3
+  },
+  "kind": "strength",
+  "losses": 80,
+  "passed": false,
+  "raw_win_rate": 0.32,
+  "results": [
+    {
+      "candidate_color": "white",
+      "game": 1,
+      "opening": 0,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 2,
+      "opening": 0,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 3,
+      "opening": 1,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 4,
+      "opening": 1,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 5,
+      "opening": 2,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 6,
+      "opening": 2,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 7,
+      "opening": 3,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 8,
+      "opening": 3,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 9,
+      "opening": 4,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 10,
+      "opening": 4,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 11,
+      "opening": 5,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 12,
+      "opening": 5,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 13,
+      "opening": 6,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 14,
+      "opening": 6,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 15,
+      "opening": 7,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 16,
+      "opening": 7,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 17,
+      "opening": 8,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 18,
+      "opening": 8,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 19,
+      "opening": 9,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 20,
+      "opening": 9,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 21,
+      "opening": 10,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 22,
+      "opening": 10,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 23,
+      "opening": 11,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 24,
+      "opening": 11,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 25,
+      "opening": 12,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 26,
+      "opening": 12,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 27,
+      "opening": 13,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 28,
+      "opening": 13,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 29,
+      "opening": 14,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 30,
+      "opening": 14,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 31,
+      "opening": 15,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 32,
+      "opening": 15,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 33,
+      "opening": 16,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 34,
+      "opening": 16,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 35,
+      "opening": 17,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 36,
+      "opening": 17,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 37,
+      "opening": 18,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 38,
+      "opening": 18,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 39,
+      "opening": 19,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 40,
+      "opening": 19,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 41,
+      "opening": 20,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 42,
+      "opening": 20,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 43,
+      "opening": 21,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 44,
+      "opening": 21,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 45,
+      "opening": 22,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 46,
+      "opening": 22,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 47,
+      "opening": 23,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 48,
+      "opening": 23,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 49,
+      "opening": 24,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 50,
+      "opening": 24,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 51,
+      "opening": 25,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 52,
+      "opening": 25,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 53,
+      "opening": 26,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 54,
+      "opening": 26,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 55,
+      "opening": 27,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 56,
+      "opening": 27,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 57,
+      "opening": 28,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 58,
+      "opening": 28,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 59,
+      "opening": 29,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 60,
+      "opening": 29,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 61,
+      "opening": 30,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 62,
+      "opening": 30,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 63,
+      "opening": 31,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 64,
+      "opening": 31,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 65,
+      "opening": 32,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 66,
+      "opening": 32,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 67,
+      "opening": 33,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 68,
+      "opening": 33,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 69,
+      "opening": 34,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 70,
+      "opening": 34,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 71,
+      "opening": 35,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 72,
+      "opening": 35,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 73,
+      "opening": 36,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 74,
+      "opening": 36,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 75,
+      "opening": 37,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 76,
+      "opening": 37,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 77,
+      "opening": 38,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 78,
+      "opening": 38,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 79,
+      "opening": 39,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 80,
+      "opening": 39,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 81,
+      "opening": 40,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 82,
+      "opening": 40,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 83,
+      "opening": 41,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 84,
+      "opening": 41,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 85,
+      "opening": 42,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 86,
+      "opening": 42,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 87,
+      "opening": 43,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 88,
+      "opening": 43,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 89,
+      "opening": 44,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 90,
+      "opening": 44,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 91,
+      "opening": 45,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 92,
+      "opening": 45,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 93,
+      "opening": 46,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 94,
+      "opening": 46,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 95,
+      "opening": 47,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 96,
+      "opening": 47,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 97,
+      "opening": 48,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 98,
+      "opening": 48,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 99,
+      "opening": 49,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 100,
+      "opening": 49,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 101,
+      "opening": 50,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 102,
+      "opening": 50,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 103,
+      "opening": 51,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 104,
+      "opening": 51,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 105,
+      "opening": 52,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 106,
+      "opening": 52,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 107,
+      "opening": 53,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 108,
+      "opening": 53,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 109,
+      "opening": 54,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 110,
+      "opening": 54,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 111,
+      "opening": 55,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 112,
+      "opening": 55,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 113,
+      "opening": 56,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 114,
+      "opening": 56,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 115,
+      "opening": 57,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 116,
+      "opening": 57,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 117,
+      "opening": 58,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 118,
+      "opening": 58,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 119,
+      "opening": 59,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 120,
+      "opening": 59,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 121,
+      "opening": 60,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 122,
+      "opening": 60,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 123,
+      "opening": 61,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 124,
+      "opening": 61,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 125,
+      "opening": 62,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 126,
+      "opening": 62,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 127,
+      "opening": 63,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 128,
+      "opening": 63,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 129,
+      "opening": 64,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 130,
+      "opening": 64,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 131,
+      "opening": 65,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 132,
+      "opening": 65,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 133,
+      "opening": 66,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 134,
+      "opening": 66,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 135,
+      "opening": 67,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 136,
+      "opening": 67,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 137,
+      "opening": 68,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 138,
+      "opening": 68,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 139,
+      "opening": 69,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 140,
+      "opening": 69,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 141,
+      "opening": 70,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 142,
+      "opening": 70,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 143,
+      "opening": 71,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 144,
+      "opening": 71,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 145,
+      "opening": 72,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 146,
+      "opening": 72,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 147,
+      "opening": 73,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 148,
+      "opening": 73,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 149,
+      "opening": 74,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 150,
+      "opening": 74,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 151,
+      "opening": 75,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 152,
+      "opening": 75,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 153,
+      "opening": 76,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 154,
+      "opening": 76,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 155,
+      "opening": 77,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 156,
+      "opening": 77,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 157,
+      "opening": 78,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 158,
+      "opening": 78,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 159,
+      "opening": 79,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 160,
+      "opening": 79,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 161,
+      "opening": 80,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 162,
+      "opening": 80,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 163,
+      "opening": 81,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 164,
+      "opening": 81,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 165,
+      "opening": 82,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 166,
+      "opening": 82,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 167,
+      "opening": 83,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 168,
+      "opening": 83,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 169,
+      "opening": 84,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 170,
+      "opening": 84,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 171,
+      "opening": 85,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 172,
+      "opening": 85,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 173,
+      "opening": 86,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 174,
+      "opening": 86,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 175,
+      "opening": 87,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 176,
+      "opening": 87,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 177,
+      "opening": 88,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 178,
+      "opening": 88,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 179,
+      "opening": 89,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 180,
+      "opening": 89,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 181,
+      "opening": 90,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 182,
+      "opening": 90,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 183,
+      "opening": 91,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 184,
+      "opening": 91,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 185,
+      "opening": 92,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 186,
+      "opening": 92,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 187,
+      "opening": 93,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 188,
+      "opening": 93,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 189,
+      "opening": 94,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 190,
+      "opening": 94,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 191,
+      "opening": 95,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 192,
+      "opening": 95,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 193,
+      "opening": 96,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 194,
+      "opening": 96,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 195,
+      "opening": 97,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 196,
+      "opening": 97,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 197,
+      "opening": 98,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 198,
+      "opening": 98,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 199,
+      "opening": 99,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 200,
+      "opening": 99,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 201,
+      "opening": 100,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 202,
+      "opening": 100,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 203,
+      "opening": 101,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 204,
+      "opening": 101,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 205,
+      "opening": 102,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 206,
+      "opening": 102,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 207,
+      "opening": 103,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 208,
+      "opening": 103,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 209,
+      "opening": 104,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 210,
+      "opening": 104,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 211,
+      "opening": 105,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 212,
+      "opening": 105,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 213,
+      "opening": 106,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 214,
+      "opening": 106,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 215,
+      "opening": 107,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 216,
+      "opening": 107,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 217,
+      "opening": 108,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 218,
+      "opening": 108,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 219,
+      "opening": 109,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 220,
+      "opening": 109,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 221,
+      "opening": 110,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 222,
+      "opening": 110,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 223,
+      "opening": 111,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 224,
+      "opening": 111,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 225,
+      "opening": 112,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "black",
+      "game": 226,
+      "opening": 112,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 227,
+      "opening": 113,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 228,
+      "opening": 113,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 229,
+      "opening": 114,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 230,
+      "opening": 114,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 231,
+      "opening": 115,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 232,
+      "opening": 115,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 233,
+      "opening": 116,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 234,
+      "opening": 116,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 235,
+      "opening": 117,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 236,
+      "opening": 117,
+      "result": "win"
+    },
+    {
+      "candidate_color": "white",
+      "game": 237,
+      "opening": 118,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 238,
+      "opening": 118,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 239,
+      "opening": 119,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 240,
+      "opening": 119,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 241,
+      "opening": 120,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 242,
+      "opening": 120,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 243,
+      "opening": 121,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 244,
+      "opening": 121,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 245,
+      "opening": 122,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 246,
+      "opening": 122,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "white",
+      "game": 247,
+      "opening": 123,
+      "result": "loss"
+    },
+    {
+      "candidate_color": "black",
+      "game": 248,
+      "opening": 123,
+      "result": "draw"
+    },
+    {
+      "candidate_color": "white",
+      "game": 249,
+      "opening": 124,
+      "result": "win"
+    },
+    {
+      "candidate_color": "black",
+      "game": 250,
+      "opening": 124,
+      "result": "win"
+    }
+  ],
+  "schema": 1,
+  "score": 0.5,
+  "started_utc": "2026-09-02T01:18:28.020411+00:00",
+  "wins": 80
+}

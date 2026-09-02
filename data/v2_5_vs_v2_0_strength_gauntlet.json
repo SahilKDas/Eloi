@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "kind": "strength-gauntlet",
+  "status": "failed",
+  "started_utc": "2026-09-02T01:18:28.020411+00:00",
+  "finished_utc": "2026-09-02T02:51:29.375761+00:00",
+  "candidate": {
+    "label": "Eloi 2.5.0-rc.1",
+    "sha256": "A1144B8FE2E0C4109E5687F4960172ECB798246E7B99DB9FD568D78EDEAF0055"
+  },
+  "baseline": {
+    "label": "published Eloi v2.0.0 (binary reports 1.9.6-rc.1)",
+    "tag": "v2.0.0",
+    "release_commit": "b36acb8cb942347e50fbcdaf59d88732e13402cc",
+    "sha256": "5F13AB2FEB05DE4171DB39E637FD1322409211872DEBB72AD7BEF88858B5AACF"
+  },
+  "protocol": {
+    "games": 250,
+    "openings": 125,
+    "mirrored_colors": true,
+    "movetime_ms": 250,
+    "max_plies": 200,
+    "threads_per_engine": 3,
+    "hash_mb": 32,
+    "own_book": false,
+    "windows_priority": "Idle",
+    "suite": "data/strength_openings.json",
+    "suite_sha256": "CA252742023A982D7B2ACA44D0E16DA95A0A38E731E329648056D84FCE773858"
+  },
+  "criteria_history": [
+    {
+      "stage": "initial",
+      "metric": "raw-wins",
+      "requirement": "strictly greater than 70%",
+      "required_wins": 176,
+      "achieved": 80,
+      "passed": false
+    },
+    {
+      "stage": "mid-run amendment after game 50",
+      "metric": "non-losses",
+      "requirement": "at least 90%",
+      "required_non_losses": 225,
+      "achieved": 170,
+      "passed": false
+    },
+    {
+      "stage": "final mid-run amendment after game 56",
+      "metric": "non-losses",
+      "requirement": "at least 80%",
+      "required_non_losses": 200,
+      "achieved": 170,
+      "passed": false
+    }
+  ],
+  "result": {
+    "wins": 80,
+    "draws": 90,
+    "losses": 80,
+    "raw_win_rate": 0.32,
+    "non_loss_rate": 0.68,
+    "score": 0.5,
+    "estimated_elo_difference": 0.0
+  },
+  "evidence": {
+    "checkpoint": "data/v2_5_vs_v2_0_strength_gauntlet.checkpoint.json",
+    "checkpoint_sha256": "45097E9E191CE8E0BF381E4809FD18A9E15170F28CA8717F6E3F8F343555288B",
+    "pgn": "data/games/v2_5_vs_v2_0_strength_gauntlet.pgn",
+    "pgn_sha256": "A34F6A25D6758F6AA21291445419B4544B2F19D62E66B87C18429428B293E2E9"
+  },
+  "reproducibility_note": "The inputs and configuration are frozen, but a wall-clock movetime protocol can vary with Windows scheduling. A future reproducibility gate should use fixed nodes per move and deterministic tie-breaking."
+}

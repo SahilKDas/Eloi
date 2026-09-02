@@ -17,7 +17,7 @@ been validated or published.
 
 ## Current project status
 
-The latest tagged release baseline is `v2.0.0-rc`; `main` is preparing
+The latest tagged release baseline is `v2.0.0`; `main` is preparing
 `v2.5.0-rc.1`. The v2.5 source contains the cached-board/search overhaul,
 exactly-three-lane engine, Engine Lab, hash-bound benchmark harness, expanded
 move-generation differential tests, deterministic NNUE training pipeline,
@@ -34,6 +34,15 @@ in the bounded 24-game paired comparison; experimental LazySMP failed two
 tactical regressions and scored 45.83%. Training a 256-unit NNUE remains
 deliberately deferred. The current source is an RC, not a stable
 strength-qualified release.
+
+The completed 250-game mirrored gate against the published `v2.0.0` Windows
+x64 executable finished 80 wins, 90 draws, and 80 losses for v2.5: exactly a
+50.00% score and 68.00% non-loss rate. It failed both the original requirement
+of more than 70% raw wins and the user's final mid-run amendment requiring an
+80% non-loss rate. The candidate therefore remains unqualified for release on
+strength grounds. The frozen settings, binary and suite hashes, criteria
+history, checkpoint, and all 250 PGNs are recorded in
+`data/v2_5_vs_v2_0_strength_gauntlet.json` and `data/games/`.
 
 ## Repository map
 
