@@ -41,6 +41,14 @@ if(WIN32 AND ELOI_BUILD_APP AND NOT EXISTS "${SKIA_ROOT}/lib/libskia.a")
 endif()
 
 add_library(eloi_core STATIC src/chess.cpp src/nnue.cpp src/book.cpp src/config.cpp)
+set(ELOI_NNUE_INCLUDE_DIR "" CACHE PATH
+    "Experimental NNUE include root; empty preserves the production network")
+if(ELOI_NNUE_INCLUDE_DIR)
+  if(NOT EXISTS "${ELOI_NNUE_INCLUDE_DIR}/eloi/nnue_weights.hpp")
+    message(FATAL_ERROR "Experimental NNUE include root lacks eloi/nnue_weights.hpp")
+  endif()
+  target_include_directories(eloi_core BEFORE PUBLIC "${ELOI_NNUE_INCLUDE_DIR}")
+endif()
 target_include_directories(eloi_core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   "${CMAKE_CURRENT_BINARY_DIR}/generated")

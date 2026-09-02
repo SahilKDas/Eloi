@@ -956,7 +956,8 @@ def enforce_budget(temp_dir, budget_bytes, additional=0):
     return used
 
 
-def write_header(path, weights, bias, output, counts, themes):
+def write_header(path, weights, bias, output, counts, themes,
+                 source_description="Lichess CC0 evaluations and puzzles; see provenance JSON"):
     hidden = len(output)
     quantized_weights, quantized_bias, quantized_output = quantize_model(
         weights, bias, output
@@ -979,7 +980,7 @@ def write_header(path, weights, bias, output, counts, themes):
         )
         out.write(
             'inline constexpr std::string_view source = '
-            '"Lichess CC0 evaluations and puzzles; see provenance JSON";\n'
+            + json.dumps(source_description) + ';\n'
         )
         for name, array, kind in (
             ("bias", quantized_bias, "int16_t"),

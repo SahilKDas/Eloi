@@ -1,0 +1,16 @@
+{
+  "source": {
+    "bytes": 82724777,
+    "sha256": "F2FA14565BCDABA7AD6DE6A4F8F2348D0F9F8F262935C46E61925C5ACCE6F7B7",
+    "upstream_signature": false,
+    "url": "https://database.nikonoel.fr/lichess_elite_2025-01.zip"
+  },
+  "teacher_archive": {
+    "bytes": 65443094,
+    "sha256": "92A77F8D8116B4331696EEB7B232BD03DB30D6641A6CE1BE1759478B8931D28B",
+    "upstream_signature": false,
+    "url": "https://github.com/official-stockfish/Stockfish/releases/download/sf_17.1/stockfish-windows-x86-64-avx2.zip"
+  },
+  "teacher_executable_sha256": "5F95EAEA0D4EB697381989187CE6EB4D6AD59283C34421765ECC73CDB09BA766",
+  "teacher_role": "offline labels only"
+}

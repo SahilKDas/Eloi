@@ -2,3 +2,4 @@
 data/search_recovery/*.json text eol=lf
 data/search_recovery/*.patch -text -diff
 data/search_recovery_*.json text eol=lf
+data/nnue_fresh_data_*.json text eol=lf

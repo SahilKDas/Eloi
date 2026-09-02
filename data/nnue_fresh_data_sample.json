@@ -1,0 +1,23 @@
+{
+  "counts": {
+    "cross_partition_boards_removed": 414,
+    "duplicate_positions": 2167,
+    "eligible_games": 289776,
+    "full_source_traversed": true,
+    "games_scanned": 289776,
+    "positions": 150690,
+    "selected_games": 32000
+  },
+  "partitions": {
+    "test": 14927,
+    "train": 120630,
+    "validation": 15133
+  },
+  "phases": {
+    "endgame": 27314,
+    "middlegame": 61819,
+    "opening": 61557
+  },
+  "positions_sha256": "F2E1F65C5857653EE3B99B271F26F4F5334B42EF9D75754D51964D8650414ACB",
+  "source_sha256": "F2FA14565BCDABA7AD6DE6A4F8F2348D0F9F8F262935C46E61925C5ACCE6F7B7"
+}
