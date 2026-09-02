@@ -1571,6 +1571,13 @@ data/nnue_d1_report.json. The test partition remains sealed.
 
 Exit criterion: one data candidate is selected for engine validation.
 
+**D2 result (2026-09-01): rejected.** Multiple stored hard alternatives
+improved quantized hard-negative pairwise accuracy by 9.46 percentage points
+and top-1 by 5.83 points versus production on identical rows. Quantized MAE
+improved by only 2.54 cp, below the frozen 5 cp calibration gate, while median
+error regressed by 6 cp. Evidence is tracked in data/nnue_d2_report.json. D1
+remains the provisional winner while D3 tests bounded confidence weights.
+
 ### Stage 6: engine correctness and speed gates
 
 - compile candidate separately;

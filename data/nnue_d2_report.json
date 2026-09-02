@@ -1,0 +1,41 @@
+{
+  "baseline": {
+    "quantized_evaluation_mae_cp": 579.7345052737318,
+    "quantized_evaluation_median_absolute_error_cp": 263.0,
+    "quantized_tactical_pairwise_accuracy": 0.5600539811066126,
+    "quantized_tactical_top1_accuracy": 0.3182593001102978,
+    "weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E"
+  },
+  "candidate": {
+    "hidden": 64,
+    "quantized_evaluation_mae_cp": 577.199296835761,
+    "quantized_evaluation_median_absolute_error_cp": 269.0,
+    "quantized_tactical_pairwise_accuracy": 0.654661493477283,
+    "quantized_tactical_top1_accuracy": 0.37651659480597616,
+    "weights_sha256": "36403E59972D478E1F45186555E5B4AC67C1AEF055490DA4DE7BFE1A1161B55B"
+  },
+  "candidate_minus_baseline": {
+    "quantized_evaluation_mae_cp": -2.535208437970823,
+    "quantized_evaluation_median_absolute_error_cp": 6.0,
+    "quantized_tactical_pairwise_accuracy": 0.09460751237067033,
+    "quantized_tactical_top1_accuracy": 0.05825729469567836
+  },
+  "counts": {
+    "train_evaluations": 80039,
+    "train_pairs": 285467,
+    "validation_evaluations": 9955,
+    "validation_pairs": 35568,
+    "validation_puzzles": 9973
+  },
+  "decision": "rejected: aggregate quantized MAE improvement is below frozen 5 cp gate",
+  "parameters": {
+    "architecture": 64,
+    "confidence_policy": "none",
+    "epochs": 3,
+    "negative_mode": "all stored deterministic hard alternatives",
+    "test_opened": false
+  },
+  "report_sha256": "4B6E10512F32AC5229B6D800ADA46761FE90EC6D3FE27AD528C80BEAC73A3C4C",
+  "sample_id": "A8B74970AF537B30A6A59289EEF46C1711ADB7F6EBBAC078A9B35C567B1B0555",
+  "schema": 1
+}
