@@ -42,6 +42,22 @@ STRICT_NNUE_LIMIT_BYTES = 7 * 1024**3
 DEFAULT_OUTPUT_LIMIT_BYTES = 256 * 1024**2
 PARTITION_THRESHOLDS = (("train", 0.80), ("validation", 0.90), ("test", 1.0))
 LICHESS_GAME_RE = re.compile(r"lichess\.org/([A-Za-z0-9]{8})")
+STATUS_REASONS = (
+    ("empty", "STATUS_EMPTY"),
+    ("no-white-king", "STATUS_NO_WHITE_KING"),
+    ("no-black-king", "STATUS_NO_BLACK_KING"),
+    ("too-many-kings", "STATUS_TOO_MANY_KINGS"),
+    ("too-many-white-pawns", "STATUS_TOO_MANY_WHITE_PAWNS"),
+    ("too-many-black-pawns", "STATUS_TOO_MANY_BLACK_PAWNS"),
+    ("pawns-on-backrank", "STATUS_PAWNS_ON_BACKRANK"),
+    ("too-many-white-pieces", "STATUS_TOO_MANY_WHITE_PIECES"),
+    ("too-many-black-pieces", "STATUS_TOO_MANY_BLACK_PIECES"),
+    ("bad-castling-rights", "STATUS_BAD_CASTLING_RIGHTS"),
+    ("invalid-ep-square", "STATUS_INVALID_EP_SQUARE"),
+    ("opposite-check", "STATUS_OPPOSITE_CHECK"),
+    ("too-many-checkers", "STATUS_TOO_MANY_CHECKERS"),
+    ("impossible-check", "STATUS_IMPOSSIBLE_CHECK"),
+)
 
 
 class RejectedRecord(ValueError):
@@ -84,6 +100,36 @@ def directory_bytes(path: pathlib.Path) -> int:
     return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
 
 
+def verify_input_manifest(
+    manifest_path: pathlib.Path,
+    evaluations: pathlib.Path,
+    puzzles: pathlib.Path,
+) -> dict[str, Any]:
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        retained = manifest["retained_inputs"]
+    except (OSError, KeyError, json.JSONDecodeError, TypeError) as error:
+        raise RuntimeError("tracked NNUE input manifest is invalid") from error
+    for name, path in (("evaluations", evaluations), ("puzzles", puzzles)):
+        document = retained.get(name)
+        if not isinstance(document, dict):
+            raise RuntimeError(f"manifest is missing {name}")
+        if path.name != document.get("sample_filename"):
+            raise RuntimeError(f"{name} filename does not match the manifest")
+        actual_bytes = path.stat().st_size
+        if actual_bytes != document.get("sample_bytes"):
+            raise RuntimeError(f"{name} byte size does not match the manifest")
+        actual_hash = sha256_file(path)
+        if actual_hash != document.get("sample_sha256"):
+            raise RuntimeError(f"{name} SHA-256 does not match the manifest")
+    return {
+        "verified": True,
+        "path": manifest_path.as_posix(),
+        "sha256": sha256_file(manifest_path),
+        "schema": manifest.get("schema"),
+    }
+
+
 @dataclass
 class OutputBudget:
     """Conservatively account for all bytes this analysis writes."""
@@ -123,8 +169,20 @@ def canonical_fen(raw: str) -> tuple[chess.Board, str]:
         board = chess.Board(" ".join(fields), chess960=False)
     except ValueError as error:
         raise RejectedRecord("invalid-fen") from error
-    if not board.is_valid():
-        raise RejectedRecord("invalid-standard-position")
+    status = board.status()
+    if status != chess.STATUS_VALID:
+        reasons = []
+        known = 0
+        for reason, constant_name in STATUS_REASONS:
+            flag = getattr(chess, constant_name, 0)
+            if flag and status & flag:
+                reasons.append(reason)
+                known |= flag
+        unknown = status & ~known
+        if unknown:
+            reasons.append(f"unknown-{unknown:x}")
+        detail = "+".join(reasons) if reasons else f"status-{status:x}"
+        raise RejectedRecord("invalid-standard-position/" + detail)
     return board, board.fen(en_passant="legal")
 
 
@@ -732,6 +790,16 @@ def main() -> int:
         type=pathlib.Path,
         default=ROOT / "tmp" / "nnue-dataset-analysis",
     )
+    parser.add_argument(
+        "--input-manifest",
+        type=pathlib.Path,
+        default=ROOT / "data" / "nnue_input_manifest.json",
+    )
+    parser.add_argument(
+        "--allow-unverified-inputs",
+        action="store_true",
+        help="allow explicit fixture inputs that are not in the tracked manifest",
+    )
     parser.add_argument("--seed", default=DEFAULT_SEED)
     parser.add_argument("--limit-per-source", type=int, default=20_000)
     parser.add_argument(
@@ -748,6 +816,17 @@ def main() -> int:
         parser.error("--max-output-mib exceeds the current 7 GiB ceiling")
     validate_output_directory(args.output_dir)
     args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest_identity = (
+        {
+            "verified": False,
+            "reason": "explicit --allow-unverified-inputs fixture override",
+        }
+        if args.allow_unverified_inputs
+        else verify_input_manifest(
+            args.input_manifest, args.evaluations, args.puzzles
+        )
+    )
 
     input_root = args.evaluations.parent
     baseline_nnue = directory_bytes(input_root)
@@ -800,11 +879,13 @@ def main() -> int:
             args.seed,
             sha256_file(args.evaluations),
             sha256_file(args.puzzles),
+            manifest_identity.get("sha256", "unverified"),
             args.limit_per_source,
         ),
         "mode": "analysis-only",
         "production_outputs_written": False,
         "seed": args.seed,
+        "input_manifest": manifest_identity,
         "inputs": {
             "evaluations": {
                 "path": args.evaluations.as_posix(),
@@ -874,6 +955,11 @@ def main() -> int:
         "storage_model": {
             "evaluations": corpus_projection(selected_evaluations),
             "puzzles": corpus_projection(selected_puzzles),
+        },
+        "resource_usage": {
+            "analysis_output_bytes_before_report": budget.written,
+            "analysis_output_limit_bytes": budget.output_limit,
+            "accounting": "conservative pre-write byte accounting",
         },
         "outputs": {
             "canonical_evaluations": {

@@ -123,6 +123,7 @@ def run_analyzer(
             str(puzzles),
             "--output-dir",
             str(output),
+            "--allow-unverified-inputs",
             "--limit-per-source",
             "6",
             "--max-output-mib",
@@ -193,6 +194,42 @@ class CanonicalizationTests(unittest.TestCase):
 
 
 class IdentityAndQuotaTests(unittest.TestCase):
+    def test_manifest_verification_fails_closed_on_hash_change(self) -> None:
+        with tempfile.TemporaryDirectory(
+            prefix="eloi-dataset-manifest-test-"
+        ) as temporary:
+            root = pathlib.Path(temporary)
+            evaluations = root / "evaluations.jsonl"
+            puzzles = root / "puzzles.csv"
+            evaluations.write_text("{}\n", encoding="utf-8", newline="\n")
+            puzzles.write_text("header\n", encoding="utf-8", newline="\n")
+            manifest = root / "manifest.json"
+            document = {
+                "schema": 1,
+                "retained_inputs": {
+                    "evaluations": {
+                        "sample_filename": evaluations.name,
+                        "sample_bytes": evaluations.stat().st_size,
+                        "sample_sha256": analyzer.sha256_file(evaluations),
+                    },
+                    "puzzles": {
+                        "sample_filename": puzzles.name,
+                        "sample_bytes": puzzles.stat().st_size,
+                        "sample_sha256": analyzer.sha256_file(puzzles),
+                    },
+                },
+            }
+            manifest.write_text(
+                json.dumps(document), encoding="utf-8", newline="\n"
+            )
+            identity = analyzer.verify_input_manifest(
+                manifest, evaluations, puzzles
+            )
+            self.assertTrue(identity["verified"])
+            evaluations.write_text("{\"changed\":true}\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "byte size"):
+                analyzer.verify_input_manifest(manifest, evaluations, puzzles)
+
     def test_group_clusters_prevent_cross_source_partition_leakage(self) -> None:
         shared = analyzer.stable_hash("shared")
         evaluations = [{
@@ -269,6 +306,7 @@ class EndToEndTests(unittest.TestCase):
             report = json.loads((first / "report.json").read_text("utf-8"))
             self.assertEqual(report["mode"], "analysis-only")
             self.assertFalse(report["production_outputs_written"])
+            self.assertFalse(report["input_manifest"]["verified"])
             self.assertEqual(report["counts"]["evaluations_seen"], 9)
             self.assertEqual(report["counts"]["puzzles_seen"], 9)
             self.assertEqual(report["counts"]["evaluations_selected"], 6)
