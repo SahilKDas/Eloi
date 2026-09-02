@@ -917,6 +917,27 @@ def quantized_header_metrics(path, evaluations, pairs):
     }
 
 
+def quantized_metric_deltas(candidate_metrics, baseline_metrics):
+    return {
+        "evaluation_mae_cp": (
+            candidate_metrics["evaluations"]["mae_cp"]
+            - baseline_metrics["evaluations"]["mae_cp"]
+        ),
+        "evaluation_median_absolute_error_cp": (
+            candidate_metrics["evaluations"]["median_absolute_error_cp"]
+            - baseline_metrics["evaluations"]["median_absolute_error_cp"]
+        ),
+        "tactical_pairwise_accuracy": (
+            candidate_metrics["tactical"]["pairwise_accuracy"]
+            - baseline_metrics["tactical"]["pairwise_accuracy"]
+        ),
+        "tactical_top1_accuracy": (
+            candidate_metrics["tactical"]["top1_accuracy"]
+            - baseline_metrics["tactical"]["top1_accuracy"]
+        ),
+    }
+
+
 def directory_bytes(path):
     if not path.exists():
         return 0
@@ -1223,28 +1244,45 @@ def main():
         )
         baseline_metrics = baseline_reference["metrics"]
         candidate_metrics = selected_metrics["quantized"]
-        baseline_reference["candidate_minus_baseline"] = {
-            "evaluation_mae_cp": (
-                candidate_metrics["evaluations"]["mae_cp"]
-                - baseline_metrics["evaluations"]["mae_cp"]
-            ),
-            "evaluation_median_absolute_error_cp": (
-                candidate_metrics["evaluations"][
-                    "median_absolute_error_cp"
-                ]
-                - baseline_metrics["evaluations"][
-                    "median_absolute_error_cp"
-                ]
-            ),
-            "tactical_pairwise_accuracy": (
-                candidate_metrics["tactical"]["pairwise_accuracy"]
-                - baseline_metrics["tactical"]["pairwise_accuracy"]
-            ),
-            "tactical_top1_accuracy": (
-                candidate_metrics["tactical"]["top1_accuracy"]
-                - baseline_metrics["tactical"]["top1_accuracy"]
-            ),
+        baseline_reference["candidate_minus_baseline"] = (
+            quantized_metric_deltas(candidate_metrics, baseline_metrics)
+        )
+
+    test_evaluation = None
+    if args.open_test:
+        if dataset.test_evaluations is None or dataset.test_pairs is None:
+            raise RuntimeError("test partition requested but not loaded")
+        candidate_test = validation_metrics(
+            weights,
+            bias,
+            output,
+            dataset.test_evaluations,
+            dataset.test_pairs,
+        )
+        test_evaluation = {
+            "candidate": candidate_test,
+            "selection_influenced": False,
         }
+        if args.baseline_weights is not None:
+            baseline_test = quantized_header_metrics(
+                args.baseline_weights,
+                dataset.test_evaluations,
+                dataset.test_pairs,
+            )
+            test_evaluation["baseline"] = baseline_test
+            test_evaluation["candidate_minus_baseline"] = (
+                quantized_metric_deltas(
+                    candidate_test["quantized"],
+                    baseline_test["metrics"],
+                )
+            )
+        print(
+            "test opened after selection: "
+            f"quantized MAE="
+            f"{candidate_test['quantized']['evaluations']['mae_cp']:.3f} cp, "
+            f"quantized tactical="
+            f"{candidate_test['quantized']['tactical']['pairwise_accuracy']:.1%}"
+        )
     candidate_stage = args.temp_dir / "candidates"
     if candidate_stage.exists():
         shutil.rmtree(candidate_stage)
@@ -1354,6 +1392,7 @@ def main():
         "selected_weights_sha256": file_sha256(staged_weights),
         "retained_candidate": retained_candidate,
         "baseline_reference": baseline_reference,
+        "test_evaluation": test_evaluation,
     }
     staged_provenance = stage / "nnue_provenance.json"
     staged_provenance.write_text(

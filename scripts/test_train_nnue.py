@@ -353,6 +353,7 @@ class TrainNnueTests(unittest.TestCase):
                     "--negative-mode", "hard",
                     "--baseline-weights",
                     str(retained / "nnue_weights.hpp"),
+                    "--open-test",
                     "--report-only",
                 ],
                 cwd=ROOT,
@@ -364,6 +365,8 @@ class TrainNnueTests(unittest.TestCase):
             )
             self.assertEqual(hard_report["counts"]["train_pairs"], 4)
             self.assertEqual(hard_report["counts"]["validation_pairs"], 2)
+            self.assertEqual(hard_report["counts"]["test_evaluations"], 1)
+            self.assertEqual(hard_report["counts"]["test_pairs"], 2)
             self.assertEqual(
                 hard_report["dataset"]["confidence_policy"], "bucket"
             )
@@ -375,6 +378,13 @@ class TrainNnueTests(unittest.TestCase):
             self.assertIn(
                 "candidate_minus_baseline",
                 hard_report["baseline_reference"],
+            )
+            self.assertFalse(
+                hard_report["test_evaluation"]["selection_influenced"]
+            )
+            self.assertIn(
+                "candidate_minus_baseline",
+                hard_report["test_evaluation"],
             )
             tiers = hard_report["candidates"][0]["slices"]["tactical"][
                 "negative_tier"
