@@ -1,0 +1,1326 @@
+{
+  "artifacts": {
+    "acquisition": {
+      "bytes": 655,
+      "path": "tmp/nnue-fresh-data/acquisition.json",
+      "sha256": "EA48A8B01F5A6C05A1FD85162864D789688502A374AAB5D21DC1B417BEAD039A"
+    },
+    "channel_capacity": {
+      "bytes": 11620,
+      "path": "tmp/nnue-fresh-data/channel-capacity-audit.json",
+      "sha256": "E0B42126E7E43063CBBE2425CF5FED90A0ECF9C6FB4D3A42E5C842B0D2E42D4A"
+    },
+    "continuation": {
+      "bytes": 1034,
+      "path": "data/nnue_fresh_data_continuation.json",
+      "sha256": "B59BA99633A64DA56F66339D3F74D623D3EF0F3ED1A96A6F39C9F1A7FF2A350B"
+    },
+    "coverage": {
+      "bytes": 2458,
+      "path": "tmp/nnue-fresh-data/coverage.json",
+      "sha256": "EFD3A72C4785CF868DF230879A5F467846EFA0C897BF839635DC53B3043B9F5A"
+    },
+    "integrity_tests": {
+      "bytes": 1723,
+      "path": "tmp/nnue-fresh-data/integrity-final.json",
+      "sha256": "35D56D21F59DB3A83E9466D9F9E0A6A59283D5057DE39C7197B2BE929DE3B4BA"
+    },
+    "label_summary": {
+      "bytes": 371,
+      "path": "tmp/nnue-fresh-data/labels-complete.json",
+      "sha256": "B15F55D8552BFC7D5C9A7EA8B6C854D411AF3EFAC6E63E71B5A5198C5491C757"
+    },
+    "labels": {
+      "bytes": 31985669,
+      "path": "tmp/nnue-fresh-data/labels.jsonl",
+      "sha256": "D39429903DDD13FB722EE84073322532415A0D22DF4951202EB89F79110E4038"
+    },
+    "learning_equivalence_exclusions": {
+      "bytes": 817,
+      "path": "tmp/nnue-fresh-data/learning-equivalence-exclusions.json",
+      "sha256": "AB2FB4A7111792D49CBEFBB619BD1FEB05D979036B10D85740145699EE4C51E9"
+    },
+    "outcome": {
+      "bytes": 135,
+      "path": "tmp/nnue-fresh-data/campaign-result.json",
+      "sha256": "D45D3F32279700230438E8BB7188B4587DC790FB8A01993A940D7ABA57B69C31"
+    },
+    "position_validity": {
+      "bytes": 348,
+      "path": "tmp/nnue-fresh-data/position-validity-audit.json",
+      "sha256": "ED2578FF6ED70370C99EF171CDEECE085DDC368890D1E95E40319B3784CA7637"
+    },
+    "production_control": {
+      "bytes": 1898,
+      "path": "tmp/nnue-fresh-data/production-control.json",
+      "sha256": "855CFCA61E08CBC2BBF139844247463871EDE727E3EC0228B6995DD2F42188A0"
+    },
+    "protocol": {
+      "bytes": 4159,
+      "path": "data/nnue_fresh_data_protocol.json",
+      "sha256": "940BAA4C459FC05B262B2AF570CE9E2B13E1FED2C8EF7BC548A23D95CBF66510"
+    },
+    "resources": {
+      "bytes": 558,
+      "path": "tmp/nnue-fresh-data/final-resource-check.json",
+      "sha256": "258D8706A85CF5F0BDAB6FD281DC5F1CCAD13C67F921537BB637D515EC613D55"
+    },
+    "sample": {
+      "bytes": 596,
+      "path": "tmp/nnue-fresh-data/sample.json",
+      "sha256": "B5FAE225E96177F876C5D81B5E932B2C25BCF556CFF0CBB7230BC067078201BC"
+    },
+    "training": {
+      "bytes": 8243,
+      "path": "tmp/nnue-fresh-data/training-complete.json",
+      "sha256": "67B1DA88FE7C0739E4C3CC3E49CA38954807EF2C2A4A70A80B2DCDA015190CA2"
+    },
+    "training_identity": {
+      "bytes": 3488,
+      "path": "tmp/nnue-fresh-data/training-identity.json",
+      "sha256": "15B487B57353FEC05F55DAF2D085E52FE6C3F5E1620B7BBC92D1491CFDA2F495"
+    }
+  },
+  "campaign": "eloi-fresh-data-v1",
+  "candidates": [
+    {
+      "correctness": {
+        "binary_sha256": "4D3589577D495D2CBA68473385D04AF0DF3125E29F1CBB076B5197F1AA6DE9A9",
+        "calibration_passed": true,
+        "candidate": "A",
+        "checks": [
+          {
+            "command": [
+              "C:\\SahilAppProjects\\Eloi\\tmp\\nnue-fresh-data\\candidates\\A\\build\\eloi_tests.exe"
+            ],
+            "exit_code": 1,
+            "log": "tmp/nnue-fresh-data/candidates/A/correctness-0.log",
+            "log_sha256": "0D9914ABD0076CCCDDBD53B43B1E64A2CFFA6DAAC8D7476F920081BB9B0712E0"
+          }
+        ],
+        "eligible": false,
+        "passed": false,
+        "weights_sha256": "EC39F85274CB7AA964580EC3BC4B0A4AB9A055E121BB9D1AAC63B71C63015958"
+      },
+      "failures": [
+        "FAIL: RootSplit: lichess-002mG: expected f8e8, got e5h2"
+      ],
+      "training": {
+        "checkpoint_sha256": "01661C5EA01E4DE0E319978304625D88DD97F48CC99156DC8D549ECBA0BCE31E",
+        "counts": {
+          "train_evaluations": 32015,
+          "train_pairs": 0
+        },
+        "id": "A",
+        "quantized_validation": {
+          "count": 4000,
+          "mae_cp": 195.86375,
+          "max_abs_accumulator": 72,
+          "median_absolute_error_cp": 164.0,
+          "phase_slices": {
+            "endgame": {
+              "count": 790,
+              "mae_cp": 189.75696202531645,
+              "median_absolute_error_cp": 158.5,
+              "rmse_cp": 244.85281551540874,
+              "sign_accuracy_outside_25cp": 0.8397085610200364
+            },
+            "middlegame": {
+              "count": 2149,
+              "mae_cp": 203.82596556537925,
+              "median_absolute_error_cp": 172.0,
+              "rmse_cp": 257.5174026295112,
+              "sign_accuracy_outside_25cp": 0.6293823038397329
+            },
+            "opening": {
+              "count": 1061,
+              "mae_cp": 184.2836946277097,
+              "median_absolute_error_cp": 155.0,
+              "rmse_cp": 233.0882472551599,
+              "sign_accuracy_outside_25cp": 0.47925033467202144
+            }
+          },
+          "rmse_cp": 248.75613208522117,
+          "sign_accuracy_outside_25cp": 0.6304558680892337
+        },
+        "recipe": "production + two fresh-evaluation epochs",
+        "weights_sha256": "EC39F85274CB7AA964580EC3BC4B0A4AB9A055E121BB9D1AAC63B71C63015958"
+      }
+    },
+    {
+      "correctness": {
+        "binary_sha256": "2F12FCA565C900F3B53A40F17DF4F59E95AFCDBFFE283FFCDF4F63CD04BE9274",
+        "calibration_passed": true,
+        "candidate": "B",
+        "checks": [
+          {
+            "command": [
+              "C:\\SahilAppProjects\\Eloi\\tmp\\nnue-fresh-data\\candidates\\B\\build\\eloi_tests.exe"
+            ],
+            "exit_code": 1,
+            "log": "tmp/nnue-fresh-data/candidates/B/correctness-0.log",
+            "log_sha256": "3AB1FDCCA3939C2C361C66F6B9BAC90034D8C8806DD4256319BB412CEE0C67DA"
+          }
+        ],
+        "eligible": false,
+        "passed": false,
+        "weights_sha256": "85F3C538D2A914AA5333B2A00EADC3A44CC675D3F78113FDD5AD0AF1893673D7"
+      },
+      "failures": [
+        "FAIL: RootSplit: online-bIw09dp9-knight-hang: forbidden online blunder repeated: c6e5"
+      ],
+      "training": {
+        "checkpoint_sha256": "9B2A7B8A13403637EC0155E44992D17D2ABBA9AFD7CD6E739EB7592816FC237F",
+        "counts": {
+          "train_evaluations": 32015,
+          "train_pairs": 12000
+        },
+        "id": "B",
+        "quantized_validation": {
+          "count": 4000,
+          "mae_cp": 207.53925,
+          "max_abs_accumulator": 72,
+          "median_absolute_error_cp": 168.5,
+          "phase_slices": {
+            "endgame": {
+              "count": 790,
+              "mae_cp": 191.81518987341772,
+              "median_absolute_error_cp": 151.5,
+              "rmse_cp": 249.03373773777233,
+              "sign_accuracy_outside_25cp": 0.8269581056466302
+            },
+            "middlegame": {
+              "count": 2149,
+              "mae_cp": 216.58213122382503,
+              "median_absolute_error_cp": 177.0,
+              "rmse_cp": 274.9384152032787,
+              "sign_accuracy_outside_25cp": 0.5971062882582081
+            },
+            "opening": {
+              "count": 1061,
+              "mae_cp": 200.93119698397737,
+              "median_absolute_error_cp": 163.0,
+              "rmse_cp": 257.96861406679653,
+              "sign_accuracy_outside_25cp": 0.4966532797858099
+            }
+          },
+          "rmse_cp": 265.54031191139325,
+          "sign_accuracy_outside_25cp": 0.6136437116068542
+        },
+        "recipe": "A + three legacy-training-puzzle epochs",
+        "weights_sha256": "85F3C538D2A914AA5333B2A00EADC3A44CC675D3F78113FDD5AD0AF1893673D7"
+      }
+    },
+    {
+      "correctness": {
+        "binary_sha256": "E2F7CE21B59D56BEBF1DF00334CC60C6032869648D86D2D3DF834021D046C6EA",
+        "calibration_passed": true,
+        "candidate": "C",
+        "checks": [
+          {
+            "command": [
+              "C:\\SahilAppProjects\\Eloi\\tmp\\nnue-fresh-data\\candidates\\C\\build\\eloi_tests.exe"
+            ],
+            "exit_code": 1,
+            "log": "tmp/nnue-fresh-data/candidates/C/correctness-0.log",
+            "log_sha256": "BE73572415C20A51A3431C01AB48D6070076AE55425B83C80E82AF2276D4C703"
+          }
+        ],
+        "eligible": false,
+        "passed": false,
+        "weights_sha256": "6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD"
+      },
+      "failures": [
+        "FAIL: RootSplit: lichess-001XA: best move remains stable across quiescence depths",
+        "FAIL: RootSplit: poisoned-pawn-capture: best move remains stable across quiescence depths"
+      ],
+      "training": {
+        "checkpoint_sha256": "48A40465E1E7A0AB7B408501FBEF78319D62612F6928891AD2B33B58D51AACE9",
+        "counts": {
+          "train_evaluations": 32015,
+          "train_pairs": 12000
+        },
+        "id": "C",
+        "quantized_validation": {
+          "count": 4000,
+          "mae_cp": 181.22,
+          "max_abs_accumulator": 72,
+          "median_absolute_error_cp": 152.0,
+          "phase_slices": {
+            "endgame": {
+              "count": 790,
+              "mae_cp": 183.7898734177215,
+              "median_absolute_error_cp": 151.5,
+              "rmse_cp": 241.08726819572192,
+              "sign_accuracy_outside_25cp": 0.8524590163934426
+            },
+            "middlegame": {
+              "count": 2149,
+              "mae_cp": 191.36761284318288,
+              "median_absolute_error_cp": 158.0,
+              "rmse_cp": 240.40947018586613,
+              "sign_accuracy_outside_25cp": 0.6321647189760712
+            },
+            "opening": {
+              "count": 1061,
+              "mae_cp": 158.75306314797362,
+              "median_absolute_error_cp": 139.0,
+              "rmse_cp": 199.6558183621092,
+              "sign_accuracy_outside_25cp": 0.5234270414993306
+            }
+          },
+          "rmse_cp": 230.44327827038046,
+          "sign_accuracy_outside_25cp": 0.6450048496605237
+        },
+        "recipe": "B + one fresh-evaluation recalibration epoch",
+        "weights_sha256": "6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD"
+      }
+    },
+    {
+      "correctness": {
+        "binary_sha256": "2A75252B3137DA9AF3820134733F0426514536CE9E442AE05FBC27881324B0BD",
+        "calibration_passed": true,
+        "candidate": "blend25",
+        "checks": [
+          {
+            "command": [
+              "C:\\SahilAppProjects\\Eloi\\tmp\\nnue-fresh-data\\candidates\\blend25\\build\\eloi_tests.exe"
+            ],
+            "exit_code": 1,
+            "log": "tmp/nnue-fresh-data/candidates/blend25/correctness-0.log",
+            "log_sha256": "5FFD09E27C61C4621DD2B49ADCDFA32AFB72AD9C10268F6B6887F0E928E93792"
+          }
+        ],
+        "eligible": false,
+        "passed": false,
+        "weights_sha256": "BF712DA629E4E1A2C17F8EA64102EFCA57FE7D23A66A7A39733BD97723B63F6C"
+      },
+      "failures": [
+        "FAIL: RootSplit: online-Lc65wiSv-bishop-hang: forbidden online blunder repeated: c6a7"
+      ],
+      "training": {
+        "checkpoint_sha256": "E86D6082B02C06148FBE7B87882D44E27F3C14A7E933F9BA6AE70E8029EF36FF",
+        "counts": {
+          "train_evaluations": 32015,
+          "train_pairs": 12000
+        },
+        "id": "blend25",
+        "quantized_validation": {
+          "count": 4000,
+          "mae_cp": 210.702,
+          "max_abs_accumulator": 72,
+          "median_absolute_error_cp": 171.0,
+          "phase_slices": {
+            "endgame": {
+              "count": 790,
+              "mae_cp": 209.1886075949367,
+              "median_absolute_error_cp": 163.5,
+              "rmse_cp": 272.21817618050045,
+              "sign_accuracy_outside_25cp": 0.8032786885245902
+            },
+            "middlegame": {
+              "count": 2149,
+              "mae_cp": 220.68078175895766,
+              "median_absolute_error_cp": 185.0,
+              "rmse_cp": 279.387145062959,
+              "sign_accuracy_outside_25cp": 0.5976627712854758
+            },
+            "opening": {
+              "count": 1061,
+              "mae_cp": 191.61734213006596,
+              "median_absolute_error_cp": 154.0,
+              "rmse_cp": 247.20726650069287,
+              "sign_accuracy_outside_25cp": 0.4886211512717537
+            }
+          },
+          "rmse_cp": 269.780125287242,
+          "sign_accuracy_outside_25cp": 0.6078241189783382
+        },
+        "recipe": "0.25 interpolation from production toward C",
+        "weights_sha256": "BF712DA629E4E1A2C17F8EA64102EFCA57FE7D23A66A7A39733BD97723B63F6C"
+      }
+    },
+    {
+      "correctness": {
+        "binary_sha256": "AB8EC19D7588F3026F3C0E991C16DB62D2683E5430CDE86DCC98758D83622F74",
+        "calibration_passed": true,
+        "candidate": "blend50",
+        "checks": [
+          {
+            "command": [
+              "C:\\SahilAppProjects\\Eloi\\tmp\\nnue-fresh-data\\candidates\\blend50\\build\\eloi_tests.exe"
+            ],
+            "exit_code": 1,
+            "log": "tmp/nnue-fresh-data/candidates/blend50/correctness-0.log",
+            "log_sha256": "A1DD886F455F37DCF70A1892DA212980B4CFE853C6A53FCA6DD2A0782B26233A"
+          }
+        ],
+        "eligible": false,
+        "passed": false,
+        "weights_sha256": "E9A4DDBADE47F4A689340875393FF5743BB95E03663AD87D954C7E96DFCA55BD"
+      },
+      "failures": [
+        "FAIL: RootSplit: online-bIw09dp9-knight-hang: forbidden online blunder repeated: c6e5"
+      ],
+      "training": {
+        "checkpoint_sha256": "47BFDCB8B8663034F110EAD9E8C15C367E2F8279879548C68EBD5C8568C31D47",
+        "counts": {
+          "train_evaluations": 32015,
+          "train_pairs": 12000
+        },
+        "id": "blend50",
+        "quantized_validation": {
+          "count": 4000,
+          "mae_cp": 197.8805,
+          "max_abs_accumulator": 72,
+          "median_absolute_error_cp": 162.0,
+          "phase_slices": {
+            "endgame": {
+              "count": 790,
+              "mae_cp": 199.58354430379748,
+              "median_absolute_error_cp": 160.0,
+              "rmse_cp": 259.639679731622,
+              "sign_accuracy_outside_25cp": 0.8178506375227687
+            },
+            "middlegame": {
+              "count": 2149,
+              "mae_cp": 209.0497906002792,
+              "median_absolute_error_cp": 178.0,
+              "rmse_cp": 263.6831738916581,
+              "sign_accuracy_outside_25cp": 0.6065664997217585
+            },
+            "opening": {
+              "count": 1061,
+              "mae_cp": 173.98963242224318,
+              "median_absolute_error_cp": 140.0,
+              "rmse_cp": 223.2809817146905,
+              "sign_accuracy_outside_25cp": 0.5167336010709505
+            }
+          },
+          "rmse_cp": 252.76917533591788,
+          "sign_accuracy_outside_25cp": 0.6223731005496282
+        },
+        "recipe": "0.5 interpolation from production toward C",
+        "weights_sha256": "E9A4DDBADE47F4A689340875393FF5743BB95E03663AD87D954C7E96DFCA55BD"
+      }
+    }
+  ],
+  "channel_capacity": {
+    "audit_script_sha256": "3CA67D9A2EBEA935370DBCD7485698CFB7586F5501AC9E4AB99F49F784DC3481",
+    "candidates": [
+      {
+        "candidate": "A",
+        "changed_float_input_weights": 89972,
+        "changed_quantized_biases": 0,
+        "changed_quantized_input_weights": 480,
+        "changed_quantized_output_weights": 4,
+        "float": {
+          "bias_min_max": [
+            8.0,
+            8.0
+          ],
+          "hidden_channels": 64,
+          "nonzero_output_coefficients": 19,
+          "zero_input_and_output_channels": 41,
+          "zero_input_and_output_indices": [
+            6,
+            8,
+            9,
+            10,
+            11,
+            18,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            30,
+            31,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            49,
+            51,
+            52,
+            53,
+            54,
+            56,
+            57,
+            58,
+            60,
+            61,
+            63
+          ]
+        },
+        "header_sha256": "EC39F85274CB7AA964580EC3BC4B0A4AB9A055E121BB9D1AAC63B71C63015958",
+        "production_dead_channels_still_zero_in_float": true,
+        "quantized": {
+          "bias_min_max": [
+            8.0,
+            8.0
+          ],
+          "hidden_channels": 64,
+          "nonzero_output_coefficients": 9,
+          "zero_input_and_output_channels": 41,
+          "zero_input_and_output_indices": [
+            6,
+            8,
+            9,
+            10,
+            11,
+            18,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            30,
+            31,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            49,
+            51,
+            52,
+            53,
+            54,
+            56,
+            57,
+            58,
+            60,
+            61,
+            63
+          ]
+        }
+      },
+      {
+        "candidate": "B",
+        "changed_float_input_weights": 95799,
+        "changed_quantized_biases": 0,
+        "changed_quantized_input_weights": 395,
+        "changed_quantized_output_weights": 5,
+        "float": {
+          "bias_min_max": [
+            8.0,
+            8.0
+          ],
+          "hidden_channels": 64,
+          "nonzero_output_coefficients": 20,
+          "zero_input_and_output_channels": 41,
+          "zero_input_and_output_indices": [
+            6,
+            8,
+            9,
+            10,
+            11,
+            18,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            30,
+            31,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            49,
+            51,
+            52,
+            53,
+            54,
+            56,
+            57,
+            58,
+            60,
+            61,
+            63
+          ]
+        },
+        "header_sha256": "85F3C538D2A914AA5333B2A00EADC3A44CC675D3F78113FDD5AD0AF1893673D7",
+        "production_dead_channels_still_zero_in_float": true,
+        "quantized": {
+          "bias_min_max": [
+            8.0,
+            8.0
+          ],
+          "hidden_channels": 64,
+          "nonzero_output_coefficients": 9,
+          "zero_input_and_output_channels": 41,
+          "zero_input_and_output_indices": [
+            6,
+            8,
+            9,
+            10,
+            11,
+            18,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            30,
+            31,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            49,
+            51,
+            52,
+            53,
+            54,
+            56,
+            57,
+            58,
+            60,
+            61,
+            63
+          ]
+        }
+      },
+      {
+        "candidate": "C",
+        "changed_float_input_weights": 97119,
+        "changed_quantized_biases": 0,
+        "changed_quantized_input_weights": 596,
+        "changed_quantized_output_weights": 5,
+        "float": {
+          "bias_min_max": [
+            8.0,
+            8.0
+          ],
+          "hidden_channels": 64,
+          "nonzero_output_coefficients": 20,
+          "zero_input_and_output_channels": 41,
+          "zero_input_and_output_indices": [
+            6,
+            8,
+            9,
+            10,
+            11,
+            18,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            30,
+            31,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            49,
+            51,
+            52,
+            53,
+            54,
+            56,
+            57,
+            58,
+            60,
+            61,
+            63
+          ]
+        },
+        "header_sha256": "6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD",
+        "production_dead_channels_still_zero_in_float": true,
+        "quantized": {
+          "bias_min_max": [
+            8.0,
+            8.0
+          ],
+          "hidden_channels": 64,
+          "nonzero_output_coefficients": 9,
+          "zero_input_and_output_channels": 41,
+          "zero_input_and_output_indices": [
+            6,
+            8,
+            9,
+            10,
+            11,
+            18,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            30,
+            31,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            49,
+            51,
+            52,
+            53,
+            54,
+            56,
+            57,
+            58,
+            60,
+            61,
+            63
+          ]
+        }
+      },
+      {
+        "candidate": "blend25",
+        "changed_float_input_weights": 97091,
+        "changed_quantized_biases": 0,
+        "changed_quantized_input_weights": 0,
+        "changed_quantized_output_weights": 4,
+        "float": {
+          "bias_min_max": [
+            8.0,
+            8.0
+          ],
+          "hidden_channels": 64,
+          "nonzero_output_coefficients": 20,
+          "zero_input_and_output_channels": 41,
+          "zero_input_and_output_indices": [
+            6,
+            8,
+            9,
+            10,
+            11,
+            18,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            30,
+            31,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            49,
+            51,
+            52,
+            53,
+            54,
+            56,
+            57,
+            58,
+            60,
+            61,
+            63
+          ]
+        },
+        "header_sha256": "BF712DA629E4E1A2C17F8EA64102EFCA57FE7D23A66A7A39733BD97723B63F6C",
+        "production_dead_channels_still_zero_in_float": true,
+        "quantized": {
+          "bias_min_max": [
+            8.0,
+            8.0
+          ],
+          "hidden_channels": 64,
+          "nonzero_output_coefficients": 9,
+          "zero_input_and_output_channels": 41,
+          "zero_input_and_output_indices": [
+            6,
+            8,
+            9,
+            10,
+            11,
+            18,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            30,
+            31,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            49,
+            51,
+            52,
+            53,
+            54,
+            56,
+            57,
+            58,
+            60,
+            61,
+            63
+          ]
+        }
+      },
+      {
+        "candidate": "blend50",
+        "changed_float_input_weights": 97103,
+        "changed_quantized_biases": 0,
+        "changed_quantized_input_weights": 46,
+        "changed_quantized_output_weights": 5,
+        "float": {
+          "bias_min_max": [
+            8.0,
+            8.0
+          ],
+          "hidden_channels": 64,
+          "nonzero_output_coefficients": 20,
+          "zero_input_and_output_channels": 41,
+          "zero_input_and_output_indices": [
+            6,
+            8,
+            9,
+            10,
+            11,
+            18,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            30,
+            31,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            49,
+            51,
+            52,
+            53,
+            54,
+            56,
+            57,
+            58,
+            60,
+            61,
+            63
+          ]
+        },
+        "header_sha256": "E9A4DDBADE47F4A689340875393FF5743BB95E03663AD87D954C7E96DFCA55BD",
+        "production_dead_channels_still_zero_in_float": true,
+        "quantized": {
+          "bias_min_max": [
+            8.0,
+            8.0
+          ],
+          "hidden_channels": 64,
+          "nonzero_output_coefficients": 9,
+          "zero_input_and_output_channels": 41,
+          "zero_input_and_output_indices": [
+            6,
+            8,
+            9,
+            10,
+            11,
+            18,
+            20,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            30,
+            31,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            49,
+            51,
+            52,
+            53,
+            54,
+            56,
+            57,
+            58,
+            60,
+            61,
+            63
+          ]
+        }
+      }
+    ],
+    "interpretation": "More data alone cannot activate these channels under this warm-start/update procedure. This does not establish the cause of any individual engine regression.",
+    "invariant": "With an all-zero input column and zero output coefficient, both perspectives have the same activation; output gradient is zero and input gradient is multiplied by the zero output. Both existing optimizers preserve this state exactly.",
+    "production": {
+      "bias_min_max": [
+        8.0,
+        8.0
+      ],
+      "hidden_channels": 64,
+      "nonzero_output_coefficients": 9,
+      "zero_input_and_output_channels": 41,
+      "zero_input_and_output_indices": [
+        6,
+        8,
+        9,
+        10,
+        11,
+        18,
+        20,
+        21,
+        22,
+        23,
+        25,
+        26,
+        27,
+        28,
+        30,
+        31,
+        32,
+        33,
+        34,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        49,
+        51,
+        52,
+        53,
+        54,
+        56,
+        57,
+        58,
+        60,
+        61,
+        63
+      ]
+    },
+    "production_header_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E",
+    "purpose": "diagnostic only; no training, selection, or held-out target access",
+    "trainer_sha256": "129FBCB8DBBFE52DFBD67C9972D9C8DD8726FC9C6E3EB453A9CA87CD0F292F65"
+  },
+  "coverage": {
+    "completed_prefix_bytes": 31985669,
+    "completed_prefix_sha256": "D39429903DDD13FB722EE84073322532415A0D22DF4951202EB89F79110E4038",
+    "counts": {
+      "accepted_before_identity_exclusions": 40000,
+      "accepted_identity_exclusions": 4,
+      "examined": 57561,
+      "usable": 39996
+    },
+    "exclusions_sha256": "AB2FB4A7111792D49CBEFBB619BD1FEB05D979036B10D85740145699EE4C51E9",
+    "game_group_overlap": {
+      "train/test": 0,
+      "train/validation": 0,
+      "validation/test": 0
+    },
+    "protocol_sha256": "940BAA4C459FC05B262B2AF570CE9E2B13E1FED2C8EF7BC548A23D95CBF66510",
+    "purpose": "coverage description only; no held-out target inspection or selection",
+    "report_script_sha256": "91002611E486ED1CB35448B093C4A52C817A3E85BE3407F4C356011333637023",
+    "training_100k_audit": {
+      "count": 151,
+      "fraction_drift_above_150cp": 0.013245033112582781,
+      "median_absolute_drift_cp": 12,
+      "purpose": "descriptive follow-up; not a new or modified gate"
+    },
+    "training_absolute_cp_buckets": {
+      "0..25": 7341,
+      "101..300": 8281,
+      "26..100": 9597,
+      "301..600": 5795,
+      "601..1200": 1001
+    },
+    "training_high_depth_histogram": {
+      "10": 794,
+      "11": 4169,
+      "12": 7522,
+      "13": 6822,
+      "14": 4364,
+      "15": 3367,
+      "16": 3292,
+      "17": 1182,
+      "18": 154,
+      "19": 45,
+      "20": 42,
+      "21": 30,
+      "22": 21,
+      "23": 25,
+      "24": 22,
+      "245": 1,
+      "25": 17,
+      "26": 18,
+      "27": 8,
+      "28": 10,
+      "29": 12,
+      "30": 2,
+      "31": 4,
+      "32": 3,
+      "33": 5,
+      "34": 2,
+      "35": 1,
+      "36": 3,
+      "38": 2,
+      "39": 1,
+      "42": 1,
+      "43": 1,
+      "44": 2,
+      "46": 1,
+      "47": 1,
+      "51": 1,
+      "52": 1,
+      "61": 1,
+      "8": 2,
+      "9": 64
+    },
+    "training_rejection_reasons_nonexclusive": {
+      "mate_label_excluded": 948,
+      "outside_training_score_range": 29,
+      "tactical_best_move": 11241,
+      "unstable_teacher_score": 2710
+    },
+    "training_side_to_move": {
+      "b": 15870,
+      "w": 16145
+    },
+    "usable_game_groups": {
+      "test": 2239,
+      "train": 17879,
+      "validation": 2226
+    },
+    "usable_partitions": {
+      "test": 3981,
+      "train": 32015,
+      "validation": 4000
+    },
+    "usable_phase_counts": {
+      "test": {
+        "endgame": 736,
+        "middlegame": 2215,
+        "opening": 1030
+      },
+      "train": {
+        "endgame": 5980,
+        "middlegame": 17432,
+        "opening": 8603
+      },
+      "validation": {
+        "endgame": 790,
+        "middlegame": 2149,
+        "opening": 1061
+      }
+    }
+  },
+  "integrity_tests": {
+    "checks": [
+      {
+        "command": [
+          "C:\\Users\\suhas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+          "C:\\SahilAppProjects\\Eloi\\scripts\\test_fresh_nnue_data.py"
+        ],
+        "exit_code": 0,
+        "log": "tmp/nnue-fresh-data/test_fresh_nnue_data-final.log",
+        "log_sha256": "1347BAE5072293F4A1869287AA5E89029B0FC0E63ECFB174DB6C3F6D498ACF1C"
+      },
+      {
+        "command": [
+          "C:\\Users\\suhas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+          "C:\\SahilAppProjects\\Eloi\\scripts\\test_fresh_nnue_campaign.py"
+        ],
+        "exit_code": 0,
+        "log": "tmp/nnue-fresh-data/test_fresh_nnue_campaign-final.log",
+        "log_sha256": "864C708788779C68DAB793F895868E493CAB33286BD9241D10E22C69257CE5F0"
+      },
+      {
+        "command": [
+          "C:\\Users\\suhas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+          "C:\\SahilAppProjects\\Eloi\\scripts\\test_fresh_nnue_coverage.py"
+        ],
+        "exit_code": 0,
+        "log": "tmp/nnue-fresh-data/test_fresh_nnue_coverage-final.log",
+        "log_sha256": "56177BC8569956E5752955B095F0082EF0FAA91E26FC4A203FA24CDF04779065"
+      },
+      {
+        "command": [
+          "C:\\Users\\suhas\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+          "C:\\SahilAppProjects\\Eloi\\scripts\\test_fresh_nnue_channels.py"
+        ],
+        "exit_code": 0,
+        "log": "tmp/nnue-fresh-data/test_fresh_nnue_channels-final.log",
+        "log_sha256": "2DB33624FA946BEA528D9A083DB0D0926FF14ABFB9250A13DE28306FA5D1DCFC"
+      }
+    ],
+    "passed": true,
+    "scope": "30 lightweight tests; separate from compiled engine gates"
+  },
+  "label_summary": {
+    "accepted": {
+      "test": 3985,
+      "train": 32015,
+      "validation": 4000
+    },
+    "labels_sha256": "D39429903DDD13FB722EE84073322532415A0D22DF4951202EB89F79110E4038",
+    "processed": 57561,
+    "protocol_sha256": "940BAA4C459FC05B262B2AF570CE9E2B13E1FED2C8EF7BC548A23D95CBF66510",
+    "teacher_sha256": "5F95EAEA0D4EB697381989187CE6EB4D6AD59283C34421765ECC73CDB09BA766"
+  },
+  "match_games": {
+    "confirmation": 0,
+    "development": 0,
+    "final": 0
+  },
+  "outcome": {
+    "development": [],
+    "production_unchanged": true,
+    "release_created": false,
+    "status": "no_qualifying_development_candidate"
+  },
+  "position_validity": {
+    "counts": {
+      "positions": 150690
+    },
+    "held_out_target_values_used": false,
+    "invalid_status_counts": {},
+    "method": "python-chess Board.status and is_check on every sampled FEN; verify seeded game partition",
+    "positions_sha256": "F2E1F65C5857653EE3B99B271F26F4F5334B42EF9D75754D51964D8650414ACB",
+    "python_chess_version": "1.11.2"
+  },
+  "production_control": {
+    "checks": [
+      {
+        "command": [
+          "C:/msys64/ucrt64/bin/cmake.exe",
+          "-S",
+          "C:\\SahilAppProjects\\Eloi",
+          "-B",
+          "C:\\SahilAppProjects\\Eloi\\tmp\\nnue-fresh-data\\production-control",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DELOI_BUILD_TESTS=ON",
+          "-DCMAKE_CXX_COMPILER=C:/msys64/ucrt64/bin/c++.exe",
+          "-DCMAKE_MAKE_PROGRAM=C:/msys64/ucrt64/bin/ninja.exe",
+          "-DCMAKE_RC_COMPILER=C:/msys64/ucrt64/bin/windres.exe",
+          "-DELOI_NNUE_INCLUDE_DIR="
+        ],
+        "exit_code": 0,
+        "log": "tmp/nnue-fresh-data/production-control/build-0.log",
+        "log_sha256": "D349EDC17904A08FC81A56171156DFA6915FE2F19DEBBFDDDECCB4F174A6DAF2"
+      },
+      {
+        "command": [
+          "C:/msys64/ucrt64/bin/cmake.exe",
+          "--build",
+          "C:\\SahilAppProjects\\Eloi\\tmp\\nnue-fresh-data\\production-control",
+          "--target",
+          "eloi_tests",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "log": "tmp/nnue-fresh-data/production-control/build-1.log",
+        "log_sha256": "F642F410A58EEB28FA675DEFCFABB45F0B910813F5C8F38FED78E1640F01BBB8"
+      },
+      {
+        "command": [
+          "C:\\SahilAppProjects\\Eloi\\tmp\\nnue-fresh-data\\production-control\\eloi_tests.exe"
+        ],
+        "exit_code": 0,
+        "log": "tmp/nnue-fresh-data/production-control/tests.log",
+        "log_sha256": "E21BE0FBA7EF32AAF0FC1DDE100E6CD68E4736909599C0B813895E8E4092D742"
+      }
+    ],
+    "passed": true,
+    "production_weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E",
+    "scope": "identical C++ unit and regression suite using unchanged production NNUE; control only",
+    "test_executable_sha256": "E5D7D06808779B30C31F3F6CD493E4916F2844DF4E169574D4864BEF0E6530B9",
+    "training_identity_sha256": "15B487B57353FEC05F55DAF2D085E52FE6C3F5E1620B7BBC92D1491CFDA2F495"
+  },
+  "production_validation": {
+    "count": 4000,
+    "mae_cp": 211.5815,
+    "max_abs_accumulator": 72,
+    "median_absolute_error_cp": 171.5,
+    "phase_slices": {
+      "endgame": {
+        "count": 790,
+        "mae_cp": 209.90506329113924,
+        "median_absolute_error_cp": 165.0,
+        "rmse_cp": 273.08297297082123,
+        "sign_accuracy_outside_25cp": 0.8032786885245902
+      },
+      "middlegame": {
+        "count": 2149,
+        "mae_cp": 221.52722196370405,
+        "median_absolute_error_cp": 186.0,
+        "rmse_cp": 280.43095201131933,
+        "sign_accuracy_outside_25cp": 0.5987757373400111
+      },
+      "opening": {
+        "count": 1061,
+        "mae_cp": 192.6852026390198,
+        "median_absolute_error_cp": 155.0,
+        "rmse_cp": 248.57637827058056,
+        "sign_accuracy_outside_25cp": 0.4886211512717537
+      }
+    },
+    "rmse_cp": 270.8660868399734,
+    "sign_accuracy_outside_25cp": 0.6084707403815066
+  },
+  "puzzle_stage_validation_mae_change_cp": 11.6755,
+  "resources": {
+    "measured_utc": "2026-09-02T22:32:52.749931+00:00",
+    "note": "retained-file measurement, not an OS-level peak measurement",
+    "usage": {
+      "free_bytes": 34249138176,
+      "projected_bytes": 0,
+      "total_bytes": 1177301645,
+      "training_bytes": 858735526,
+      "usage": {
+        ".deps": 388355885,
+        "build": 0,
+        "build-beta-working": 22827550,
+        "build-nnue-128": 25773827,
+        "build-nnue-64": 22373659,
+        "build-release": 22713005,
+        "build-split-runtime": 21357101,
+        "dist": 11587836,
+        "tmp": 662312782
+      }
+    }
+  },
+  "schema": 1,
+  "test_target_evaluation_performed": false
+}

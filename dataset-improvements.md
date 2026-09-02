@@ -1855,6 +1855,110 @@ strength target. No installation, packaging, publication, push, or deletion
 is authorized for this campaign. The 8 GB training cap is nested inside the
 10 GB temporary cap, with the existing stricter 7 GiB trainer cap retained.
 
-At this documentation checkpoint, labeling is in progress. There is no trained
-candidate result or fresh-campaign match score yet. Read the campaign log and
-hash-bound result artifacts for later outcomes, not this progress snapshot.
+At the initial documentation checkpoint, labeling was still in progress.
+The completed outcome and additional training findings are recorded below.
+
+## 38. Fresh-source result and the training limitation it exposed
+
+### Outcome
+
+The five-candidate campaign completed on September 2, 2026 with **no qualifying
+upgrade**. It retained 40,000 accepted labels after examining 57,561 positions.
+Four equivalent-input test records were excluded from learning/evaluation,
+leaving 32,015 training positions, 4,000 validation positions, and 3,981 test
+positions. Test targets remained closed for evaluation and selection.
+
+| Candidate | Quantized validation MAE, cp | Frozen engine result |
+| --- | ---: | --- |
+| Production control | 211.582 | Passed the identical C++ suite |
+| A: fresh evaluations only | 195.864 | Failed `lichess-002mG`: `e5h2` instead of `f8e8` |
+| B: A plus training puzzles | 207.539 | Repeated stored knight hang `c6e5` |
+| C: B plus evaluation recalibration | 181.220 | Failed two depth-stability checks |
+| 25% parameter blend toward C | 210.702 | Repeated stored bishop hang `c6a7` |
+| 50% parameter blend toward C | 197.881 | Repeated stored knight hang `c6e5` |
+
+C's two failures are `lichess-001XA` and `poisoned-pawn-capture` stability
+assertions. They are mandatory gate failures, not recorded match losses.
+All candidates failed before candidate perft/differential checks, development
+matches, confirmation, performance/reproducibility qualification, or the final
+match. **There is no 300-game score: zero match games were played.** No claim
+about an observed Elo change against v2.0 is justified.
+
+The user explicitly requested that the 300-game gauntlet not run yet. That hold
+remains in force until a new go-ahead. The completed campaign's follow-up is
+paused, and no additional full-data candidates were trained after rejection.
+
+The aggregate validation result does show that this corpus can move the static
+network toward these offline teacher labels. C reduced MAE by about 14.35%.
+It does not establish that the dataset alone improves complete-engine play.
+The puzzle stage increased MAE by 11.6755 cp, while a subsequent evaluation pass
+recovered calibration. That sequencing effect is measured here, not assumed.
+
+### Forty-one channels cannot learn in this warm start
+
+The production header contains 41 hidden channels whose entire input column
+and output coefficient are exactly zero. All biases are 8. For one such
+channel, both perspectives therefore activate to 8 on every board:
+
+- The output update is proportional to the difference between those two
+  activations. That difference is zero.
+- The input update is proportional to the old output coefficient. That is zero.
+- The puzzle update has the same invariant for both best and alternative boards.
+
+Consequently, converting the production quantized parameters to float does not
+restore the missing trainable variation. More positions or more repetitions of
+the same update rule cannot activate those channels. All five actual float
+checkpoints preserve those same 41 zero-input/zero-output channels.
+
+This is a limitation of the current initialization/update procedure, not a
+claim that a correctly trained 64-unit architecture cannot use its channels.
+Nor does it prove the causal reason for any particular search regression.
+The proof is exercised by synthetic tests of both existing update functions in
+`scripts/test_fresh_nnue_channels.py`; these tests do not train another engine.
+
+### Quantization sharply limits the retained parameter changes
+
+Every exported candidate, like production, has nine nonzero output
+coefficients. The retained checkpoints expose the difference between float
+parameter movement and changes that reach the embedded engine:
+
+| Candidate | Changed float input entries | Changed quantized input entries | Changed quantized output coefficients |
+| --- | ---: | ---: | ---: |
+| A | 89,972 | 480 | 4 |
+| B | 95,799 | 395 | 5 |
+| C | 97,119 | 596 | 5 |
+| 25% blend | 97,091 | 0 | 4 |
+| 50% blend | 97,103 | 46 | 5 |
+
+These counts compare each stored candidate to production. They do not measure
+gradient magnitude or directly quantify information loss. In particular, a
+25% float parameter blend is not a promise of 25% of the behavioral change:
+this blend's input matrix rounds all the way back to production.
+
+The practical next question is therefore not just whether to obtain more data.
+It is whether initialization and quantized training allow the intended network
+capacity to learn and survive export. A separately declared experiment should
+verify nonzero useful gradients, retain float checkpoints, inspect integer
+inference, and then face the same engine gates. This campaign did not implement
+or validate that repair, and it must not be described as already fixed.
+
+### Evidence and boundaries
+
+Full compact evidence is in `data/nnue_fresh_data_results.json` (SHA-256
+`0494D4957A99DB6B9A3F46F4580F27D39C9711F8ABD129380BAC0E0CF0AB9222`).
+It includes exact candidate/log hashes and the passing isolated production
+control. The evidence collector reproduced identical bytes on two invocations;
+the unreached candidate binary-reproducibility gate is not claimed as passed.
+
+The completed metadata audit found zero invalid sampled FENs and no game-group
+overlap. The ongoing training-only teacher audits had median 25k-to-100k-node
+drift 12 cp, with 2 of 151 exceeding 150 cp. Those results support the stated
+label-quality checks, not perfect ground truth or stronger engine play.
+
+At closeout, retained training scratch was approximately 0.859 GB and total
+temporary usage 1.177 GB, below both caps. This was a retained-file measurement,
+not an OS-level peak measurement. Production headers and search stayed intact.
+No files were deleted, no candidate was installed, no release was packaged,
+and nothing was pushed or published. The corpus and candidate evidence remain
+available for a properly specified follow-on experiment without downloading
+or labeling the source again.

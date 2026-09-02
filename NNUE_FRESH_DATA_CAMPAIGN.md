@@ -1,5 +1,94 @@
 # Fresh-data NNUE campaign — 2026-09-02
 
+## Completed outcome: no qualifying candidate
+
+The fixed five-candidate experiment is complete. All five candidates improved
+the aggregate quantized validation MAE, but all failed the deterministic engine
+gate. An isolated build using the unchanged production network passed the
+identical C++ suite. **No development, confirmation, or 300-game final match was
+played. No Elo estimate or stronger-engine claim is supported.**
+
+The scheduled follow-up is paused. The user subsequently explicitly requested
+that the 300-game gauntlet **not run yet**. Do not start it without a new go-ahead.
+Do not restart the rejected candidates to seek a different outcome or silently
+add further training recipes to the frozen five-candidate protocol.
+
+| Network | Validation MAE (cp; lower is better) | Compiled engine gate |
+| --- | ---: | --- |
+| Production control | 211.582 | Passed identical suite |
+| A: fresh evaluations | 195.864 | `lichess-002mG`: expected `f8e8`, chose `e5h2` |
+| B: A plus puzzles | 207.539 | Repeated stored knight hang `c6e5` |
+| C: B plus recalibration | 181.220 | Failed two depth-stability checks |
+| 25% blend toward C | 210.702 | Repeated stored bishop hang `c6a7` |
+| 50% blend toward C | 197.881 | Repeated stored knight hang `c6e5` |
+
+C's failures were specifically the depth-stability assertions for
+`lichess-001XA` and `poisoned-pawn-capture`; they must not be relabeled as a
+measured match loss. The gate rejects them, but no head-to-head strength
+comparison was performed. The puzzle stage increased validation MAE by
+11.6755 cp. Recalibration reduced it to 181.22 cp, about 14.35% below production.
+
+### Dataset actually used
+
+Labeling examined 57,561 sampled positions and accepted exactly 40,000. Four
+accepted test records were excluded by the NNUE-equivalence rule, leaving
+39,996 usable records. Raw labels remain intact.
+
+| Partition | Usable positions | Distinct game groups |
+| --- | ---: | ---: |
+| Training | 32,015 | 17,879 |
+| Validation | 4,000 | 2,226 |
+| Test | 3,981 | 2,239 |
+
+There is no cross-partition game-group overlap. The 151 ongoing training-only
+larger-budget teacher audits had median score drift 12 cp, with 2/151 exceeding
+150 cp. All 150,690 raw sampled FENs passed the independent structural-validity
+check; none were in check or assigned to the wrong seeded game partition.
+Test target values were never opened for model evaluation or selection.
+
+### Verified training limitation
+
+Production has 41/64 hidden channels with both an entirely zero input column
+and a zero output coefficient. Warm-starting from that quantized header leaves
+those channels exactly unchanged in every float checkpoint. With identical
+constant activation in both perspectives, their output gradient is zero; the
+input gradient is multiplied by their zero output coefficient. Both existing
+training update functions preserve this state. Synthetic regression tests
+verify this invariant without fitting another candidate.
+
+All five exported networks still have only nine nonzero output coefficients.
+For C, 97,119 float input entries differ from production but only 596 entries
+differ after quantization. The 25% blend has **zero** changed quantized input
+entries and only four changed output coefficients. These are coefficient
+counts, not a measure of lost information or proof of the cause of a specific
+engine failure. Nevertheless, more data alone cannot wake those 41 channels
+under this particular warm-start/update procedure.
+
+Any next experiment should explicitly test initialization and quantization
+behavior while reusing the frozen corpus. That is a new recipe, not a reason
+to alter these results or relax the engine gates. No such repair or additional
+full-data candidate training was performed in this campaign.
+
+### Retained evidence and resource closeout
+
+`data/nnue_fresh_data_results.json` contains the compact reports, exact failures,
+production control, channel audit, 30 passing lightweight integrity tests, and
+the artifact hash manifest. Its SHA-256 is
+`0494D4957A99DB6B9A3F46F4580F27D39C9711F8ABD129380BAC0E0CF0AB9222`.
+Running `scripts/retain_fresh_nnue_evidence.py` twice produced identical bytes.
+This reproduces evidence collation, not a second training run or a candidate
+binary-reproducibility gate, which was not reached.
+
+The label JSONL is 31,985,669 bytes, SHA-256
+`D39429903DDD13FB722EE84073322532415A0D22DF4951202EB89F79110E4038`.
+The retained-file measurement at 2026-09-02 22:32:52 UTC was 858,735,526 training
+bytes inside 1,177,301,645 total temporary bytes. This is not an OS-level peak
+measurement. Every storage reservation remained below the applicable caps.
+All input archives, labels, checkpoints, candidate builds, and logs were kept.
+Production weights/search were unchanged; no deletion, installation, package,
+push, or publication occurred. The following sections preserve the campaign's
+earlier plan and progress history.
+
 ## Authority and non-negotiable boundaries
 
 The user authorized a new training campaign while away for approximately eight
