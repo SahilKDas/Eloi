@@ -7,6 +7,14 @@ Document created: 2026-09-01
 Scope: dataset acquisition, curation, splitting, training inputs, offline metrics,
 engine validation, reproducibility, and resource safety
 
+Implementation checkpoint: Stage 1 completed at
+c4a9fd1e8face1e96335d464c8673851eb2db082. The analysis-only sampler,
+fixture tests, exact retained-input report, and independent byte-for-byte
+reproduction are recorded in scripts/analyze_nnue_dataset.py,
+scripts/test_analyze_nnue_dataset.py, data/nnue_dataset_analysis.json, and
+data/nnue_dataset_analysis_reproduction.json. Production NNUE files were not
+changed.
+
 ## 1. Purpose
 
 This document defines a practical, reproducible plan for improving the data used
@@ -1631,10 +1639,10 @@ These decisions should be made from a profile run, not guessed:
 
 ### Planning
 
-- [ ] Confirm this design against current source and device constraints.
-- [ ] Freeze experiment ID, root seed, and one-variable-at-a-time scope.
-- [ ] Estimate peak bytes, elapsed time, and output counts.
-- [ ] Confirm no conflicting heavy task or active executable replacement.
+- [x] Confirm this design against current source and device constraints.
+- [x] Freeze the Stage 1 analysis ID, root seed, and analysis-only scope.
+- [x] Estimate peak bytes and output counts for the retained-input prototype.
+- [x] Confirm no conflicting heavy task or active executable replacement.
 - [ ] Freeze offline and match selection rules.
 
 ### Acquisition
@@ -1648,13 +1656,13 @@ These decisions should be made from a profile run, not guessed:
 
 ### Curation
 
-- [ ] Canonicalize FENs and score perspective.
-- [ ] Validate legal PV and puzzle moves.
-- [ ] Compute record, position, and group identities.
-- [ ] Detect cross-source overlap.
-- [ ] Assign partitions by group before reservoir selection.
-- [ ] Fill deterministic population and coverage reservoirs.
-- [ ] Emit distribution and rejection reports.
+- [x] Canonicalize FENs and score perspective for the retained-input prototype.
+- [x] Validate legal PV and puzzle moves.
+- [x] Compute record, position, and group identities.
+- [x] Detect cross-source overlap.
+- [x] Assign partitions by group before deterministic selection.
+- [x] Fill deterministic population and coverage selections.
+- [x] Emit distribution and rejection reports.
 
 ### Tactical examples
 
@@ -1695,6 +1703,15 @@ These decisions should be made from a profile run, not guessed:
 
 ## 35. Recommended immediate next action
 
+**Stage 1 result (2026-09-01): completed.** The exact retained samples produced
+19,876 valid Standard evaluation records and 20,000 valid puzzle records. The
+sampler rejected 124 evaluation positions: 118 for invalid castling rights and
+6 for impossible Standard material counts. No exact learning-state overlap was
+found between the retained evaluation and puzzle samples. A second clean
+analysis produced byte-identical canonical evaluation, canonical puzzle, and
+report hashes. The two canonical files total 41,829,872 bytes before the small
+report, far below the device limits.
+
 Do not begin with a 256-unit network or a full upstream download.
 
 The next concrete change should be an **analysis-only, deterministic sampler
@@ -1711,7 +1728,9 @@ prototype** that runs against the already retained 20,000-row files and emits:
 - no production NNUE changes.
 
 That prototype can validate the schema, determinism, quotas, and reports cheaply.
-Only then should a broader sequential acquisition be considered.
+That prototype is now complete. The next stage is a bounded broader-source
+profile and sampler implementation; it must remain report-only until its source
+budget and frozen D1 composition are documented.
 
 ## 36. Final decision principle
 
