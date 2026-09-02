@@ -5,6 +5,8 @@ import run_fresh_nnue_campaign as campaign
 import numpy as np
 import subprocess
 import time
+import datetime as dt
+import continue_fresh_nnue_campaign as continuation
 
 
 class CampaignTests(unittest.TestCase):
@@ -85,6 +87,26 @@ class CampaignTests(unittest.TestCase):
         result['results'][100]['result'] = 'loss'
         campaign.engine_lab.summarize_strength(result)
         self.assertFalse(result['passed'])
+
+    def test_continuation_rejects_different_protocol(self):
+        with mock.patch.object(campaign, 'read', return_value={'original_protocol_sha256': 'expected'}), \
+             mock.patch.object(campaign.data, 'sha', return_value='different'), \
+             mock.patch.object(campaign.data, 'immutable_json') as write:
+            with self.assertRaisesRegex(RuntimeError, 'not bound'):
+                continuation.apply_runtime_extension()
+            write.assert_not_called()
+
+    def test_continuation_only_changes_runtime_clock(self):
+        expected = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)
+        document = {'original_protocol_sha256': 'expected', 'runtime_deadline_utc': expected.isoformat(),
+                    'scope': 'runtime only'}
+        with mock.patch.object(campaign, 'read', return_value=document), \
+             mock.patch.object(campaign.data, 'sha', side_effect=['expected', 'extension', 'wrapper']), \
+             mock.patch.object(campaign.data, 'immutable_json') as write, \
+             mock.patch.object(campaign.data, 'DEADLINE', campaign.data.DEADLINE):
+            continuation.apply_runtime_extension()
+            self.assertEqual(campaign.data.DEADLINE, expected)
+            write.assert_called_once()
 
 
 if __name__ == '__main__':

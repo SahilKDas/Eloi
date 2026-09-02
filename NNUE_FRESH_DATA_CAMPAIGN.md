@@ -22,6 +22,17 @@ Initial conservative temporary usage: 725,956,363 bytes. No active Eloi,
 Stockfish, or Python engine jobs were found. Stop launching new heavy jobs after
 2026-09-02 22:35 UTC; preserve resumable state and report any unfinished work.
 
+**Runtime-only continuation update:** the user subsequently explicitly said
+"Keep going". The eight-hour absence was not a user-imposed stop deadline; the
+earlier cutoff was an agent assumption. The original protocol remains intact.
+`data/nnue_fresh_data_continuation.json` records a bounded extension through
+2026-09-03 06:35 UTC, with every dataset/training/match rule unchanged. Apply it
+via `scripts/continue_fresh_nnue_campaign.py run` only after the current worker
+exits naturally. Do not interrupt labeling to reload the clock. The wrapper
+records a separate runtime identity and retains the original OS lock and all
+per-command bounds. A failure of a real quality gate is not a clock failure and
+must never be bypassed by the continuation.
+
 ## Replacement source
 
 Use the complete January 2025 Lichess Elite PGN archive from
