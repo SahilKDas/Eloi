@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "candidate": {
+    "architecture": 64,
+    "weights_sha256": "C0FD59029C9131758CE3DCBF14F7C7BE6BB94ABEFBDD9BEED4C51870E9E1F8F9",
+    "executable_sha256": "289D45E7CB2F989CB21B1EF4DADFDC6876363443E90FFC9AFAAC169437BFF25F"
+  },
+  "production": {
+    "weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E",
+    "architecture_sha256": "CADABDEC8CBB9194AF83E5DD8F8E4084BBC3A0FB0F78BAF35FC9D509D23E2D2B",
+    "restored_after_candidate_build": true,
+    "identical_suite_passed": true
+  },
+  "source_commit": "79f62ab",
+  "runtime_path": "AVX2",
+  "gate": "deterministic engine correctness",
+  "result": "rejected",
+  "failures": [
+    {
+      "id": "lichess-002mG",
+      "expected": "f8e8",
+      "actual": "e5g3"
+    },
+    {
+      "id": "lichess-001XA",
+      "expected": "b1b7",
+      "actual": "c2a4"
+    },
+    {
+      "id": "lichess-001XA",
+      "failure": "best move changed across frozen quiescence depths"
+    },
+    {
+      "id": "poisoned-pawn-capture",
+      "failure": "best move changed across frozen quiescence depths"
+    }
+  ],
+  "later_gates_not_run": [
+    "perft and differential move generation",
+    "benchmark and speed calibration",
+    "reproducible executable rebuild",
+    "bounded pilot match",
+    "paired selection match",
+    "installation and release packaging"
+  ],
+  "decision": "D1 is not production-eligible; retain the existing production NNUE"
+}

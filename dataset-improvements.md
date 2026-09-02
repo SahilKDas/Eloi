@@ -1601,6 +1601,17 @@ advance. The test partition has not yet been opened.
 
 Exit criterion: no correctness failure and no disqualifying speed regression.
 
+**Completed 2026-09-01: D1 rejected.** The candidate compiled cleanly and the
+runtime-selected AVX2 accumulator agreed exactly with the scalar reference, but
+the full deterministic engine suite failed four assertions. D1 chose the wrong
+move in both retained Lichess catastrophe positions (`lichess-002mG` and
+`lichess-001XA`) and failed frozen depth-stability checks for `lichess-001XA`
+and `poisoned-pawn-capture`. The unchanged production network passed the same
+suite immediately before and after the guarded candidate build. Under the
+frozen correctness-first rule, later performance, reproducibility, match,
+installation, and packaging gates were not run. Exact hashes and failures are
+tracked in `data/nnue_d1_engine_rejection.json`.
+
 ### Stage 7: frozen paired engine comparison
 
 - record protocol and thresholds before game one;
@@ -1737,21 +1748,21 @@ These decisions should be made from a profile run, not guessed:
 
 - [x] Apply frozen offline selection rule to D1 validation.
 - [x] Open untouched test once after the D1 recipe freeze.
-- [ ] Run generated-header and dimension checks.
-- [ ] Build candidate separately.
-- [ ] Run unit, perft, move-generation, tactical, and SIMD checks.
-- [ ] Run bounded benchmark and calibration suite.
-- [ ] Run frozen paired comparison only if eligible.
-- [ ] Hash every retained evidence artifact.
+- [x] Run generated-header and dimension checks.
+- [x] Build candidate separately.
+- [x] Run unit, tactical, and SIMD checks; reject D1 on four deterministic failures.
+- [x] Stop before perft, differential, benchmark, and calibration because D1 is ineligible.
+- [x] Do not run the frozen paired comparison because D1 is ineligible.
+- [x] Hash every retained D1 rejection evidence artifact.
 
 ### Installation
 
-- [ ] Select candidate only under the frozen rule.
-- [ ] Install generated header explicitly.
-- [ ] Rebuild and reproduce candidate identity.
-- [ ] Update provenance and public documentation.
-- [ ] Confirm packaging excludes all datasets and secrets.
-- [ ] Verify final Git status and release smoke tests.
+- [x] Select no candidate because D1 failed the frozen rule.
+- [x] Leave the generated candidate header uninstalled.
+- [x] Preserve the exact rejected candidate and production identities in evidence.
+- [x] Update the validation plan with the rejection decision.
+- [x] Do not package a rejected candidate.
+- [x] Verify production restoration and its passing smoke suite.
 
 ## 35. Recommended immediate next action
 
