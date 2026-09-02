@@ -259,6 +259,15 @@ class TrainNnueTests(unittest.TestCase):
                 self.assertEqual(
                     candidate["weights_sha256"], solo["selected_weights_sha256"]
                 )
+                self.assertIn("float", candidate)
+                self.assertIn("quantized", candidate)
+                self.assertEqual(
+                    candidate["quantized"]["reference_arithmetic"]["division"],
+                    8,
+                )
+                self.assertTrue(
+                    candidate["quantized"]["int32_accumulator_safe"]
+                )
                 self.assertTrue(output.is_file())
                 assert_header_compiles(root, output)
 
@@ -301,6 +310,55 @@ class TrainNnueTests(unittest.TestCase):
             self.assertIsNone(report["counts"]["test_evaluations"])
             self.assertIsNone(report["counts"]["test_pairs"])
             self.assertFalse(report["dataset"]["test_opened"])
+            self.assertEqual(
+                report["candidates"][0]["float"]["evaluations"]["count"], 1
+            )
+            self.assertEqual(
+                report["candidates"][0]["quantized"]["evaluations"]["count"], 1
+            )
+            self.assertLessEqual(
+                report["candidates"][0]["quantized"]["tactical_ranking_flips"],
+                report["counts"]["validation_pairs"],
+            )
+
+            hard_provenance = run_root / "hard-provenance.json"
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(TRAINER),
+                    "--puzzles", str(puzzles),
+                    "--evaluations", str(evaluations),
+                    "--canonical-manifest", str(manifest),
+                    "--provenance", str(hard_provenance),
+                    "--output", str(run_root / "hard-weights-sentinel.hpp"),
+                    "--architecture-output", str(run_root / "hard-arch-sentinel.hpp"),
+                    "--temp-dir", str(run_root / "hard-work"),
+                    "--max-temp-gb", "0.1",
+                    "--limit", "8",
+                    "--eval-limit", "8",
+                    "--epochs", "1",
+                    "--architectures", "64",
+                    "--confidence-policy", "bucket",
+                    "--negative-mode", "hard",
+                    "--report-only",
+                ],
+                cwd=ROOT,
+                check=True,
+                timeout=180,
+            )
+            hard_report = json.loads(
+                hard_provenance.read_text(encoding="utf-8")
+            )
+            self.assertEqual(hard_report["counts"]["train_pairs"], 4)
+            self.assertEqual(hard_report["counts"]["validation_pairs"], 2)
+            self.assertEqual(
+                hard_report["dataset"]["confidence_policy"], "bucket"
+            )
+            self.assertEqual(hard_report["dataset"]["negative_mode"], "hard")
+            tiers = hard_report["candidates"][0]["slices"]["tactical"][
+                "negative_tier"
+            ]
+            self.assertEqual(set(tiers), {"forcing", "quiet"})
 
     def test_canonical_manifest_hash_mismatch_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory(prefix="eloi-nnue-manifest-") as temporary:

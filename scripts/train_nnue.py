@@ -411,6 +411,30 @@ def forward(weights, bias, output, white, black):
     return float(np.dot(aw - ab, output) / SCALE), aw, ab
 
 
+def quantize_model(weights, bias, output):
+    return (
+        np.clip(np.rint(weights), -127, 127).astype(np.int8),
+        np.rint(bias).astype(np.int16),
+        np.rint(output).astype(np.int16),
+    )
+
+
+def forward_quantized(weights, bias, output, white, black):
+    raw_white = (
+        bias.astype(np.int64)
+        + weights[white].sum(axis=0, dtype=np.int64)
+    )
+    raw_black = (
+        bias.astype(np.int64)
+        + weights[black].sum(axis=0, dtype=np.int64)
+    )
+    active_white = np.clip(raw_white, 0, 127)
+    active_black = np.clip(raw_black, 0, 127)
+    total = int(np.dot(active_white - active_black, output.astype(np.int64)))
+    score = int(total / int(SCALE))
+    return score, raw_white, raw_black
+
+
 def load_pairs(path, limit, validation_fraction):
     rng = random.Random(SEED)
     train, validation, themes = [], [], set()
@@ -582,24 +606,246 @@ def train_pairs(weights, bias, output, pairs, epochs):
     return weights, bias, output
 
 
+def _regression_summary(predictions, targets):
+    if not predictions:
+        return {
+            "count": 0,
+            "mae_cp": None,
+            "median_absolute_error_cp": None,
+            "rmse_cp": None,
+            "sign_accuracy_outside_25cp": None,
+        }
+    predicted = np.asarray(predictions, dtype=np.float64)
+    expected = np.asarray(targets, dtype=np.float64)
+    errors = np.abs(predicted - expected)
+    decisive = np.abs(expected) > 25
+    sign_accuracy = (
+        float(np.mean(np.sign(predicted[decisive]) == np.sign(expected[decisive])))
+        if np.any(decisive)
+        else None
+    )
+    return {
+        "count": len(predictions),
+        "mae_cp": float(np.mean(errors)),
+        "median_absolute_error_cp": float(np.median(errors)),
+        "rmse_cp": float(np.sqrt(np.mean((predicted - expected) ** 2))),
+        "sign_accuracy_outside_25cp": sign_accuracy,
+    }
+
+
+def _ranking_summary(margins, record_ids):
+    if not margins:
+        return {
+            "pair_count": 0,
+            "puzzle_count": 0,
+            "pairwise_accuracy": None,
+            "top1_accuracy": None,
+            "mean_margin_cp": None,
+            "margin_35cp_fraction": None,
+        }
+    grouped = {}
+    for record_id, margin in zip(record_ids, margins):
+        grouped.setdefault(record_id, []).append(margin)
+    return {
+        "pair_count": len(margins),
+        "puzzle_count": len(grouped),
+        "pairwise_accuracy": float(np.mean(np.asarray(margins) > 0)),
+        "top1_accuracy": float(
+            np.mean([min(values) > 0 for values in grouped.values()])
+        ),
+        "mean_margin_cp": float(np.mean(margins)),
+        "margin_35cp_fraction": float(np.mean(np.asarray(margins) >= 35)),
+    }
+
+
+def _slice_regression(samples, float_predictions, quantized_predictions):
+    fields = (
+        "phase_bucket",
+        "confidence_bucket",
+        "score_bucket",
+        "score_type",
+        "side_to_move",
+        "tactical_surface",
+    )
+    result = {}
+    for field in fields:
+        buckets = {}
+        for index, sample in enumerate(samples):
+            metadata = sample[-1] if isinstance(sample[-1], dict) else {}
+            value = metadata.get(field)
+            if value is None:
+                continue
+            bucket = buckets.setdefault(
+                str(value), {"float": [], "quantized": [], "targets": []}
+            )
+            bucket["float"].append(float_predictions[index])
+            bucket["quantized"].append(quantized_predictions[index])
+            bucket["targets"].append(sample[2])
+        if buckets:
+            result[field] = {
+                value: {
+                    "float": _regression_summary(
+                        values["float"], values["targets"]
+                    ),
+                    "quantized": _regression_summary(
+                        values["quantized"], values["targets"]
+                    ),
+                }
+                for value, values in sorted(buckets.items())
+            }
+    return result
+
+
+def _slice_rankings(samples, float_margins, quantized_margins, record_ids):
+    fields = (
+        "negative_tier",
+        "phase_bucket",
+        "rating_bucket",
+        "theme_family",
+        "best_move_class",
+    )
+    result = {}
+    for field in fields:
+        buckets = {}
+        for index, sample in enumerate(samples):
+            metadata = sample[-1] if isinstance(sample[-1], dict) else {}
+            value = metadata.get(field)
+            if value is None:
+                continue
+            bucket = buckets.setdefault(
+                str(value), {"float": [], "quantized": [], "ids": []}
+            )
+            bucket["float"].append(float_margins[index])
+            bucket["quantized"].append(quantized_margins[index])
+            bucket["ids"].append(record_ids[index])
+        if buckets:
+            result[field] = {
+                value: {
+                    "float": _ranking_summary(values["float"], values["ids"]),
+                    "quantized": _ranking_summary(
+                        values["quantized"], values["ids"]
+                    ),
+                }
+                for value, values in sorted(buckets.items())
+            }
+    return result
+
+
 def validation_metrics(weights, bias, output, evaluations, pairs):
-    errors = [
-        abs(forward(weights, bias, output, sample[0], sample[1])[0] - sample[2])
-        for sample in evaluations
-    ]
-    correct = 0
-    for sample in pairs:
+    quantized_weights, quantized_bias, quantized_output = quantize_model(
+        weights, bias, output
+    )
+    float_predictions = []
+    quantized_predictions = []
+    targets = []
+    max_abs_accumulator = 0
+    for sample in evaluations:
+        white, black, target = sample[:3]
+        float_predictions.append(
+            forward(weights, bias, output, white, black)[0]
+        )
+        score, raw_white, raw_black = forward_quantized(
+            quantized_weights,
+            quantized_bias,
+            quantized_output,
+            white,
+            black,
+        )
+        quantized_predictions.append(score)
+        targets.append(target)
+        max_abs_accumulator = max(
+            max_abs_accumulator,
+            int(np.max(np.abs(raw_white))),
+            int(np.max(np.abs(raw_black))),
+        )
+
+    float_margins = []
+    quantized_margins = []
+    record_ids = []
+    ranking_flips = 0
+    for index, sample in enumerate(pairs):
         best_white, best_black, alt_white, alt_black, side = sample[:5]
-        best = forward(
+        float_best = forward(
             weights, bias, output, best_white, best_black
         )[0]
-        other = forward(
+        float_other = forward(
             weights, bias, output, alt_white, alt_black
         )[0]
-        correct += side * (best - other) > 0
+        quantized_best = forward_quantized(
+            quantized_weights,
+            quantized_bias,
+            quantized_output,
+            best_white,
+            best_black,
+        )[0]
+        quantized_other = forward_quantized(
+            quantized_weights,
+            quantized_bias,
+            quantized_output,
+            alt_white,
+            alt_black,
+        )[0]
+        float_margin = side * (float_best - float_other)
+        quantized_margin = side * (quantized_best - quantized_other)
+        float_margins.append(float_margin)
+        quantized_margins.append(quantized_margin)
+        metadata = sample[-1] if isinstance(sample[-1], dict) else {}
+        record_ids.append(metadata.get("record_id", f"pair-{index}"))
+        ranking_flips += (float_margin > 0) != (quantized_margin > 0)
+
+    float_regression = _regression_summary(float_predictions, targets)
+    quantized_regression = _regression_summary(quantized_predictions, targets)
+    float_ranking = _ranking_summary(float_margins, record_ids)
+    quantized_ranking = _ranking_summary(quantized_margins, record_ids)
+    prediction_deltas = np.abs(
+        np.asarray(float_predictions) - np.asarray(quantized_predictions)
+    )
     return {
-        "evaluation_mae_cp": float(np.mean(errors)) if errors else None,
-        "tactical_accuracy": correct / len(pairs) if pairs else None,
+        "evaluation_mae_cp": float_regression["mae_cp"],
+        "tactical_accuracy": float_ranking["pairwise_accuracy"],
+        "float": {
+            "evaluations": float_regression,
+            "tactical": float_ranking,
+        },
+        "quantized": {
+            "evaluations": quantized_regression,
+            "tactical": quantized_ranking,
+            "reference_arithmetic": {
+                "input_type": "int8",
+                "bias_type": "int16",
+                "output_type": "int16",
+                "accumulator_type": "int32",
+                "activation_clamp": [0, 127],
+                "division": int(SCALE),
+                "division_rounding": "truncate-toward-zero",
+            },
+            "float_to_quantized_mae_cp": (
+                float(np.mean(prediction_deltas))
+                if len(prediction_deltas)
+                else None
+            ),
+            "float_to_quantized_max_absolute_cp": (
+                float(np.max(prediction_deltas))
+                if len(prediction_deltas)
+                else None
+            ),
+            "tactical_ranking_flips": ranking_flips,
+            "tactical_ranking_flip_fraction": (
+                ranking_flips / len(pairs) if pairs else None
+            ),
+            "maximum_absolute_accumulator": max_abs_accumulator,
+            "int32_accumulator_safe": (
+                max_abs_accumulator <= np.iinfo(np.int32).max
+            ),
+        },
+        "slices": {
+            "evaluations": _slice_regression(
+                evaluations, float_predictions, quantized_predictions
+            ),
+            "tactical": _slice_rankings(
+                pairs, float_margins, quantized_margins, record_ids
+            ),
+        },
     }
 
 
@@ -631,11 +877,10 @@ def enforce_budget(temp_dir, budget_bytes, additional=0):
 
 def write_header(path, weights, bias, output, counts, themes):
     hidden = len(output)
-    values = np.clip(
-        np.rint(weights), -127, 127
-    ).astype(np.int8).reshape(-1)
-    quantized_bias = np.rint(bias).astype(np.int16)
-    quantized_output = np.rint(output).astype(np.int16)
+    quantized_weights, quantized_bias, quantized_output = quantize_model(
+        weights, bias, output
+    )
+    values = quantized_weights.reshape(-1)
     estimated = values.size * 5 + hidden * 24 + 1024
     with path.open("w", encoding="utf-8", newline="\n") as out:
         out.write(
@@ -872,7 +1117,17 @@ def main():
         metrics, weights, bias, output = train_candidate(
             hidden, dataset, args.epochs
         )
-        print(f"validation {hidden}: {json.dumps(metrics, sort_keys=True)}")
+        print(
+            f"validation {hidden}: "
+            f"float MAE={metrics['float']['evaluations']['mae_cp']:.3f} cp, "
+            f"quantized MAE="
+            f"{metrics['quantized']['evaluations']['mae_cp']:.3f} cp, "
+            f"float tactical="
+            f"{metrics['float']['tactical']['pairwise_accuracy']:.1%}, "
+            f"quantized tactical="
+            f"{metrics['quantized']['tactical']['pairwise_accuracy']:.1%}, "
+            f"ranking flips={metrics['quantized']['tactical_ranking_flips']}"
+        )
         candidates.append((model_quality(metrics), hidden, metrics,
                            weights, bias, output))
 
