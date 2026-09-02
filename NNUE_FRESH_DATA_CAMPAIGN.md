@@ -172,6 +172,16 @@ confirmed 20,096 examined positions and 14,022 accepted, continuing the existing
 checkpoint. All 20 lightweight integrity tests pass (8 data, 12 campaign).
 This is a restart checkpoint, not a completed training or strength result.
 
+Additional behavioral tests now exercise actual row filtering and test sealing,
+not just function signatures. A separate coverage reporter reads target values
+only from training groups and tolerates an in-progress final JSONL line. It
+reports phase coverage, game-group overlap, score/depth distributions, rejection
+reasons, and the larger-budget teacher audits without influencing selection.
+Run `scripts/report_fresh_nnue_coverage.py` during labeling; use `--freeze` only
+after `labels-complete.json` exists. The latter requires its exact label hash
+before retaining `tmp/nnue-fresh-data/coverage.json`. All 25 lightweight tests
+pass (8 data, 14 campaign, 3 coverage). Full engine gates are still separate.
+
 All candidate networks and build directories remain under
 `tmp/nnue-fresh-data/candidates/`. CMake's optional experimental include root
 avoids swapping the production header. The default build remains unchanged.

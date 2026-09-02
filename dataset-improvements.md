@@ -1804,3 +1804,50 @@ The preferred candidate is the smallest, safest, reproducible network that:
 
 Until that evidence exists, the current 64-unit network remains the correct
 production baseline.
+
+## 37. Fresh-source campaign, September 2, 2026
+
+The user authorized a separate dataset campaign after the D-series and search
+recovery experiments. This does not change their recorded results or claim
+that another dataset necessarily fixes Eloi. The active implementation and
+continuation instructions are in `NNUE_FRESH_DATA_CAMPAIGN.md`; the frozen
+experiment is `data/nnue_fresh_data_protocol.json`.
+
+The new source is the **complete January 2025 Lichess Elite archive**, traversed
+before deterministic game sampling, rather than another prefix of the old
+evaluation export. It contained 289,776 eligible games; 32,000 were selected by
+hash. A phase-aware sample retained 150,690 candidate positions, with positions
+from each game assigned together to training, validation, or test. These are
+unlabeled candidate counts, not the size of the final accepted training set.
+
+The user explicitly authorized Stockfish **only for offline training labels**.
+The isolated teacher is Stockfish 17.1 with fixed node budgets, fresh hash per
+analysis, White-perspective scores, and larger-budget spot checks. It supplies
+no code, library, or playing backend to Eloi. Human game moves are not treated
+as automatically optimal. Mate targets, unstable scores, and capture/promotion
+best moves are excluded from this quiet-position evaluation experiment.
+
+The target is 40,000 accepted positions across all three partitions, not
+40,000 training positions. The recipes preserve the 64-unit architecture and
+production search: fresh evaluations alone (A), then a legacy training-puzzle
+stage (B), then evaluation recalibration (C), plus two conservative parameter
+blends. These are candidate IDs inside the fresh-data campaign, not published
+versions or replacements for the historical B0/D1 labels.
+
+An input-identity audit found two piece placements crossing train/test only
+because omitted FEN fields differed. The loader now excludes all such
+placements, and puzzle isolation uses the same piece-placement identity.
+Raw input and label files remain intact. No test score informed this repair.
+
+Candidate headers and binaries remain isolated in ignored scratch. Production
+weights stay byte-identical. Lower validation error only establishes one
+eligibility condition: every deterministic engine gate, an independent
+confirmation pilot, reproducibility/performance checks, and the unchanged
+300-game/165-point final are still required before claiming the campaign's
+strength target. No installation, packaging, publication, push, or deletion
+is authorized for this campaign. The 8 GB training cap is nested inside the
+10 GB temporary cap, with the existing stricter 7 GiB trainer cap retained.
+
+At this documentation checkpoint, labeling is in progress. There is no trained
+candidate result or fresh-campaign match score yet. Read the campaign log and
+hash-bound result artifacts for later outcomes, not this progress snapshot.

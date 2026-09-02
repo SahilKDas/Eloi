@@ -6,6 +6,8 @@ import numpy as np
 import subprocess
 import time
 import datetime as dt
+import io
+import json
 import continue_fresh_nnue_campaign as continuation
 
 
@@ -57,6 +59,40 @@ class CampaignTests(unittest.TestCase):
         board = campaign.chess.Board(a)
         board.push_uci('e2e4')
         self.assertNotEqual(campaign.learning_key(a), campaign.learning_key(board.fen()))
+
+    def test_conflicts_exclude_all_partitions_without_reading_targets(self):
+        placement = campaign.chess.STARTING_FEN.split()[0]
+        rows = [{'fen': placement + ' w KQkq - 0 1', 'partition': 'train'},
+                {'fen': placement + ' b - - 0 1', 'partition': 'test'}]
+        stream = io.StringIO(''.join(json.dumps(row) + '\n' for row in rows))
+        with mock.patch('pathlib.Path.open', return_value=stream), \
+             mock.patch.object(campaign.data, 'sha', return_value='sample'), \
+             mock.patch.object(campaign.data, 'immutable_json') as record:
+            self.assertEqual(campaign.learning_conflicts(), {placement})
+            report = record.call_args.args[1]
+            self.assertEqual(report['affected_raw_rows'], 2)
+            self.assertEqual(report['conflicting_piece_placements'], [placement])
+
+    def test_loader_actually_filters_conflicts_and_seals_test(self):
+        start = campaign.chess.STARTING_FEN
+        rows = []
+        for index, (partition, move) in enumerate([
+                ('train', None), ('validation', None), ('train', 'e2e4'),
+                ('validation', 'd2d4'), ('test', 'g1f3')]):
+            board = campaign.chess.Board(start)
+            if move:
+                board.push_uci(move)
+            rows.append({'id': str(index), 'fen': board.fen(), 'partition': partition,
+                         'accepted': True, 'high': {'cp': 42}, 'phase': 'opening'})
+        payload = ''.join(json.dumps(row) + '\n' for row in rows)
+        for open_test in (False, True):
+            with mock.patch('pathlib.Path.open', return_value=io.StringIO(payload)), \
+                 mock.patch.object(campaign, 'learning_conflicts', return_value={start.split()[0]}):
+                result = campaign.load_evaluations(include_test=open_test)
+            self.assertEqual(len(result['train']), 1)
+            self.assertEqual(len(result['validation']), 1)
+            self.assertEqual(len(result['test']), int(open_test))
+            self.assertEqual(result['train'][0][-1]['record_id'], '2')
 
     def test_export_roundtrip_and_cpp_syntax(self):
         model = campaign.trainer.load_quantized_header(campaign.ROOT / 'include/eloi/nnue_weights.hpp')
