@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "kind": "ui-only runtime adapter and explicit interruption record",
+  "utc": "2026-09-02T23:07:37.5324706Z",
+  "original_protocol_sha256": "75B94D5B438D7084A5B05C5136A59C8CAB949F3C7D8213CF7BEE8A85DDA93889",
+  "original_runner_sha256": "AF873236FBC1BD55F4B6E4177EBFC3BFB99354A44092877CC0D280D1B1E5B0E8",
+  "adapter_path": "scripts/abc100_gui_fix.py",
+  "adapter_sha256": "19977401A5BF1C6AE5F71A45DE764EEB878748A8BCEA576CFA8275B0D4784F6A",
+  "reason": "HTTP state serialization used board.legal_moves() instead of the python-chess board.legal_moves property. The adapter overrides only GUI state serialization.",
+  "unchanged": ["original protocol", "original runner bytes", "engine binaries", "opening schedule", "game allocations", "pass threshold", "time and resource settings", "move selection", "adjudication"],
+  "completed_games_retained": 8,
+  "interrupted_game": 9,
+  "interrupted_candidate": "B",
+  "saved_moves_resumed": 27,
+  "completed_games_replayed": 0,
+  "search_cache_continuity": false,
+  "original_logs_retained": ["tmp/abc100/terminal.log", "tmp/abc100/terminal.err"],
+  "continuation_logs": ["tmp/abc100/terminal-2.log", "tmp/abc100/terminal-2.err"],
+  "tests": "12 in-memory tests passed, including the corrected GUI state serializer",
+  "release_authorized": false
+}
