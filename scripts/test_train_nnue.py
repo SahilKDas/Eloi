@@ -295,6 +295,7 @@ class TrainNnueTests(unittest.TestCase):
                     "--epochs", "1",
                     "--architectures", "64",
                     "--report-only",
+                    "--retain-report-candidate",
                 ],
                 cwd=ROOT,
                 check=True,
@@ -310,6 +311,16 @@ class TrainNnueTests(unittest.TestCase):
             self.assertIsNone(report["counts"]["test_evaluations"])
             self.assertIsNone(report["counts"]["test_pairs"])
             self.assertFalse(report["dataset"]["test_opened"])
+            retained = run_root / "work" / "retained"
+            self.assertTrue((retained / "nnue_weights.hpp").is_file())
+            self.assertTrue((retained / "nnue_architecture.hpp").is_file())
+            self.assertEqual(
+                hashlib.sha256(
+                    (retained / "nnue_weights.hpp").read_bytes()
+                ).hexdigest().upper(),
+                report["retained_candidate"]["weights_sha256"],
+            )
+            assert_header_compiles(root, retained / "nnue_weights.hpp")
             self.assertEqual(
                 report["candidates"][0]["float"]["evaluations"]["count"], 1
             )

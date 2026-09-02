@@ -1037,6 +1037,14 @@ def main():
             "the configured weight or architecture outputs"
         ),
     )
+    parser.add_argument(
+        "--retain-report-candidate",
+        action="store_true",
+        help=(
+            "in report-only mode, retain the selected weights and architecture "
+            "under TEMP_DIR/retained for later validation"
+        ),
+    )
     args = parser.parse_args()
 
     if not 0 < args.max_temp_gb <= 7.0:
@@ -1057,6 +1065,8 @@ def main():
         parser.error("--canonical-manifest must name an existing manifest")
     if args.open_test and args.canonical_manifest is None:
         parser.error("--open-test requires --canonical-manifest")
+    if args.retain_report_candidate and not args.report_only:
+        parser.error("--retain-report-candidate requires --report-only")
     if args.canonical_manifest is None and (
         args.confidence_policy != "none" or args.negative_mode != "random"
     ):
@@ -1178,6 +1188,30 @@ def main():
     write_architecture(staged_architecture, hidden)
     enforce_budget(args.temp_dir, budget_bytes)
 
+    retained_candidate = None
+    if args.retain_report_candidate:
+        retained = args.temp_dir / "retained"
+        if retained.exists():
+            shutil.rmtree(retained)
+        retained.mkdir(parents=True)
+        retained_weights = retained / "nnue_weights.hpp"
+        retained_architecture = retained / "nnue_architecture.hpp"
+        enforce_budget(
+            args.temp_dir,
+            budget_bytes,
+            additional=staged_weights.stat().st_size
+            + staged_architecture.stat().st_size,
+        )
+        shutil.copy2(staged_weights, retained_weights)
+        shutil.copy2(staged_architecture, retained_architecture)
+        enforce_budget(args.temp_dir, budget_bytes)
+        retained_candidate = {
+            "weights_path": retained_weights.as_posix(),
+            "weights_sha256": file_sha256(retained_weights),
+            "architecture_path": retained_architecture.as_posix(),
+            "architecture_sha256": file_sha256(retained_architecture),
+        }
+
     provenance = {
         "schema": 1,
         "mode": "comparison-report-only" if args.report_only else "selected-output",
@@ -1217,6 +1251,7 @@ def main():
         "selected_hidden": hidden,
         "selected_validation": selected_metrics,
         "selected_weights_sha256": file_sha256(staged_weights),
+        "retained_candidate": retained_candidate,
     }
     staged_provenance = stage / "nnue_provenance.json"
     staged_provenance.write_text(
