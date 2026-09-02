@@ -1578,6 +1578,13 @@ improved by only 2.54 cp, below the frozen 5 cp calibration gate, while median
 error regressed by 6 cp. Evidence is tracked in data/nnue_d2_report.json. D1
 remains the provisional winner while D3 tests bounded confidence weights.
 
+**D3 result (2026-09-01): rejected.** Adding bounded 0.5/1.0/1.5 confidence
+weights to D2 improved hard-negative pairwise accuracy by 9.40 percentage
+points versus production, but improved quantized MAE by only 1.79 cp and
+regressed median error by 11 cp. Evidence is tracked in
+data/nnue_d3_report.json. D1 is the frozen validation winner; D2 and D3 do not
+advance. The test partition has not yet been opened.
+
 ### Stage 6: engine correctness and speed gates
 
 - compile candidate separately;
