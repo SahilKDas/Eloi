@@ -42,6 +42,9 @@ class Dataset:
     train_pairs: list
     validation_pairs: list
     themes: set[str]
+    test_evaluations: list | None = None
+    test_pairs: list | None = None
+    metadata: dict | None = None
 
 
 def orient(square, side):
@@ -90,6 +93,291 @@ def reservoir_add(items, item, seen, limit, rng):
     replacement = rng.randrange(seen)
     if replacement < limit:
         items[replacement] = item
+
+
+def deterministic_choice(items, *identity_parts):
+    if not items:
+        raise ValueError("cannot select from an empty sequence")
+    identity = "|".join(str(part) for part in identity_parts)
+    digest = hashlib.sha256(identity.encode("utf-8")).digest()
+    return items[int.from_bytes(digest[:8], "big") % len(items)]
+
+
+def bounded_by_record_identity(items, limit):
+    if limit <= 0 or len(items) <= limit:
+        return items
+    return sorted(
+        items,
+        key=lambda item: hashlib.sha256(
+            f"{SEED}|canonical-limit|{item[-1]['record_id']}".encode("utf-8")
+        ).digest(),
+    )[:limit]
+
+
+def verify_canonical_manifest(manifest_path, evaluations_path, puzzles_path):
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("status") != "complete":
+        raise RuntimeError("canonical NNUE manifest is not complete")
+    if manifest.get("production_outputs_written") is not False:
+        raise RuntimeError("canonical NNUE input manifest is not analysis-only")
+    for name, path in (
+        ("canonical_evaluations", evaluations_path),
+        ("canonical_puzzles", puzzles_path),
+    ):
+        expected = manifest.get("outputs", {}).get(name, {})
+        actual_size = path.stat().st_size
+        actual_hash = file_sha256(path)
+        if actual_size != expected.get("bytes"):
+            raise RuntimeError(
+                f"{name} size mismatch: {actual_size} != {expected.get('bytes')}"
+            )
+        if actual_hash != expected.get("sha256"):
+            raise RuntimeError(
+                f"{name} SHA-256 mismatch: {actual_hash} != "
+                f"{expected.get('sha256')}"
+            )
+    return manifest
+
+
+def _register_group_partition(group_partitions, row):
+    group_id = row["group_id"]
+    partition = row["partition"]
+    previous = group_partitions.setdefault(group_id, partition)
+    if previous != partition:
+        raise RuntimeError(
+            f"canonical group {group_id} crosses {previous} and {partition}"
+        )
+
+
+def _canonical_metadata(row, fields):
+    metadata = {
+        "record_id": row["record_id"],
+        "partition": row["partition"],
+        "group_id": row["group_id"],
+    }
+    for field in fields:
+        if field in row:
+            metadata[field] = row[field]
+    return metadata
+
+
+def load_canonical_evaluations(
+    path,
+    limit,
+    confidence_policy,
+    open_test,
+    group_partitions,
+):
+    partitions = {"train": [], "validation": [], "test": []}
+    source_counts = {"train": 0, "validation": 0, "test": 0}
+    weights = {"low": 0.5, "medium": 1.0, "high": 1.5}
+    with path.open(encoding="utf-8") as stream:
+        for line_number, line in enumerate(stream, 1):
+            try:
+                row = json.loads(line)
+                if row.get("schema") != 2:
+                    raise ValueError("unsupported canonical evaluation schema")
+                partition = row["partition"]
+                if partition not in partitions:
+                    raise ValueError(f"invalid partition {partition}")
+                _register_group_partition(group_partitions, row)
+                source_counts[partition] += 1
+                if partition == "test" and not open_test:
+                    continue
+                board = chess.Board(row["fen"])
+                weight = (
+                    weights[row["confidence_bucket"]]
+                    if confidence_policy == "bucket"
+                    else 1.0
+                )
+                metadata = _canonical_metadata(
+                    row,
+                    (
+                        "confidence_bucket",
+                        "phase_bucket",
+                        "score_bucket",
+                        "score_type",
+                        "side_to_move",
+                        "tactical_surface",
+                    ),
+                )
+                if row["score_type"] == "mate":
+                    mate_distance = row.get("mate_distance_white")
+                    if not isinstance(mate_distance, int) or mate_distance == 0:
+                        raise ValueError("mate record lacks signed mate distance")
+                    target_score = 1500.0 if mate_distance > 0 else -1500.0
+                else:
+                    target_score = float(row["score_white_cp"])
+                partitions[partition].append((
+                    features(board, chess.WHITE),
+                    features(board, chess.BLACK),
+                    target_score,
+                    weight,
+                    metadata,
+                ))
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                json.JSONDecodeError,
+            ) as error:
+                raise RuntimeError(
+                    f"invalid canonical evaluation row {line_number}: {error}"
+                ) from error
+    for partition in partitions:
+        partitions[partition] = bounded_by_record_identity(
+            partitions[partition], limit
+        )
+    return partitions, source_counts
+
+
+def load_canonical_pairs(
+    path,
+    limit,
+    negative_mode,
+    open_test,
+    group_partitions,
+):
+    partitions = {"train": [], "validation": [], "test": []}
+    source_counts = {"train": 0, "validation": 0, "test": 0}
+    themes = set()
+    puzzle_records = {"train": [], "validation": [], "test": []}
+    with path.open(encoding="utf-8") as stream:
+        for line_number, line in enumerate(stream, 1):
+            try:
+                row = json.loads(line)
+                if row.get("schema") != 2:
+                    raise ValueError("unsupported canonical puzzle schema")
+                partition = row["partition"]
+                if partition not in partitions:
+                    raise ValueError(f"invalid partition {partition}")
+                _register_group_partition(group_partitions, row)
+                source_counts[partition] += 1
+                themes.update(row.get("themes", []))
+                if partition == "test" and not open_test:
+                    continue
+                board = chess.Board(row["decision_fen"])
+                best = chess.Move.from_uci(row["best_move"])
+                if best not in board.legal_moves:
+                    raise ValueError("stored best move is illegal")
+                alternatives = []
+                if negative_mode == "hard":
+                    for alternative in row.get("hard_alternatives", []):
+                        move = chess.Move.from_uci(alternative["move"])
+                        if move in board.legal_moves and move != best:
+                            alternatives.append((move, alternative["tier"]))
+                else:
+                    legal = sorted(
+                        (move for move in board.legal_moves if move != best),
+                        key=lambda move: move.uci(),
+                    )
+                    move = deterministic_choice(
+                        legal, SEED, "canonical-random-negative", row["record_id"]
+                    )
+                    alternatives.append((move, "random"))
+                if not alternatives:
+                    raise ValueError("no legal negative alternative")
+                puzzle_records[partition].append((row, board, best, alternatives))
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                json.JSONDecodeError,
+            ) as error:
+                raise RuntimeError(
+                    f"invalid canonical puzzle row {line_number}: {error}"
+                ) from error
+
+    for partition, records in puzzle_records.items():
+        selected = bounded_by_record_identity(
+            [
+                (row, board, best, alternatives, {"record_id": row["record_id"]})
+                for row, board, best, alternatives in records
+            ],
+            limit,
+        )
+        for row, board, best, alternatives, _ in selected:
+            side = 1 if board.turn == chess.WHITE else -1
+            best_board = board.copy(stack=False)
+            best_board.push(best)
+            best_white = features(best_board, chess.WHITE)
+            best_black = features(best_board, chess.BLACK)
+            for alternative, tier in alternatives:
+                alt_board = board.copy(stack=False)
+                alt_board.push(alternative)
+                metadata = _canonical_metadata(
+                    row,
+                    (
+                        "best_move_class",
+                        "phase_bucket",
+                        "rating_bucket",
+                        "theme_family",
+                    ),
+                )
+                metadata["negative_tier"] = tier
+                metadata["alternative_move"] = alternative.uci()
+                partitions[partition].append((
+                    best_white,
+                    best_black,
+                    features(alt_board, chess.WHITE),
+                    features(alt_board, chess.BLACK),
+                    side,
+                    1.0,
+                    metadata,
+                ))
+    return partitions, themes, source_counts
+
+
+def load_canonical_dataset(
+    evaluations_path,
+    puzzles_path,
+    manifest_path,
+    eval_limit,
+    puzzle_limit,
+    confidence_policy,
+    negative_mode,
+    open_test,
+):
+    manifest = verify_canonical_manifest(
+        manifest_path, evaluations_path, puzzles_path
+    )
+    group_partitions = {}
+    evaluations, evaluation_source_counts = load_canonical_evaluations(
+        evaluations_path,
+        eval_limit,
+        confidence_policy,
+        open_test,
+        group_partitions,
+    )
+    pairs, themes, puzzle_source_counts = load_canonical_pairs(
+        puzzles_path,
+        puzzle_limit,
+        negative_mode,
+        open_test,
+        group_partitions,
+    )
+    return Dataset(
+        train_evaluations=evaluations["train"],
+        validation_evaluations=evaluations["validation"],
+        train_pairs=pairs["train"],
+        validation_pairs=pairs["validation"],
+        themes=themes,
+        test_evaluations=evaluations["test"] if open_test else None,
+        test_pairs=pairs["test"] if open_test else None,
+        metadata={
+            "format": "canonical-schema-2",
+            "sample_id": manifest["sample_id"],
+            "manifest_sha256": file_sha256(manifest_path),
+            "source_partition_counts": {
+                "evaluations": evaluation_source_counts,
+                "puzzles": puzzle_source_counts,
+            },
+            "group_count": len(group_partitions),
+            "confidence_policy": confidence_policy,
+            "negative_mode": negative_mode,
+            "test_opened": open_test,
+        },
+    )
 
 
 def initialize(hidden):
@@ -222,11 +510,13 @@ def train_evaluations(weights, bias, output, samples, epochs=2):
     for epoch in range(epochs):
         rng.shuffle(samples)
         absolute_error = 0.0
-        for white, black, target in samples:
+        for sample in samples:
+            white, black, target = sample[:3]
+            sample_weight = sample[3] if len(sample) > 3 else 1.0
             score, aw, ab = forward(
                 weights, bias, output, white, black
             )
-            error = float(np.clip(target - score, -200, 200))
+            error = float(np.clip(target - score, -200, 200)) * sample_weight
             absolute_error += abs(target - score)
             old_output = output.copy()
             output += 0.0000015 * error * (aw - ab)
@@ -246,7 +536,9 @@ def train_pairs(weights, bias, output, pairs, epochs):
         rng.shuffle(pairs)
         correct = 0
         rate = 0.0007 / (1 + epoch * 0.4)
-        for best_white, best_black, alt_white, alt_black, side in pairs:
+        for sample in pairs:
+            best_white, best_black, alt_white, alt_black, side = sample[:5]
+            sample_weight = sample[5] if len(sample) > 5 else 1.0
             best, baw, bab = forward(
                 weights, bias, output, best_white, best_black
             )
@@ -258,8 +550,13 @@ def train_pairs(weights, bias, output, pairs, epochs):
             if difference >= 35:
                 continue
             old_output = output.copy()
-            output += rate * side * ((baw - bab) - (aaw - aab))
-            gradient = rate * side * old_output / SCALE
+            output += (
+                rate
+                * sample_weight
+                * side
+                * ((baw - bab) - (aaw - aab))
+            )
+            gradient = rate * sample_weight * side * old_output / SCALE
             np.add.at(
                 weights,
                 best_white,
@@ -287,11 +584,12 @@ def train_pairs(weights, bias, output, pairs, epochs):
 
 def validation_metrics(weights, bias, output, evaluations, pairs):
     errors = [
-        abs(forward(weights, bias, output, white, black)[0] - target)
-        for white, black, target in evaluations
+        abs(forward(weights, bias, output, sample[0], sample[1])[0] - sample[2])
+        for sample in evaluations
     ]
     correct = 0
-    for best_white, best_black, alt_white, alt_black, side in pairs:
+    for sample in pairs:
+        best_white, best_black, alt_white, alt_black, side = sample[:5]
         best = forward(
             weights, bias, output, best_white, best_black
         )[0]
@@ -464,6 +762,29 @@ def main():
     )
     parser.add_argument("--validation-fraction", type=float, default=0.1)
     parser.add_argument(
+        "--canonical-manifest",
+        type=pathlib.Path,
+        help=(
+            "consume schema-2 canonical JSONL inputs using their stored group "
+            "partitions and verify them against this manifest"
+        ),
+    )
+    parser.add_argument(
+        "--confidence-policy",
+        choices=("none", "bucket"),
+        default="none",
+    )
+    parser.add_argument(
+        "--negative-mode",
+        choices=("random", "hard"),
+        default="random",
+    )
+    parser.add_argument(
+        "--open-test",
+        action="store_true",
+        help="explicitly load the frozen canonical test partition",
+    )
+    parser.add_argument(
         "--report-only",
         action="store_true",
         help=(
@@ -479,35 +800,70 @@ def main():
         parser.error("--validation-fraction must be between 0 and 0.5")
     if any(hidden not in (64, 128) for hidden in args.architectures):
         parser.error("--architectures accepts only 64 and 128")
-    if args.report_only and len(set(args.architectures)) < 2:
+    if (
+        args.report_only
+        and args.canonical_manifest is None
+        and len(set(args.architectures)) < 2
+    ):
         parser.error("--report-only requires at least two architectures")
     if not args.puzzles.is_file() or not args.evaluations.is_file():
         parser.error("both streamed NNUE input files must exist")
+    if args.canonical_manifest is not None and not args.canonical_manifest.is_file():
+        parser.error("--canonical-manifest must name an existing manifest")
+    if args.open_test and args.canonical_manifest is None:
+        parser.error("--open-test requires --canonical-manifest")
+    if args.canonical_manifest is None and (
+        args.confidence_policy != "none" or args.negative_mode != "random"
+    ):
+        parser.error("confidence and negative policies require canonical inputs")
 
     budget_bytes = int(args.max_temp_gb * 1024**3)
     args.temp_dir.mkdir(parents=True, exist_ok=True)
     enforce_budget(args.temp_dir, budget_bytes)
 
-    train_pairs_data, validation_pairs, themes = load_pairs(
-        args.puzzles, args.limit, args.validation_fraction
-    )
-    train_evals, validation_evals = load_evaluations(
-        args.evaluations, args.eval_limit, args.validation_fraction
-    )
-    if not train_pairs_data or not train_evals:
+    if args.canonical_manifest is not None:
+        dataset = load_canonical_dataset(
+            args.evaluations,
+            args.puzzles,
+            args.canonical_manifest,
+            args.eval_limit,
+            args.limit,
+            args.confidence_policy,
+            args.negative_mode,
+            args.open_test,
+        )
+    else:
+        train_pairs_data, validation_pairs, themes = load_pairs(
+            args.puzzles, args.limit, args.validation_fraction
+        )
+        train_evals, validation_evals = load_evaluations(
+            args.evaluations, args.eval_limit, args.validation_fraction
+        )
+        dataset = Dataset(
+            train_evaluations=train_evals,
+            validation_evaluations=validation_evals,
+            train_pairs=train_pairs_data,
+            validation_pairs=validation_pairs,
+            themes=themes,
+            metadata={"format": "legacy-streamed"},
+        )
+    if not dataset.train_pairs or not dataset.train_evaluations:
         raise RuntimeError("training inputs yielded no usable Standard positions")
-    dataset = Dataset(
-        train_evals,
-        validation_evals,
-        train_pairs_data,
-        validation_pairs,
-        themes,
-    )
     counts = {
         "train_evaluations": len(dataset.train_evaluations),
         "validation_evaluations": len(dataset.validation_evaluations),
         "train_pairs": len(dataset.train_pairs),
         "validation_pairs": len(dataset.validation_pairs),
+        "test_evaluations": (
+            len(dataset.test_evaluations)
+            if dataset.test_evaluations is not None
+            else None
+        ),
+        "test_pairs": (
+            len(dataset.test_pairs)
+            if dataset.test_pairs is not None
+            else None
+        ),
     }
 
     candidates = []
@@ -596,8 +952,12 @@ def main():
             "puzzle_limit_per_split": args.limit,
             "evaluation_limit_per_split": args.eval_limit,
             "validation_fraction": args.validation_fraction,
+            "confidence_policy": args.confidence_policy,
+            "negative_mode": args.negative_mode,
+            "test_opened": args.open_test,
         },
         "counts": counts,
+        "dataset": dataset.metadata,
         "candidates": candidate_documents,
         "selected_hidden": hidden,
         "selected_validation": selected_metrics,

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import os
 import pathlib
@@ -77,6 +78,89 @@ def write_fixtures(root: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
             }
             stream.write(json.dumps(row, sort_keys=True) + "\n")
     return puzzles, evaluations
+
+
+def write_canonical_fixtures(
+    root: pathlib.Path,
+) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+    evaluations = root / "canonical-evaluations.jsonl"
+    puzzles = root / "canonical-puzzles.jsonl"
+    partitions = ("train", "train", "validation", "test")
+    with evaluations.open("w", encoding="utf-8", newline="\n") as stream:
+        for index, partition in enumerate(partitions):
+            row = {
+                "schema": 2,
+                "record_id": f"evaluation:fixture-{index}",
+                "group_id": f"group:eval-{index}",
+                "partition": partition,
+                "fen": (
+                    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/"
+                    "RNBQKBNR w KQkq - 0 1"
+                ),
+                "score_white_cp": None if index == 1 else (index - 2) * 12,
+                "mate_distance_white": -3 if index == 1 else None,
+                "confidence_bucket": ("low", "medium", "high", "high")[index],
+                "phase_bucket": "opening",
+                "score_bucket": "0-25",
+                "score_type": "mate" if index == 1 else "cp",
+                "side_to_move": "white",
+                "tactical_surface": "quiet",
+            }
+            stream.write(json.dumps(row, sort_keys=True) + "\n")
+    with puzzles.open("w", encoding="utf-8", newline="\n") as stream:
+        for index, partition in enumerate(partitions):
+            row = {
+                "schema": 2,
+                "record_id": f"puzzle:fixture-{index}",
+                "puzzle_id": f"fixture-{index}",
+                "group_id": f"group:puzzle-{index}",
+                "partition": partition,
+                "decision_fen": (
+                    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/"
+                    "RNBQKBNR b KQkq - 0 1"
+                ),
+                "best_move": "e7e5",
+                "hard_alternatives": [
+                    {"move": "c7c5", "tier": "forcing"},
+                    {"move": "g8f6", "tier": "quiet"},
+                ],
+                "themes": ["opening", "fixture"],
+                "best_move_class": "quiet",
+                "phase_bucket": "opening",
+                "rating_bucket": "1000-1499",
+                "theme_family": "other",
+            }
+            stream.write(json.dumps(row, sort_keys=True) + "\n")
+    manifest = root / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "status": "complete",
+                "production_outputs_written": False,
+                "sample_id": "fixture-sample",
+                "outputs": {
+                    "canonical_evaluations": {
+                        "bytes": evaluations.stat().st_size,
+                        "sha256": hashlib.sha256(
+                            evaluations.read_bytes()
+                        ).hexdigest().upper(),
+                    },
+                    "canonical_puzzles": {
+                        "bytes": puzzles.stat().st_size,
+                        "sha256": hashlib.sha256(
+                            puzzles.read_bytes()
+                        ).hexdigest().upper(),
+                    },
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    return puzzles, evaluations, manifest
 
 
 def run_trainer(
@@ -177,6 +261,71 @@ class TrainNnueTests(unittest.TestCase):
                 )
                 self.assertTrue(output.is_file())
                 assert_header_compiles(root, output)
+
+    def test_canonical_inputs_honor_frozen_partitions_and_seal_test(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="eloi-nnue-canonical-") as temporary:
+            root = pathlib.Path(temporary)
+            puzzles, evaluations, manifest = write_canonical_fixtures(root)
+            run_root = root / "canonical"
+            run_root.mkdir()
+            provenance = run_root / "provenance.json"
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(TRAINER),
+                    "--puzzles", str(puzzles),
+                    "--evaluations", str(evaluations),
+                    "--canonical-manifest", str(manifest),
+                    "--provenance", str(provenance),
+                    "--output", str(run_root / "weights-sentinel.hpp"),
+                    "--architecture-output", str(run_root / "arch-sentinel.hpp"),
+                    "--temp-dir", str(run_root / "work"),
+                    "--max-temp-gb", "0.1",
+                    "--limit", "8",
+                    "--eval-limit", "8",
+                    "--epochs", "1",
+                    "--architectures", "64",
+                    "--report-only",
+                ],
+                cwd=ROOT,
+                check=True,
+                timeout=180,
+            )
+            report = json.loads(provenance.read_text(encoding="utf-8"))
+            self.assertEqual(report["dataset"]["format"], "canonical-schema-2")
+            self.assertEqual(report["dataset"]["sample_id"], "fixture-sample")
+            self.assertEqual(report["counts"]["train_evaluations"], 2)
+            self.assertEqual(report["counts"]["validation_evaluations"], 1)
+            self.assertEqual(report["counts"]["train_pairs"], 2)
+            self.assertEqual(report["counts"]["validation_pairs"], 1)
+            self.assertIsNone(report["counts"]["test_evaluations"])
+            self.assertIsNone(report["counts"]["test_pairs"])
+            self.assertFalse(report["dataset"]["test_opened"])
+
+    def test_canonical_manifest_hash_mismatch_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="eloi-nnue-manifest-") as temporary:
+            root = pathlib.Path(temporary)
+            puzzles, evaluations, manifest = write_canonical_fixtures(root)
+            evaluations.write_text(
+                evaluations.read_text(encoding="utf-8") + "{}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(TRAINER),
+                    "--puzzles", str(puzzles),
+                    "--evaluations", str(evaluations),
+                    "--canonical-manifest", str(manifest),
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("size mismatch", result.stderr)
 
 
 if __name__ == "__main__":
