@@ -1,0 +1,58 @@
+{
+  "baseline": "B0",
+  "counts": {
+    "train_evaluations": 12000,
+    "train_pairs": 12000,
+    "validation_evaluations": 1958,
+    "validation_pairs": 1963
+  },
+  "environment": {
+    "numpy_version": "2.4.4",
+    "python_chess_version": "1.11.2",
+    "python_implementation": "CPython",
+    "python_version": "3.11.9"
+  },
+  "exact_production_reproduction": true,
+  "inputs": {
+    "evaluations_sha256": "48FF13470E057235714A6EB485475597109BFF8B39A2581DCCC4F2CBA4E193B2",
+    "puzzles_sha256": "C76047D88F8785EE485BDA1CB0DECF40D61B894BF54F472BE42484E3C686449D"
+  },
+  "metrics": {
+    "float": {
+      "evaluation_mae_cp": 470.8468522065291,
+      "evaluation_median_absolute_error_cp": 202.16900634765625,
+      "evaluation_rmse_cp": 787.4519331032827,
+      "sign_accuracy_outside_25cp": 0.49330357142857145,
+      "tactical_pairwise_accuracy": 0.8064187468160978,
+      "tactical_mean_margin_cp": 159.7983500341706
+    },
+    "quantized": {
+      "evaluation_mae_cp": 500.85903983656794,
+      "evaluation_median_absolute_error_cp": 268.5,
+      "evaluation_rmse_cp": 792.0837003470433,
+      "float_to_quantized_mae_cp": 133.1770136641578,
+      "float_to_quantized_max_absolute_cp": 696.9479370117188,
+      "int32_accumulator_safe": true,
+      "maximum_absolute_accumulator": 72,
+      "sign_accuracy_outside_25cp": 0.47172619047619047,
+      "tactical_pairwise_accuracy": 0.6316861946001019,
+      "tactical_mean_margin_cp": 142.57208354559347,
+      "tactical_ranking_flip_fraction": 0.23076923076923078,
+      "tactical_ranking_flips": 453
+    }
+  },
+  "parameters": {
+    "architecture": 64,
+    "epochs": 3,
+    "evaluation_limit_per_split": 12000,
+    "puzzle_limit_per_split": 12000,
+    "seed": 57601,
+    "validation_fraction": 0.1
+  },
+  "production_architecture_sha256": "CADABDEC8CBB9194AF83E5DD8F8E4084BBC3A0FB0F78BAF35FC9D509D23E2D2B",
+  "production_weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E",
+  "temporary_bytes_after_run": 1212135,
+  "test_partition": "not available in legacy B0 inputs",
+  "trainer_commit": "561b6d9f",
+  "validation_slices": "not available because legacy rows do not carry canonical metadata"
+}

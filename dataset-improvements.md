@@ -1494,6 +1494,13 @@ Dataset code requires its own automated tests.
 
 Exit criterion: current baseline is reproducible and fully identified.
 
+**Completed 2026-09-01.** B0 reproduced the production 64-unit weights and
+architecture byte-for-byte from the pinned 12,000/12,000 inputs. Counts,
+environment versions, historical float metrics, exact hashes, and newly
+measured quantized metrics are tracked in data/nnue_b0_reproduction.json.
+The integer reference revealed a 30.01 cp MAE increase and 453 tactical ranking
+flips versus the float parameters; this is now the guardrail D1 must beat.
+
 ### Stage 1: build analysis-only sampler
 
 - add canonical schemas;
@@ -1691,7 +1698,7 @@ These decisions should be made from a profile run, not guessed:
 
 ### Training
 
-- [ ] Reproduce B0 first.
+- [x] Reproduce B0 first, including exact production header hashes.
 - [ ] Train 64-unit candidate report-only.
 - [ ] Record every parameter and environment version.
 - [ ] Measure peak temporary storage.
