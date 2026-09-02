@@ -351,6 +351,8 @@ class TrainNnueTests(unittest.TestCase):
                     "--architectures", "64",
                     "--confidence-policy", "bucket",
                     "--negative-mode", "hard",
+                    "--baseline-weights",
+                    str(retained / "nnue_weights.hpp"),
                     "--report-only",
                 ],
                 cwd=ROOT,
@@ -366,6 +368,14 @@ class TrainNnueTests(unittest.TestCase):
                 hard_report["dataset"]["confidence_policy"], "bucket"
             )
             self.assertEqual(hard_report["dataset"]["negative_mode"], "hard")
+            self.assertEqual(
+                hard_report["baseline_reference"]["weights_sha256"],
+                report["retained_candidate"]["weights_sha256"],
+            )
+            self.assertIn(
+                "candidate_minus_baseline",
+                hard_report["baseline_reference"],
+            )
             tiers = hard_report["candidates"][0]["slices"]["tactical"][
                 "negative_tier"
             ]

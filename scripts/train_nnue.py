@@ -13,6 +13,7 @@ import os
 import pathlib
 import platform
 import random
+import re
 import shutil
 import sys
 from dataclasses import dataclass
@@ -857,6 +858,65 @@ def file_sha256(path):
     return digest.hexdigest().upper()
 
 
+def _read_cpp_array(text, name):
+    match = re.search(
+        rf"\b{name}\{{\{{(.*?)\}}\}};",
+        text,
+        flags=re.DOTALL,
+    )
+    if match is None:
+        raise RuntimeError(f"NNUE header does not contain array {name}")
+    return [int(value) for value in re.findall(r"-?\d+", match.group(1))]
+
+
+def load_quantized_header(path):
+    text = path.read_text(encoding="utf-8")
+    bias_values = _read_cpp_array(text, "bias")
+    output_values = _read_cpp_array(text, "output")
+    input_values = _read_cpp_array(text, "input")
+    hidden = len(bias_values)
+    if hidden not in (64, 128):
+        raise RuntimeError(f"unsupported NNUE header width {hidden}")
+    if len(output_values) != hidden:
+        raise RuntimeError("NNUE header bias/output widths differ")
+    if len(input_values) != FEATURES * hidden:
+        raise RuntimeError(
+            "NNUE header input size mismatch: "
+            f"{len(input_values)} != {FEATURES * hidden}"
+        )
+    return (
+        np.asarray(input_values, dtype=np.int8).reshape(FEATURES, hidden),
+        np.asarray(bias_values, dtype=np.int16),
+        np.asarray(output_values, dtype=np.int16),
+    )
+
+
+def quantized_header_metrics(path, evaluations, pairs):
+    weights, bias, output = load_quantized_header(path)
+    full = validation_metrics(
+        weights.astype(np.float32),
+        bias.astype(np.float32),
+        output.astype(np.float32),
+        evaluations,
+        pairs,
+    )
+    slices = {}
+    for family, fields in full["slices"].items():
+        slices[family] = {
+            field: {
+                value: metrics["quantized"]
+                for value, metrics in values.items()
+            }
+            for field, values in fields.items()
+        }
+    return {
+        "hidden": len(output),
+        "weights_sha256": file_sha256(path),
+        "metrics": full["quantized"],
+        "slices": slices,
+    }
+
+
 def directory_bytes(path):
     if not path.exists():
         return 0
@@ -1045,6 +1105,14 @@ def main():
             "under TEMP_DIR/retained for later validation"
         ),
     )
+    parser.add_argument(
+        "--baseline-weights",
+        type=pathlib.Path,
+        help=(
+            "evaluate this exact quantized NNUE header on the same validation "
+            "rows and report candidate-minus-baseline deltas"
+        ),
+    )
     args = parser.parse_args()
 
     if not 0 < args.max_temp_gb <= 7.0:
@@ -1067,6 +1135,8 @@ def main():
         parser.error("--open-test requires --canonical-manifest")
     if args.retain_report_candidate and not args.report_only:
         parser.error("--retain-report-candidate requires --report-only")
+    if args.baseline_weights is not None and not args.baseline_weights.is_file():
+        parser.error("--baseline-weights must name an existing NNUE header")
     if args.canonical_manifest is None and (
         args.confidence_policy != "none" or args.negative_mode != "random"
     ):
@@ -1144,6 +1214,37 @@ def main():
     _, hidden, selected_metrics, weights, bias, output = max(
         candidates, key=lambda candidate: candidate[0]
     )
+    baseline_reference = None
+    if args.baseline_weights is not None:
+        baseline_reference = quantized_header_metrics(
+            args.baseline_weights,
+            dataset.validation_evaluations,
+            dataset.validation_pairs,
+        )
+        baseline_metrics = baseline_reference["metrics"]
+        candidate_metrics = selected_metrics["quantized"]
+        baseline_reference["candidate_minus_baseline"] = {
+            "evaluation_mae_cp": (
+                candidate_metrics["evaluations"]["mae_cp"]
+                - baseline_metrics["evaluations"]["mae_cp"]
+            ),
+            "evaluation_median_absolute_error_cp": (
+                candidate_metrics["evaluations"][
+                    "median_absolute_error_cp"
+                ]
+                - baseline_metrics["evaluations"][
+                    "median_absolute_error_cp"
+                ]
+            ),
+            "tactical_pairwise_accuracy": (
+                candidate_metrics["tactical"]["pairwise_accuracy"]
+                - baseline_metrics["tactical"]["pairwise_accuracy"]
+            ),
+            "tactical_top1_accuracy": (
+                candidate_metrics["tactical"]["top1_accuracy"]
+                - baseline_metrics["tactical"]["top1_accuracy"]
+            ),
+        }
     candidate_stage = args.temp_dir / "candidates"
     if candidate_stage.exists():
         shutil.rmtree(candidate_stage)
@@ -1252,6 +1353,7 @@ def main():
         "selected_validation": selected_metrics,
         "selected_weights_sha256": file_sha256(staged_weights),
         "retained_candidate": retained_candidate,
+        "baseline_reference": baseline_reference,
     }
     staged_provenance = stage / "nnue_provenance.json"
     staged_provenance.write_text(
