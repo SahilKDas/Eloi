@@ -433,6 +433,84 @@ def train():
     }, indent=2))
 
 
+def train_selected():
+    validation_support.resource_snapshot(WORK, PROJECTED_BYTES)
+    c, provenance = load_c()
+    samples = load_evaluations_readonly(provenance)
+    evaluations, validation = samples["train"], samples["validation"]
+    occupied, dormant = channel_indices(c)
+    if len(dormant) != 41:
+        raise RuntimeError(f"expected 41 dormant C channels, found {len(dormant)}")
+    counts = {
+        "train_evaluations": len(evaluations),
+        "train_pairs": 0,
+        "validation_evaluations": len(validation),
+    }
+
+    e1_history = []
+    e1_initial = revive_channels(c, dormant, E1_SEED)
+    e1 = trainer.train_evaluations(
+        *e1_initial,
+        list(evaluations),
+        epochs=1,
+        trainable_channels=dormant,
+        epoch_callback=epoch_recorder(
+            "E1-selected", "evaluation-warmup", validation, e1_history
+        ),
+    )
+
+    compact, selected, e32_trainable = compact_c_to_32(c)
+    if quantized_predictions(compact, validation) != quantized_predictions(c, validation):
+        raise RuntimeError("32-unit C compaction changed quantized predictions")
+    e32_history = []
+    e32_initial = revive_channels(compact, e32_trainable, E32_SEED)
+    e32 = trainer.train_evaluations(
+        *e32_initial,
+        list(evaluations),
+        epochs=1,
+        trainable_channels=e32_trainable,
+        epoch_callback=epoch_recorder(
+            "E32-selected", "evaluation-warmup", validation, e32_history
+        ),
+    )
+
+    reports = [
+        emit_candidate("E1-selected", e1, dormant, {
+            "recipe": "C plus deterministic revival and one residual evaluation epoch on 41 channels",
+            "selection": "lowest predeclared-stage validation MAE; sealed test unopened",
+            "history": e1_history,
+            "preserved_c_channels": occupied,
+        }, validation, counts),
+        emit_candidate("E32-selected", e32, e32_trainable, {
+            "recipe": "Exact 23-channel C compaction plus nine revived channels and one residual evaluation epoch",
+            "selection": "lowest predeclared-stage validation MAE; sealed test unopened",
+            "history": e32_history,
+            "c_source_channels": selected,
+            "pre_revival_predictions_identical_to_c": True,
+        }, validation, counts),
+    ]
+    write_json(WORK / "selected-training-results.json", {
+        "schema": 1,
+        "source_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip(),
+        "source_hashes": {
+            path.relative_to(ROOT).as_posix(): sha256(path)
+            for path in (Path(__file__), ROOT / "scripts/train_nnue.py")
+        },
+        "candidates": reports,
+        "held_out_test_opened": False,
+        "gauntlet_run": False,
+        "production_header_unchanged": (
+            sha256(PRODUCTION_HEADER) == provenance["selected_weights_sha256"]
+        ),
+    })
+    print(json.dumps({
+        report["id"]: report["quantized_validation"]["mae_cp"]
+        for report in reports
+    }, indent=2))
+
+
 def run_command(command, log, timeout):
     flags = (
         subprocess.IDLE_PRIORITY_CLASS | subprocess.CREATE_NO_WINDOW
@@ -516,32 +594,47 @@ def validate_candidate(name, attempt):
     }
 
 
-def validate():
+def validate(candidates=("E1", "E32"), evidence_stem="validation-results"):
     validation_support.resource_snapshot(WORK, PROJECTED_BYTES)
-    attempt = 1 + len(list(WORK.glob("validation-results*.json")))
+    attempt = 1 + len(list(WORK.glob(f"{evidence_stem}*.json")))
     output = {
         "schema": 1,
         "attempt": attempt,
         "candidates": [
-            validate_candidate("E1", attempt),
-            validate_candidate("E32", attempt),
+            validate_candidate(name, attempt) for name in candidates
         ],
         "gauntlet_run": False,
     }
     output["all_passed"] = all(row["passed"] for row in output["candidates"])
     suffix = "" if attempt == 1 else f"-{attempt}"
-    write_json(WORK / f"validation-results{suffix}.json", output)
+    write_json(WORK / f"{evidence_stem}{suffix}.json", output)
     print(json.dumps(output, indent=2))
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("stage", choices=("train", "validate", "run"))
+    parser.add_argument(
+        "stage",
+        choices=(
+            "train",
+            "train-selected",
+            "validate",
+            "validate-selected",
+            "run",
+        ),
+    )
     args = parser.parse_args()
     if args.stage in ("train", "run"):
         train()
     if args.stage in ("validate", "run"):
         validate()
+    if args.stage == "train-selected":
+        train_selected()
+    if args.stage == "validate-selected":
+        validate(
+            ("E1-selected", "E32-selected"),
+            "selected-validation-results",
+        )
 
 
 if __name__ == "__main__":
