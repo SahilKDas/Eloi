@@ -87,6 +87,14 @@ class E1E32Tests(unittest.TestCase):
                 *model, [], epochs=1, trainable_channels=[4]
             )
 
+    def test_learning_key_groups_exact_color_mirror(self):
+        fen = "8/8/8/3k4/8/4K3/8/8 w - - 0 1"
+        mirror = "8/8/4k3/8/3K4/8/8/8 b - - 0 1"
+        self.assertEqual(
+            experiment.learning_key(fen),
+            experiment.learning_key(mirror),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

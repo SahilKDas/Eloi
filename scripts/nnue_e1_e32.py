@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import hashlib
 import json
 import os
@@ -19,6 +20,7 @@ import numpy as np
 import run_fresh_nnue_campaign as fresh
 import train_nnue as trainer
 import validation_support
+import chess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,6 +75,97 @@ def load_c():
            for left, right in zip(quantized, header)):
         raise RuntimeError("C checkpoint does not quantize to production")
     return model, provenance
+
+
+def learning_key(fen):
+    placement = fen.split()[0]
+    mirrored = "/".join(reversed(placement.split("/"))).swapcase()
+    return min(placement, mirrored)
+
+
+def load_evaluations_readonly(provenance):
+    positions = ROOT / "tmp/nnue-fresh-data/positions.jsonl"
+    labels = ROOT / "tmp/nnue-fresh-data/labels.jsonl"
+    exclusion_path = (
+        ROOT / "tmp/nnue-fresh-data/learning-equivalence-exclusions.json"
+    )
+    exclusions = read_json(exclusion_path)
+    if sha256(positions) != provenance["inputs"]["positions_sha256"]:
+        raise RuntimeError("frozen position identity changed")
+    if sha256(labels) != provenance["inputs"]["labels_sha256"]:
+        raise RuntimeError("frozen label identity changed")
+    if exclusions["positions_sha256"] != sha256(positions):
+        raise RuntimeError("learning-equivalence exclusions do not match positions")
+    conflicts = set(exclusions["conflicting_learning_keys"])
+    result = {"train": [], "validation": [], "test": []}
+    with labels.open(encoding="utf-8") as stream:
+        for line in stream:
+            row = json.loads(line)
+            if not row["accepted"] or row["partition"] == "test":
+                continue
+            if learning_key(row["fen"]) in conflicts:
+                continue
+            board = chess.Board(row["fen"])
+            result[row["partition"]].append((
+                trainer.features(board, chess.WHITE),
+                trainer.features(board, chess.BLACK),
+                float(row["high"]["cp"]),
+                1.0,
+                {"record_id": row["id"], "phase_bucket": row["phase"]},
+            ))
+    return result
+
+
+def load_puzzles_readonly(provenance):
+    source = (
+        ROOT / ".deps/nnue-inputs-v2-broader1/canonical-puzzles.jsonl"
+    )
+    selection_path = ROOT / "tmp/nnue-fresh-data/puzzle-selection.json"
+    selection = read_json(selection_path)
+    if sha256(source) != provenance["inputs"]["canonical_puzzles_sha256"]:
+        raise RuntimeError("canonical puzzle identity changed")
+    selected_ids = selection["selected_ids"]
+    if len(selected_ids) != selection["count"] or len(set(selected_ids)) != len(selected_ids):
+        raise RuntimeError("frozen puzzle selection is malformed")
+    wanted = set(selected_ids)
+    rows = {}
+    with source.open(encoding="utf-8") as stream:
+        for line in stream:
+            row = json.loads(line)
+            if row["record_id"] in wanted:
+                rows[row["record_id"]] = row
+    if set(rows) != wanted:
+        raise RuntimeError("frozen puzzle selection cannot be reconstructed")
+    pairs = []
+    for record_id in selected_ids:
+        row = rows[record_id]
+        board = chess.Board(row["decision_fen"])
+        best = chess.Move.from_uci(row["best_move"])
+        if best not in board.legal_moves:
+            raise RuntimeError(f"selected puzzle has illegal best move: {record_id}")
+        alternatives = sorted(
+            (move for move in board.legal_moves if move != best),
+            key=lambda move: move.uci(),
+        )
+        if not alternatives:
+            raise RuntimeError(f"selected puzzle has no negative move: {record_id}")
+        alternative = trainer.deterministic_choice(
+            alternatives,
+            trainer.SEED,
+            "canonical-random-negative",
+            record_id,
+        )
+        best_board, alternative_board = board.copy(), board.copy()
+        best_board.push(best)
+        alternative_board.push(alternative)
+        pairs.append((
+            trainer.features(best_board, chess.WHITE),
+            trainer.features(best_board, chess.BLACK),
+            trainer.features(alternative_board, chess.WHITE),
+            trainer.features(alternative_board, chess.BLACK),
+            1 if board.turn == chess.WHITE else -1,
+        ))
+    return pairs
 
 
 def channel_indices(model):
@@ -239,8 +332,8 @@ def train():
         )
     snapshot = validation_support.resource_snapshot(WORK, PROJECTED_BYTES)
     c, provenance = load_c()
-    samples = fresh.load_evaluations()
-    puzzles = fresh.load_training_puzzles()
+    samples = load_evaluations_readonly(provenance)
+    puzzles = load_puzzles_readonly(provenance)
     evaluations, validation = samples["train"], samples["validation"]
     occupied, dormant = channel_indices(c)
     if len(dormant) != 41:
