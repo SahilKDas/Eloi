@@ -30,6 +30,16 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 release.quota(*values)
 
+    @unittest.skipUnless(os.name == "nt", "Windows loader validation")
+    def test_system_imports_resolve_aliases_and_reject_non_system_libraries(self):
+        for name in ("kernel32.dll", "api-ms-win-crt-runtime-l1-1-0.dll"):
+            host = Path(release.system_import_path(name))
+            self.assertEqual(host.parent, (Path(os.environ["SystemRoot"]) / "System32").resolve())
+        for name in ("eloi-nonexistent-test.dll", "api-ms-win-eloi-nonexistent-l1-1-0.dll",
+                     "libstdc++-6.dll", "../kernel32.dll"):
+            with self.assertRaises(RuntimeError):
+                release.system_import_path(name)
+
     def test_copy_refuses_collision_preserves_original(self):
         source, target = self.root / "source", self.root / "target"
         source.write_bytes(b"new")

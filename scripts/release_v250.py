@@ -70,12 +70,14 @@ def resources(projected=0, check_deadline=True):
     roots += list(ROOT.glob("build-*"))
     prior = read(ROOT / "data/abc60_start.json")
     roots += [Path(p) for p in prior["external_temporary_directories_found"]]
-    extra = WORK / "external.json"
-    external = read(extra) if extra.exists() else []
+    # A preserved retry still counts every earlier release attempt.
+    owned_roots = set(ROOT.joinpath("tmp").glob("release-v2.5.0*")) | {WORK}
+    owned_roots = {p for p in owned_roots if not any(p != q and p.is_relative_to(q) for q in owned_roots)}
+    external = sorted({p for root in owned_roots for record in root.rglob("external.json") for p in read(record)})
     roots += [Path(p) for p in external]
     usage = {str(p): size(p) for p in roots}
     training = sum(size(ROOT / p) for p in ("tmp/nnue-fresh-data", ".deps/nnue-inputs", ".deps/nnue-inputs-v2-broader1"))
-    own = size(WORK) + size(OUTPUT) + sum(size(p) for p in external)
+    own = sum(size(p) for p in owned_roots) + size(OUTPUT) + sum(size(p) for p in external)
     free = shutil.disk_usage(ROOT).free
     quota(sum(usage.values()), training, own, free, projected)
     if check_deadline:
@@ -194,6 +196,36 @@ def stage_package(source, build, target, split, commit):
     package_files_valid(target, split)
 
 
+def system_import_path(name):
+    """Resolve API-set aliases with system-only DLL search, then verify the host.
+
+    API sets need not have files bearing their names. Never accept an arbitrary
+    api-* prefix, current-directory DLL, or PATH-provided development runtime.
+    """
+    import ctypes
+    from ctypes import wintypes
+    require(os.name == "nt" and Path(name).name == name, "Expected a Windows DLL basename")
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.LoadLibraryExW.argtypes = (wintypes.LPCWSTR, wintypes.HANDLE, wintypes.DWORD)
+    kernel.LoadLibraryExW.restype = wintypes.HMODULE
+    kernel.GetModuleFileNameW.argtypes = (wintypes.HMODULE, wintypes.LPWSTR, wintypes.DWORD)
+    kernel.GetModuleFileNameW.restype = wintypes.DWORD
+    kernel.FreeLibrary.argtypes = (wintypes.HMODULE,)
+    kernel.FreeLibrary.restype = wintypes.BOOL
+    handle = kernel.LoadLibraryExW(name, None, 0x00000800)  # LOAD_LIBRARY_SEARCH_SYSTEM32
+    require(bool(handle), f"Not a resolvable system dependency: {name}")
+    try:
+        buffer = ctypes.create_unicode_buffer(32768)
+        length = kernel.GetModuleFileNameW(handle, buffer, len(buffer))
+        require(0 < length < len(buffer), "Cannot resolve system DLL host")
+        host = Path(buffer.value).resolve()
+        require(host.parent == (Path(os.environ["SystemRoot"]) / "System32").resolve(),
+                f"Non-system DLL host: {name} -> {host}")
+        return str(host)
+    finally:
+        kernel.FreeLibrary(handle)
+
+
 def validate_imports(package, split, label):
     imports = {}
     for name in (["Eloi.exe", "EloiLichess.exe"] if split else ["Eloi.exe"]):
@@ -205,7 +237,8 @@ def validate_imports(package, split, label):
         for row in read(ROOT / "reproducibility.lock.json")["toolchain_runtime_libraries"]:
             require(all(Path(row["path"]).name.lower() in found for found in imports.values()), "Missing runtime import")
     else:
-        require(all((Path(os.environ["SystemRoot"]) / "System32" / dll).exists() for dll in imports["Eloi.exe"]), "Non-system standalone DLL dependency")
+        hosts = {dll: system_import_path(dll) for dll in imports["Eloi.exe"]}
+        create(WORK / (label + "-system-import-hosts.json"), hosts)
     return imports
 
 
