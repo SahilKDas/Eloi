@@ -1,232 +1,108 @@
 # Contributing to Eloi
 
-Thank you for helping improve Eloi. Contributions should preserve its identity:
-a deterministic, fixed-three-thread C++26 chess engine with a native Windows
-GUI, UCI compatibility, and two golden Windows release packages.
+Keep Eloi a fixed-three-thread C++26 engine with a native Windows GUI, UCI
+compatibility and two reproducible Windows packages. Keep search, training,
+GUI and packaging changes independently reviewable.
 
-## Before you begin
+## Before changing anything
 
-- Search existing issues and pull requests before starting overlapping work.
-- Keep changes focused. Separate engine-strength, GUI, packaging, and
-  documentation changes when practical.
-- Never commit credentials, private game data, generated build trees, or
-  dependency caches.
-- By submitting a contribution, you agree that it may be distributed under
-  Eloi's MIT license. Only submit code and assets you have the right to share.
+- Read [device constraints](constraints_on_SahilKDas_device.md).
+- Preserve running bridges/frontends, private configuration and user changes.
+- Never commit credentials, datasets, checkpoints, binaries or dependency caches.
+- Preserve source and artwork licenses. Report security-sensitive issues privately.
+- Reproduce the issue and add focused regression tests before changing behavior.
 
-For security-sensitive reports, contact the maintainer privately instead of
-opening a public issue. Revoke any exposed Lichess token immediately.
+## Build and test
 
-## Development environment
-
-Eloi requires:
-
-- a C++26-capable MinGW UCRT64 compiler;
-- CMake and Ninja;
-- PowerShell; and
-- the development dependencies installed by
-  `scripts/bootstrap-windows.ps1`.
-
-No Go toolchain is used. Python is allowed for development-only validation and
-self-play scripts, but it must never become a production runtime dependency.
+Use the locked dependencies and PowerShell 7 described in
+[REPRODUCING.md](REPRODUCING.md).
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-windows.ps1
-cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release `
-  -DELOI_BUILD_TESTS=ON
+cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DELOI_BUILD_TESTS=ON
 cmake --build build-release -j 2
-ctest --test-dir build-release --output-on-failure
-```
-
-## Release invariants
-
-For stable v2.5.0, follow `RELEASE_V2_5_0.md`: C was explicitly selected by
-the maintainer, two overstrict depth-equality assertions were reviewed, and
-all other correctness and release checks remain mandatory. Earlier strength
-campaign gates below are historical and are not retroactively passed.
-Use the preservation release workflow and `dist/v2.5.0`; do not run legacy
-delete-and-restage commands or replace the existing `dist/current` archives.
-
-Every change must preserve these requirements:
-
-- GitHub releases contain exactly two downloadable archives: the canonical
-  standalone ZIP and the Defender-friendly Exoskeleton ZIP.
-- The standalone ZIP contains exactly `Eloi.exe` and `config.yml`.
-- `Eloi.exe` is standalone and imports no non-system DLL.
-- Piece PNGs, opening data, NNUE weights, and required attribution are embedded
-  in the executable.
-- `config.yml` is readable text and contains no real credential in Git or
-  published artifacts.
-- Production Eloi uses exactly three deterministic RootSplit search threads,
-  advertises a fixed UCI `Threads` value of 3, and does not advertise pondering.
-  Experimental search designs remain behind an explicit switch until they pass
-  every correctness gate and win a bounded same-binary paired comparison.
-- The engine warns above 40 plies, the GUI caps selection at 200 plies, and the
-  absolute engine ceiling remains 17,697 plies.
-- Standard chess, Chess960, UCI, and native Lichess operation remain compatible.
-- Release builds use the exact toolchain and dependency hashes recorded in
-  `reproducibility.lock.json`, contain a zero PE timestamp, and reproduce
-  byte-for-byte from two independent clean build trees.
-
-The Exoskeleton ZIP must isolate native networking in `EloiLichess.exe`, keep
-WinHTTP out of its main `Eloi.exe`, and retain all required DLLs, PNG assets,
-licenses, source revision, and per-file hashes. Both ZIP filenames include the
-version and `windows-x64`; neither package replaces the other.
-
-Local development uses `dist/current` as a rolling release-candidate area, not
-an archive. After every build-affecting change, run
-`scripts/stage-current-candidates.ps1`. It deletes only the previous rolling
-candidate, rebuilds and tests both package forms, and leaves the newest
-standalone and Exoskeleton ZIPs together. Extracted staging duplicates and
-older local candidates do not remain under `dist`.
-
-Exception: a search-recovery candidate must not be staged or packaged before
-the frozen gates in `SEARCH_RECOVERY.md` pass. A correctness rejection produces
-compact hash-bound evidence and no release package. This campaign uses a 55%
-score gate against exact published v2.0.0, superseding the older beta/raw-win
-experiment below for this campaign only.
-
-## Versioning
-
-`CMakeLists.txt` is the single source of truth for Eloi's version. Its numeric
-`project(... VERSION ...)` and `ELOI_PRERELEASE` values generate the C++
-version header and Windows executable metadata. Do not hardcode a version in
-another source file. Beta tags use `vMAJOR.MINOR.PATCH-beta.N`, release
-candidate tags use `vMAJOR.MINOR.PATCH-rc.N`, and a stable release sets
-`ELOI_PRERELEASE` to an empty string and uses `vMAJOR.MINOR.PATCH`.
-
-## Code and engine changes
-
-- Follow the surrounding C++ style: two-space indentation, braces on the same
-  line, descriptive names, RAII ownership, and no avoidable heap allocation in
-  hot search paths.
-- Compile with warnings enabled and introduce no new warnings.
-- Preserve deterministic behavior unless a change explicitly concerns
-  randomness.
-- Add focused tests for every rule, parser, search heuristic, or regression
-  changed.
-- Guard selective-search optimizations against checks, zugzwang-prone endings,
-  promotions, forced replies, and tactical positions as appropriate.
-- Do not claim an Elo gain from a few games. The overhaul acceptance gate is
-  250 deterministic mirrored games at equal 250 ms/move against the
-  hash-verified official beta, with at least 150 raw candidate wins (60%).
-  Short
-  gauntlets are tuning diagnostics only.
-
-### Brain-change regression protocol
-
-Before editing search, evaluation, time management, opening selection, or other
-playing logic, capture the executable that immediately precedes the change:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\capture-brain-baseline.ps1
-```
-
-This intentionally retains only `Eloi.previous.exe` beside the current build;
-running it again replaces the prior baseline. After rebuilding, open the GUI
-and run **ENGINE LAB** in both color assignments at the same depth. Both
-engines must start successfully, return legal moves, and finish or reach a
-stable test stopping point without hanging. Also run the command-line smoke:
-
-```powershell
-.\build-release\Eloi.exe --version-match-smoke `
-  .\build-release\Eloi.previous.exe
-& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
-  '.\scripts\differential_movegen.py' `
-  --engine '.\build-release\Eloi.exe' --samples 32
-```
-
-Record noteworthy visual behavior in the pull request, but use Engine Lab's
-hash-bound speed and strength harness—not a single watched game—as the
-acceptance gate. Do not commit retained executables, temporary checkpoints,
-PGNs, or failed-candidate reports, and never package them in a release.
-
-RootSplit is the only current search implementation. Historical LazySMP evidence
-is preserved, but its UCI option and shared TT code have been removed. Run the
-complete categorized gate before any comparison:
-
-```powershell
-.\build-release\eloi_tests.exe
-& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
-  '.\scripts\selfplay_gauntlet.py' `
-  --candidate '.\build-release\Eloi.exe' `
-  --baseline '.\build-release\Eloi.exe' `
-  --baseline-parallel-mode RootSplit `
-  --correctness-test '.\build-release\eloi_tests.exe' `
-  --games 24 --movetime-ms 50 --max-plies 120
-```
-
-A match score cannot rescue a correctness failure. The v2.5 comparison kept
-RootSplit because it passed the gate and scored 54.17%; LazySMP failed two
-tactical cases and scored 45.83%. The evidence hashes and settings are tracked
-in `data/v2_5_parallel_playoff.json`.
-
-```powershell
-& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
-  '.\scripts\engine_lab.py' `
-  --candidate '.\build-release\Eloi.exe' `
-  --baseline '.\path\to\official-beta-1\Eloi.exe' speed
-
-& '.\.deps\lichess-bot\.venv\Scripts\python.exe' `
-  '.\scripts\engine_lab.py' `
-  --candidate '.\build-release\Eloi.exe' `
-  --baseline '.\path\to\official-beta-1\Eloi.exe' strength
-```
-
-Run at minimum:
-
-```powershell
-ctest --test-dir build-release --output-on-failure
+ctest --test-dir build-release --output-on-failure --timeout 120
 .\build-release\Eloi.exe --perft --depth 4
-.\build-release\Eloi.exe --bench --depth 6
-.\build-release\Eloi.exe --screenshot .\build-release\smoke.bmp
-.\build-release\Eloi.exe --screenshot-setup .\build-release\setup-smoke.bmp
-.\build-release\Eloi.exe --screenshot-engine-lab `
-  .\build-release\engine-lab-smoke.bmp `
-  .\path\to\official-beta-1\Eloi.exe
-.\build-release\Eloi.exe --version-match-smoke `
-  .\build-release\Eloi.previous.exe
+python -B scripts/differential_movegen.py --engine build-release/Eloi.exe --samples 32
 ```
 
-## Artwork and data
+Run the relevant `scripts/test_*.py` tests for tooling changes. Training tests
+may create tiny synthetic models; that is not permission for a real training
+campaign. Bound all tests and keep heavyweight work sequential at Idle
+priority. Never treat a timeout as a pass.
 
-The canonical chess-piece assets are the twelve transparent PNG files under
-`assets/chess_maestro_bw`. Do not reintroduce SVG runtime assets. Preserve
-`ATTRIBUTION.md` and the embedded GUI attribution when modifying packaging.
+## Playing-code invariants
 
-Document the provenance, license, version, and hash of any new book, NNUE,
-training, or validation data in `DATA_SOURCES.md`. Runtime downloads are not
-allowed.
+- Exactly three deterministic RootSplit lanes; no public ParallelMode or
+  UCI Ponder option. Every lane uses its private share of the configured TT.
+- Standard chess, Chess960, Horde, UCI and native Lichess remain compatible.
+- Preserve complete board/NNUE/Zobrist restoration, legal PVs, SEE/TT semantics,
+  mate-score normalization and scalar/runtime-dispatched agreement.
+- Keep the 40-ply warning, 200-ply GUI maximum and 17,697-ply absolute ceiling.
+- No runtime database downloads, Python dependency or external engine backend.
+- CMake consumes the tracked NNUE/opening headers without regenerating them.
 
-## Configuration and secrets
+Use two-space C++ indentation, descriptive names and RAII. Avoid unnecessary
+hot-path allocations and new compiler warnings. Add tests for changed rules,
+search guards, parsers or GUI behavior.
 
-`config.example.yml` is the tracked template. The release target copies it to
-`config.yml`; local users may then add their Lichess token. Root `config.yml`
-is ignored deliberately.
+Before a brain change, retain and hash the preceding executable. Engine Lab
+and `--version-match-smoke` are useful integration checks, not Elo proofs.
+New strength experiments need an explicitly frozen opponent, partitions,
+game count, score metric, time/node budget, resource cap and stopping rules.
+Use chess score (wins + half draws) when that is the declared metric.
+Do not inherit obsolete beta/raw-win thresholds or change gates after play.
+A strong match result cannot waive a correctness failure.
 
-- Never paste a token into source, tests, documentation, logs, screenshots, or
-  a pull request.
-- Keep defaults safe: native Lichess mode disabled, token empty, pondering off,
-  and challenge filters explicit.
-- Keep the native endpoint restricted to exactly `https://lichess.org`; never
-  send the bearer token over plaintext or to a configurable third-party host.
-- New configuration keys require parser tests and README documentation.
+The current C acceptance decision and reviewed `compare` versus `stable`
+semantics are in [RELEASE_V2_5_0.md](RELEASE_V2_5_0.md).
+Historical failures remain failures in their archived evidence.
 
-## Pull requests
+## Release requirements
 
-A good pull request includes:
+- Publish exactly two Windows x64 ZIPs: standalone and Exoskeleton.
+- Standalone contains exactly `Eloi.exe` and empty-token `config.yml`,
+  with embedded artwork and no non-system DLL requirement.
+- Exoskeleton contains both executables, required runtime DLLs, twelve PNGs,
+  licenses, source revision and file hashes. Its main executable has no
+  WinHTTP import; networking belongs to `EloiLichess.exe`.
+- Set the version only through CMake's project version and
+  `ELOI_PRERELEASE`. Stable releases use an empty prerelease string.
+- Build from committed source with the hash-locked toolchain, normalized
+  timestamps and zero PE timestamps.
+- Require two independent builds of each form and matching payload/ZIP bytes.
+- Validate extracted packages outside the repository, GUI interactions,
+  UCI/time/stop behavior, offline configuration and fresh Defender scans.
+- Review exact artifact hashes before upload and verify downloaded assets
+  afterward. An old RC ZIP does not become stable by renaming it.
+- Do not replace an active installation, overwrite existing artifacts or
+  publish externally without the maintainer's authorization.
 
-1. A concise description of the problem and solution.
-2. Tests that fail before the change and pass afterward.
-3. Benchmark or gauntlet evidence for performance/strength claims.
-4. Screenshots for visible GUI changes.
-5. Confirmation that `git diff --check`, CTest, UCI startup, GUI rendering, and
-   both golden release-package validations pass.
+Use the preservation workflow in [REPRODUCING.md](REPRODUCING.md).
+Generic legacy packaging helpers remain for compatibility, but their cleanup
+options are not permission to delete unrelated files. Never change historical
+tags to make a new build appear to reproduce a published artifact.
 
-Keep commits understandable and avoid committing generated binaries. Maintainers
-may ask for a change to be split, retested, or retuned before merging.
+## Data and configuration
 
-Before tagging a release, follow [REPRODUCING.md](REPRODUCING.md)
-and run `scripts/verify-reproducible.ps1 -StageRelease` from a clean worktree.
-Do not describe an artifact as reproducible unless that command completes and
-the published asset hashes match its output.
+Document each new source's license, version, sampling rules and hashes in
+[DATA_SOURCES.md](DATA_SOURCES.md). Keep production's exact header identity
+and checkpoint correspondence in `data/nnue_provenance.json`.
+The dormant-channel limitation is open research, not a silently fixed issue.
+
+`config.example.yml` is the public empty-token template. Real tokens belong
+only in ignored local configuration. Keep the native endpoint restricted to
+exactly `https://lichess.org`; do not add configurable bearer-token destinations.
+Configuration changes require parser tests and user documentation.
+Preserve the twelve PNG assets and their attribution.
+
+## Review checklist
+
+A contribution should explain the problem, focused fix, before/after tests,
+relevant benchmark evidence and any changed limitations. Include screenshots
+for visual changes. Run `git diff --check`, relevant unit tests and appropriate
+integration checks. Do not claim a new release or strength gain from documentation
+cleanup alone.
+
+Superseded plans, runners and unused Morlock game collections are recoverable
+from Git history before the cleanup. They are not current engineering policy.
+Keep current evidence discoverable via [data/README.md](data/README.md).

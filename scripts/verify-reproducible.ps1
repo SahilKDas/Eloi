@@ -2,7 +2,8 @@ param(
   [switch] $Keep,
   [switch] $StageRelease,
   [string] $EvidencePath,
-  [string] $ScratchParent
+  [string] $ScratchParent,
+  [string] $PythonExecutable = 'python'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,19 +20,19 @@ $skiaRoot = Join-Path $projectRoot '.deps\skia108\ucrt64'
 $staticRoot = Join-Path $projectRoot '.deps\static-runtime'
 $tempParent = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\')
 if ($ScratchParent) {
-  $allowedParent = [System.IO.Path]::GetFullPath((Join-Path $projectRoot 'tmp\search-recovery')).TrimEnd('\')
+  $allowedParent = [System.IO.Path]::GetFullPath((Join-Path $projectRoot 'tmp')).TrimEnd('\')
   $resolvedParent = [System.IO.Path]::GetFullPath($ScratchParent).TrimEnd('\')
   if ($resolvedParent -ne $allowedParent -and
       -not $resolvedParent.StartsWith($allowedParent + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "Recovery scratch must stay below $allowedParent"
+    throw "Build scratch must stay below $allowedParent"
   }
   $tempParent = $resolvedParent
-  & (Join-Path $projectRoot '.deps\lichess-bot\.venv\Scripts\python.exe') `
-    (Join-Path $projectRoot 'scripts\search_recovery.py') preflight --projected-bytes 1000000000
-  if ($LASTEXITCODE -ne 0) { throw 'Recovery resource preflight failed' }
 }
 $tempRoot = Join-Path $tempParent ("Eloi-repro-" + [guid]::NewGuid().ToString('N'))
 $archive = Join-Path $tempRoot 'source.zip'
+& $PythonExecutable -B (Join-Path $projectRoot 'scripts\validation_support.py') `
+  --scratch $tempRoot --projected-bytes 1000000000
+if ($LASTEXITCODE -ne 0) { throw 'Build resource preflight failed' }
 
 function Invoke-Checked {
   param(
@@ -102,11 +103,9 @@ function Assert-TwoFileRelease {
 
 function Build-Copy {
   param([string] $Name)
-  if ($ScratchParent) {
-    & (Join-Path $projectRoot '.deps\lichess-bot\.venv\Scripts\python.exe') `
-      (Join-Path $projectRoot 'scripts\search_recovery.py') preflight --projected-bytes 400000000 | Out-Host
-    if ($LASTEXITCODE -ne 0) { throw 'Recovery build would exceed resource limits' }
-  }
+  & $PythonExecutable -B (Join-Path $projectRoot 'scripts\validation_support.py') `
+    --scratch $tempRoot --projected-bytes 400000000 | Out-Host
+  if ($LASTEXITCODE -ne 0) { throw 'Build would exceed resource limits' }
   $source = Join-Path $tempRoot "$Name\source"
   $build = Join-Path $tempRoot "$Name\build"
   Expand-Archive -LiteralPath $archive -DestinationPath $source

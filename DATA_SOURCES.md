@@ -1,101 +1,110 @@
-# Embedded chess data
+# Eloi data provenance
 
-Eloi's production executable contains generated opening and NNUE tables. It
-does not download data while running.
+Eloi embeds generated opening and NNUE tables. It does not download databases
+or call another chess engine while playing. Python, NumPy and python-chess
+are development-only tools.
 
 ## Opening repertoire
 
-The general ECO A00-E99 repertoire was generated from
-[`lichess-org/chess-openings`](https://github.com/lichess-org/chess-openings)
-at commit `4b8622759e7ae6f93f011cc6c83a3823401ab45e`. The collection is dedicated
-to the public domain under CC0 1.0. Eloi adds original weighting for its
-Italian Game and Nimzo-Indian personality.
+The ECO A00-E99 repertoire comes from
+[lichess-org/chess-openings](https://github.com/lichess-org/chess-openings)
+commit `4b8622759e7ae6f93f011cc6c83a3823401ab45e`, under CC0 1.0.
+Eloi adds its Italian Game/Nimzo-Indian weighting.
+`scripts/generate_openings.py` produces the tracked position graph in
+`include/eloi/opening_data.hpp`; CMake does not regenerate it.
 
-`scripts/generate_openings.py` converts the pinned PGN lines into the sorted,
-embedded `opening_data.hpp` graph. Positions are nodes, weighted legal moves
-are edges, and transpositions naturally share nodes. Python and python-chess
-are generation-time tools only.
+## Current NNUE: C, 64 hidden units
 
-## NNUE training
+Canonical lineage: [data/nnue_provenance.json](data/nnue_provenance.json).
 
-### Current v2.5.0 network: C
+- Header SHA-256:
+  `6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD`.
+- Float checkpoint SHA-256:
+  `48A40465E1E7A0AB7B408501FBEF78319D62612F6928891AD2B33B58D51AACE9`.
+- Warm-start parent header SHA-256:
+  `CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E`.
 
-Production embeds the exact 64-unit C header with SHA-256
-`6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD`.
-`data/nnue_provenance.json` records its current lineage; the previous
-production provenance is preserved separately.
+### Sources and sampling
 
-The source is the January 2025 [Lichess Elite collection](https://database.nikonoel.fr/),
-a filtered subset of [Lichess database exports](https://database.lichess.org/).
-The underlying Lichess exports are CC0 1.0; the Elite site describes its
-2500+ versus 2300+ selection, excluding bullet. Archive URL, size and hash
-are retained in `data/nnue_fresh_data_acquisition.json`. Eloi traversed all
-289,776 source games, selected 32,000 by seeded hash, and retained 150,690
-phase-sampled candidate positions before labeling and filtering.
+Fresh positions came from the January 2025
+[Lichess Elite collection](https://database.nikonoel.fr/), a filtered subset
+of [Lichess database exports](https://database.lichess.org/).
+The underlying exports are CC0 1.0. The Elite source describes its
+2500+ versus 2300+ filter, excluding bullet.
 
-Historical offline labels used isolated Stockfish 17.1 searches (5,000 and
-25,000 nodes, sampled 100,000-node audits). Accepted labels excluded mates,
-checks, capture/promotion best moves, low depth, excessive evaluation drift
-and extreme scores. The accepted split contains 32,015 training, 4,000
-validation and 3,985 test positions. Group/board and NNUE-input-equivalence
-exclusions prevent cross-partition learning overlap; test labels were not
-used for candidate selection. Sampling and exclusions are documented in the
-frozen fresh-data protocol and results.
+Archive SHA-256:
+`F2FA14565BCDABA7AD6DE6A4F8F2348D0F9F8F262935C46E61925C5ACCE6F7B7`.
+Acquisition URL/size/hash are in
+[data/nnue_fresh_data_acquisition.json](data/nnue_fresh_data_acquisition.json).
+Sampling traversed 289,776 games, selected 32,000 by seeded hash and retained
+150,690 phase-sampled candidate positions before labeling/filtering.
+The retained protocol, sample and training audits record filtering and
+game/board/NNUE-input-equivalence exclusions.
 
-C warm-started from the previous production network: two fresh-evaluation
-epochs (A), three epochs on 12,000 canonical TRAIN puzzle examples (B), then
-one fresh-evaluation recalibration epoch (C). Quantization rounds input
-weights and clips them to [-127,127] int8; biases/output weights are rounded
-to int16. The retained checkpoint was checked against the exact exported
-integer arrays; this release performs no retraining.
+Historical offline labels used Stockfish 17.1 at 5,000/25,000 nodes, with
+sampled 100,000-node audits. Accepted labels excluded mates, checks,
+capture/promotion best moves, low depth, excessive score drift and extremes.
+The final accepted evaluation split was **32,015 training, 4,000 validation,
+3,985 test positions**. Test labels were not used to select C.
 
-Stockfish supplied offline numeric training labels only. No Stockfish code,
-process, weights, executable or backend is included in Eloi's runtime or
-release packages. Python/NumPy/python-chess are development-only tools.
-The 41 dormant warm-start channels remain a documented limitation.
+Labels SHA-256:
+`D39429903DDD13FB722EE84073322532415A0D22DF4951202EB89F79110E4038`.
+The canonical puzzle input SHA-256 is
+`D3E78A34A458964DDE73A3A3316F6195D3455E23AEAD5094303396074A903016`.
+Its source and sampling hashes remain in `data/nnue_input_manifest.json`
+and `data/nnue_broader_sample_manifest.json`.
 
-### Previous production training (historical)
+### Recipe and quantization
 
-The quantized king-bucketed network in `nnue_weights.hpp` was trained on
-12,000 Stockfish-evaluated positions and 12,000 move-ranking examples selected
-from the Lichess evaluation and puzzle databases dated 2026-08-02. The puzzle
-sample covers 73 tactical themes. Lichess database exports are made available
-under CC0 1.0.
+1. Convert the previous production quantized parameters to float32.
+2. Train two fresh-evaluation epochs to produce A.
+3. Train three epochs on 12,000 canonical TRAIN puzzle examples to produce B.
+4. Recalibrate with one fresh-evaluation epoch to produce C.
 
-`scripts/train_nnue.py` documents and reproduces the training and quantization
-step from local puzzle CSV and evaluation JSONL streams. It performs a
-deterministic source-level training/validation split, evaluates 64- and
-128-hidden-unit candidates, and writes `data/nnue_provenance.json` with input
-hashes, parameters, validation metrics, and the selected compact-header hash.
-Its temporary workspace has a hard 7 GiB ceiling and unsuccessful candidate
-artifacts are removed. NumPy and python-chess are generation-time tools only;
-they are not runtime or normal-build dependencies.
+Input weights use NumPy rounding and clipping to [-127,127] int8;
+bias/output weights use rounded int16. Checkpoint-to-export integer-array
+correspondence was verified. The exact C header was copied into production,
+not regenerated or reformatted for release.
 
-`scripts/acquire_nnue_samples.py` reproduces the bounded local inputs without
-storing either complete upstream archive. It verifies the official
-2026-08-02 Lichess archive size, ETag, Last-Modified value, and HTTP byte range;
-downloads only the first 16 MiB of each zstd stream; retains 20,000 complete
-records per source; hashes the compressed prefixes and retained samples; and
-deletes the prefixes. The tracked `data/nnue_input_manifest.json` records those
-identities and hashes. The approximately 16 MiB of retained CSV/JSONL inputs
-remain ignored under `.deps/nnue-inputs` and are never packaged.
+C's quantized validation MAE was 181.22 cp versus 211.5815 cp for the parent
+on the fresh validation data. Offline accuracy alone is not playing strength.
+The maintainer's release decision is in [RELEASE_V2_5_0.md](RELEASE_V2_5_0.md),
+with the retained 20-game result and its limitations.
 
-The repeated full 64/128 report-only run is recorded in
-`data/nnue_training_comparison.json`. It binds the input hashes, interpreter
-and library versions, fixed parameters, split counts, validation metrics, and
-both candidate-header hashes. The offline comparison recommended 64 hidden
-units. Both architectures then passed identical engine correctness gates, and
-the completed 110-game architecture sample selected 64 after the 128 candidate
-scored 43.64%. `data/nnue_architecture_playoff.json` records the post-start
-sample-size changes, result, selected architecture, and hashes for all retained
-evidence. Future larger-data candidates must repeat these gates.
+The warm start has **41 dormant channels**; this is a documented limitation,
+not a problem solved by release packaging. See [FUTURE_WORK.md](FUTURE_WORK.md).
+Stockfish supplied historical numeric labels only. Its code, executable,
+weights and backend are not part of Eloi or either release package.
 
-## v2.5 tactical regression corpus
+### Why earlier provenance remains
 
-`tests/epd/v2_5_regressions.epd` is a small, human-readable test corpus rather
-than an embedded runtime asset. Its Lichess puzzle positions were selected from
-the same ignored CC0 puzzle sample described above. Two additional factual FEN
-snapshots permanently reproduce Eloi's recorded online failures in Lichess
-games `Lc65wiSv` and `bIw09dp9`; the forbidden moves are `c6a7` and `c6e5`.
-The corpus contains no credentials, chat text, executable data, or downloaded
-PGN, and it is never packaged into either release ZIP.
+C depends on its parent network. The parent's original 12,000 evaluation
+positions and 12,000 puzzle-ranking examples came from the 2026-08-02 Lichess
+CC0 samples. Preserve [the parent provenance](data/nnue_provenance_pre_v2_5_0.json),
+input manifest and canonical-sample manifest even though obsolete architecture
+playoff plans and duplicate reports have been removed from the current tree.
+
+Reusable bounded acquisition, sampling, analysis, training, equivalence and
+channel-audit tools remain under `scripts/`. They enforce data/partition
+integrity and are development tools, not automatic release steps.
+C's frozen fresh-data records retain their original outcome fields; the later
+release acceptance decision does not rewrite them.
+
+## Regression and strength data
+
+`tests/epd/v2_5_regressions.epd` contains the permanent 15-position tactical
+corpus, derived from the same CC0 puzzle sample plus factual FEN snapshots of
+Eloi's online games `Lc65wiSv` and `bIw09dp9`. The latter forbid `c6a7`
+and `c6e5`. It contains no credentials, chat or executable data.
+
+`data/strength_openings.json` and the five frozen
+`data/search_recovery/` opening partitions remain to preserve holdouts and
+prevent accidental reuse. The old campaign policy is not an active gate.
+C's parallel-screen results, PGNs, protocol and independent audit remain
+because the current release cites them.
+
+The unused 2021/2023 Morlock game and tournament collections, retired plans
+and superseded campaign reports are available in Git history at
+`24e8a4538fd1fcf164ad1747a62e91a01acdccec`.
+They are not required to build, run or validate current Eloi.
+See [data/README.md](data/README.md) for the retained-file index.

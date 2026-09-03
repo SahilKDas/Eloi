@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import time
+import validation_support
 
 ROOT = Path(__file__).resolve().parents[1]
 WORK = ROOT / "tmp/release-v2.5.0"
@@ -68,15 +69,14 @@ def quota(total, training, owned, free, projected=0):
 def resources(projected=0, check_deadline=True):
     roots = [ROOT / p for p in ("tmp", "dist", "pkg", ".deps", "build")]
     roots += list(ROOT.glob("build-*"))
-    prior = read(ROOT / "data/abc60_start.json")
-    roots += [Path(p) for p in prior["external_temporary_directories_found"]]
+    known_external = set(validation_support.external_scratch_roots())
     # A preserved retry still counts every earlier release attempt.
     owned_roots = set(ROOT.joinpath("tmp").glob("release-v2.5.0*")) | {WORK}
     owned_roots = {p for p in owned_roots if not any(p != q and p.is_relative_to(q) for q in owned_roots)}
     external = sorted({p for root in owned_roots for record in root.rglob("external.json") for p in read(record)})
-    roots += [Path(p) for p in external]
+    roots += sorted(known_external | {Path(p) for p in external})
     usage = {str(p): size(p) for p in roots}
-    training = sum(size(ROOT / p) for p in ("tmp/nnue-fresh-data", ".deps/nnue-inputs", ".deps/nnue-inputs-v2-broader1"))
+    training = validation_support.training_artifact_bytes()
     own = sum(size(p) for p in owned_roots) + size(OUTPUT) + sum(size(p) for p in external)
     free = shutil.disk_usage(ROOT).free
     quota(sum(usage.values()), training, own, free, projected)
@@ -275,9 +275,10 @@ def uci_smoke(executable):
 
 
 def diagnostics(executable, label):
-    import run_abc60 as assessment
     rows = []
-    for case in assessment.epd_cases():
+    cases = validation_support.epd_cases()
+    require(len(cases) == 15, "Regression suite count changed")
+    for case in cases:
         output = WORK / "diagnostics" / (label + "-" + case["id"] + ".json")
         require(not output.exists(), "Diagnostic collision")
         output.parent.mkdir(exist_ok=True)

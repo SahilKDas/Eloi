@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "scope": "local-verified-artifacts",
+  "version": "2.5.0",
+  "source_commit": "24e8a4538fd1fcf164ad1747a62e91a01acdccec",
+  "network": {
+    "candidate": "C",
+    "architecture": "64-unit NNUE",
+    "weights_sha256": "6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD",
+    "checkpoint_sha256": "48A40465E1E7A0AB7B408501FBEF78319D62612F6928891AD2B33B58D51AACE9"
+  },
+  "selection_screen": {
+    "opponent": "official v2.0.0",
+    "games": 20,
+    "wins": 10,
+    "draws": 3,
+    "losses": 7,
+    "chess_score": 11.5,
+    "score_fraction": 0.575,
+    "limitation": "Preliminary mirrored screen, not a reliable Elo estimate"
+  },
+  "artifacts": {
+    "standalone": {
+      "path": "dist/v2.5.0/Eloi-v2.5.0-windows-x64-standalone.zip",
+      "sha256": "6FD9F1FB17178D8C1B5BF7795663ADE251C1EF3555A18A3B706401728980B4F4",
+      "eloi_exe_sha256": "4263AD9FE953252FAE0E0295FE03B16817A2275E560D4AA4067FDD54AC6309C5"
+    },
+    "exoskeleton": {
+      "path": "dist/v2.5.0/Eloi-v2.5.0-windows-x64-exoskeleton.zip",
+      "sha256": "F3BBBBFEC437F5D264F37C832DA1424179B58F4CC73D7FCF4BC78B478D0AB18B",
+      "eloi_exe_sha256": "C768987F3CD5BA260E00C4804E8A540E217D134A41D5594BE09B9BC5E0BD71E0",
+      "eloi_lichess_exe_sha256": "D1E463A348DE861DF42547E9BFD3BA1CB1BC1E60E3DB8AF81EB82CD8F0853820"
+    }
+  },
+  "validation": {
+    "independent_builds_per_package_form": 2,
+    "deterministic_payloads": true,
+    "deterministic_archives": true,
+    "cpp_and_gui_handler_suites_all_builds": true,
+    "perft_depth_4": 197281,
+    "differential_positions_per_variant_per_package": 32,
+    "frozen_c_regressions": 15,
+    "uci_and_offline_configuration_checks": true,
+    "gui_render_and_interaction_checks": true,
+    "benchmark_gate": true,
+    "defender_scans": 4,
+    "defender_threats": 0
+  },
+  "publication": {
+    "uploaded_assets_verified": false,
+    "note": "This manifest certifies the named local files only. Verify downloaded release assets against these hashes."
+  }
+}

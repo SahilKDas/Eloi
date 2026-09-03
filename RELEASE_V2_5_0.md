@@ -1,5 +1,29 @@
 # Eloi v2.5.0 release decision and validation
 
+## Verified local release artifacts
+
+These artifacts passed all local release gates from source commit
+`24e8a4538fd1fcf164ad1747a62e91a01acdccec`. Later repository cleanup does not
+change that tested source identity. Rebuild that exact commit to reproduce
+these ZIPs; do not substitute an older RC archive or merely rename it.
+
+- `Eloi-v2.5.0-windows-x64-standalone.zip`, SHA-256:
+  `6FD9F1FB17178D8C1B5BF7795663ADE251C1EF3555A18A3B706401728980B4F4`.
+- `Eloi-v2.5.0-windows-x64-exoskeleton.zip`, SHA-256:
+  `F3BBBBFEC437F5D264F37C832DA1424179B58F4CC73D7FCF4BC78B478D0AB18B`.
+
+Both package forms reproduced byte-for-byte across independent builds.
+All four builds passed C++ and GUI-handler tests; extracted packages passed
+perft, differential move generation, UCI/offline-config checks and all 15
+frozen-C comparisons. Benchmark gates passed. Defender reported no threats
+in either complete extracted package or ZIP. This records local validation,
+not an assertion that an arbitrary uploaded file matches those artifacts.
+
+See [compact release evidence](data/release_v2_5_0.json) and
+[reproduction instructions](REPRODUCING.md). Verify downloaded asset hashes
+before relying on a release-page title. Historical campaign files removed
+from today's tree remain recoverable from the tested source commit.
+
 ## Selection and immutable identity
 
 The maintainer explicitly selected C for stable v2.5.0 after a completed
@@ -20,8 +44,9 @@ because version/build metadata changes; the network hash does not.
 The earlier production header was
 `CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E`.
 Its provenance is retained in `data/nnue_provenance_pre_v2_5_0.json` and its
-source remains recoverable from Git. Old binaries, experiments, RC ZIPs,
-datasets, and private configuration are preserved, not replaced or deleted.
+source remains recoverable from Git. Current C checkpoints and successful
+release proof remain protected locally; retired tracked experiments remain
+recoverable from Git history. Private configuration is unchanged.
 
 ## Reviewed depth-comparison requirements
 
@@ -49,8 +74,9 @@ The revised full C++ suite passes locally. This decision does not certify
 every shallow move as optimal or erase C's original rejection.
 
 Historical D-series, fresh-data, ABC100, ABC60, and recovery protocols/results
-remain frozen. Their failures, interruptions, and old thresholds remain as
-recorded. The maintainer's new acceptance policy requires the reviewed
+remain frozen in Git history at the tested release commit. Their failures,
+interruptions, and old thresholds remain recoverable exactly as recorded.
+The maintainer's new acceptance policy requires the reviewed
 correctness suite and all release-engineering checks below, not a relabeled
 pass under an earlier strength campaign.
 

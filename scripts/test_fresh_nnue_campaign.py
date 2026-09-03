@@ -9,12 +9,19 @@ import datetime as dt
 import io
 import json
 import continue_fresh_nnue_campaign as continuation
+import validation_support
 
 
 class CampaignTests(unittest.TestCase):
     def test_production_weights_identity(self):
         path = campaign.ROOT / 'include/eloi/nnue_weights.hpp'
-        self.assertEqual(campaign.data.sha(path), campaign.data.WEIGHTS)
+        provenance = campaign.read(campaign.ROOT / 'data/nnue_provenance.json')
+        self.assertEqual(campaign.data.sha(path), provenance['selected_weights_sha256'])
+        self.assertEqual(campaign.data.WEIGHTS, provenance['previous_weights_sha256'])
+
+    def test_frozen_campaign_cannot_resume_against_promoted_weights(self):
+        with self.assertRaisesRegex(RuntimeError, 'production network changed'):
+            campaign.data.preflight()
 
     def test_default_header_source_unchanged(self):
         import inspect
@@ -126,7 +133,7 @@ class CampaignTests(unittest.TestCase):
         model = campaign.trainer.load_quantized_header(campaign.ROOT / 'include/eloi/nnue_weights.hpp')
         scratch = campaign.WORK / 'integrity-checks' / str(time.time_ns())
         scratch.mkdir(parents=True)
-        campaign.data.preflight(5_000_000)
+        validation_support.resource_snapshot(scratch, 5_000_000)
         header = scratch / 'weights.hpp'
         duplicate = scratch / 'duplicate.hpp'
         params = tuple(a.astype(np.float32) for a in model)

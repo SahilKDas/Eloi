@@ -1,263 +1,136 @@
 # Reproducing Eloi releases
 
-## Stable v2.5.0 preservation workflow
+## Source identity comes first
 
-`RELEASE_V2_5_0.md` defines the current stable acceptance decision. The
-preservation path in `scripts/build-windows-release.ps1 -PreserveExisting`
-uses `scripts/release_v250.py` to export one clean committed source revision,
-build standalone twice and Exoskeleton twice, run CTest on every build,
-compare payload and deterministic ZIP hashes, and validate fresh extracted
-packages outside the checkout. It never invokes the legacy deleting staging
-target. The Python interpreter and zlib versions are included in the proof;
-fixed ZIP order, timestamps, attributes and compression are part of the
-archive reproduction contract. Keep all scratch within the recorded quotas.
+The verified v2.5.0 artifacts were built from commit
+`24e8a4538fd1fcf164ad1747a62e91a01acdccec`.
+Use that exact commit in a separate clean checkout when reproducing those
+published bytes. A later documentation/tooling cleanup commit is not the same
+source identity, even when playing code and weights are unchanged.
 
-Production builds require an empty `ELOI_NNUE_INCLUDE_DIR`; they use the
-tracked C header, not an ignored experimental include directory. The
-canonical version is 2.5.0 with an empty prerelease string. Final proof is
-bound to the source commit and both archive hashes in the GitHub release
-notes. No build is called reproducible before all comparisons succeed.
+See [RELEASE_V2_5_0.md](RELEASE_V2_5_0.md) for the network, package hashes and
+acceptance decision. Production builds leave `ELOI_NNUE_INCLUDE_DIR` empty;
+they use the tracked C header. Build tooling never retrains it implicitly.
 
-The older two-build/staging instructions below describe the legacy workflow.
-They are not permission to delete files under the current preservation policy.
+## Locked inputs
 
-For a later independent byte-reproduction attempt without the ignored frozen
-C reference executable, use a new scratch directory:
+[reproducibility.lock.json](reproducibility.lock.json) pins the MSYS2 packages,
+tool executable hashes, Skia/codec archives and linked static libraries.
+The Windows x64 environment uses PowerShell 7.6.4 and:
+
+| Component | Locked package |
+|---|---|
+| GCC/runtime | 14.1.0-3 |
+| GNU binutils | 2.42-2 |
+| MinGW headers/CRT/winpthreads | 11.0.0.r750.g05598db99-1 |
+| CMake | 3.29.3-2 |
+| Ninja | 1.12.1-1 |
+
+Archive generation used **Python 3.12.13 / zlib 1.3.2**.
+Python executable SHA-256:
+`D8E3F0ADF246DB00358C0C4ED349CF714898178F9558FB0E944F79F5C07F8EAA`.
+
+The fixed source epoch is `1787961600` (2026-08-29 00:00:00 UTC).
+C++26 compilation uses `-std=c++2c`, fixed LTO partitioning, remapped paths
+and a fixed compiler seed. The linker writes zero PE timestamps. ZIPs use
+sorted entries, the fixed epoch, normalized attributes and compression level 9.
+
+Retain the exact signed MSYS2 archives in the package cache and verify both
+installed tools and cached archives. Never change a hash to accept an
+unfamiliar substitute.
+
+```powershell
+pwsh -NoProfile -File .\scripts\bootstrap-windows.ps1
+pwsh -NoProfile -File .\scripts\verify-toolchain.ps1 -RequirePackageArchives
+```
+
+Bootstrap downloads hash-pinned development dependencies into ignored
+`.deps`. It is not a production runtime step.
+
+## Four-build package proof
+
+Commit intended source changes first; release tooling refuses a dirty tree.
+For an independent proof without a local frozen experimental executable:
 
 ```powershell
 python -B scripts/release_v250.py build --reproduce-only --work-dir tmp/reproduce-v2.5.0-1
 ```
 
-This runs all four builds and package-byte comparisons, retains their output,
-and neither stages nor qualifies a new release. It does not substitute for
-the full reference, timing, Defender or publication checks. Existing scratch
-collisions are refused, never cleared. Use the Python/zlib versions recorded
-in the release proof to reproduce ZIP compression bytes.
+Choose a fresh output directory. The script refuses collisions and retains
+scratch. It exports the selected commit, builds standalone twice and Exoskeleton
+twice, runs CTest in every build, checks package contents/imports/PE timestamps,
+and requires byte-identical payloads and archives within each form.
 
-Eloi's Windows release is designed to be bit-for-bit reproducible. A release
-is not called reproducible merely because it compiles twice: the two builds
-must begin from independent source and build directories, use the locked inputs
-below, pass the tests, contain a zero PE timestamp, and produce identical bytes.
+This proves the artifacts produced by that source and environment agree.
+To reproduce the original v2.5.0 ZIP hashes, run from the original commit and
+use the recorded Python/zlib environment as well. Exoskeleton records its
+source commit inside the package, so a newer source revision changes its bytes.
 
-## Trust boundary
+Reproduction-only does not qualify a new release: it skips the ignored frozen-C
+reference, performance comparison, security and publication gates.
+The full local validation path is `build` without `--reproduce-only`;
+it also requires the frozen C executable and retained campaign inputs.
+It must not overwrite an existing `dist/v2.5.0` directory.
 
-The tracked [`reproducibility.lock.json`](reproducibility.lock.json) is the
-machine-readable source of truth. It pins:
+The `build-windows-release.ps1 -PreserveExisting` wrapper selects that
+preservation path. Other generic package helpers remain available, but the
+old v1.9/search-recovery campaign instructions are not release prerequisites.
 
-- the complete MSYS2 UCRT64 compiler and build-tool package set;
-- SHA-256 hashes for the compiler front-end, assembler, archivers, resource
-  compiler, linker, stripper, LTO worker, CMake, Ninja, and CTest;
-- Skia and every codec source archive by immutable version, URL, size where
-  available, and SHA-256;
-- every static archive that is linked into `Eloi.exe`; and
-- `SOURCE_DATE_EPOCH`, fixed to `1787961600` (2026-08-29 00:00:00 UTC).
+## Validation and safety
 
-The lock file is deliberately small and reviewed in Git. Toolchain archives,
-dependency caches, private configuration, and binaries are not committed.
+Before publication, require complete mechanical/tactical/GUI suites,
+perft d4=197281, 32 seeded move-generation comparisons per variant, UCI
+startup/readiness/new-game/timed/stop/exit checks, and offline Lichess config
+and empty-token guards. Never start a live account just to validate packaging.
 
-## Locked build environment
+Compare fixed-depth behavior with the identified brain and record bounded
+benchmark repetitions under equal settings. The v2.5.0 policy rejects
+unexplained median slowdowns above 15% at depths 5/10. Future releases need
+their own explicit policy; old beta speed gates and abandoned campaign game
+counts are not universal requirements.
 
-Eloi Windows x64 release builds use PowerShell 7.6.4 and MSYS2 UCRT64 with:
+Inspect board/setup/Engine Lab renders and exercise castling, promotion,
+undo and side selection. Engine Lab screenshot-mode statistics are fixtures,
+not strength evidence. Scan both complete extracted packages and both ZIPs
+with Defender without remediation or exclusions.
 
-| Component | Locked package version |
-| --- | --- |
-| GCC / GCC runtime | `14.1.0-3` |
-| GNU binutils | `2.42-2` |
-| MinGW headers / CRT / winpthreads | `11.0.0.r750.g05598db99-1` |
-| CMake | `3.29.3-2` |
-| Ninja | `1.12.1-1` |
+Follow [device constraints](constraints_on_SahilKDas_device.md): exactly
+three search threads, sequential heavy work at Idle priority, at most 10 GB
+total temporary data, the stricter nested training limit, 2 GB new release
+scratch and at least 5 GB free disk. Preserve active bridges/frontends.
+`scripts/validation_support.py` provides shared EPD parsing and a resource
+preflight without depending on a retired campaign or an old NNUE identity.
 
-The exact package filenames, byte sizes, and hashes are in the lock file.
-Obtain those signed package archives from an official MSYS2 archive or a
-retained MSYS2 package cache. Do not substitute a newer package carrying the
-same program name. Install the complete set with MSYS2's `pacman -U`, then
-leave a copy of each archive in `C:\msys64\var\cache\pacman\pkg`; the
-verification command below checks both the installed version and archive hash.
+## Verify downloads
 
-The compiler is invoked in C++26 mode as `-std=c++2c`. Release LTO is fixed at
-one partition (`-flto=1`), avoiding GCC's host-dependent `-flto=auto` choice.
-Source/build paths are remapped, GCC's random seed is fixed, and GNU ld is
-passed `--no-insert-timestamp`, which writes zero to the PE COFF timestamp.
-
-## Prepare dependencies
-
-From a clean checkout of the release tag, run:
+Compare each ZIP's SHA-256 with the release notes before extracting:
 
 ```powershell
-Set-Location C:\path\to\Eloi
-powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-windows.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\verify-toolchain.ps1 `
-  -RequirePackageArchives
+Get-FileHash .\Eloi-v2.5.0-windows-x64-standalone.zip -Algorithm SHA256
+Get-FileHash .\Eloi-v2.5.0-windows-x64-exoskeleton.zip -Algorithm SHA256
 ```
 
-The bootstrap downloads only the pinned Skia archive and codec sources. Every
-download is hashed before extraction. It builds the codecs statically and the
-verifier then compares the resulting libraries with the locked hashes.
+Standalone contains exactly `Eloi.exe` and empty-token `config.yml`.
+Exoskeleton also includes `SOURCE_COMMIT.txt` and `SHA256SUMS.txt`; verify
+every listed file. Hash agreement proves byte identity, not that source is
+harmless. Source review and antivirus checks remain separate.
+These release binaries are unsigned.
 
-If a URL disappears, retrieve the exact named archive from its upstream
-project or archive mirror and place it in `.deps\packages`; never change a
-hash simply to make an unfamiliar file pass.
+## Training provenance, not implicit retraining
 
-## Perform the two-build proof
+C's exact A-to-B-to-C recipe and source/checkpoint/header identities are in
+[DATA_SOURCES.md](DATA_SOURCES.md) and
+[data/nnue_provenance.json](data/nnue_provenance.json).
+C warm-started from the earlier production network; a fresh run of the generic
+trainer is not a claim to reproduce C.
 
-Commit all intended source changes first. The verifier refuses a dirty
-worktree, because an uncommitted build cannot be tied to a source revision.
-Then run:
+The bounded trainer, sampler, learning-equivalence checks and dormant-channel
+audit remain development tools. Their frozen fresh-data campaign parameters
+document C's lineage; old deadlines must not be treated as a new campaign
+authorization. Use a new reviewed protocol and output directory for future
+training, and qualify any candidate inside the actual engine before promotion.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\verify-reproducible.ps1 `
-  -StageRelease
-```
-
-The script performs the following checks:
-
-1. Verifies every locked tool, package archive, and linked static library.
-2. Exports the committed `HEAD` using `git archive`.
-3. Extracts that archive into two unrelated temporary source directories.
-4. Configures and builds Release plus tests independently in both trees.
-5. Runs CTest against both builds.
-6. Verifies both packages contain exactly `Eloi.exe` and `config.yml`.
-7. Reads the PE header directly and requires a zero COFF timestamp.
-8. Compares both files byte-for-byte and prints their SHA-256 hashes.
-9. Copies the verified pair to `dist\release` only after every check passes.
-
-Then create the two release archives from the same clean commit:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-windows-release.ps1
-```
-
-That command reruns the canonical two-build proof, creates a standalone ZIP
-containing exactly `Eloi.exe` and `config.yml`, and builds the hash-manifested
-Exoskeleton ZIP. The GitHub release receives those two ZIPs only.
-
-Use `-Keep` to preserve the temporary trees for diagnosis. Without it, the
-script removes only its uniquely named directory under the system temporary
-directory.
-
-## Randomness audit
-
-No entropy is consumed while building Eloi. Generated opening and NNUE headers
-are tracked inputs and are not regenerated by CMake. Zobrist values and all
-development generators use fixed seeds. The engine has a fixed-seed PRNG for
-the optional UCI evaluation-noise setting, but its default is zero and it does
-not affect the executable bytes. Timed games are naturally not replay-identical
-because operating-system scheduling changes how many nodes fit before a clock
-deadline; that is runtime behavior, not build randomness.
-
-## Verifying a published release
-
-Extract the published standalone ZIP and compare `Eloi.exe` and `config.yml`
-with the hashes printed by the two-build verifier:
-
-```powershell
-Get-FileHash .\Eloi.exe, .\config.yml -Algorithm SHA256
-```
-
-The Exoskeleton ZIP includes `SOURCE_COMMIT.txt` and `SHA256SUMS.txt`; verify
-its ZIP hash from the release notes, then check every extracted file against
-the manifest. Matching hashes prove that the downloaded files are byte-identical to files
-produced from the tagged source with the locked inputs. They do not, by
-themselves, prove that the reviewed source is harmless; source review and local
-antivirus scanning remain separate security checks. Release binaries are currently
-unsigned, so signing is not part of the reproducibility claim.
-
-## Reproducing NNUE training
-
-NNUE regeneration is an explicit data-generation task and is never run by
-CMake. `scripts/train_nnue.py` streams the local Lichess CC0 puzzle CSV and
-evaluation JSONL, assigns related records to training or validation by a
-deterministic source hash, and compares 64- and 128-hidden-unit candidates.
-The selected compact header, architecture header, and provenance JSON are the
-only retained outputs.
-
-The trainer enforces a hard temporary-disk ceiling of 7 GiB. It rejects a
-higher configured quota, checks the temporary directory before and after each
-staged output, aborts before an estimated write could exceed the quota, and
-removes unsuccessful candidate artifacts after selection:
-
-```powershell
-python .\scripts\test_train_nnue.py
-```
-
-That regression test proves that combined and solo architecture runs produce
-identical per-candidate metrics and weight hashes, repeated comparisons are
-deterministic, report-only mode cannot replace model outputs, provenance
-records the generation environment, every selected generated header compiles
-as C++26, and temporary staging is removed.
-
-```powershell
-python .\scripts\train_nnue.py `
-  --puzzles C:\path\to\lichess-puzzles.csv `
-  --evaluations C:\path\to\lichess-evaluations.jsonl `
-  --temp-dir .\tmp\nnue-training `
-  --max-temp-gb 7
-```
-
-`data/nnue_provenance.json` records both input SHA-256 hashes, the fixed
-seed, split fraction, limits, counts, candidate validation metrics, selected
-architecture, and selected header hash. A newly trained network is still only
-a candidate: it must be rebuilt into Eloi and pass the full speed, strength,
-correctness, and two-build reproducibility gates before replacing production
-weights.
-
-## Candidate evidence
-
-The search-first recovery is specified in `SEARCH_RECOVERY.md` and
-`data/search_recovery_protocol.json`. Its official v2.0.0 baseline is also an
-accepted Engine Lab identity. The staged runner requires correctness,
-reproducibility, performance, development, and confirmation evidence before it
-can open the final partition. No recovery match has run because the single
-root-ordering repair failed correctness and was reverted.
-
-For an eligible future campaign, the two-build verifier can keep its scratch
-under the recovery cap and emit machine-readable proof:
-
-```powershell
-.\scripts\verify-reproducible.ps1 `
-  -ScratchParent .\tmp\search-recovery `
-  -EvidencePath .\tmp\search-recovery\two-build-proof.json
-```
-
-The proof records both independent executable hashes, source commit, frozen
-weights, toolchain lock, zero PE timestamp, and both CTest results. A proof for
-another executable cannot satisfy the recovery runner. This command was not
-run for the rejected repair; later gates were intentionally skipped.
-
-The complete architecture-playoff and final-gauntlet procedure is frozen in
-`V1.9_VALIDATION_PLAN.md`. Follow it before replacing the production NNUE or
-claiming that v1.9 passed its final strength gate.
-
-```powershell
-.\.deps\lichess-bot\.venv\Scripts\python.exe `
-  .\scripts\test_engine_lab.py
-```
-
-These unit tests keep the architecture playoff's score thresholds distinct
-from the final gauntlet's raw-win requirement and ensure an incomplete playoff
-cannot select an architecture. They also validate the shortened-playoff
-finalizer, which requires an exact even result count, matching PGN count and
-engine hashes, archives the original checkpoint identity, and records every
-post-start sample-size change.
-
-After generating the two candidate directories described there, build and
-validate both without installing either one:
-
-```powershell
-.\scripts\build-nnue-candidates.ps1
-```
-
-The harness verifies the pinned toolchain and candidate hashes, performs clean
-Release builds, runs CTest, perft depth 4, benchmark depth 6, and 96 seeded
-python-chess differential positions per candidate, verifies zero PE timestamps,
-then restores the tracked production headers byte-for-byte. Its tracked result
-is `data/nnue_candidate_builds.json`; candidate executables and detailed
-differential reports remain ignored under `tmp/nnue-playoff/`.
-
-Before a release candidate is staged, run `scripts/engine_lab.py` against the
-official `v1.5.0-beta.1` executable whose SHA-256 is
-`614CE6D601AFC749EA4EFD8FC94A8BAE79EF4537374B0984E292A92CA0A99B7F`.
-Retain the final Markdown/JSON speed report and the completed 250-game PGN
-as release evidence, but keep development checkpoints and failed candidates
-under ignored `tmp/`. Depths 1, 5, and 10 are hard 5.00x median gates;
-depths 15, 20, 30, and 40 are ten-minute censored reports.
+Archived campaign plans and retired runners remain available at the original
+source commit. Current source, data lineage, evidence and future work are indexed
+by [README.md](README.md), [data/README.md](data/README.md) and
+[FUTURE_WORK.md](FUTURE_WORK.md).
