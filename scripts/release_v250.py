@@ -320,7 +320,9 @@ def build_packages(reproduce_only=False):
         create(WORK / "start.json", {"started_utc": STARTED, "mode": "reproduce-only" if reproduce_only else "release-validation"})
         create(WORK / "protected.json", {str(p.relative_to(ROOT)): sha(p) for p in (ROOT / "src").iterdir() if p.is_file()})
     resources(1_000_000_000)
-    run(["powershell", "-NoProfile", "-File", ROOT / "scripts/verify-toolchain.ps1", "-RequirePackageArchives"], "locked-toolchain", 180)
+    powershell = shutil.which("pwsh")
+    require(powershell is not None, "PowerShell 7 (pwsh) is required by the locked build contract")
+    run([powershell, "-NoProfile", "-File", ROOT / "scripts/verify-toolchain.ps1", "-RequirePackageArchives"], "locked-toolchain-pwsh", 180)
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     lock = read(ROOT / "reproducibility.lock.json")
     archive = WORK / "source.zip"
