@@ -19,6 +19,24 @@ def rows(*labels: str) -> list[dict[str, object]]:
 
 
 class EngineLabGateTests(unittest.TestCase):
+    def test_odd_schedule_requires_explicit_opt_in(self) -> None:
+        with self.assertRaisesRegex(ValueError, "allow-unpaired-final"):
+            engine_lab.validate_strength_schedule(125, 63)
+
+    def test_odd_schedule_freezes_pairs_and_candidate_white_final(self) -> None:
+        schedule = engine_lab.validate_strength_schedule(125, 63, True)
+        self.assertEqual(schedule["opening_count"], 63)
+        self.assertEqual(schedule["mirrored_games"], 124)
+        self.assertTrue(schedule["unpaired_final"])
+        self.assertEqual(schedule["unpaired_candidate_color"], "white")
+
+    def test_unpaired_opt_in_does_not_change_even_schedule(self) -> None:
+        schedule = engine_lab.validate_strength_schedule(124, 62, True)
+        self.assertEqual(schedule["opening_count"], 62)
+        self.assertEqual(schedule["mirrored_games"], 124)
+        self.assertFalse(schedule["unpaired_final"])
+        self.assertIsNone(schedule["unpaired_candidate_color"])
+
     def test_final_gate_counts_raw_wins_only(self) -> None:
         report = {
             "identity": {

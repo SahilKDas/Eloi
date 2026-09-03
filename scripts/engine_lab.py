@@ -429,6 +429,27 @@ def validate_resume(result: dict, identity: dict, pgn_path: pathlib.Path) -> Non
         raise ValueError("PGN game count differs from checkpoint")
 
 
+def validate_strength_schedule(games: int, position_count: int,
+                               allow_unpaired_final: bool = False) -> dict[str, Any]:
+    """Validate a mirrored schedule, with an explicit opt-in for one odd game.
+
+    Odd schedules retain complete mirrored pairs first and put the candidate on
+    White for the sole unpaired final game.  The opt-in keeps every historical
+    even-game campaign and checkpoint identity unchanged by default.
+    """
+    if games < 2 or games > position_count * 2:
+        raise ValueError("games must be at least two and no larger than twice the suite")
+    if games % 2 and not allow_unpaired_final:
+        raise ValueError(
+            "games must be even unless --allow-unpaired-final is explicitly set")
+    return {
+        "opening_count": (games + 1) // 2,
+        "mirrored_games": games - (games % 2),
+        "unpaired_final": bool(games % 2),
+        "unpaired_candidate_color": "white" if games % 2 else None,
+    }
+
+
 def strength_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
                   suite_path: pathlib.Path, checkpoint_path: pathlib.Path,
                   pgn_path: pathlib.Path, movetime_ms: int | None = 250,
@@ -437,11 +458,12 @@ def strength_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
                   architecture_playoff: bool = False, *,
                   nodes: int | None = None, gate_metric: str = "wins",
                   required_score: float = 0.55, idle_priority: bool = False,
-                  protocol_path: pathlib.Path | None = None) -> dict[str, Any]:
+                  protocol_path: pathlib.Path | None = None,
+                  allow_unpaired_final: bool = False) -> dict[str, Any]:
     suite = json.loads(suite_path.read_text(encoding="utf-8"))
     positions = suite["positions"]
-    if games < 2 or games > len(positions) * 2 or games % 2:
-        raise ValueError("games must be positive, even and no larger than twice the suite")
+    schedule = validate_strength_schedule(
+        games, len(positions), allow_unpaired_final)
     if (nodes is None) == (movetime_ms is None):
         raise ValueError("choose exactly one of nodes or movetime")
     if (nodes is not None and nodes <= 0) or (movetime_ms is not None and movetime_ms <= 0):
@@ -463,6 +485,8 @@ def strength_gate(candidate_path: pathlib.Path, baseline_path: pathlib.Path,
         "priority": "Windows Idle" if idle_priority else "normal",
         "gate_metric": "score" if architecture_playoff else gate_metric,
     }
+    if schedule["unpaired_final"]:
+        identity.update(schedule)
     if architecture_playoff:
         identity.update({"candidate_hidden": 128, "baseline_hidden": 64,
                          "select_candidate_at_score": 0.55,
@@ -786,6 +810,10 @@ def main() -> int:
     budget.add_argument("--nodes", type=int)
     strength.add_argument("--gate-metric", choices=("score", "wins"), default="wins")
     strength.add_argument("--required-score", type=float, default=0.55)
+    strength.add_argument(
+        "--allow-unpaired-final", action="store_true",
+        help=("permit exactly one unpaired final game in an odd-sized schedule; "
+              "the candidate has White in that game"))
     strength.add_argument("--idle-priority", action="store_true")
     strength.add_argument("--protocol", type=pathlib.Path)
     strength.add_argument("--max-plies", type=int, default=200)
@@ -845,7 +873,8 @@ def main() -> int:
             nodes=getattr(args, "nodes", None), gate_metric=getattr(args, "gate_metric", "wins"),
             required_score=getattr(args, "required_score", 0.55),
             idle_priority=getattr(args, "idle_priority", False),
-            protocol_path=getattr(args, "protocol", None))
+            protocol_path=getattr(args, "protocol", None),
+            allow_unpaired_final=getattr(args, "allow_unpaired_final", False))
     else:
         result = deep_ladder(
             candidate, baseline, args.output.resolve(), tuple(args.depths),
