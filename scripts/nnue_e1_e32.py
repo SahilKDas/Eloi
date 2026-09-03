@@ -511,6 +511,49 @@ def train_selected():
     }, indent=2))
 
 
+def emit_compact():
+    validation_support.resource_snapshot(WORK, PROJECTED_BYTES)
+    c, provenance = load_c()
+    samples = load_evaluations_readonly(provenance)
+    compact, selected, unused = compact_c_to_32(c)
+    if quantized_predictions(compact, samples["validation"]) != quantized_predictions(
+        c, samples["validation"]
+    ):
+        raise RuntimeError("32-unit C compaction changed quantized predictions")
+    counts = {
+        **provenance["counts"],
+        "validation_evaluations": len(samples["validation"]),
+    }
+    report = emit_candidate("E32-compact", compact, [], {
+        "recipe": "Exact C compaction retaining every occupied quantized channel; no training",
+        "c_source_channels": selected,
+        "unused_channels": unused,
+        "predictions_identical_to_c_for_all_inputs": True,
+        "explanation": (
+            "Every omitted C channel has zero quantized input weights and "
+            "zero quantized output coefficient, so it contributes zero for "
+            "every possible position."
+        ),
+    }, samples["validation"], counts)
+    write_json(WORK / "compact-training-result.json", {
+        "schema": 1,
+        "source_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip(),
+        "source_hashes": {
+            path.relative_to(ROOT).as_posix(): sha256(path)
+            for path in (Path(__file__), ROOT / "scripts/train_nnue.py")
+        },
+        "candidate": report,
+        "held_out_test_opened": False,
+        "gauntlet_run": False,
+        "production_header_unchanged": (
+            sha256(PRODUCTION_HEADER) == provenance["selected_weights_sha256"]
+        ),
+    })
+    print(json.dumps(report, indent=2))
+
+
 def run_command(command, log, timeout):
     flags = (
         subprocess.IDLE_PRIORITY_CLASS | subprocess.CREATE_NO_WINDOW
@@ -618,8 +661,10 @@ def main():
         choices=(
             "train",
             "train-selected",
+            "emit-compact",
             "validate",
             "validate-selected",
+            "validate-compact",
             "run",
         ),
     )
@@ -635,6 +680,10 @@ def main():
             ("E1-selected", "E32-selected"),
             "selected-validation-results",
         )
+    if args.stage == "emit-compact":
+        emit_compact()
+    if args.stage == "validate-compact":
+        validate(("E32-compact",), "compact-validation-results")
 
 
 if __name__ == "__main__":
