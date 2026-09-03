@@ -1,5 +1,39 @@
 # Reproducing Eloi releases
 
+## Stable v2.5.0 preservation workflow
+
+`RELEASE_V2_5_0.md` defines the current stable acceptance decision. The
+preservation path in `scripts/build-windows-release.ps1 -PreserveExisting`
+uses `scripts/release_v250.py` to export one clean committed source revision,
+build standalone twice and Exoskeleton twice, run CTest on every build,
+compare payload and deterministic ZIP hashes, and validate fresh extracted
+packages outside the checkout. It never invokes the legacy deleting staging
+target. The Python interpreter and zlib versions are included in the proof;
+fixed ZIP order, timestamps, attributes and compression are part of the
+archive reproduction contract. Keep all scratch within the recorded quotas.
+
+Production builds require an empty `ELOI_NNUE_INCLUDE_DIR`; they use the
+tracked C header, not an ignored experimental include directory. The
+canonical version is 2.5.0 with an empty prerelease string. Final proof is
+bound to the source commit and both archive hashes in the GitHub release
+notes. No build is called reproducible before all comparisons succeed.
+
+The older two-build/staging instructions below describe the legacy workflow.
+They are not permission to delete files under the current preservation policy.
+
+For a later independent byte-reproduction attempt without the ignored frozen
+C reference executable, use a new scratch directory:
+
+```powershell
+python -B scripts/release_v250.py build --reproduce-only --work-dir tmp/reproduce-v2.5.0-1
+```
+
+This runs all four builds and package-byte comparisons, retains their output,
+and neither stages nor qualifies a new release. It does not substitute for
+the full reference, timing, Defender or publication checks. Existing scratch
+collisions are refused, never cleared. Use the Python/zlib versions recorded
+in the release proof to reproduce ZIP compression bytes.
+
 Eloi's Windows release is designed to be bit-for-bit reproducible. A release
 is not called reproducible merely because it compiles twice: the two builds
 must begin from independent source and build directories, use the locked inputs

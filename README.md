@@ -1,7 +1,7 @@
 # Eloi
 
 Eloi is a C++26 chess engine and native Windows chess application. The current
-source version is **2.5.0-rc.1**. The production build creates one main
+source version is **2.5.0**. The production build creates one main
 executable, `Eloi.exe`, with five primary runtime modes:
 
 - no arguments or `--gui`: the Skia GUI
@@ -17,14 +17,29 @@ been validated or published.
 
 ## Current project status
 
-The latest tagged release baseline is `v2.0.0`; `main` is preparing
-`v2.5.0-rc.1`. The v2.5 source contains the cached-board/search overhaul,
+The v2.5.0 stable release selects the existing **C** NNUE, with unchanged
+RootSplit search. In its 20-game screen against the hash-verified official
+v2.0.0 executable, C scored **10 wins, 3 draws, 7 losses: 57.5%**. B ran its
+own match concurrently, so this small sample is preliminary evidence, not a
+reliable Elo claim. Selection is the maintainer's new release decision; no
+earlier failed or incomplete campaign was retroactively passed.
+
+Two depth-comparison assertions were reviewed: legal move refinement is now
+allowed for `lichess-001XA` and `poisoned-pawn-capture`, while the required
+deeper defense, forbidden capture at both depths, legal PVs, and score-swing
+limits remain enforced. Other exact-move stability checks are unchanged.
+See [v2.5.0 release validation](RELEASE_V2_5_0.md),
+[C's match evidence](ABC60_PARALLEL.md), and [data provenance](DATA_SOURCES.md).
+
+The v2.5 source contains the cached-board/search overhaul,
 exactly-three-lane engine, Engine Lab, hash-bound benchmark harness, expanded
 move-generation differential tests, deterministic NNUE training pipeline,
 categorized tactical regression gates, retained historical Lazy SMP evidence,
 and the two golden Windows package builders.
 
-The embedded production NNUE has 64 hidden units selected from deterministic
+### Historical development evidence
+
+The earlier production NNUE had 64 hidden units selected from deterministic
 64-versus-128 retraining. Both candidates passed clean builds and correctness
 tests; in the user-shortened 110-game architecture playoff, 128 scored 43.64%,
 so the frozen threshold selected 64. The sample-size changes and every evidence
@@ -32,15 +47,15 @@ hash are recorded in `data/nnue_architecture_playoff.json`. The v2.5 search
 playoff retained RootSplit: it passed all correctness gates and scored 54.17%
 in the bounded 24-game paired comparison; experimental LazySMP failed two
 tactical regressions and scored 45.83%. Training a 256-unit NNUE remains
-deliberately deferred. The current source is an RC, not a stable
-strength-qualified release.
+deliberately deferred. That earlier source was an RC, not a stable
+strength-qualified release; it did not contain the newly selected C network.
 
 The completed 250-game mirrored gate against the published `v2.0.0` Windows
 x64 executable finished 80 wins, 90 draws, and 80 losses for v2.5: exactly a
 50.00% score and 68.00% non-loss rate. It failed both the original requirement
 of more than 70% raw wins and the user's final mid-run amendment requiring an
-80% non-loss rate. The candidate therefore remains unqualified for release on
-strength grounds. The frozen settings, binary and suite hashes, criteria
+80% non-loss rate. That candidate remains unqualified under its historical
+strength gate. The frozen settings, binary and suite hashes, criteria
 history, checkpoint, and all 250 PGNs are recorded in
 `data/v2_5_vs_v2_0_strength_gauntlet.json` and `data/games/`.
 
@@ -49,8 +64,8 @@ RootSplit, removed the LazySMP implementation and public `ParallelMode` option,
 and kept the production NNUE frozen. Its one evidence-selected root-ordering
 repair failed the stored bishop-hang regression and was reverted immediately.
 No recovery gauntlet, installation, rc.2 bump, or release package was produced.
-The passing restoration and diagnostic tooling remain; published v2.0.0 remains
-the strength champion. See [SEARCH_RECOVERY.md](SEARCH_RECOVERY.md) and
+The passing restoration and diagnostic tooling remain; that recovery campaign
+retained published v2.0.0 as its champion. See [SEARCH_RECOVERY.md](SEARCH_RECOVERY.md) and
 `data/search_recovery_rejection.json` for the protocol, evidence, and stop decision.
 
 ## Repository map

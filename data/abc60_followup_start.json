@@ -1,0 +1,8 @@
+{
+  "started_utc": "2026-09-03T03:15:12+00:00",
+  "maximum_minutes": 20,
+  "search_end_minutes": 18,
+  "protected_existing_processes": [30912, 13092],
+  "external_temporary_directories_found": [],
+  "authorization": "User explicitly replied 'Yep, go crazy!' to a request to keep the laptop awake and restart a bounded 20-minute run. The earlier preparation attempt expired without any games; its record is preserved separately. Original ABC60 stays interrupted; no retroactive pass."
+}

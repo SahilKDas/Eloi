@@ -40,6 +40,13 @@ ctest --test-dir build-release --output-on-failure
 
 ## Release invariants
 
+For stable v2.5.0, follow `RELEASE_V2_5_0.md`: C was explicitly selected by
+the maintainer, two overstrict depth-equality assertions were reviewed, and
+all other correctness and release checks remain mandatory. Earlier strength
+campaign gates below are historical and are not retroactively passed.
+Use the preservation release workflow and `dist/v2.5.0`; do not run legacy
+delete-and-restage commands or replace the existing `dist/current` archives.
+
 Every change must preserve these requirements:
 
 - GitHub releases contain exactly two downloadable archives: the canonical

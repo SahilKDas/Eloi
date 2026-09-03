@@ -1,0 +1,9 @@
+{
+  "started_utc": "2026-09-03T03:28:28+00:00",
+  "maximum_minutes": 20,
+  "search_end_minutes": 18,
+  "maximum_new_bytes": 20000000,
+  "protected_existing_processes": [30912, 13092],
+  "external_temporary_directories_found": [],
+  "concurrency_authorization": "User explicitly chose parallel B/C runs after being told this overrides the one-heavy-match limit for the specific run. A is already finished; do not rerun A. Two active searches, three threads each, six active search threads total."
+}

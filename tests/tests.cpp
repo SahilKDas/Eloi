@@ -10,6 +10,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -164,6 +165,7 @@ struct EpdCase {
   int depth{4};
   std::optional<int> expected_score;
   std::optional<std::pair<int, int>> stable_depths;
+  bool require_same_move{true};
   std::optional<int> maximum_swing;
 };
 
@@ -212,11 +214,17 @@ std::vector<EpdCase> load_epd(const std::filesystem::path& path) {
     test.avoid = values["am"];
     if (values.contains("acd")) test.depth = std::stoi(values["acd"]);
     if (values.contains("ce")) test.expected_score = std::stoi(values["ce"]);
-    if (values.contains("stable")) {
-      std::istringstream depths(values["stable"]);
+    if (values.contains("stable") || values.contains("compare")) {
+      if (values.contains("stable") && values.contains("compare"))
+        throw std::runtime_error("EPD cannot combine stable and compare");
+      test.require_same_move = values.contains("stable");
+      std::istringstream depths(values[test.require_same_move ? "stable" : "compare"]);
       int shallow = 0, deep = 0;
-      if (depths >> shallow >> deep)
-        test.stable_depths = std::pair{shallow, deep};
+      std::string extra;
+      if (!(depths >> shallow >> deep) || shallow < 1 || deep <= shallow ||
+          (depths >> extra))
+        throw std::runtime_error("Invalid EPD comparison depths");
+      test.stable_depths = std::pair{shallow, deep};
     }
     if (values.contains("swing"))
       test.maximum_swing = std::stoi(values["swing"]);
@@ -247,6 +255,34 @@ std::optional<Move> legal_move(const Board& board, std::string_view uci) {
   for (const Move& move : board.legal_moves())
     if (move.same_coordinates(*parsed)) return move;
   return std::nullopt;
+}
+
+std::vector<std::string> comparison_failures(
+    const Board& board, const EpdCase& test,
+    const SearchResult& shallow, const SearchResult& deep) {
+  std::vector<std::string> errors;
+  for (const SearchResult* result : {&shallow, &deep}) {
+    Board replay = board;
+    if (result->pv.empty()) errors.emplace_back("comparison PV is missing");
+    for (const Move& move : result->pv) {
+      const auto legal = legal_move(replay, move.uci());
+      if (!legal || !replay.push(*legal)) {
+        errors.emplace_back("comparison PV contains an illegal move");
+        break;
+      }
+    }
+    if (!test.avoid.empty() && best_uci(*result) == test.avoid)
+      errors.emplace_back("comparison repeats forbidden capture or blunder");
+  }
+  if (!test.best.empty() && best_uci(deep) != test.best)
+    errors.emplace_back("comparison misses required deeper defense or move");
+  if (test.require_same_move && best_uci(shallow) != best_uci(deep))
+    errors.emplace_back("best move remains stable across quiescence depths");
+  if (test.maximum_swing &&
+      std::abs(static_cast<long long>(shallow.score_cp) - deep.score_cp) >
+          *test.maximum_swing)
+    errors.emplace_back("comparison exceeds fixed-depth score-swing limit");
+  return errors;
 }
 }  // namespace
 
@@ -337,7 +373,9 @@ int main() {
     }
     expect(!load_runtime_config(path, &error),
            "config rejects a lookalike bearer-token endpoint");
-    std::filesystem::remove(path);
+    // Release validation retains its isolated fixtures under the no-deletion policy.
+    if (!std::getenv("ELOI_KEEP_TEST_ARTIFACTS"))
+      std::filesystem::remove(path);
   }
   {
     for (Piece promotion : {Piece::none, Piece::queen, Piece::rook,
@@ -1065,6 +1103,48 @@ int main() {
   }
 
   {
+    const auto board = parse_fen(initial_fen);
+    EpdCase test;
+    test.require_same_move = false;
+    test.maximum_swing = 250;
+    test.best = "d2d4";
+    SearchResult shallow, deep;
+    shallow.pv = {*legal_move(*board, "e2e4")};
+    deep.pv = {*legal_move(*board, "d2d4")};
+    shallow.score_cp = 10;
+    deep.score_cp = 20;
+    expect(comparison_failures(*board, test, shallow, deep).empty(),
+           "compare permits legal depth refinement with required deeper move");
+    test.require_same_move = true;
+    expect(!comparison_failures(*board, test, shallow, deep).empty(),
+           "stable still rejects different preferred moves");
+    test.require_same_move = false;
+    test.best = "e2e4";
+    expect(!comparison_failures(*board, test, shallow, deep).empty(),
+           "compare rejects missing required deeper defense");
+    test.best.clear();
+    for (const auto forbidden : {"e2e4", "d2d4"}) {
+      test.avoid = forbidden;
+      expect(!comparison_failures(*board, test, shallow, deep).empty(),
+             "compare rejects forbidden moves at either depth");
+    }
+    test.avoid.clear();
+    deep.score_cp = 261;
+    expect(!comparison_failures(*board, test, shallow, deep).empty(),
+           "compare rejects excessive score swings");
+    deep.score_cp = 20;
+    deep.pv.push_back(*legal_move(*board, "e2e4"));
+    expect(!comparison_failures(*board, test, shallow, deep).empty(),
+           "compare rejects an illegal continuation inside the PV");
+    deep.pv = {*parse_uci_move("e2e5")};
+    expect(!comparison_failures(*board, test, shallow, deep).empty(),
+           "compare rejects an illegal root move");
+    deep.pv.clear();
+    expect(!comparison_failures(*board, test, shallow, deep).empty(),
+           "compare rejects a missing PV");
+  }
+
+  {
     const auto epd_path = std::filesystem::path(ELOI_TEST_DATA_DIR) /
                           "epd" / "v2_5_regressions.epd";
     const auto regressions = load_epd(epd_path);
@@ -1095,9 +1175,14 @@ int main() {
               *board, test.stable_depths->first);
           const auto deep = fixed_depth_search(
               *board, test.stable_depths->second);
-          expect(best_uci(shallow) == best_uci(deep),
-                 prefix + test.id +
-                     ": best move remains stable across quiescence depths");
+          std::cout << prefix << test.id << ": "
+                    << (test.require_same_move ? "stable" : "compare")
+                    << " depth " << test.stable_depths->first << " "
+                    << best_uci(shallow) << " (" << shallow.score_cp << ") -> "
+                    << test.stable_depths->second << " " << best_uci(deep)
+                    << " (" << deep.score_cp << ")\n";
+          for (const auto& error : comparison_failures(*board, test, shallow, deep))
+            expect(false, prefix + test.id + ": " + error);
           if (test.maximum_swing)
             expect(std::abs(shallow.score_cp - deep.score_cp) <=
                        *test.maximum_swing,

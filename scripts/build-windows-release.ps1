@@ -1,8 +1,18 @@
 param(
-  [switch] $SkipDefenderScan
+  [switch] $SkipDefenderScan,
+  [switch] $PreserveExisting,
+  [string] $PythonExecutable = 'python'
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ($PreserveExisting) {
+  if ($SkipDefenderScan) { throw 'Preservation release workflow cannot waive security validation.' }
+  & $PythonExecutable -B (Join-Path $PSScriptRoot 'release_v250.py') build
+  if ($LASTEXITCODE -ne 0) { throw 'Preservation release validation failed.' }
+  Write-Host 'Preserved packages built. Complete recorded Defender/GUI/publication checks before publishing.'
+  return
+}
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $cmakeSource = Get-Content -LiteralPath (Join-Path $projectRoot 'CMakeLists.txt') -Raw

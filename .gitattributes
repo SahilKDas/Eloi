@@ -3,3 +3,11 @@ data/search_recovery/*.json text eol=lf
 data/search_recovery/*.patch -text -diff
 data/search_recovery_*.json text eol=lf
 data/nnue_fresh_data_*.json text eol=lf
+# Keep the promoted network and new hash-bound assessment evidence byte-stable.
+include/eloi/nnue_weights.hpp text eol=lf
+data/abc60*.json text eol=lf
+data/abc60*.pgn -text whitespace=cr-at-eol,-blank-at-eof
+ABC60*.md -text whitespace=cr-at-eol
+scripts/run_abc60*.py text eol=lf
+scripts/test_abc60*.py text eol=lf
+scripts/summarize_abc60_diagnostics.py text eol=lf

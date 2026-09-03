@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "source": "Read-only Windows System event-log inspection, Microsoft-Windows-Kernel-Power, 2026-09-03T01:46:42Z",
+  "events": [
+    {"utc": "2026-09-03T01:06:42.2683728Z", "id": 506, "message": "Entering Modern Standby. Reason: Lid."},
+    {"utc": "2026-09-03T01:17:37.570258Z", "id": 507, "message": "Exiting Modern Standby. Reason: Austerity Battery Drain Budget Exceeded."},
+    {"utc": "2026-09-03T01:17:37.5718393Z", "id": 506, "message": "Entering Modern Standby. Reason: Austerity Battery Drain Budget Exceeded."},
+    {"utc": "2026-09-03T01:45:54.1978923Z", "id": 507, "message": "Exiting Modern Standby. Reason: Lid."}
+  ],
+  "last_accepted_move_utc": "2026-09-03T01:06:43.827989Z",
+  "timeout_recorded_utc": "2026-09-03T01:17:40.143745Z",
+  "elapsed_seconds": 656.2649999999994,
+  "worker_stopped_utc": "2026-09-03T01:17:43.187567Z",
+  "report_generated_utc": "2026-09-03T01:46:10.202222Z",
+  "interpretation": "The timing gap overlaps documented host standby; an engine-only hang was not established. User subsequently confirmed the computer slept. No recovery search was run inside the original experiment.",
+  "budget_note": "Original start was 00:36:06Z, total deadline 01:36:06Z. Host suspension delayed timeout handling and report delivery beyond the one-hour wall-clock budget. Deadlines and original results were not redefined.",
+  "confirmation": {"completed": 16, "planned": 20, "wins": 10, "draws": 3, "losses": 3, "points": 11.5, "interrupted_game": 17, "interrupted_result": "*", "passed": false}
+}

@@ -1,0 +1,62 @@
+{
+  "experiment": "abc60-parallel-bc-v1",
+  "audit_status": "passed",
+  "validation_scope": [
+    "Independent replay of all 40 completed PGNs",
+    "Frozen pairings and starting positions",
+    "Results and final positions",
+    "Per-response engine, position, legal move and elapsed time",
+    "Aggregate PGN reconciliation",
+    "Protected prior evidence hashes"
+  ],
+  "evidence_sha256": {
+    "data/abc60_parallel_protocol.json": "CBAA24CD3517686A31AF1E12F613AD67B0DE6DB0D54B5B033212EA172435592C",
+    "data/abc60_parallel_results.json": "1F3145FF6FF5B12C3A2708FDD13080457F96A579EE497BC7148B71C4B0CC4B9C",
+    "data/abc60_parallel_games.pgn": "0C90E0BEBBD1A38BD9DF511A37A86F2A0C5BA90942B55D577713FDAB55DE5FAE"
+  },
+  "B": {
+    "games": 20,
+    "wins": 8,
+    "draws": 3,
+    "losses": 9,
+    "points": 9.5,
+    "score": 0.475,
+    "moves_verified": 2075,
+    "maximum_response_seconds": 0.5939999999973224,
+    "elapsed_seconds": 595.143272,
+    "active_response_seconds": 498.7799999999843,
+    "checkpoint_passed": false
+  },
+  "C": {
+    "games": 20,
+    "wins": 10,
+    "draws": 3,
+    "losses": 7,
+    "points": 11.5,
+    "score": 0.575,
+    "moves_verified": 2252,
+    "maximum_response_seconds": 0.7339999999967404,
+    "elapsed_seconds": 647.685597,
+    "active_response_seconds": 544.7289999999193,
+    "checkpoint_passed": true
+  },
+  "estimated_search_overlap_seconds": 411.26478695869446,
+  "worker_finish_gap_seconds": 52.54032588005066,
+  "overlap_method": "Intersection of response intervals inferred from logged UTC response ends minus elapsed durations; not CPU profiling.",
+  "illegal_moves": 0,
+  "protocol_incidents": 0,
+  "incomplete_games": 0,
+  "final_storage_snapshot": {
+    "utc": "2026-09-03T03:43:22Z",
+    "temporary_bytes": 1187860592,
+    "training_bytes": 677404725,
+    "parallel_scratch_bytes": 1249456,
+    "free_bytes": 34018291712,
+    "note": "Measured before this compact retained audit and report addition."
+  },
+  "owned_experiment_workers_exited": true,
+  "protected_frontend_preserved": true,
+  "production_unchanged": true,
+  "release_qualified": false,
+  "recommendation": "C is provisionally preferred for further investigation in this parallel screen. Existing regressions remain release blockers; unequal CPU load and small samples prevent a definitive strength claim against solo A or v2.0.0."
+}

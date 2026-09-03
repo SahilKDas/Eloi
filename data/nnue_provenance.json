@@ -1,53 +1,70 @@
 {
-  "candidates": [
-    {
-      "evaluation_mae_cp": 470.8468522065291,
-      "hidden": 64,
-      "tactical_accuracy": 0.8064187468160978,
-      "weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E"
-    }
-  ],
-  "counts": {
-    "train_evaluations": 12000,
-    "train_pairs": 12000,
-    "validation_evaluations": 1958,
-    "validation_pairs": 1963
-  },
-  "environment": {
-    "numpy_version": "2.4.4",
-    "python_chess_version": "1.11.2",
-    "python_implementation": "CPython",
-    "python_version": "3.11.9"
-  },
-  "inputs": {
-    "evaluations": {
-      "path": ".deps/nnue-inputs/lichess-evaluations-2026-08-02.jsonl",
-      "sha256": "48FF13470E057235714A6EB485475597109BFF8B39A2581DCCC4F2CBA4E193B2"
-    },
-    "puzzles": {
-      "path": ".deps/nnue-inputs/lichess-puzzles-2026-08-02.csv",
-      "sha256": "C76047D88F8785EE485BDA1CB0DECF40D61B894BF54F472BE42484E3C686449D"
-    }
-  },
-  "mode": "selected-output",
-  "outputs_written": true,
-  "parameters": {
-    "architectures": [
-      64
-    ],
-    "epochs": 3,
-    "evaluation_limit_per_split": 12000,
-    "puzzle_limit_per_split": 12000,
-    "validation_fraction": 0.1
-  },
-  "schema": 1,
-  "seed": 57601,
+  "schema": 2,
+  "mode": "maintainer-selected-stable-release",
+  "selected_candidate": "C",
   "selected_hidden": 64,
-  "selected_validation": {
-    "evaluation_mae_cp": 470.8468522065291,
-    "tactical_accuracy": 0.8064187468160978
+  "selected_weights_sha256": "6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD",
+  "checkpoint_sha256": "48A40465E1E7A0AB7B408501FBEF78319D62612F6928891AD2B33B58D51AACE9",
+  "previous_provenance": "data/nnue_provenance_pre_v2_5_0.json",
+  "previous_weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E",
+  "counts": {
+    "train_evaluations": 32015,
+    "train_pairs": 12000,
+    "validation_evaluations": 4000,
+    "accepted_test_evaluations": 3985
   },
-  "selected_weights_sha256": "CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E",
-  "temporary_disk_configured_limit_bytes": 7516192768,
-  "temporary_disk_hard_limit_bytes": 7516192768
+  "recipe": [
+    "Initialize from previous production's quantized parameters converted to float32",
+    "A: two fresh-evaluation epochs",
+    "B: three canonical TRAIN puzzle epochs",
+    "C: one fresh-evaluation recalibration epoch"
+  ],
+  "inputs": {
+    "source_url": "https://database.nikonoel.fr/lichess_elite_2025-01.zip",
+    "source_sha256": "F2FA14565BCDABA7AD6DE6A4F8F2348D0F9F8F262935C46E61925C5ACCE6F7B7",
+    "positions_sha256": "F2E1F65C5857653EE3B99B271F26F4F5334B42EF9D75754D51964D8650414ACB",
+    "labels_sha256": "D39429903DDD13FB722EE84073322532415A0D22DF4951202EB89F79110E4038",
+    "canonical_puzzles_sha256": "D3E78A34A458964DDE73A3A3316F6195D3455E23AEAD5094303396074A903016"
+  },
+  "teacher": {
+    "name": "Stockfish",
+    "version": "17.1",
+    "role": "Historical offline numeric labels only; not Eloi code, a runtime backend, or included in release assets",
+    "nodes_low": 5000,
+    "nodes_high": 25000,
+    "audit_nodes": 100000
+  },
+  "quantization": {
+    "input_weights": "numpy.rint then clip [-127,127] to int8",
+    "bias_and_output": "numpy.rint to int16",
+    "checkpoint_arrays_verified_equal_to_export": true
+  },
+  "validation": {
+    "quantized_mae_cp": 181.22,
+    "previous_production_mae_cp": 211.5815,
+    "held_out_test_used_for_selection": false,
+    "match": {
+      "opponent": "official v2.0.0",
+      "games": 20,
+      "wins": 10,
+      "draws": 3,
+      "losses": 7,
+      "score": 0.575,
+      "evidence": "data/abc60_parallel_results.json",
+      "limitation": "Small mirrored screen concurrent with B's separate match; not reliable Elo proof"
+    }
+  },
+  "training_protocol": "data/nnue_fresh_data_protocol.json",
+  "training_results": "data/nnue_fresh_data_results.json",
+  "selection_policy": "RELEASE_V2_5_0.md",
+  "historical_gates_reclassified": false,
+  "known_limitations": [
+    "41/64 dormant warm-start channels remain; nine nonzero quantized output weights",
+    "Original C rejection is retained; two test-only same-move requirements are revised under the new release policy"
+  ],
+  "source_license_evidence": [
+    "https://database.nikonoel.fr/ identifies games as a filtered collection from Lichess",
+    "https://database.lichess.org/ releases underlying database exports under CC0 1.0"
+  ],
+  "runtime_downloads": false
 }

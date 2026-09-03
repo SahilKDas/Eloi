@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "purpose": "User-requested descriptive pooling of A's two confirmation sets, not a replacement gate",
+  "games": 36,
+  "wins": 18,
+  "draws": 8,
+  "losses": 10,
+  "points": 22,
+  "score": 0.6111111111111112,
+  "mirrored_pairs": 18,
+  "paired_95pct_descriptive_interval": [0.44200821951901703, 0.7802140027032053],
+  "excluded": ["screening games", "human game", "interrupted confirmation game 17", "unstarted games"],
+  "original_confirmation": {"games": 16, "points": 11.5, "status": "incomplete due host standby"},
+  "fresh_confirmation": {"games": 20, "points": 10.5, "passed_11_point_gate": false},
+  "release_qualified": false,
+  "warning": "Small nonrandom opening sample; descriptive normal approximation over pairs. The interval includes 50%. Pooling does not change either original outcome.",
+  "followup_audit": {"pgns": 20, "moves_reconciled_with_events": 2148, "illegal_moves": 0, "protocol_incidents": 0, "maximum_response_seconds": 0.6100000000005821, "engine_run_seconds": 559.169175},
+  "source_hashes": {
+    "data/abc60_results.json": "F17EDEFF4EDEDC27FA7E2694EB8AEE424B879D0B0F66D2D91562DC9CA0A8302F",
+    "data/abc60_followup_results.json": "A72E6945A098AB8EA66284C98823C2F49BD4A2162FCD932521E85C775B38235F",
+    "data/abc60_followup_games.pgn": "524B4B2D60CB077BA7ADFDF445F97E8C1252432DF965995E344DFF84A050F9D6"
+  }
+}

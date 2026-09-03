@@ -1,0 +1,8 @@
+{
+  "attempt_started_utc": "2026-09-03T01:49:53+00:00",
+  "status": "preparation-window-expired-before-any-game",
+  "failure": "TimeoutError: Campaign minute-5 deadline reached",
+  "protocol_created": false,
+  "games_started": 0,
+  "note": "User confirmed another lid closure and later explicitly authorized a fresh 20-minute awake run. No completed or interrupted match result is replaced."
+}
