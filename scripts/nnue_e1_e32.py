@@ -460,11 +460,11 @@ def run_command(command, log, timeout):
     }
 
 
-def validate_candidate(name):
+def validate_candidate(name, attempt):
     directory = WORK / "candidates" / name
     if not (directory / "training.json").is_file():
         raise RuntimeError(f"{name} has not been trained")
-    build = directory / "build"
+    build = directory / f"build-{attempt}"
     if build.exists():
         raise RuntimeError(f"build collision: {build}")
     build.mkdir()
@@ -473,13 +473,13 @@ def validate_candidate(name):
         ([CMAKE, "-S", ROOT, "-B", build, "-G", "Ninja",
           "-DCMAKE_BUILD_TYPE=Release", "-DELOI_BUILD_TESTS=ON",
           "-DELOI_BUILD_APP=ON",
-          f"-DCMAKE_CXX_COMPILER={MSYS / 'c++.exe'}",
-          f"-DCMAKE_MAKE_PROGRAM={MSYS / 'ninja.exe'}",
-          f"-DCMAKE_RC_COMPILER={MSYS / 'windres.exe'}",
-          f"-DELOI_NNUE_INCLUDE_DIR={directory / 'include'}"],
-         directory / "configure.log", 180),
+          f"-DCMAKE_CXX_COMPILER={(MSYS / 'c++.exe').as_posix()}",
+          f"-DCMAKE_MAKE_PROGRAM={(MSYS / 'ninja.exe').as_posix()}",
+          f"-DCMAKE_RC_COMPILER={(MSYS / 'windres.exe').as_posix()}",
+          f"-DELOI_NNUE_INCLUDE_DIR={(directory / 'include').as_posix()}"],
+         directory / f"configure-{attempt}.log", 180),
         ([CMAKE, "--build", build, "--target", "Eloi", "eloi_tests", "-j", "2"],
-         directory / "build.log", 900),
+         directory / f"build-{attempt}.log", 900),
     ]
     for command, log, timeout in commands:
         result = run_command(command, log, timeout)
@@ -488,15 +488,18 @@ def validate_candidate(name):
             return {"candidate": name, "passed": False, "checks": checks}
     binary, tests = build / "Eloi.exe", build / "eloi_tests.exe"
     runtime = [
-        ([tests], directory / "tests.log", 180),
-        ([binary, "--perft", "--depth", "4"], directory / "perft.log", 60),
+        ([tests], directory / f"tests-{attempt}.log", 180),
+        ([binary, "--perft", "--depth", "4"],
+         directory / f"perft-{attempt}.log", 60),
         ([sys.executable, ROOT / "scripts/differential_movegen.py",
           "--engine", binary, "--samples", "32"],
-         directory / "differential.log", 300),
+         directory / f"differential-{attempt}.log", 300),
     ]
     for command, log, timeout in runtime:
         checks.append(run_command(command, log, timeout))
-    perft_text = (directory / "perft.log").read_text(encoding="utf-8")
+    perft_text = (
+        directory / f"perft-{attempt}.log"
+    ).read_text(encoding="utf-8")
     passed = (
         all(check["exit_code"] == 0 for check in checks)
         and ",4,197281," in perft_text
@@ -515,16 +518,19 @@ def validate_candidate(name):
 
 def validate():
     validation_support.resource_snapshot(WORK, PROJECTED_BYTES)
+    attempt = 1 + len(list(WORK.glob("validation-results*.json")))
     output = {
         "schema": 1,
+        "attempt": attempt,
         "candidates": [
-            validate_candidate("E1"),
-            validate_candidate("E32"),
+            validate_candidate("E1", attempt),
+            validate_candidate("E32", attempt),
         ],
         "gauntlet_run": False,
     }
     output["all_passed"] = all(row["passed"] for row in output["candidates"])
-    write_json(WORK / "validation-results.json", output)
+    suffix = "" if attempt == 1 else f"-{attempt}"
+    write_json(WORK / f"validation-results{suffix}.json", output)
     print(json.dumps(output, indent=2))
 
 
