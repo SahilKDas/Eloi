@@ -530,7 +530,20 @@ def load_evaluations(path, limit, validation_fraction):
     return train, validation
 
 
-def train_evaluations(weights, bias, output, samples, epochs=2):
+def _trainable_channel_mask(output, trainable_channels):
+    if trainable_channels is None:
+        return None
+    indices = sorted(set(int(index) for index in trainable_channels))
+    if any(index < 0 or index >= len(output) for index in indices):
+        raise ValueError("trainable channel index is outside the network")
+    mask = np.zeros(len(output), dtype=np.float32)
+    mask[indices] = 1.0
+    return mask
+
+
+def train_evaluations(weights, bias, output, samples, epochs=2,
+                      trainable_channels=None, epoch_callback=None):
+    channel_mask = _trainable_channel_mask(output, trainable_channels)
     rng = random.Random(0x5A17)
     for epoch in range(epochs):
         rng.shuffle(samples)
@@ -544,18 +557,35 @@ def train_evaluations(weights, bias, output, samples, epochs=2):
             error = float(np.clip(target - score, -200, 200)) * sample_weight
             absolute_error += abs(target - score)
             old_output = output.copy()
-            output += 0.0000015 * error * (aw - ab)
+            output_update = 0.0000015 * error * (aw - ab)
+            output += (
+                output_update
+                if channel_mask is None
+                else output_update * channel_mask
+            )
             gradient = 0.000004 * error * old_output / SCALE
+            if channel_mask is not None:
+                gradient *= channel_mask
             np.add.at(weights, white, gradient * ((aw > 0) & (aw < 127)))
             np.add.at(
                 weights, black, -gradient * ((ab > 0) & (ab < 127))
             )
         mean_error = absolute_error / max(1, len(samples))
         print(f"eval epoch {epoch + 1}: mean absolute error {mean_error:.1f} cp")
+        if epoch_callback is not None:
+            epoch_callback(
+                epoch + 1,
+                weights,
+                bias,
+                output,
+                {"mean_absolute_error_cp": mean_error},
+            )
     return weights, bias, output
 
 
-def train_pairs(weights, bias, output, pairs, epochs):
+def train_pairs(weights, bias, output, pairs, epochs,
+                trainable_channels=None, epoch_callback=None):
+    channel_mask = _trainable_channel_mask(output, trainable_channels)
     rng = random.Random(0xC026)
     for epoch in range(epochs):
         rng.shuffle(pairs)
@@ -575,13 +605,20 @@ def train_pairs(weights, bias, output, pairs, epochs):
             if difference >= 35:
                 continue
             old_output = output.copy()
-            output += (
+            output_update = (
                 rate
                 * sample_weight
                 * side
                 * ((baw - bab) - (aaw - aab))
             )
+            output += (
+                output_update
+                if channel_mask is None
+                else output_update * channel_mask
+            )
             gradient = rate * sample_weight * side * old_output / SCALE
+            if channel_mask is not None:
+                gradient *= channel_mask
             np.add.at(
                 weights,
                 best_white,
@@ -604,6 +641,14 @@ def train_pairs(weights, bias, output, pairs, epochs):
             )
         accuracy = correct / max(1, len(pairs))
         print(f"epoch {epoch + 1}: tactical ranking {accuracy:.1%}")
+        if epoch_callback is not None:
+            epoch_callback(
+                epoch + 1,
+                weights,
+                bias,
+                output,
+                {"pairwise_accuracy": accuracy},
+            )
     return weights, bias, output
 
 
@@ -875,7 +920,7 @@ def load_quantized_header(path):
     output_values = _read_cpp_array(text, "output")
     input_values = _read_cpp_array(text, "input")
     hidden = len(bias_values)
-    if hidden not in (64, 128):
+    if hidden not in (32, 64, 128):
         raise RuntimeError(f"unsupported NNUE header width {hidden}")
     if len(output_values) != hidden:
         raise RuntimeError("NNUE header bias/output widths differ")
@@ -1141,8 +1186,8 @@ def main():
         parser.error("--max-temp-gb must be greater than zero and at most 7")
     if not 0 < args.validation_fraction < 0.5:
         parser.error("--validation-fraction must be between 0 and 0.5")
-    if any(hidden not in (64, 128) for hidden in args.architectures):
-        parser.error("--architectures accepts only 64 and 128")
+    if any(hidden not in (32, 64, 128) for hidden in args.architectures):
+        parser.error("--architectures accepts only 32, 64 and 128")
     if (
         args.report_only
         and args.canonical_manifest is None
