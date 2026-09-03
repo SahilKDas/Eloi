@@ -90,6 +90,15 @@ integrity and are development tools, not automatic release steps.
 C's frozen fresh-data records retain their original outcome fields; the later
 release acceptance decision does not rewrite them.
 
+## Post-v2.5.0 architecture experiments
+
+The E1 dormant-channel revival and 32-unit compaction/training experiments
+reuse the exact frozen C inputs above. They do not download or generate new
+labels, execute Stockfish, open the sealed test partition, or change production
+weights. Candidate identities, correctness outcomes and the preliminary
+E1-versus-C screen are recorded in
+[data/nnue_e1_e32.json](data/nnue_e1_e32.json).
+
 ## Regression and strength data
 
 `tests/epd/v2_5_regressions.epd` contains the permanent 15-position tactical

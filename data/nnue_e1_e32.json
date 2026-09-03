@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "experiment": "E1 dormant-channel revival and 32-unit implementation",
+  "date": "2026-09-03",
+  "source_commit": "52c83611ecb659e9db7fbbfb8c1c3cf6105b81f2",
+  "production": {
+    "candidate": "C",
+    "hidden": 64,
+    "weights_sha256": "6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD",
+    "changed": false
+  },
+  "inputs": {
+    "train_evaluations": 32015,
+    "validation_evaluations": 4000,
+    "train_pairs": 12000,
+    "labels_sha256": "D39429903DDD13FB722EE84073322532415A0D22DF4951202EB89F79110E4038",
+    "canonical_puzzles_sha256": "D3E78A34A458964DDE73A3A3316F6195D3455E23AEAD5094303396074A903016",
+    "sealed_test_opened": false,
+    "stockfish_executed": false
+  },
+  "implementation": {
+    "runner": "scripts/nnue_e1_e32.py",
+    "runner_sha256": "3A5D5FAF6E0BE98430463AA7F8440EB498C6E8EE7F812CEC48F053C4C0C7EC1A",
+    "features": [
+      "32-unit header and architecture support",
+      "channel-masked residual training",
+      "deterministic sparse channel revival",
+      "exact C-to-32 compaction",
+      "per-epoch quantized channel and validation reports",
+      "preserved validation retries"
+    ]
+  },
+  "candidates": {
+    "E1-selected": {
+      "hidden": 64,
+      "recipe": "C plus deterministic revival and one residual evaluation epoch on 41 previously dormant channels",
+      "weights_sha256": "DED4A0CBEDF205A97AD3089A895780D5F6CBB32F392105E8CE870FEBF5A001ED",
+      "checkpoint_sha256": "F73E8F515D5A2B161AFA53F85742FD9057364EC6F2493AEA3F24FC14CF6EAEA8",
+      "binary_sha256": "FD817BAACA3D0E29DB74E24738BD68BBD1915CA12C09DEFC8F7C1A527C6908FC",
+      "validation_mae_cp": 179.2135,
+      "occupied_channels": 64,
+      "dormant_channels": 0,
+      "nonzero_output_coefficients": 50,
+      "correctness_passed": true,
+      "perft_depth_4": 197281,
+      "differential_positions_per_variant": 32,
+      "development_screen": {
+        "opponent": "stable v2.5.0 C",
+        "games": 20,
+        "wins": 7,
+        "draws": 6,
+        "losses": 7,
+        "score": 0.5,
+        "protocol_failures": 0,
+        "interpretation": "Competitive parity only; insufficient evidence of improvement",
+        "protocol_sha256": "C3D306E82472553F957B2B874531703D24921605C066AF215EE3F69F26EFC25A",
+        "checkpoint_sha256": "208DD04B0D6B505D843D8F24D046D92435CAAB3E39ACA4272503864BBB8C8CC5",
+        "pgn_sha256": "9C52909A5D0F2187C14226474B9632B6AB84E327312F23760D93139E296420E9",
+        "independent_pgn_replay_passed": true
+      }
+    },
+    "E1-full-schedule": {
+      "hidden": 64,
+      "weights_sha256": "44F0CBF1DD62E106D64B65C52B38435EE49241AC2D6F99E9B2A9A496EFCC5322",
+      "validation_mae_cp": 186.12325,
+      "correctness_passed": false,
+      "failure": "Repeated online-bIw09dp9-knight-hang forbidden move c6e5"
+    },
+    "E32-selected": {
+      "hidden": 32,
+      "recipe": "Exact 23-channel C compaction plus nine revived channels and one residual evaluation epoch",
+      "weights_sha256": "57058D75BB434FEA25B4EABF0E0F12BE8F744C5113B2992512986D6CD4BE9276",
+      "checkpoint_sha256": "A0164195E316E4815D18CC96C127475EDDD3BF7406C8C999541702AFA7CEB4D0",
+      "binary_sha256": "1972B71C3EF1BF11D0009363F44C7EA6986DA8AF888618BBC9B455E045F4F830",
+      "validation_mae_cp": 180.57775,
+      "occupied_channels": 32,
+      "dormant_channels": 0,
+      "correctness_passed": false,
+      "failure": "lichess-001XA chose c3a1 instead of required depth-7 defense b1b7"
+    },
+    "E32-full-schedule": {
+      "hidden": 32,
+      "weights_sha256": "BA1E247E50CB1D6B8B0876E5680280FAABAD85DCA5595CE5D8468DD7E9EFDE17",
+      "validation_mae_cp": 198.18275,
+      "correctness_passed": false,
+      "failure": "lichess-000o3 chose d3e2 instead of required d3d4"
+    },
+    "E32-compact": {
+      "hidden": 32,
+      "recipe": "Retain every occupied C channel and omit only zero-input/zero-output channels; no training",
+      "weights_sha256": "D3394F666F1CB9B24842345279673D4C54C541579BEE6F48349DBEB3D6FF1EE2",
+      "checkpoint_sha256": "161D079B9961A89C6149ADA0DF8C4497B1898B4FC3C248E5838AC5413C87B05E",
+      "binary_sha256": "2726B2EE620119F27CCAB7A7A8E95D4DA1666EB5DCE9D58D922D3768EB371ECF",
+      "validation_mae_cp": 181.22,
+      "predictions_identical_to_c_for_all_inputs": true,
+      "occupied_channels": 23,
+      "dormant_channels": 9,
+      "correctness_passed": true,
+      "perft_depth_4": 197281,
+      "differential_positions_per_variant": 32,
+      "speed_samples": 3,
+      "speed_ratio_candidate_over_c": {
+        "depth_1": 1.152,
+        "depth_5": 1.0368,
+        "depth_10": 0.9697
+      },
+      "speed_evidence_sha256": "B1AE5CE9E617E916715D7F2E7D3A62EE73C321F654C3FFA0F4EBF6BC9C4035B5",
+      "speed_interpretation": "Small and noisy; no established deep-search speedup"
+    }
+  },
+  "decision": {
+    "production_candidate": "C",
+    "provisional_research_candidate": "E1-selected",
+    "qualified_32_unit_candidate": "E32-compact",
+    "trained_32_unit_candidate_rejected": true,
+    "gauntlet_run": false,
+    "next_gate": "A fresh confirmation match is required before considering E1-selected for production"
+  }
+}
