@@ -39,6 +39,11 @@ class E2Tests(unittest.TestCase):
         anchored = nnue_e2.anchor_to_c(candidate, baseline, 0.25)
         self.assertEqual([float(array[0]) for array in anchored], [2.0, 3.0, 4.0])
 
+    def test_hard_partition_uses_independent_balanced_hash(self) -> None:
+        partitions = [nnue_e2.hard_partition(f"row-{index}") for index in range(1000)]
+        self.assertGreater(partitions.count("validation"), 150)
+        self.assertLess(partitions.count("validation"), 250)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

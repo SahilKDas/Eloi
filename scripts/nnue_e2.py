@@ -24,7 +24,7 @@ import chess.engine
 import chess.pgn
 
 ROOT = Path(__file__).resolve().parents[1]
-WORK = ROOT / "tmp/nnue-e2-standard"
+WORK = ROOT / "tmp/nnue-e2-standard-v2"
 PRODUCTION_HEADER = ROOT / "include/eloi/nnue_weights.hpp"
 C_BINARY = ROOT / "tmp/release-v2.5.0-attempt2/standalone-A/package/Eloi.exe"
 E1_BINARY = ROOT / "tmp/nnue-e1-e32/candidates/E1-selected/build-1/Eloi.exe"
@@ -92,6 +92,13 @@ def chess_points(label: str) -> float:
         return {"win": 1.0, "draw": 0.5, "loss": 0.0}[label]
     except KeyError as error:
         raise ValueError(f"unknown result: {label}") from error
+
+
+def hard_partition(identity: str) -> str:
+    digest = hashlib.sha256(
+        f"E2-hard-partition-v1|{identity}".encode()).digest()
+    fraction = int.from_bytes(digest[:8], "big") / float(1 << 64)
+    return "validation" if fraction < 0.20 else "train"
 
 
 def poor_pair_indexes(rows: list[dict], maximum_points: float = 0.5) -> list[int]:
@@ -303,7 +310,7 @@ def label() -> dict:
                                              "gap_cp": gap})
                 row = {
                     "id": source["id"], "fen": source["fen"],
-                    "partition": "validation" if int(source["id"][:2], 16) < 51 else "train",
+                    "partition": hard_partition(source["id"]),
                     "best_move": best_move.uci(),
                     "target_cp_white": max(-2000, min(2000, score_cp(infos[0], chess.WHITE))),
                     "alternatives": alternatives, "source": source,
@@ -326,6 +333,8 @@ def label() -> dict:
               "validation": sum(r["partition"] == "validation" for r in rows),
               "pairs": sum(len(r["alternatives"]) for r in rows),
               "sha256": sha256(output_path), "stockfish_runtime_dependency": False}
+    if not result["train"] or not result["validation"]:
+        raise RuntimeError("salted hard-data partition produced an empty split")
     immutable_json(WORK / "hard-labels-summary.json", result)
     return result
 
