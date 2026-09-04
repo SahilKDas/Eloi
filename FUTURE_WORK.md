@@ -1,4 +1,4 @@
-# Work after Eloi v2.5.0
+# Work after Eloi v2.7.5
 
 This is an index of unresolved work, not a running campaign or authorization
 to train, benchmark, publish or replace a user's installation.
@@ -71,9 +71,32 @@ because the laptop slept. Record interruptions and censor incomplete work.
 ## Search, ensembles and platforms
 
 Lazy SMP and multi-network ensembles remain separate research ideas, not
-features of v2.5.0. Prior Lazy SMP failures and the reverted search-recovery
+features of v2.7.5. Prior Lazy SMP failures and the reverted search-recovery
 patch are recoverable in Git history. Diagnose any new failure before choosing
 a search or dataset remedy.
+
+The active v3 experiment lives on the caissa-merge branch. It pins Caissa 1.26
+at source commit 008b0b8f1fc6479890665a1a9c2ff6bbc2f1bc06 and keeps the
+external network, whose redistribution license is not visible, in ignored
+local storage. The imported backend,
+E2 adapter and Eloi-owned hybrid arbiter compile as a separate laboratory;
+the production executable, GUI, Lichess bridge and v2.7.5 packages do not link
+it.
+
+Current bounded v3 evidence covers exact network/executable identities,
+Standard FEN and legal-move parity, clock fields, castling, en passant,
+promotion, replayed threefold history, terminal positions, direct stop and
+deadline propagation, legal fallbacks, normalized alternative reporting, and
+depth-one agreement with the frozen official Caissa binary. Every active brain
+uses three search threads sequentially, with 16 MB per brain in the 32 MB lab.
+
+The v3 experiment is not release-qualified. Caissa's network redistribution
+license is unresolved; deeper three-thread fixed-node parity is nondeterministic
+at small budgets and remains open; the two score-to-WDL mappings are explicit
+development constants rather than outcome-calibrated models. No adapter-sanity
+games, screens, confirmation, gauntlet, production integration or package work
+should begin until the user lifts the current no-gauntlet/no-long-test hold and
+the applicable pre-game gates are frozen.
 
 Linux/macOS/ARM ports need their own toolchain, GUI/dependency and correctness
 validation. No emulation environment or extra bridge is implicitly authorized.
