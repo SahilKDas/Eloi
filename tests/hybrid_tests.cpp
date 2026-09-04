@@ -101,6 +101,12 @@ int main() {
   expect(caissa.network_path() == ".deps/caissa/missing-test-network.pnn",
          "local network path is retained without loading it");
 
+  CaissaBrain wrong_network{
+      std::filesystem::path(ELOI_TEST_PROJECT_DIR) / "CMakeLists.txt",
+      stopped};
+  expect(!wrong_network.available(),
+         "a regular file with the wrong network identity fails closed");
+
   auto standard = parse_fen(initial_fen);
   expect(standard.has_value(), "standard test position parses");
   if (standard) {
@@ -263,9 +269,62 @@ int main() {
     const auto response = disagreement.search(board, limits);
     expect(response.has_legal_move(board) &&
                response.search.pv.front().uci() == "e2e4" &&
+               response.search.score_cp == 20 &&
+               response.lines.size() == 2 &&
+               response.lines.front().pv.front().uci() == "e2e4" &&
                fake_eloi.calls() == 2 && fake_caissa.calls() == 2 &&
                response.detail.find("cross-verification") != std::string::npos,
-           "disagreement cross-checks only the opposing candidate");
+           "disagreement reports normalized selected and alternative lines");
+  }
+
+  {
+    auto board = *parse_fen(initial_fen);
+    FakeBrain fake_eloi{
+        BrainIdentity::eloi_e2,
+        [](const Board& position, const SearchLimits&, int) {
+          return fake_response(BrainIdentity::eloi_e2, position, "d2d4", 10);
+        }};
+    FakeBrain invalid_caissa{
+        BrainIdentity::caissa_1_26,
+        [](const Board&, const SearchLimits&, int) {
+          BrainResponse response;
+          response.requested = response.selected =
+              BrainIdentity::caissa_1_26;
+          response.status = BrainStatus::invalid_move;
+          return response;
+        }};
+    HybridBrain fallback{fake_eloi, invalid_caissa};
+    SearchLimits limits;
+    limits.nodes = 1'000;
+    const auto response = fallback.search(board, limits);
+    expect(response.requested == BrainIdentity::hybrid &&
+               response.selected == BrainIdentity::eloi_e2 &&
+               response.used_fallback && response.has_legal_move(board),
+           "an invalid Caissa response falls back to a legal E2 move");
+  }
+
+  {
+    auto board = *parse_fen(initial_fen);
+    const auto failing = [](BrainIdentity identity) {
+      return FakeBrain{
+          identity,
+          [identity](const Board&, const SearchLimits&, int) {
+            BrainResponse response;
+            response.requested = response.selected = identity;
+            response.status = BrainStatus::failed;
+            return response;
+          }};
+    };
+    auto failed_eloi = failing(BrainIdentity::eloi_e2);
+    auto failed_caissa = failing(BrainIdentity::caissa_1_26);
+    HybridBrain no_brain{failed_eloi, failed_caissa};
+    SearchLimits limits;
+    limits.nodes = 1'000;
+    const auto response = no_brain.search(board, limits);
+    expect(response.status == BrainStatus::failed &&
+               response.selected == BrainIdentity::hybrid &&
+               response.search.pv.empty(),
+           "two failed brains produce an explicit hybrid failure");
   }
 
   {
@@ -338,6 +397,20 @@ int main() {
                  stopped_response.has_legal_move(board),
              "a stopped Caissa search exposes no illegal partial move");
       stopped = false;
+
+      SearchLimits deadline_limits;
+      deadline_limits.deadline = std::chrono::steady_clock::now() +
+                                 std::chrono::milliseconds(50);
+      const auto deadline_started = std::chrono::steady_clock::now();
+      const auto deadline_response =
+          local_caissa.search(board, deadline_limits);
+      const auto deadline_elapsed =
+          std::chrono::steady_clock::now() - deadline_started;
+      expect(deadline_response.status == BrainStatus::complete &&
+                 deadline_response.has_legal_move(board),
+             "a bounded Caissa deadline retains a legal completed move");
+      expect(deadline_elapsed < std::chrono::milliseconds(500),
+             "Caissa's 50 millisecond deadline returns within 500 milliseconds");
 
       HybridBrain live_hybrid{eloi, local_caissa};
       SearchLimits hybrid_limits;

@@ -11,6 +11,12 @@ namespace eloi {
 
 namespace {
 
+// Development-only mappings. These are deliberately separate so calibration
+// can replace either scale without ever comparing raw engine centipawns.
+constexpr double eloi_wdl_pawn_scale = 400.0;
+constexpr double caissa_wdl_pawn_scale = 360.0;
+constexpr double hybrid_report_pawn_scale = 400.0;
+
 SearchLimits slice_limits(
     const SearchLimits& source, int percent,
     std::chrono::steady_clock::time_point campaign_started) {
@@ -36,6 +42,12 @@ SearchLimits slice_limits(
 
 double expected_score(int centipawns, double pawn_scale) {
   return 1.0 / (1.0 + std::pow(10.0, -centipawns / pawn_scale));
+}
+
+int normalized_score(double expectation) {
+  const double bounded = std::clamp(expectation, 0.000001, 0.999999);
+  return static_cast<int>(std::lround(
+      hybrid_report_pawn_scale * std::log10(bounded / (1.0 - bounded))));
 }
 
 std::optional<Move> first_legal(const Board& board,
@@ -163,7 +175,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     response.requested = BrainIdentity::hybrid;
     response.used_fallback = true;
     response.detail = caissa_move
-        ? "E2 failed; hybrid used Eloi-verified Caissa fallback"
+        ? "E2 failed; hybrid used Eloi-legal Caissa fallback"
         : "Caissa failed; hybrid used Eloi E2 fallback";
     if (!caissa_move && !eloi_move) {
       response.status = BrainStatus::failed;
@@ -285,8 +297,10 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     } else {
       // The mappings are intentionally independent; raw centipawns from the
       // two networks are never compared directly.
-      const double eloi_wdl = expected_score(current.eloi_score_cp, 400.0);
-      const double caissa_wdl = expected_score(current.caissa_score_cp, 360.0);
+      const double eloi_wdl =
+          expected_score(current.eloi_score_cp, eloi_wdl_pawn_scale);
+      const double caissa_wdl =
+          expected_score(current.caissa_score_cp, caissa_wdl_pawn_scale);
       current.pessimistic = std::min(eloi_wdl, caissa_wdl);
       pessimistic_line = eloi_wdl <= caissa_wdl ? eloi_line : caissa_line;
     }
@@ -317,7 +331,9 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
   response.search.pv.insert(response.search.pv.end(),
                             best->continuation.begin(),
                             best->continuation.end());
-  response.search.score_cp = best->eloi_score_cp;
+  response.search.score_cp = best->mate
+      ? best->eloi_score_cp
+      : normalized_score(best->pessimistic);
   response.search.mate = best->mate;
   response.search.depth = std::min(caissa.search.depth, eloi.search.depth);
   response.search.nodes = caissa.search.nodes + eloi.search.nodes;
@@ -328,6 +344,21 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
   response.confidence = best->pessimistic;
   response.lines.push_back(
       {response.search.pv, response.search.score_cp, response.search.mate});
+  for (const auto& candidate : verified) {
+    if (candidate.move.same_coordinates(best->move) &&
+        candidate.move.promotion == best->move.promotion)
+      continue;
+    BrainLine alternative;
+    alternative.pv.push_back(candidate.move);
+    alternative.pv.insert(alternative.pv.end(),
+                          candidate.continuation.begin(),
+                          candidate.continuation.end());
+    alternative.score_cp = candidate.mate
+        ? candidate.eloi_score_cp
+        : normalized_score(candidate.pessimistic);
+    alternative.mate = candidate.mate;
+    response.lines.push_back(std::move(alternative));
+  }
   response.detail =
       "hybrid disagreement resolved by pessimistic cross-verification";
   if (!response.has_legal_move(board)) {

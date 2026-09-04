@@ -94,3 +94,9 @@ official runs on poisoned-pawn-capture selected four different moves, and
 five embedded runs also selected four, with d4a4 appearing in both sets.
 The deeper fixed-node parity gate therefore remains open; this checkpoint
 does not waive it or establish playing-strength equivalence.
+
+The arbiter currently keeps Eloi and Caissa scores separate and maps them
+through development scales of 400 and 360 centipawns per expected-score
+decade. These constants have not yet been independently calibrated against
+held-out game outcomes. They are suitable for exercising control flow, not
+for release qualification; WDL calibration remains an open pre-gauntlet gate.
