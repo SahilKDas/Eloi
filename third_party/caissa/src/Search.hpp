@@ -80,6 +80,10 @@ struct SearchParam
     // used to stop search
     std::atomic<bool> stopSearch = false;
 
+    // Eloi embedding hook. This remains null in an unembedded Caissa build;
+    // when present it avoids a fourth polling thread solely for cancellation.
+    const std::atomic<bool>* externalStop = nullptr;
+
     // print UCI-style output
     bool debugLog = true;
 
@@ -192,6 +196,7 @@ struct SearchStats
     std::atomic<uint64_t> nodes = 0;
     std::atomic<uint64_t> quiescenceNodes = 0;
     std::atomic<uint32_t> maxDepth = 0;
+    std::atomic<uint32_t> completedDepth = 0;
     std::atomic<uint64_t> tbHits = 0;
 
 #ifdef COLLECT_SEARCH_STATS
@@ -227,6 +232,7 @@ struct SearchStats
         nodes = other.nodes.load();
         quiescenceNodes = other.quiescenceNodes.load();
         maxDepth = other.maxDepth.load();
+        completedDepth = other.completedDepth.load();
         tbHits = other.tbHits.load();
         return *this;
     }

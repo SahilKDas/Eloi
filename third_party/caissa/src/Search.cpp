@@ -296,6 +296,20 @@ bool Search::CheckStopCondition(const ThreadData& thread, const SearchContext& c
 {
     SearchParam& param = ctx.searchParam;
 
+    // Every worker must complete depth one so DoSearch always has a legal
+    // best-so-far move to return, even if a faster sibling observes stop.
+    if (thread.rootDepth <= 1)
+    {
+        return false;
+    }
+
+    if (param.externalStop &&
+        param.externalStop->load(std::memory_order_relaxed)) [[unlikely]]
+    {
+        param.stopSearch = true;
+        return true;
+    }
+
     if (param.stopSearch.load(std::memory_order_relaxed)) [[unlikely]]
     {
         return true;
@@ -539,6 +553,7 @@ void Search::DoSearch(const Game& game, SearchParam& param, SearchResult& outRes
 
 #ifndef CONFIGURATION_FINAL
             // debug logging
+            if (param.debugLog)
             for (uint32_t i = 0; i < param.numThreads; ++i)
             {
                 const ThreadData* threadData = mThreadData[i];
@@ -575,6 +590,8 @@ void Search::DoSearch(const Game& game, SearchParam& param, SearchResult& outRes
             }
         }
 
+        globalStats.completedDepth =
+            mThreadData[bestThreadIndex]->depthCompleted;
         outResult = std::move(mThreadData[bestThreadIndex]->pvLines);
     }
 
@@ -1131,6 +1148,26 @@ ScoreType Search::QuiescenceNegaMax(ThreadData& thread, NodeInfo* node, SearchCo
     thread.stats.quiescenceNodes++;
     thread.stats.OnNodeEnter(node->ply + 1);
     ctx.stats.Append(thread.stats);
+    // Embedded-mode cancellation must not wait for an entire root move to
+    // finish. Account the node first to preserve the donor's move-statistics
+    // invariant, then poll external cancellation on every recursive entry.
+    if (thread.rootDepth > 1)
+    {
+        const bool cancelRequested =
+            ctx.searchParam.stopSearch.load(std::memory_order_relaxed) ||
+            (ctx.searchParam.externalStop &&
+             ctx.searchParam.externalStop->load(std::memory_order_relaxed));
+        if (cancelRequested)
+        {
+            ctx.searchParam.stopSearch = true;
+            return 0;
+        }
+        if ((thread.stats.nodesTotal & 511u) == 0u &&
+            CheckStopCondition(thread, ctx, false))
+        {
+            return 0;
+        }
+    }
 
     ScoreType alpha = node->alpha;
     ScoreType beta = node->beta;
@@ -1455,6 +1492,23 @@ ScoreType Search::NegaMax(ThreadData& thread, NodeInfo* node, SearchContext& ctx
     // update stats
     thread.stats.OnNodeEnter(node->ply + 1);
     ctx.stats.Append(thread.stats);
+    if (!isRootNode && thread.rootDepth > 1)
+    {
+        const bool cancelRequested =
+            ctx.searchParam.stopSearch.load(std::memory_order_relaxed) ||
+            (ctx.searchParam.externalStop &&
+             ctx.searchParam.externalStop->load(std::memory_order_relaxed));
+        if (cancelRequested)
+        {
+            ctx.searchParam.stopSearch = true;
+            return 0;
+        }
+        if ((thread.stats.nodesTotal & 511u) == 0u &&
+            CheckStopCondition(thread, ctx, false))
+        {
+            return 0;
+        }
+    }
 
     ScoreType alpha = node->alpha;
     ScoreType beta = node->beta;

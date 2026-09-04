@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <chrono>
 #include <mutex>
-#include <thread>
 #include <vector>
 
 namespace eloi {
@@ -184,28 +183,18 @@ BrainResponse CaissaBrain::search(Board board, SearchLimits limits,
   parameters.useRootTablebase = false;
   parameters.evalRandomization = 0;
   parameters.stopSearch = false;
+  parameters.externalStop = &impl_->stopped;
 
   ::SearchResult donor_result;
   ::SearchStats stats;
   const auto started = std::chrono::steady_clock::now();
-  std::jthread stop_monitor([&](std::stop_token token) {
-    while (!token.stop_requested() && !parameters.stopSearch) {
-      if (impl_->stopped) {
-        parameters.stopSearch = true;
-        break;
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-  });
   impl_->table.NextGeneration();
   impl_->searcher.DoSearch(game, parameters, donor_result, &stats);
-  stop_monitor.request_stop();
-  stop_monitor.join();
   response.search.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now() - started);
   response.search.nodes = stats.nodes.load();
   response.search.qnodes = stats.quiescenceNodes.load();
-  response.search.depth = static_cast<int>(stats.maxDepth.load());
+  response.search.depth = static_cast<int>(stats.completedDepth.load());
 
   if (donor_result.empty() || donor_result.front().moves.empty()) {
     response.status = impl_->stopped ? BrainStatus::stopped : BrainStatus::failed;

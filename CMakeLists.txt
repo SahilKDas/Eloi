@@ -28,6 +28,8 @@ else()
 endif()
 
 option(ELOI_BUILD_APP "Build the production Eloi executable" ON)
+option(ELOI_BUILD_CAISSA_LAB
+  "Build the local-only, non-redistributable Eloi/Caissa UCI laboratory" OFF)
 option(ELOI_SPLIT_PACKAGE
   "Build the Defender-friendly external-assets Windows release package" OFF)
 if(ELOI_SPLIT_PACKAGE AND NOT WIN32)
@@ -104,6 +106,16 @@ if(MSVC)
   target_compile_options(eloi_brains PRIVATE /W4 /permissive-)
 else()
   target_compile_options(eloi_brains PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+if(ELOI_BUILD_CAISSA_LAB)
+  add_executable(EloiHybridLab
+    src/hybrid_lab_main.cpp
+    src/version_match.cpp)
+  target_link_libraries(EloiHybridLab PRIVATE eloi_brains)
+  if(WIN32)
+    target_link_libraries(EloiHybridLab PRIVATE bcrypt)
+  endif()
 endif()
 target_include_directories(eloi_core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include

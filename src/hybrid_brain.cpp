@@ -11,7 +11,9 @@ namespace eloi {
 
 namespace {
 
-SearchLimits slice_limits(const SearchLimits& source, int percent) {
+SearchLimits slice_limits(
+    const SearchLimits& source, int percent,
+    std::chrono::steady_clock::time_point campaign_started) {
   SearchLimits result = source;
   result.collect_diagnostics = true;
   if (source.nodes > 0) {
@@ -20,9 +22,10 @@ SearchLimits slice_limits(const SearchLimits& source, int percent) {
   }
   if (source.deadline) {
     const auto now = std::chrono::steady_clock::now();
-    const auto remaining = std::max(source.deadline.value() - now,
-                                    std::chrono::steady_clock::duration::zero());
-    result.deadline = now + remaining * percent / 100;
+    const auto total = std::max(source.deadline.value() - campaign_started,
+                                std::chrono::steady_clock::duration::zero());
+    result.deadline = std::min(source.deadline.value(),
+                               now + total * percent / 100);
     result.remaining_ms = 0;
   } else if (source.remaining_ms > 0) {
     result.remaining_ms = std::max(1, source.remaining_ms * percent / 100);
@@ -39,6 +42,16 @@ std::optional<Move> first_legal(const Board& board,
                                 const BrainResponse& response) {
   if (!response.has_legal_move(board)) return std::nullopt;
   return response.search.pv.front();
+}
+
+const BrainLine* find_line(const BrainResponse& response, const Move& move) {
+  const auto found = std::ranges::find_if(
+      response.lines, [&](const BrainLine& line) {
+        return !line.pv.empty() &&
+               line.pv.front().same_coordinates(move) &&
+               line.pv.front().promotion == move.promotion;
+      });
+  return found == response.lines.end() ? nullptr : &*found;
 }
 
 struct VerifiedCandidate {
@@ -99,10 +112,38 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
   }
 
   const auto started = std::chrono::steady_clock::now();
+  SearchLimits shared_limits = limits;
+  if (!shared_limits.deadline && shared_limits.remaining_ms > 0) {
+    const TimeBudget clock = plan_time_budget(board, shared_limits);
+    shared_limits.deadline = started +
+        std::chrono::milliseconds(std::max(1, clock.hard_ms));
+    shared_limits.remaining_ms = 0;
+  }
   BrainResponse caissa = caissa_.search(
-      board, slice_limits(limits, budget_.caissa_percent));
+      board, slice_limits(shared_limits, budget_.caissa_percent, started));
+  if (caissa.status == BrainStatus::stopped) {
+    caissa.requested = BrainIdentity::hybrid;
+    caissa.used_fallback = true;
+    caissa.search.elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - started);
+    caissa.detail = "hybrid stopped during the Caissa slice";
+    if (info) info(caissa);
+    return caissa;
+  }
   BrainResponse eloi = eloi_.search(
-      board, slice_limits(limits, budget_.eloi_percent));
+      board, slice_limits(shared_limits, budget_.eloi_percent, started));
+  if (eloi.status == BrainStatus::stopped) {
+    eloi.requested = BrainIdentity::hybrid;
+    eloi.used_fallback = true;
+    eloi.search.nodes += caissa.search.nodes;
+    eloi.search.elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - started);
+    eloi.detail = "hybrid stopped during the E2 slice";
+    if (info) info(eloi);
+    return eloi;
+  }
   const auto caissa_move = first_legal(board, caissa);
   const auto eloi_move = first_legal(board, eloi);
 
@@ -118,6 +159,9 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
       response.selected = BrainIdentity::hybrid;
       response.detail = "both hybrid brains failed to return a legal move";
     }
+    response.search.nodes = caissa.search.nodes + eloi.search.nodes;
+    response.search.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - started);
     if (info) info(response);
     return response;
   }
@@ -141,11 +185,16 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
       eloi_move->promotion != caissa_move->promotion)
     candidates.push_back(*eloi_move);
 
+  // Each candidate is already scored by the brain that proposed it. The
+  // verification slice therefore pays only for the missing cross-check, not
+  // for re-searching both candidates with both brains.
   const int verification_share = std::max(
-      1, budget_.verification_percent /
-             static_cast<int>(2 * candidates.size()));
+      1, budget_.verification_percent / static_cast<int>(candidates.size()));
   std::vector<VerifiedCandidate> verified;
   for (const Move& candidate : candidates) {
+    if (shared_limits.deadline &&
+        std::chrono::steady_clock::now() >= *shared_limits.deadline)
+      break;
     Board child = board;
     if (!child.push(candidate)) continue;
 
@@ -159,36 +208,79 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
       continue;
     }
 
-    const BrainResponse eloi_check = eloi_.search(
-        child, slice_limits(limits, verification_share));
-    const BrainResponse caissa_check = caissa_.search(
-        child, slice_limits(limits, verification_share));
-    if (!first_legal(child, eloi_check) || !first_legal(child, caissa_check))
-      continue;
+    const BrainLine* eloi_line = find_line(eloi, candidate);
+    const BrainLine* caissa_line = find_line(caissa, candidate);
+    std::optional<BrainLine> eloi_cross;
+    std::optional<BrainLine> caissa_cross;
 
-    current.eloi_score_cp = -eloi_check.search.score_cp;
-    current.caissa_score_cp = -caissa_check.search.score_cp;
-    current.nodes = eloi_check.search.nodes + caissa_check.search.nodes;
-    const bool eloi_forced_loss = eloi_check.search.mate > 0;
-    const bool caissa_forced_loss = caissa_check.search.mate > 0;
-    if (eloi_forced_loss || caissa_forced_loss) {
+    const auto parent_line = [&](const BrainResponse& child_response) {
+      BrainLine line;
+      line.score_cp = -child_response.search.score_cp;
+      line.mate = -child_response.search.mate;
+      line.pv.push_back(candidate);
+      line.pv.insert(line.pv.end(), child_response.search.pv.begin(),
+                     child_response.search.pv.end());
+      return line;
+    };
+
+    if (!eloi_line) {
+      if (shared_limits.deadline &&
+          std::chrono::steady_clock::now() >= *shared_limits.deadline)
+        break;
+      const BrainResponse check = eloi_.search(
+          child, slice_limits(shared_limits, verification_share, started));
+      current.nodes += check.search.nodes;
+      if (!first_legal(child, check)) continue;
+      eloi_cross = parent_line(check);
+      eloi_line = &*eloi_cross;
+    }
+    if (!caissa_line) {
+      if (shared_limits.deadline &&
+          std::chrono::steady_clock::now() >= *shared_limits.deadline)
+        break;
+      const BrainResponse check = caissa_.search(
+          child, slice_limits(shared_limits, verification_share, started));
+      current.nodes += check.search.nodes;
+      if (!first_legal(child, check)) continue;
+      caissa_cross = parent_line(check);
+      caissa_line = &*caissa_cross;
+    }
+
+    current.eloi_score_cp = eloi_line->score_cp;
+    current.caissa_score_cp = caissa_line->score_cp;
+    const BrainLine* pessimistic_line = nullptr;
+    if (eloi_line->mate < 0 || caissa_line->mate < 0) {
       current.pessimistic = 0.0;
-      current.mate = -std::min(
-          eloi_check.search.mate > 0 ? eloi_check.search.mate : INT_MAX,
-          caissa_check.search.mate > 0 ? caissa_check.search.mate : INT_MAX);
+      if (eloi_line->mate < 0 && caissa_line->mate < 0) {
+        // A mate loss closer to zero happens sooner and is therefore the
+        // more pessimistic of two losing reports.
+        current.mate = std::max(eloi_line->mate, caissa_line->mate);
+        pessimistic_line = current.mate == eloi_line->mate
+                               ? eloi_line
+                               : caissa_line;
+      } else if (eloi_line->mate < 0) {
+        current.mate = eloi_line->mate;
+        pessimistic_line = eloi_line;
+      } else {
+        current.mate = caissa_line->mate;
+        pessimistic_line = caissa_line;
+      }
+    } else if (eloi_line->mate > 0 && caissa_line->mate > 0) {
+      current.pessimistic = 1.0;
+      current.mate = std::min(eloi_line->mate, caissa_line->mate);
+      pessimistic_line = current.mate == eloi_line->mate
+                             ? eloi_line
+                             : caissa_line;
     } else {
       // The mappings are intentionally independent; raw centipawns from the
       // two networks are never compared directly.
       const double eloi_wdl = expected_score(current.eloi_score_cp, 400.0);
       const double caissa_wdl = expected_score(current.caissa_score_cp, 360.0);
       current.pessimistic = std::min(eloi_wdl, caissa_wdl);
+      pessimistic_line = eloi_wdl <= caissa_wdl ? eloi_line : caissa_line;
     }
-    const BrainResponse& pessimistic_line =
-        expected_score(current.eloi_score_cp, 400.0) <=
-                expected_score(current.caissa_score_cp, 360.0)
-            ? eloi_check
-            : caissa_check;
-    current.continuation = pessimistic_line.search.pv;
+    current.continuation.assign(pessimistic_line->pv.begin() + 1,
+                                pessimistic_line->pv.end());
     verified.push_back(std::move(current));
   }
 
@@ -200,6 +292,9 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     response.requested = BrainIdentity::hybrid;
     response.used_fallback = true;
     response.detail = "disagreement verification failed; hybrid used E2";
+    response.search.nodes = caissa.search.nodes + eloi.search.nodes;
+    response.search.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - started);
     if (info) info(response);
     return response;
   }
@@ -213,6 +308,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
                             best->continuation.end());
   response.search.score_cp = best->eloi_score_cp;
   response.search.mate = best->mate;
+  response.search.depth = std::min(caissa.search.depth, eloi.search.depth);
   response.search.nodes = caissa.search.nodes + eloi.search.nodes;
   for (const auto& candidate : verified)
     response.search.nodes += candidate.nodes;
@@ -221,7 +317,8 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
   response.confidence = best->pessimistic;
   response.lines.push_back(
       {response.search.pv, response.search.score_cp, response.search.mate});
-  response.detail = "hybrid disagreement resolved by pessimistic dual verification";
+  response.detail =
+      "hybrid disagreement resolved by pessimistic cross-verification";
   if (!response.has_legal_move(board)) {
     response.status = BrainStatus::invalid_move;
     response.detail = "arbiter selected a move outside Eloi's legal list";

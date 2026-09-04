@@ -64,3 +64,20 @@ Until both the source-provenance audit and network redistribution question are
 resolved, the Caissa backend is local-experiment-only. Eloi v2.7.5/E2 remains
 the production engine and the public UCI, GUI, clock, variants, and Lichess
 bridge remain exclusively Eloi-owned.
+
+Developers may opt into the separate `EloiHybridLab` UCI executable with
+`-DELOI_BUILD_CAISSA_LAB=ON`. It resolves the network from
+`--caissa-network`, then `ELOI_CAISSA_NETWORK_PATH`, then the repository's
+ignored `.deps/caissa` path. It fixes each active engine search at three
+threads and shares 32 MB of hash as 16 MB per brain. It is not a release
+target and must not be packaged.
+
+Caissa's node counter is flushed in batches across its search lanes, so a
+fixed-node request can overshoot modestly. Fixed-node hybrid results are not
+equal-resource qualification evidence until that accounting is bounded and
+measured. Early strength comparisons should use equal movetime instead.
+
+The embedded search polls Eloi's shared stop flag directly, without a helper
+polling thread. Every Caissa worker is allowed to complete depth one so an
+interrupted UCI search can still return a legal best-so-far move; cancellation
+is checked recursively below the root from depth two onward.
