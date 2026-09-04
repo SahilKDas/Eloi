@@ -29,6 +29,7 @@ must not be treated as an additional dedicated 2 GiB training budget.
 | Resource or activity | Limit |
 | --- | --- |
 | Eloi engine search | Exactly 3 search threads per engine process |
+| Strength-test search concurrency | At most 12 search threads total; because each engine process uses 3 threads, this permits at most 2 simultaneous two-engine games |
 | All temporary project data combined | At most 10,000,000,000 bytes (10 GB) at any instant |
 | Temporary NNUE training data and artifacts | At most 8,000,000,000 bytes (8 GB) at any instant, included inside the 10 GB total cap |
 | Concurrent Lichess bridge processes | At most 2 |
@@ -74,6 +75,11 @@ evidence that the repository intentionally keeps.
   count.
 - Do not run multiple CPU-heavy gauntlets or training jobs concurrently unless
   SahilKDas explicitly authorizes that specific run.
+- The standing gauntlet exception permits no more than two games at once:
+  two games times two engine processes per game times three search threads
+  equals twelve search threads. It does not permit four simultaneous games,
+  which would require twenty-four search threads. Production, GUI, offline,
+  development, and Lichess engine processes remain fixed at three threads each.
 - Keep long background matches and benchmarks bounded. When foreground use or a
   Lichess bridge is active, use Windows Idle priority for background gauntlets
   where supported.

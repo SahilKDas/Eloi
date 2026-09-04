@@ -153,6 +153,10 @@ option is advertised.
 - [CONTRIBUTING.md](CONTRIBUTING.md): engineering and release invariants.
 - [Device constraints](constraints_on_SahilKDas_device.md): binding local limits.
 - [FUTURE_WORK.md](FUTURE_WORK.md): open work, not permission to launch experiments.
+- [Caissa donor boundary](third_party/caissa/README.ELOI.md): pinned local-only
+  v3.0 experiment, source allowlist, hashes, and redistribution blockers.
+- [Third-party notices](THIRD_PARTY_NOTICES.md): licenses retained for imported
+  experimental donor code.
 
 `.deps`, `tmp`, `build-*`, `dist`, binaries and private `config.yml` are
 ignored. They are not source and must not be committed. The existing ABC100

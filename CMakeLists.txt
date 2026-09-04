@@ -49,6 +49,24 @@ if(ELOI_NNUE_INCLUDE_DIR)
   endif()
   target_include_directories(eloi_core BEFORE PUBLIC "${ELOI_NNUE_INCLUDE_DIR}")
 endif()
+
+# The experimental v3 brain layer is linked separately so merely compiling its
+# adapters cannot change the production v2.7.5 executable. Caissa donor files
+# are admitted through an explicit audited allowlist in a later stage; never
+# glob third_party/caissa.
+add_library(eloi_brains STATIC
+  src/eloi_brain.cpp
+  src/caissa_brain.cpp
+  src/hybrid_brain.cpp)
+target_link_libraries(eloi_brains PUBLIC eloi_core)
+target_include_directories(eloi_brains PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  "${CMAKE_CURRENT_BINARY_DIR}/generated")
+if(MSVC)
+  target_compile_options(eloi_brains PRIVATE /W4 /permissive-)
+else()
+  target_compile_options(eloi_brains PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 target_include_directories(eloi_core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -181,6 +199,10 @@ if(ELOI_BUILD_TESTS)
     target_link_options(eloi_tests PRIVATE $<$<CONFIG:Release>:-flto=1>)
   endif()
   add_test(NAME eloi_tests COMMAND eloi_tests)
+  add_executable(eloi_hybrid_tests tests/hybrid_tests.cpp)
+  target_link_libraries(eloi_hybrid_tests PRIVATE eloi_brains)
+  add_test(NAME eloi_hybrid_tests COMMAND eloi_hybrid_tests)
+  set_tests_properties(eloi_hybrid_tests PROPERTIES TIMEOUT 30)
   if(WIN32 AND ELOI_BUILD_APP)
     add_executable(eloi_gui_tests tests/gui_smoke.cpp src/version_match.cpp)
     target_link_libraries(eloi_gui_tests PRIVATE eloi_core ${ELOI_GUI_LIBRARIES})
