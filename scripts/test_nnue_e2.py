@@ -44,6 +44,16 @@ class E2Tests(unittest.TestCase):
         self.assertGreater(partitions.count("validation"), 150)
         self.assertLess(partitions.count("validation"), 250)
 
+    def test_disjoint_selector_skips_excluded_and_duplicate_learning_keys(self) -> None:
+        rows = [
+            {"fen": chess.STARTING_FEN},
+            {"fen": chess.STARTING_FEN},
+            {"fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"},
+        ]
+        selected = nnue_e2.select_disjoint_positions(
+            rows, range(3), {nnue_e2.e1.learning_key(chess.STARTING_FEN)}, 1)
+        self.assertEqual(selected[0]["source_index"], 2)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -571,6 +571,61 @@ def freeze_suite(name: str, source: Path, indexes: range) -> Path:
     return path
 
 
+def training_learning_keys() -> set[str]:
+    keys = set()
+    with (ROOT / "tmp/nnue-fresh-data/positions.jsonl").open(encoding="utf-8") as stream:
+        for line in stream:
+            row = json.loads(line)
+            if row["partition"] == "train":
+                keys.add(e1.learning_key(row["fen"]))
+    with (WORK / "hard-labels.jsonl").open(encoding="utf-8") as stream:
+        for line in stream:
+            row = json.loads(line)
+            if row["partition"] == "train":
+                keys.add(e1.learning_key(row["fen"]))
+    return keys
+
+
+def select_disjoint_positions(rows: list[dict], indexes, excluded: set[str],
+                              count: int) -> list[dict]:
+    selected = []
+    seen = set(excluded)
+    for index in indexes:
+        board = standard_board(rows[index]["fen"])
+        key = e1.learning_key(board.fen())
+        if key in seen:
+            continue
+        selected.append({"source_index": index, "fen": board.fen(),
+                         "filter_cp": rows[index].get("filter_cp")})
+        seen.add(key)
+        if len(selected) == count:
+            return selected
+    raise ValueError(f"only {len(selected)} disjoint standard positions available")
+
+
+def freeze_independent_final_suite() -> Path:
+    screen_rows = read_json(WORK / "matches/screen-openings.json")["positions"]
+    confirmation_rows = read_json(WORK / "matches/confirmation-openings.json")["positions"]
+    excluded = training_learning_keys()
+    excluded.update(e1.learning_key(row["fen"])
+                    for row in [*screen_rows, *confirmation_rows])
+    source = read_json(STRENGTH_OPENINGS)
+    selected = select_disjoint_positions(
+        source["positions"], range(363, len(source["positions"])), excluded, 63)
+    path = WORK / "matches/final-independent-openings.json"
+    immutable_json(path, {
+        "schema": 1, "name": "final-independent",
+        "rules": "FIDE standard chess only",
+        "source": STRENGTH_OPENINGS.relative_to(ROOT).as_posix(),
+        "source_sha256": sha256(STRENGTH_OPENINGS),
+        "selection": "first 63 unique learning keys at or after source index 363",
+        "excluded_training_learning_keys": len(training_learning_keys()),
+        "excluded_current_screen_positions": len(screen_rows),
+        "excluded_current_confirmation_positions": len(confirmation_rows),
+        "positions": selected})
+    return path
+
+
 def match(candidate: Path, suite: Path, stem: str, games: int,
           required_score: float, allow_unpaired: bool = False) -> dict:
     protocol_path = WORK / "matches" / f"{stem}-protocol.json"
@@ -642,13 +697,21 @@ def final_gauntlet() -> dict:
     confirmation = confirm()
     if not confirmation["passed"]:
         raise RuntimeError("E2 confirmation failed; final gauntlet is blocked")
-    output = WORK / "final-results.json"
+    output = WORK / "final-independent-results.json"
     if output.exists():
         return read_json(output)
-    suite = freeze_suite("final", STRENGTH_OPENINGS, range(300, 363))
+    suite = freeze_independent_final_suite()
     name = confirmation["candidate"]
     candidate = WORK / "candidates" / name / "build-1/Eloi.exe"
-    report = match(candidate, suite, f"final-{name}", 125, 0.504, True)
+    immutable_json(WORK / "final-independent-amendment.json", {
+        "schema": 1,
+        "reason": "The first final reused two screen and seven confirmation learning keys; preserve it but replace the final with a fully disjoint suite.",
+        "superseded_final_result_sha256": sha256(
+            WORK / "matches/final-E2-ranking-results.json"),
+        "replacement_source_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "replacement_runner_sha256": sha256(Path(__file__))})
+    report = match(candidate, suite, f"final-independent-{name}", 125, 0.504, True)
     document = {"schema": 1, "candidate": name, "wins": report["wins"],
                 "draws": report["draws"], "losses": report["losses"],
                 "score": report["score"],
