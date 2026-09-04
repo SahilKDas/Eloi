@@ -590,8 +590,12 @@ void Search::DoSearch(const Game& game, SearchParam& param, SearchResult& outRes
             }
         }
 
-        globalStats.completedDepth =
-            mThreadData[bestThreadIndex]->depthCompleted;
+        // A selected lane can hold a complete depth-one PV while reporting
+        // zero because a sibling set the shared stop flag first. Preserve
+        // donor voting, but never export depth zero for a valid searched PV.
+        globalStats.completedDepth = std::max(
+            1u, static_cast<uint32_t>(
+                    mThreadData[bestThreadIndex]->depthCompleted));
         outResult = std::move(mThreadData[bestThreadIndex]->pvLines);
     }
 

@@ -378,6 +378,15 @@ int main() {
                  response.has_legal_move(board),
              "three-thread local Caissa search returns an Eloi-legal move");
 
+      SearchLimits depth_one_limits;
+      depth_one_limits.depth = 1;
+      const auto depth_one_response =
+          local_caissa.search(board, depth_one_limits);
+      expect(depth_one_response.status == BrainStatus::complete &&
+                 depth_one_response.search.depth == 1 &&
+                 depth_one_response.has_legal_move(board),
+             "a completed Caissa depth-one search reports depth one");
+
       SearchLimits stop_limits;
       stop_limits.depth = 99;
       const auto stop_started = std::chrono::steady_clock::now();

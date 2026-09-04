@@ -95,6 +95,11 @@ five embedded runs also selected four, with d4a4 appearing in both sets.
 The deeper fixed-node parity gate therefore remains open; this checkpoint
 does not waive it or establish playing-strength equivalence.
 
+The reproducible runner is scripts/caissa_adapter_parity.py. It hash-checks
+the frozen official executable and local network, records its own hash and
+the donor commit, applies Idle priority and process timeouts, refuses output
+collisions, and writes only beneath a quota-checked dedicated scratch path.
+
 The arbiter currently keeps Eloi and Caissa scores separate and maps them
 through development scales of 400 and 360 centipawns per expected-score
 decade. These constants have not yet been independently calibrated against
