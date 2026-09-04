@@ -70,7 +70,9 @@ Developers may opt into the separate `EloiHybridLab` UCI executable with
 `--caissa-network`, then `ELOI_CAISSA_NETWORK_PATH`, then the repository's
 ignored `.deps/caissa` path. It fixes each active engine search at three
 threads and shares 32 MB of hash as 16 MB per brain. It is not a release
-target and must not be packaged.
+target and must not be packaged. The command-line-only modes --brain caissa
+and --brain eloi isolate either adapter for parity diagnostics; hybrid is the
+default.
 
 Caissa's node counter is flushed in batches across its search lanes, so a
 fixed-node request can overshoot modestly. Fixed-node hybrid results are not
@@ -81,3 +83,14 @@ The embedded search polls Eloi's shared stop flag directly, without a helper
 polling thread. Every Caissa worker is allowed to complete depth one so an
 interrupted UCI search can still return a legal best-so-far move; cancellation
 is checked recursively below the root from depth two onward.
+
+## Bounded parity checkpoint
+
+On 2026-09-04, fresh three-thread, 16 MB, MultiPV-2 processes matched the
+official pinned binary at depth one on the initial position,
+lichess-001XA, and poisoned-pawn-capture (3/3 best moves). A 10,000-node
+probe is not a deterministic parity oracle at three threads: five fresh
+official runs on poisoned-pawn-capture selected four different moves, and
+five embedded runs also selected four, with d4a4 appearing in both sets.
+The deeper fixed-node parity gate therefore remains open; this checkpoint
+does not waive it or establish playing-strength equivalence.

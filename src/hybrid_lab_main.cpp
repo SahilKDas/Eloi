@@ -48,6 +48,26 @@ std::filesystem::path network_path(int argc, char** argv) {
          ".deps/caissa/eval-82-383B.pnn";
 }
 
+enum class LabBrainMode { hybrid, caissa, eloi };
+
+LabBrainMode brain_mode(int argc, char** argv) {
+  for (int index = 1; index + 1 < argc; ++index) {
+    if (std::string_view(argv[index]) != "--brain") continue;
+    const std::string_view value = argv[index + 1];
+    if (value == "caissa") return LabBrainMode::caissa;
+    if (value == "eloi") return LabBrainMode::eloi;
+  }
+  return LabBrainMode::hybrid;
+}
+
+std::string_view brain_mode_name(LabBrainMode mode) {
+  switch (mode) {
+    case LabBrainMode::caissa: return "caissa";
+    case LabBrainMode::eloi: return "eloi";
+    default: return "hybrid";
+  }
+}
+
 void print_result(const BrainResponse& response, const Board& root,
                   bool chess960, std::mutex& output) {
   std::scoped_lock lock(output);
@@ -67,7 +87,9 @@ void print_result(const BrainResponse& response, const Board& root,
       if (!position.push(move)) break;
     }
   }
-  std::cout << "\ninfo string " << response.detail << '\n';
+  if (!response.detail.empty())
+    std::cout << "\ninfo string " << response.detail;
+  std::cout << std::endl;
   std::cout << "bestmove ";
   if (response.has_legal_move(root)) {
     std::cout << uci_move(response.search.pv.front(), root.position, chess960);
@@ -96,6 +118,10 @@ int run_hybrid_lab(int argc, char** argv) {
   CaissaBrain caissa(network_path(argc, argv), stopped,
                      16u * 1024u * 1024u);
   HybridBrain hybrid(eloi, caissa);
+  const LabBrainMode mode = brain_mode(argc, argv);
+  Brain* active_brain = &hybrid;
+  if (mode == LabBrainMode::caissa) active_brain = &caissa;
+  else if (mode == LabBrainMode::eloi) active_brain = &eloi;
 
   std::string first;
   if (!std::getline(std::cin, first) || first != "uci") return 2;
@@ -109,6 +135,7 @@ int run_hybrid_lab(int argc, char** argv) {
             << "info string Caissa backend "
             << (caissa.available() ? "hash-verified and available"
                                    : "unavailable; E2 fallback active")
+            << "\ninfo string Lab brain mode " << brain_mode_name(mode)
             << "\nuciok" << std::endl;
 
   std::thread worker;
@@ -125,7 +152,7 @@ int run_hybrid_lab(int argc, char** argv) {
     snapshot.chess960 = !snapshot.horde &&
                         (snapshot.chess960 || uci_chess960);
     worker = std::thread([&, snapshot = std::move(snapshot), limits]() mutable {
-      const BrainResponse response = hybrid.search(snapshot, limits);
+      const BrainResponse response = active_brain->search(snapshot, limits);
       print_result(response, snapshot, snapshot.chess960, output);
     });
   };
