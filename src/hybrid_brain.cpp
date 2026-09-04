@@ -92,6 +92,17 @@ bool HybridBrain::available() const noexcept {
 
 BrainResponse HybridBrain::search(Board board, SearchLimits limits,
                                   const BrainInfoCallback& info) {
+  if (board.legal_moves().empty()) {
+    BrainResponse response;
+    response.requested = response.selected = BrainIdentity::hybrid;
+    response.status = BrainStatus::complete;
+    response.detail = board.position.in_check(board.turn)
+        ? "terminal checkmate; no move"
+        : "terminal draw; no move";
+    if (info) info(response);
+    return response;
+  }
+
   const bool unsupported_variant = board.horde || board.chess960;
   const bool donor_unavailable = !caissa_.available();
 

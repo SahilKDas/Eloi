@@ -125,10 +125,26 @@ int main() {
   for (const auto* fen : {
            "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
            "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2",
-           "4k3/P7/8/8/8/8/7p/4K3 w - - 0 1"}) {
+           "4k3/P7/8/8/8/8/7p/4K3 w - - 0 1",
+           "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 47 83"}) {
     const auto board = parse_fen(fen);
     expect(board.has_value() && caissa_matches(*board),
-           "Caissa matches Eloi on castling, en-passant, and promotion seams");
+           "Caissa matches castling, en-passant, promotion, and clock seams");
+  }
+
+  {
+    auto repetition = *parse_fen(initial_fen);
+    bool replayed = true;
+    for (const auto* move : {
+             "g1f3", "g8f6", "f3g1", "f6g8",
+             "g1f3", "g8f6", "f3g1", "f6g8"}) {
+      replayed = replayed && repetition.push_uci(move);
+    }
+    const auto probe = probe_caissa_position(repetition);
+    expect(replayed && probe.history_replayed && probe.history_size == 8,
+           "Caissa replays Eloi's complete reversible move history");
+    expect(probe.repetition_count == 3 && probe.drawn,
+           "Caissa preserves a threefold repetition through replay");
   }
 
   {
@@ -185,6 +201,18 @@ int main() {
     rejected_budget = true;
   }
   expect(rejected_budget, "constructor rejects an invalid shared budget");
+
+  {
+    const auto mate = parse_fen("7k/6Q1/6K1/8/8/8/8/8 b - - 0 1");
+    expect(mate.has_value(), "terminal mate position parses");
+    if (mate) {
+      const auto response = hybrid.search(*mate, {});
+      expect(response.status == BrainStatus::complete &&
+                 response.search.pv.empty() &&
+                 response.detail.find("checkmate") != std::string::npos,
+             "terminal checkmate completes without inventing a move");
+    }
+  }
 
   {
     auto board = *parse_fen(initial_fen);

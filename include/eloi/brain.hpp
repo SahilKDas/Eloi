@@ -54,6 +54,10 @@ struct BrainResponse {
 struct CaissaPositionProbe {
   bool parsed{false};
   bool fen_round_trip{false};
+  bool history_replayed{false};
+  std::size_t history_size{0};
+  std::uint32_t repetition_count{0};
+  bool drawn{false};
   std::string reconstructed_fen;
   std::vector<std::string> legal_moves;
   std::string detail;
