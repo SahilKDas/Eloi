@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "campaign": "E2-standard-only",
-  "status": "complete-provisional-successor-not-promoted",
+  "status": "complete-promoted-to-v2.7.5-source",
   "source_commits": {
     "campaign_implementation": "cf450877d5fb2d1b4d03d1398f3cc2005eb78b36",
     "partition_fix_and_frozen_run": "95fee94af67f9c78a0d49329b7cfebd7bdc8d31b",
@@ -134,6 +134,26 @@
     "independent_legal_replay": true,
     "standard_only": true
   },
+  "promotion_confirmation": {
+    "games": 250,
+    "wins": 93,
+    "draws": 94,
+    "losses": 63,
+    "points": 140.0,
+    "score": 0.56,
+    "estimated_elo_difference": 41.89414020800522,
+    "paired_normal_95pct_descriptive_interval": [0.5136312953146894, 0.6063687046853107],
+    "candidate_white": {"wins": 48, "draws": 51, "losses": 26},
+    "candidate_black": {"wins": 45, "draws": 43, "losses": 37},
+    "training_and_prior_e2_learning_key_overlap": 0,
+    "protocol_failures": 0,
+    "independent_legal_replay": true,
+    "suite_sha256": "7AE70CF645C3A45FBD097F70B21EDFA3E888FF3CFAB9A7BF3D8CCAFC08431D9F",
+    "protocol_sha256": "298265AA5B0E5C2CD0632E170FAA834FEF1555B35AC8E0AE18A3EA314E04C722",
+    "checkpoint_sha256": "10D27F8287ABE90C13B0C989702408B7EE83A9E8F1B8F95167612CED1A75E05F",
+    "pgn_sha256": "013EFE5F581B784E73A83C063491851F837E067C7FA3C25740E816DEE20D7304",
+    "verified_summary_sha256": "6D69C6FAFC00929F450C45E5F1AAA7E3A2E7DD81AAEF9FC1E630E0AD6CC6DBE9"
+  },
   "superseded_first_final": {
     "reason": "Post-run learning-key audit found two screening and seven confirmation overlaps. There was no training overlap, but the suite was not fully independent from earlier match stages.",
     "games": 125,
@@ -170,15 +190,16 @@
     "visible_v2_5_0_bridge_preserved": true
   },
   "decision": {
-    "recommendation": "E2-ranking is the provisional successor candidate to C based on complete standard-only engine evidence.",
-    "production_promoted": false,
+    "recommendation": "E2-ranking is the v2.7.5 production network based on complete standard-only engine evidence and maintainer authorization.",
+    "production_promoted": true,
     "release_packaged": false,
     "installed_bridge_replaced": false,
     "limitations": [
       "The 125-game final is strong evidence but not a formal rating determination.",
       "The Elo estimate and paired interval are descriptive.",
       "A valid first final was superseded after a learning-key audit found earlier-stage overlap; its evidence remains preserved but is not used for the decision.",
-      "Promotion still requires copying the exact header into production and rerunning release-grade reproducibility, performance, GUI, UCI, packaging, and security validation."
+      "The active v2.5.0 Lichess installation is intentionally not replaced by this source promotion.",
+      "Package reproducibility and security validation remain separate from this source promotion."
     ]
   }
 }

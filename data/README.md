@@ -6,8 +6,10 @@ ignored local artifacts.
 
 ## Current production lineage
 
-- `nnue_provenance.json`: C's current header/checkpoint identities, counts,
-  recipe, acceptance policy and match reference.
+- `nnue_provenance.json`: E2-ranking's current header/checkpoint identities,
+  counts, standard-only recipe, acceptance policy and match references.
+- `nnue_provenance_v2_5_0.json`: C's exact v2.5.0 production provenance and
+  parent link.
 - `nnue_provenance_pre_v2_5_0.json`: the parent network C warm-started from.
 - `nnue_input_manifest.json`, `nnue_broader_sample_manifest.json`: source
   and canonical puzzle identities required by that lineage.
@@ -19,8 +21,8 @@ ignored local artifacts.
   PGN audit. Raw evidence remains byte-identical.
 - `nnue_e2_standard_results.json`: compact identities, data counts,
   correctness gates, superseded-run audit and fully disjoint staged match
-  results for the standard-only E2 campaign. E2-ranking is a provisional
-  successor candidate; production is still C. See
+  results for the standard-only E2 campaign. E2-ranking is the selected
+  production network for v2.7.5. See
   `../E2_STANDARD_CAMPAIGN.md`.
 
 ## Future validation and live-session compatibility

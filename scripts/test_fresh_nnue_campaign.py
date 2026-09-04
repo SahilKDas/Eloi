@@ -17,7 +17,9 @@ class CampaignTests(unittest.TestCase):
         path = campaign.ROOT / 'include/eloi/nnue_weights.hpp'
         provenance = campaign.read(campaign.ROOT / 'data/nnue_provenance.json')
         self.assertEqual(campaign.data.sha(path), provenance['selected_weights_sha256'])
-        self.assertEqual(campaign.data.WEIGHTS, provenance['previous_weights_sha256'])
+        previous = campaign.read(campaign.ROOT / provenance['previous_provenance'])
+        self.assertEqual(provenance['previous_weights_sha256'],
+                         previous['selected_weights_sha256'])
 
     def test_frozen_campaign_cannot_resume_against_promoted_weights(self):
         with self.assertRaisesRegex(RuntimeError, 'production network changed'):

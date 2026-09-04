@@ -7,10 +7,10 @@ strength ladder against production C. It scored **45 wins, 56 draws and 24
 losses**, or **73/125 points (58.4%)**, in the fully disjoint final gauntlet.
 The frozen pass line was 63/125 points.
 
-This makes E2-ranking the **provisional successor candidate**, not the current
-production network. The tracked production header, published v2.5.0 packages,
-running bridge and local installation remain C. Promotion and release-grade
-validation are separate work.
+The maintainer subsequently selected E2-ranking for the v2.7.5 source release
+after a separate 250-game confirmation scored 93W/94D/63L (56.0%). The tracked
+production header is now exact E2-ranking. Published v2.5.0 packages and any
+existing local installation remain C until replaced separately.
 
 ## Standard rules only
 
@@ -175,12 +175,11 @@ artifacts under `tmp/nnue-e2-standard-v2`.
 
 ## Decision and next gate
 
-E2-ranking has enough evidence to justify a promotion attempt. It has not yet
-earned a release by itself. Promotion should copy the exact hash-verified
-header into production, rebuild from committed source, prove playing-behavior
-identity with the frozen candidate, run performance/UCI/GUI/Lichess-offline
-checks, produce reproducible standalone and Exoskeleton packages, and leave
-the active v2.5.0 bridge untouched until a separately authorized replacement.
+E2-ranking was promoted byte-for-byte to the v2.7.5 production source header.
+The later 250-game confirmation used 125 mirrored openings disjoint from
+training and every prior E2 match suite, scored 140/250 points, and independently
+replayed all games without a protocol failure. Release packages and replacement
+of an active v2.5.0 bridge remain separate work.
 
 The low held-out hard-pair accuracy and descriptive uncertainty remain
 visible. Do not rewrite the result as certainty, pool the development screen

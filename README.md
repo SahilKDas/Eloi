@@ -1,13 +1,16 @@
 # Eloi
 
 Eloi is a C++26 chess engine and native Windows chess application. The current
-stable version is **2.5.0**, with the 64-unit **C** NNUE and exactly three
-deterministic RootSplit search threads. Official packages target Windows x64;
-other platforms are not yet validated.
+source version is **2.7.5**, with the 64-unit **E2-ranking** NNUE and exactly
+three deterministic RootSplit search threads. Official packages target Windows
+x64; other platforms are not yet validated.
 
 ## Download and play
 
-Use the two archives on the [release page](https://github.com/SahilKDas/Eloi/releases/tag/v2.5.0):
+The last fully packaged release remains available on the
+[v2.5.0 release page](https://github.com/SahilKDas/Eloi/releases/tag/v2.5.0).
+Eloi 2.7.5 source promotes E2-ranking; package publication is tracked
+separately in [the v2.7.5 decision](RELEASE_V2_7_5.md).
 
 - **Standalone:** exactly `Eloi.exe` and an empty-token `config.yml`. The GUI,
   engine, UCI interface, native Lichess client, artwork, opening book and NNUE
@@ -16,11 +19,12 @@ Use the two archives on the [release page](https://github.com/SahilKDas/Eloi/rel
   external artwork, licenses and a file-hash manifest. Keep the entire
   extracted directory together. See [package instructions](packaging/WINDOWS-X64-EXOSKELETON.md).
 
-Check the ZIP hashes in [release validation](RELEASE_V2_5_0.md). Do not mistake
-an older `-rc.1` archive for the stable build, even if its release-page title
-says v2.5.0. Published configs contain no token; credentials belong only in a
-private local copy. Packages are unsigned: never disable antivirus protection
-to run them, and assess each release hash separately.
+Check the v2.5.0 ZIP hashes in
+[its release validation](RELEASE_V2_5_0.md). Do not mistake an older `-rc.1`
+archive for the stable build, even if its release-page title says v2.5.0.
+Published configs contain no token; credentials belong only in a private local
+copy. Packages are unsigned: never disable antivirus protection to run them,
+and assess each release hash separately.
 
 Double-click `Eloi.exe` or run `Eloi.exe --gui`. The GUI supports legal-move
 highlighting, animated moves and castling, all four promotion choices, undo,
@@ -31,17 +35,18 @@ absolute UCI/analysis ceiling is 17,697. Deep searches can take a long time.
 
 ## Current strength and acceptance
 
-C scored **10 wins, 3 draws, 7 losses (57.5%)** in 20 games against the exact
-published v2.0.0 executable. B's separate match ran concurrently. This is
-preliminary evidence, not a statistically established Elo improvement.
+E2-ranking scored **45W/56D/24L (58.4%)** in its fully disjoint 125-game
+qualification against v2.5.0/C. A later 250-game confirmation on 125 mirrored,
+standard-only openings finished **93W/94D/63L: 140/250 points (56.0%)** with
+zero protocol failures and a descriptive paired interval of 51.36%–60.64%.
 
-The maintainer selected C under the reviewed v2.5.0 acceptance policy. Two
-depth-equality assertions now allow legal move refinement, while required
-defenses, forbidden moves, PV legality and score-swing limits remain enforced.
-Other `stable` assertions still require the same move. Historical failed or
-interrupted campaigns were not retroactively passed.
+Both matches used 10,000 nodes per move. This supports E2 as stronger than C
+under the tested protocol; it is not a claim of 250 ms or online-blitz
+superiority. Historical failures and the superseded overlapping final remain
+preserved rather than retroactively reclassified.
 
-See [release validation](RELEASE_V2_5_0.md), [C's retained match evidence](data/abc60_parallel_audit.json),
+See [the v2.7.5 decision](RELEASE_V2_7_5.md),
+[E2's campaign report](E2_STANDARD_CAMPAIGN.md),
 [data provenance](DATA_SOURCES.md), and [future work](FUTURE_WORK.md).
 Past campaign plans and unused legacy collections are available in Git
 history, not presented here as current instructions.
@@ -68,7 +73,8 @@ SEE/TT semantics, scalar/runtime-dispatched NNUE agreement and all 15 EPD
 regressions. GUI-handler tests cover castling, promotion, undo and setup.
 
 Production builds leave `ELOI_NNUE_INCLUDE_DIR` empty and consume the tracked
-headers; CMake never retrains the NNUE or downloads runtime data implicitly.
+E2-ranking header; CMake never retrains the NNUE or downloads runtime data
+implicitly.
 Release proof requires two independent clean builds per package form,
 matching payload/ZIP bytes, package smoke checks, performance checks and
 Defender scans. Use [the release workflow](REPRODUCING.md), not an old

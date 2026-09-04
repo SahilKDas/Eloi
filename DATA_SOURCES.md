@@ -13,16 +13,16 @@ Eloi adds its Italian Game/Nimzo-Indian weighting.
 `scripts/generate_openings.py` produces the tracked position graph in
 `include/eloi/opening_data.hpp`; CMake does not regenerate it.
 
-## Current NNUE: C, 64 hidden units
+## Current NNUE: E2-ranking, 64 hidden units
 
 Canonical lineage: [data/nnue_provenance.json](data/nnue_provenance.json).
 
 - Header SHA-256:
-  `6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD`.
+  `E3DFBE02F4DC765C45E243EFD4437E9EC3390D4F167531D6F54765CECB899C9F`.
 - Float checkpoint SHA-256:
-  `48A40465E1E7A0AB7B408501FBEF78319D62612F6928891AD2B33B58D51AACE9`.
-- Warm-start parent header SHA-256:
-  `CD3226903D48E0ADFE1DBD337E9CEC7BFB0A22C85185F9B6E0895D873A73394E`.
+  `E3E3D98C7CDF85E0D8AE82A7F07777E81C9C0FBE6F1BB31774F2DDA2118FCD29`.
+- Warm-start C header SHA-256:
+  `6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD`.
 
 ### Sources and sampling
 
@@ -45,7 +45,7 @@ Historical offline labels used Stockfish 17.1 at 5,000/25,000 nodes, with
 sampled 100,000-node audits. Accepted labels excluded mates, checks,
 capture/promotion best moves, low depth, excessive score drift and extremes.
 The final accepted evaluation split was **32,015 training, 4,000 validation,
-3,985 test positions**. Test labels were not used to select C.
+3,985 test positions**. Test labels were not used to select C or E2.
 
 Labels SHA-256:
 `D39429903DDD13FB722EE84073322532415A0D22DF4951202EB89F79110E4038`.
@@ -56,29 +56,37 @@ and `data/nnue_broader_sample_manifest.json`.
 
 ### Recipe and quantization
 
-1. Convert the previous production quantized parameters to float32.
-2. Train two fresh-evaluation epochs to produce A.
-3. Train three epochs on 12,000 canonical TRAIN puzzle examples to produce B.
-4. Recalibrate with one fresh-evaluation epoch to produce C.
+1. Start from exact C, whose A→B→C recipe remains in
+   [its archived provenance](data/nnue_provenance_v2_5_0.json).
+2. Mine 166 orthodox hard positions from E1's worst mirrored games and split
+   them into 130 training and 36 validation positions with an independent salt.
+3. Blend C and 100,000-node offline teacher targets at fraction 0.50.
+4. Retain canonical tactical rankings and emphasize 365 new hard-ranking pairs
+   at weight 1.50 for three epochs.
+5. Anchor the trained parameter delta toward C, retaining 70% of the delta.
+6. Quantize the selected float checkpoint directly into the 64-unit header.
 
 Input weights use NumPy rounding and clipping to [-127,127] int8;
 bias/output weights use rounded int16. Checkpoint-to-export integer-array
-correspondence was verified. The exact C header was copied into production,
-not regenerated or reformatted for release.
+correspondence was verified. The exact E2-ranking header was copied into
+production, not regenerated or reformatted for release.
 
-C's quantized validation MAE was 181.22 cp versus 211.5815 cp for the parent
-on the fresh validation data. Offline accuracy alone is not playing strength.
-The maintainer's release decision is in [RELEASE_V2_5_0.md](RELEASE_V2_5_0.md),
-with the retained 20-game result and its limitations.
+E2-ranking's standard validation MAE was 178.10225 cp and its mean absolute
+drift from C was 43.10625 cp. Its held-out hard-pair accuracy remained only
+30.303%; offline accuracy alone is not playing strength. The maintainer's
+promotion decision is in [RELEASE_V2_7_5.md](RELEASE_V2_7_5.md).
 
-The warm start has **41 dormant channels**; this is a documented limitation,
-not a problem solved by release packaging. See [FUTURE_WORK.md](FUTURE_WORK.md).
+The C parent had **41 dormant channels**. E2 did not claim a separate channel
+revival result, so this lineage concern remains documented rather than silently
+declared fixed. See [FUTURE_WORK.md](FUTURE_WORK.md).
 Stockfish supplied historical numeric labels only. Its code, executable,
 weights and backend are not part of Eloi or either release package.
 
 ### Why earlier provenance remains
 
-C depends on its parent network. The parent's original 12,000 evaluation
+E2 depends on C, whose exact provenance is preserved in
+[data/nnue_provenance_v2_5_0.json](data/nnue_provenance_v2_5_0.json). C in
+turn depends on its parent network. The parent's original 12,000 evaluation
 positions and 12,000 puzzle-ranking examples came from the 2026-08-02 Lichess
 CC0 samples. Preserve [the parent provenance](data/nnue_provenance_pre_v2_5_0.json),
 input manifest and canonical-sample manifest even though obsolete architecture
@@ -87,8 +95,8 @@ playoff plans and duplicate reports have been removed from the current tree.
 Reusable bounded acquisition, sampling, analysis, training, equivalence and
 channel-audit tools remain under `scripts/`. They enforce data/partition
 integrity and are development tools, not automatic release steps.
-C's frozen fresh-data records retain their original outcome fields; the later
-release acceptance decision does not rewrite them.
+C's frozen fresh-data records retain their original outcome fields; E2's later
+promotion does not rewrite them.
 
 ## Post-v2.5.0 architecture experiments
 
@@ -116,9 +124,9 @@ The authoritative 125-game final excluded all training, screening and
 confirmation learning keys. A valid earlier final with screening/confirmation
 overlap is retained as superseded evidence and is not used for the decision.
 
-E2-ranking's retained header is
+E2-ranking's production header is
 `E3DFBE02F4DC765C45E243EFD4437E9EC3390D4F167531D6F54765CECB899C9F`.
-It is not the production header. Its staged evidence and limitations are in
+Its staged evidence and limitations are in
 [E2_STANDARD_CAMPAIGN.md](E2_STANDARD_CAMPAIGN.md) and
 [data/nnue_e2_standard_results.json](data/nnue_e2_standard_results.json).
 

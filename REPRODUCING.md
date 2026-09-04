@@ -118,15 +118,16 @@ These release binaries are unsigned.
 
 ## Training provenance, not implicit retraining
 
-C's exact A-to-B-to-C recipe and source/checkpoint/header identities are in
+E2-ranking's exact standard-only recipe and source/checkpoint/header identities are in
 [DATA_SOURCES.md](DATA_SOURCES.md) and
 [data/nnue_provenance.json](data/nnue_provenance.json).
-C warm-started from the earlier production network; a fresh run of the generic
-trainer is not a claim to reproduce C.
+E2 warm-started from C; C's exact v2.5.0 record is archived in
+[data/nnue_provenance_v2_5_0.json](data/nnue_provenance_v2_5_0.json).
+A fresh run of the generic trainer is not a claim to reproduce either network.
 
 The bounded trainer, sampler, learning-equivalence checks and dormant-channel
 audit remain development tools. Their frozen fresh-data campaign parameters
-document C's lineage; old deadlines must not be treated as a new campaign
+document the C-to-E2 lineage; old deadlines must not be treated as a new campaign
 authorization. Use a new reviewed protocol and output directory for future
 training, and qualify any candidate inside the actual engine before promotion.
 
