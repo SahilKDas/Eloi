@@ -51,14 +51,52 @@ if(ELOI_NNUE_INCLUDE_DIR)
 endif()
 
 # The experimental v3 brain layer is linked separately so merely compiling its
-# adapters cannot change the production v2.7.5 executable. Caissa donor files
-# are admitted through an explicit audited allowlist in a later stage; never
-# glob third_party/caissa.
+# adapters cannot change the production v2.7.5 executable. Every admitted
+# Caissa donor file is named explicitly; never glob third_party/caissa.
+add_library(caissa_foundation STATIC
+  third_party/caissa/src/Bitboard.cpp
+  third_party/caissa/src/Common.cpp
+  third_party/caissa/src/Endgame.cpp
+  third_party/caissa/src/Evaluate.cpp
+  third_party/caissa/src/Game.cpp
+  third_party/caissa/src/Material.cpp
+  third_party/caissa/src/Memory.cpp
+  third_party/caissa/src/Move.cpp
+  third_party/caissa/src/MoveList.cpp
+  third_party/caissa/src/MoveOrderer.cpp
+  third_party/caissa/src/MovePicker.cpp
+  third_party/caissa/src/NeuralNetworkEvaluator.cpp
+  third_party/caissa/src/NodeCache.cpp
+  third_party/caissa/src/Numa.cpp
+  third_party/caissa/src/PackedNeuralNetwork.cpp
+  third_party/caissa/src/Position.cpp
+  third_party/caissa/src/PositionHash.cpp
+  third_party/caissa/src/PositionUtils.cpp
+  third_party/caissa/src/Search.cpp
+  third_party/caissa/src/SearchUtils.cpp
+  third_party/caissa/src/Square.cpp
+  third_party/caissa/src/Tablebase.cpp
+  third_party/caissa/src/Time.cpp
+  third_party/caissa/src/TimeManager.cpp
+  third_party/caissa/src/TranspositionTable.cpp
+  third_party/caissa/src/Tuning.cpp
+  third_party/caissa/src/Waitable.cpp)
+target_include_directories(caissa_foundation PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/caissa/src)
+if(MSVC)
+  target_compile_options(caissa_foundation PRIVATE /W4 /permissive-)
+else()
+  target_compile_options(caissa_foundation PRIVATE
+    -Wall -Wextra -Wpedantic -Wno-unknown-pragmas)
+endif()
+
 add_library(eloi_brains STATIC
+  src/caissa_position.cpp
   src/eloi_brain.cpp
   src/caissa_brain.cpp
   src/hybrid_brain.cpp)
 target_link_libraries(eloi_brains PUBLIC eloi_core)
+target_link_libraries(eloi_brains PRIVATE caissa_foundation)
 target_include_directories(eloi_brains PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -199,8 +237,15 @@ if(ELOI_BUILD_TESTS)
     target_link_options(eloi_tests PRIVATE $<$<CONFIG:Release>:-flto=1>)
   endif()
   add_test(NAME eloi_tests COMMAND eloi_tests)
-  add_executable(eloi_hybrid_tests tests/hybrid_tests.cpp)
+  add_executable(eloi_hybrid_tests
+    tests/hybrid_tests.cpp
+    src/version_match.cpp)
   target_link_libraries(eloi_hybrid_tests PRIVATE eloi_brains)
+  target_compile_definitions(eloi_hybrid_tests PRIVATE
+    ELOI_TEST_PROJECT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+  if(WIN32)
+    target_link_libraries(eloi_hybrid_tests PRIVATE bcrypt)
+  endif()
   add_test(NAME eloi_hybrid_tests COMMAND eloi_hybrid_tests)
   set_tests_properties(eloi_hybrid_tests PROPERTIES TIMEOUT 30)
   if(WIN32 AND ELOI_BUILD_APP)

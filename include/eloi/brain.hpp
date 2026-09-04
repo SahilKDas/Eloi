@@ -32,17 +32,35 @@ enum class BrainStatus {
   failed,
 };
 
+struct BrainLine {
+  std::vector<Move> pv;
+  int score_cp{0};
+  int mate{0};
+};
+
 struct BrainResponse {
   BrainIdentity requested{BrainIdentity::eloi_e2};
   BrainIdentity selected{BrainIdentity::eloi_e2};
   BrainStatus status{BrainStatus::failed};
   SearchResult search{};
+  std::vector<BrainLine> lines;
   double confidence{0.0};
   bool used_fallback{false};
   std::string detail;
 
   bool has_legal_move(const Board& board) const;
 };
+
+struct CaissaPositionProbe {
+  bool parsed{false};
+  bool fen_round_trip{false};
+  std::string reconstructed_fen;
+  std::vector<std::string> legal_moves;
+  std::string detail;
+};
+
+// Standard-chess board adapter probe. It does not load a network or search.
+CaissaPositionProbe probe_caissa_position(const Board& board);
 
 using BrainInfoCallback = std::function<void(const BrainResponse&)>;
 
@@ -75,7 +93,13 @@ class EloiBrain final : public Brain {
 // not make the backend available.
 class CaissaBrain final : public Brain {
  public:
-  explicit CaissaBrain(std::filesystem::path network_path);
+  CaissaBrain(std::filesystem::path network_path,
+              std::atomic_bool& stopped,
+              std::size_t hash_bytes = 16u * 1024u * 1024u);
+  ~CaissaBrain();
+
+  CaissaBrain(const CaissaBrain&) = delete;
+  CaissaBrain& operator=(const CaissaBrain&) = delete;
 
   BrainIdentity identity() const noexcept override;
   bool available() const noexcept override;
@@ -84,7 +108,9 @@ class CaissaBrain final : public Brain {
   const std::filesystem::path& network_path() const noexcept;
 
  private:
+  struct Impl;
   std::filesystem::path network_path_;
+  std::unique_ptr<Impl> impl_;
 };
 
 struct HybridBudget {

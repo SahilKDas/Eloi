@@ -5,11 +5,24 @@ Eloi's experimental `caissa-merge` branch pins Caissa 1.26 at commit
 copyright (c) 2021 Michał Witanowski and distributed under the MIT license in
 this directory.
 
-This first import contains only audited board, move, score, material, hash,
-time, tuning, bitboard, and waitable primitives. It deliberately excludes the
-Caissa UCI frontend, trainer, self-play generator, automatic downloads, NUMA
-and large-page support, tablebase implementation, packaging, search,
-evaluation, endgame, repetition, and transposition-table implementations.
+The first import contains only audited board, move, score, material, hash,
+time, tuning, bitboard, and waitable primitives. Eloi-owned compatibility
+layers provide ordinary allocation and fail-closed NUMA, tablebase, and
+specialized-endgame behavior. It deliberately excludes the Caissa UCI
+frontend, trainer, self-play generator, automatic downloads, NUMA and
+large-page implementations, tablebase implementation, packaging, search,
+repetition, and transposition-table implementations. The admitted evaluator
+and position layer has been modified to prohibit embedded networks and all
+implicit executable-directory or working-directory network discovery.
+Eloi-owned time and repetition compatibility layers avoid the donor's
+LeelaChessZero-attributed clock formula and Stockfish-attributed upcoming-cycle
+implementation. Upcoming-cycle pruning is conservatively disabled.
+
+The admitted Caissa search file differs from pinned 1.26 by removing two
+historically Stockfish-attributed rules: in-check ProbCut and the PV TT-move
+quiescence bypass. Its time manager include targets Eloi's compatibility
+implementation. These changes intentionally sacrifice unknown playing strength
+to preserve the repository's no-Stockfish-code boundary.
 The allowlist is explicit in Eloi's CMake files; future integrations must not
 replace it with source globbing.
 

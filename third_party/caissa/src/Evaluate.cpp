@@ -1,0 +1,170 @@
+#include "Evaluate.hpp"
+#include "Endgame.hpp"
+#include "Search.hpp"
+
+#if defined(CAISSA_EVALFILE)
+#error "Eloi never embeds or implicitly packages the local-only Caissa network"
+#endif
+
+namespace {
+
+static constexpr int32_t c_evalSaturationTreshold   = 8000;
+static constexpr ScoreType c_castlingRightsBonus = 5;
+
+} // namespace
+
+const nn::PackedNeuralNetwork* g_mainNeuralNetwork = nullptr;
+static bool g_usingEmbeddedNeuralNetwork = false;
+
+bool LoadMainNeuralNetwork(const char* path)
+{
+    if (!g_usingEmbeddedNeuralNetwork)
+    {
+        // release previous network
+        delete g_mainNeuralNetwork;
+        g_mainNeuralNetwork = nullptr;
+    }
+
+    if (path == nullptr || strcmp(path, "") == 0 || strcmp(path, "<empty>") == 0)
+    {
+        std::cout << "info string disabled neural network evaluation" << std::endl;
+        g_mainNeuralNetwork = nullptr;
+        g_usingEmbeddedNeuralNetwork = false;
+        return true;
+    }
+
+    auto* newNetwork = new nn::PackedNeuralNetwork();
+    if (newNetwork->LoadFromFile(path))
+    {
+        g_mainNeuralNetwork = newNetwork;
+        g_usingEmbeddedNeuralNetwork = false;
+        std::cout << "info string Loaded neural network: " << path << std::endl;
+        return true;
+    }
+    else
+    {
+        delete newNetwork;
+    }
+
+    // TODO use embedded net?
+    
+    return false;
+}
+
+bool TryLoadingDefaultEvalFile()
+{
+    std::cout << "info string implicit Caissa network loading is disabled by Eloi" << std::endl;
+    return false;
+}
+
+bool CheckInsufficientMaterial(const Position& pos)
+{
+    const Bitboard queensRooksPawns =
+        pos.Whites().queens | pos.Whites().rooks | pos.Whites().pawns |
+        pos.Blacks().queens | pos.Blacks().rooks | pos.Blacks().pawns;
+
+    if (queensRooksPawns != 0)
+    {
+        return false;
+    }
+
+    if (pos.Whites().knights == 0 && pos.Blacks().knights == 0)
+    {
+        // king and bishop vs. king
+        if ((pos.Whites().bishops == 0 && pos.Blacks().bishops.Count() <= 1) ||
+            (pos.Whites().bishops.Count() <= 1 && pos.Blacks().bishops == 0))
+        {
+            return true;
+        }
+
+        // king and bishop vs. king and bishop (bishops on the same color squares)
+        if (pos.Whites().bishops.Count() == 1 && pos.Blacks().bishops.Count() == 1)
+        {
+            const bool whiteBishopOnLightSquare = (pos.Whites().bishops & Bitboard::LightSquares()) != 0;
+            const bool blackBishopOnLightSquare = (pos.Blacks().bishops & Bitboard::LightSquares()) != 0;
+            return whiteBishopOnLightSquare == blackBishopOnLightSquare;
+        }
+    }
+
+
+    // king and knight vs. king
+    if (pos.Whites().bishops == 0 && pos.Blacks().bishops == 0)
+    {
+        if ((pos.Whites().knights == 0 && pos.Blacks().knights.Count() <= 1) ||
+            (pos.Whites().knights.Count() <= 1 && pos.Blacks().knights == 0))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+ScoreType Evaluate(const Position& pos)
+{
+    NodeInfo dummyNode = { pos };
+
+    AccumulatorCache dummyCache;
+    if (g_mainNeuralNetwork)
+    {
+        dummyCache.Init(g_mainNeuralNetwork);
+    }
+
+    return Evaluate(dummyNode, dummyCache);
+}
+
+ScoreType Evaluate(NodeInfo& node, AccumulatorCache& cache)
+{
+    const Position& pos = node.position;
+
+    const int32_t queens = (pos.Whites().queens | pos.Blacks().queens).Count();
+    const int32_t rooks = (pos.Whites().rooks | pos.Blacks().rooks).Count();
+    const int32_t bishopsAndKnights = (pos.Whites().bishops | pos.Blacks().bishops | pos.Whites().knights | pos.Blacks().knights).Count();
+    const int32_t pawns = (pos.Whites().pawns | pos.Blacks().pawns).Count();
+
+    const int32_t pieceCount = queens + rooks + bishopsAndKnights + pawns;
+
+    // check endgame evaluation first
+    if (pieceCount <= 6) [[unlikely]]
+    {
+        int32_t endgameScore;
+        if (EvaluateEndgame(pos, endgameScore))
+        {
+            ASSERT(endgameScore < TablebaseWinValue && endgameScore > -TablebaseWinValue);
+            if (pos.GetSideToMove() == Black) endgameScore = -endgameScore;
+            return (ScoreType)endgameScore;
+        }
+    }
+
+    int32_t value = NNEvaluator::Evaluate(*g_mainNeuralNetwork, node, cache);
+
+    // convert to centipawn range
+    value /= nn::OutputScale * nn::WeightScale / c_nnOutputToCentiPawns;
+
+    // apply scaling based on game phase (0 - endgame, 24 - opening)
+    const int32_t gamePhase = bishopsAndKnights + 2 * rooks + 4 * queens;
+    value = value * (52 + gamePhase) / 64;
+
+    // apply castling rights bonus
+    {
+        ScoreType bonus = 0;
+        if (pos.Whites().GetKingSquare() != Square_e1) bonus += c_castlingRightsBonus * (ScoreType)PopCount(pos.GetWhitesCastlingRights());
+        if (pos.Blacks().GetKingSquare() != Square_e8) bonus -= c_castlingRightsBonus * (ScoreType)PopCount(pos.GetBlacksCastlingRights());
+        value += pos.GetSideToMove() == White ? bonus : -bonus;
+    }
+
+    // saturate eval value so it doesn't exceed KnownWinValue
+    if (value > c_evalSaturationTreshold)
+        value = c_evalSaturationTreshold + (value - c_evalSaturationTreshold) / 8;
+    else if (value < -c_evalSaturationTreshold)
+        value = -c_evalSaturationTreshold + (value + c_evalSaturationTreshold) / 8;
+
+    ASSERT(value > -KnownWinValue && value < KnownWinValue);
+
+    return (ScoreType)value;
+}
+
+void EnsureAccumulatorUpdated(NodeInfo& node, AccumulatorCache& cache)
+{
+    NNEvaluator::EnsureAccumulatorUpdated(*g_mainNeuralNetwork, node, cache);
+}
