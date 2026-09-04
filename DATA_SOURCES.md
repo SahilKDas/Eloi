@@ -99,6 +99,29 @@ weights. Candidate identities, correctness outcomes and the preliminary
 E1-versus-C screen are recorded in
 [data/nnue_e1_e32.json](data/nnue_e1_e32.json).
 
+## E2 standard-only successor experiment
+
+E2 reused C's 40,000 accepted orthodox evaluation positions and 12,000
+orthodox training puzzles, then added 166 standard positions mined from E1's
+worst mirrored results against C. Stockfish 17.1 supplied offline best-move,
+evaluation and restricted-root labels at 100,000/25,000 nodes. The corrected
+salted split contained 130 training and 36 validation positions and produced
+365 best-versus-plausible-alternative pairs.
+
+No Chess960 or Horde position was used for training, offline selection or
+strength play. Variant differential tests were mechanical correctness checks
+only. Stockfish remains absent from Eloi runtime and release packages.
+
+The authoritative 125-game final excluded all training, screening and
+confirmation learning keys. A valid earlier final with screening/confirmation
+overlap is retained as superseded evidence and is not used for the decision.
+
+E2-ranking's retained header is
+`E3DFBE02F4DC765C45E243EFD4437E9EC3390D4F167531D6F54765CECB899C9F`.
+It is not the production header. Its staged evidence and limitations are in
+[E2_STANDARD_CAMPAIGN.md](E2_STANDARD_CAMPAIGN.md) and
+[data/nnue_e2_standard_results.json](data/nnue_e2_standard_results.json).
+
 ## Regression and strength data
 
 `tests/epd/v2_5_regressions.epd` contains the permanent 15-position tactical

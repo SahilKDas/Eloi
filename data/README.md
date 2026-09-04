@@ -17,6 +17,11 @@ ignored local artifacts.
 - `abc60_parallel_*.json` and `abc60_parallel_games.pgn`: C's cited
   10W/3D/7L screen, B's concurrent control, pairings, timing and independent
   PGN audit. Raw evidence remains byte-identical.
+- `nnue_e2_standard_results.json`: compact identities, data counts,
+  correctness gates, superseded-run audit and fully disjoint staged match
+  results for the standard-only E2 campaign. E2-ranking is a provisional
+  successor candidate; production is still C. See
+  `../E2_STANDARD_CAMPAIGN.md`.
 
 ## Future validation and live-session compatibility
 

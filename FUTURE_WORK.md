@@ -12,10 +12,22 @@ and the stable package identities in [RELEASE_V2_5_0.md](RELEASE_V2_5_0.md).
 Its 10W/3D/7L result against v2.0.0 is preliminary evidence, not a proven Elo
 gain. Do not silently reuse expired A/B/C or v1.9 gates.
 
+The completed standard-only E2 campaign produced a provisional successor:
+E2-ranking scored 31W/22D/7L in confirmation and 45W/56D/24L (58.4%) in its
+fully disjoint 125-game final against C. Production remains C until an
+explicit promotion and release-validation task. See
+[E2_STANDARD_CAMPAIGN.md](E2_STANDARD_CAMPAIGN.md).
+
 ## Training experiments
 
 The first dormant-channel and 32-unit experiments are implemented and recorded
 in [data/nnue_e1_e32.json](data/nnue_e1_e32.json).
+
+E2's completed standard-only experiment supersedes the old recommendation to
+run another generic dormant-channel trial. Its candidate and evidence are
+retained locally and summarized in
+[data/nnue_e2_standard_results.json](data/nnue_e2_standard_results.json).
+The next work is promotion validation, not additional E2 tuning.
 
 - **E1-selected:** deterministic residual initialization activated all 64
   channels, improved validation MAE from 181.22 to 179.21 cp and passed the

@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "campaign": "E2-standard-only",
+  "status": "complete-provisional-successor-not-promoted",
+  "source_commits": {
+    "campaign_implementation": "cf450877d5fb2d1b4d03d1398f3cc2005eb78b36",
+    "partition_fix_and_frozen_run": "95fee94af67f9c78a0d49329b7cfebd7bdc8d31b",
+    "disjoint_final_fix": "8d887a2bcadcd0b6f090b58b8afee2b4668b9b12"
+  },
+  "rules": {
+    "training": "FIDE standard chess only",
+    "offline_validation": "FIDE standard chess only",
+    "strength_matches": "FIDE standard chess only",
+    "chess960_training_rows": 0,
+    "horde_training_rows": 0,
+    "stockfish_role": "Stockfish 17.1 generated offline labels only; it is not Eloi code, a runtime backend, or a release dependency"
+  },
+  "baseline": {
+    "name": "Eloi v2.5.0 / C",
+    "weights_sha256": "6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD",
+    "executable_sha256": "4263AD9FE953252FAE0E0295FE03B16817A2275E560D4AA4067FDD54AC6309C5"
+  },
+  "hard_data": {
+    "source": "28 mirrored E1 pairs that scored at most 0.5/2 against C",
+    "raw_standard_positions": 3197,
+    "diagnosed_positions": 384,
+    "retained_c_or_e1_disagreements": 166,
+    "training_positions": 130,
+    "validation_positions": 36,
+    "ranking_pairs": 365,
+    "labels_sha256": "03BE74C4145F533A07D40E394FB5504EBC70FCF17E209E3B444F0FC13EE6FDD6",
+    "teacher_executable_sha256": "5F95EAEA0D4EB697381989187CE6EB4D6AD59283C34421765ECC73CDB09BA766",
+    "teacher_nodes_per_position": 100000,
+    "teacher_nodes_per_extra_root_move": 25000,
+    "rejected_attempt": "The first immutable scratch attempt reused the sorted ID prefix for partitioning and placed all 166 rows in validation. No weights were trained. It remains under tmp/nnue-e2-standard as rejection evidence.",
+    "fix": "The completed run used an independently salted deterministic partition under tmp/nnue-e2-standard-v2."
+  },
+  "base_data_audit": {
+    "accepted_standard_positions": 40000,
+    "selected_standard_puzzles": 12000,
+    "hard_standard_positions": 166,
+    "all_positions_valid_orthodox_chess": true,
+    "test_partition_used_for_selection": false
+  },
+  "candidates": [
+    {
+      "id": "E2-conservative",
+      "teacher_fraction": 0.25,
+      "retained_delta_fraction": 0.30,
+      "hard_weight": 0.75,
+      "hard_epochs": 2,
+      "weights_sha256": "4CF36D68249A61417D3D51B5C5167F2B80433CC66A7219DAB1BE491E527FCB53",
+      "checkpoint_sha256": "E18BCAEB5B209162C6B597C9240A547DF72AC6B555C6D034E0621541D26F28D3",
+      "binary_sha256": "A897C45F29D7E4DDDB02445B892EB60B4EA3482163B9BF851C50CBA2290041A0",
+      "standard_validation_mae_cp": 181.5805,
+      "mean_absolute_drift_from_c_cp": 5.1815,
+      "screen": {"wins": 4, "draws": 7, "losses": 9, "score": 0.375}
+    },
+    {
+      "id": "E2-balanced",
+      "teacher_fraction": 0.50,
+      "retained_delta_fraction": 0.50,
+      "hard_weight": 1.00,
+      "hard_epochs": 2,
+      "weights_sha256": "F43014BCE2DAF1A2ED2A43170D5851D3925E089AF85BE717814C6AE2C4909744",
+      "checkpoint_sha256": "8922E49159D3196AD35B4A29C4FD0F6920E3B3BB3459F803E9B85DA6C2BA930A",
+      "binary_sha256": "547CA9A087469401F9E9215268560ED462F1357E86AB26256EFA6C0870FE8B74",
+      "standard_validation_mae_cp": 180.0005,
+      "mean_absolute_drift_from_c_cp": 19.0175,
+      "screen": {"wins": 6, "draws": 5, "losses": 9, "score": 0.425}
+    },
+    {
+      "id": "E2-ranking",
+      "teacher_fraction": 0.50,
+      "retained_delta_fraction": 0.70,
+      "hard_weight": 1.50,
+      "hard_epochs": 3,
+      "weights_sha256": "E3DFBE02F4DC765C45E243EFD4437E9EC3390D4F167531D6F54765CECB899C9F",
+      "checkpoint_sha256": "E3E3D98C7CDF85E0D8AE82A7F07777E81C9C0FBE6F1BB31774F2DDA2118FCD29",
+      "binary_sha256": "966E4E87FB75664F96B2B50DA1603C179EFE380D1D341469B97BA6EAD94BEB66",
+      "standard_validation_mae_cp": 178.10225,
+      "mean_absolute_drift_from_c_cp": 43.10625,
+      "screen": {"wins": 7, "draws": 8, "losses": 5, "score": 0.55}
+    }
+  ],
+  "correctness": {
+    "all_candidates_passed": true,
+    "full_cpp_suite": true,
+    "regression_epds": 15,
+    "perft_depth_4": 197281,
+    "differential_positions_per_variant": 32,
+    "variant_checks_were_mechanical_only": true,
+    "checkpoint_equals_quantized_header": true,
+    "protocol_failures": 0
+  },
+  "selection": {
+    "selected": "E2-ranking",
+    "metric": "20-game engine-in-loop screen against C",
+    "offline_metrics_selected_candidate": false
+  },
+  "confirmation": {
+    "games": 60,
+    "wins": 31,
+    "draws": 22,
+    "losses": 7,
+    "points": 42.0,
+    "score": 0.70,
+    "required_score": 0.52,
+    "passed": true,
+    "pgn_sha256": "114A734A3EDD09C787F8CFAED6E61D4279B300441A7D6E83E7A3246518A9C348"
+  },
+  "final_gauntlet": {
+    "games": 125,
+    "wins": 45,
+    "draws": 56,
+    "losses": 24,
+    "points": 73.0,
+    "score": 0.584,
+    "required_points": 63.0,
+    "passed": true,
+    "candidate_white": {"wins": 24, "draws": 26, "losses": 13},
+    "candidate_black": {"wins": 21, "draws": 30, "losses": 11},
+    "mirrored_pairs": 62,
+    "paired_score": 0.5806451612903226,
+    "paired_normal_95pct_descriptive_interval": [0.5171285113623816, 0.6441618112182637],
+    "estimated_elo_from_raw_score": 58.92780659426269,
+    "training_learning_key_overlap": 0,
+    "screen_confirmation_learning_key_overlap": 0,
+    "suite_sha256": "021DC3BA1366353AE7DEDEEF46DFACBF7FD6A000D1B96305DADC79A57EA7E606",
+    "protocol_sha256": "D87698582B0C3C0C722B39E7425A67D0B9909B5A349C9820BEA81A6B50BB0AE6",
+    "amendment_sha256": "4E55797CC89E8C9B8454F8F5DDB54D633DCD1F122ACCDB6B04EB9DEDE7436876",
+    "pgn_sha256": "C783BABDC7C487EFAA09D29C3D62013537C8DFE3D86FDD322A794ADDEACA1574",
+    "result_sha256": "BB0023A83E553A75E94BE90874B74AE25E00F7D125908D82F2CBF193DF7666CA",
+    "independent_legal_replay": true,
+    "standard_only": true
+  },
+  "superseded_first_final": {
+    "reason": "Post-run learning-key audit found two screening and seven confirmation overlaps. There was no training overlap, but the suite was not fully independent from earlier match stages.",
+    "games": 125,
+    "wins": 50,
+    "draws": 49,
+    "losses": 26,
+    "points": 74.5,
+    "score": 0.596,
+    "training_learning_key_overlap": 0,
+    "screen_learning_key_overlap": 2,
+    "confirmation_learning_key_overlap": 7,
+    "pgn_sha256": "8794B7F9298FAED30EE1EB59F4EF5574E8F35A813AC2D168E6F3760557B67E1A",
+    "result_sha256": "0D5F1738836C9C4A8AF4627C080E118E08A05087905EB6657286A0C5B4252FCE",
+    "summary_sha256": "5005F04E6880E6CE7DA0E086C9E12C14507A3E498363EB96E6C1E388B3030A91",
+    "used_for_decision": false
+  },
+  "evidence_hashes": {
+    "protocol": "98F18B4C915BE6794545C3266A0E6DDCBE688BAE394FBB75B1BA2917E707CFB4",
+    "hard_positions": "64EA7E1629CCDD003ED1D09B490573BE01E7842E8FBCB87EDD0511FBF29D00AE",
+    "hard_labels": "03BE74C4145F533A07D40E394FB5504EBC70FCF17E209E3B444F0FC13EE6FDD6",
+    "training_results": "9C70ED7B3B42BE884D9AEA86BD51FC3C2E9B1B4C6F10792CDAA46121C68A249D",
+    "validation_results": "ECE37A98C7C81467A6A18FA860256C1F7B057609E57BC5DC848FF91E315EA64D",
+    "screen_results": "0714162E4BB048901BD5E31DE9C036140AC659C948E5695A51CBF834825188DD",
+    "confirmation_results": "AF6FC1549CC1D5A207D0A5E4D6FAFE418D8AE144D67B51D07398A06223A5F58B",
+    "final_suite": "021DC3BA1366353AE7DEDEEF46DFACBF7FD6A000D1B96305DADC79A57EA7E606",
+    "final_protocol": "D87698582B0C3C0C722B39E7425A67D0B9909B5A349C9820BEA81A6B50BB0AE6",
+    "final_amendment": "4E55797CC89E8C9B8454F8F5DDB54D633DCD1F122ACCDB6B04EB9DEDE7436876",
+    "final_summary": "621229A4DE1C39E69C70CFD7163499220DF1F665CF685D389C20AED56D098B82"
+  },
+  "resource_postflight": {
+    "temporary_project_gb": 1.127,
+    "free_disk_gb": 30.39,
+    "stockfish_process_running": false,
+    "visible_v2_5_0_bridge_preserved": true
+  },
+  "decision": {
+    "recommendation": "E2-ranking is the provisional successor candidate to C based on complete standard-only engine evidence.",
+    "production_promoted": false,
+    "release_packaged": false,
+    "installed_bridge_replaced": false,
+    "limitations": [
+      "The 125-game final is strong evidence but not a formal rating determination.",
+      "The Elo estimate and paired interval are descriptive.",
+      "A valid first final was superseded after a learning-key audit found earlier-stage overlap; its evidence remains preserved but is not used for the decision.",
+      "Promotion still requires copying the exact header into production and rerunning release-grade reproducibility, performance, GUI, UCI, packaging, and security validation."
+    ]
+  }
+}
