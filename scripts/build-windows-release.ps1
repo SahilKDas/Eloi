@@ -1,7 +1,10 @@
 param(
   [switch] $SkipDefenderScan,
   [switch] $PreserveExisting,
-  [string] $PythonExecutable = 'python'
+  [string] $PythonExecutable = 'python',
+  [string] $CaissaNetwork,
+  [string] $CaissaLicenseGate,
+  [string[]] $CaissaLicenseScope = @('binary', 'zip')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +18,20 @@ if ($PreserveExisting) {
 }
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$caissaNetwork = Join-Path $projectRoot '.deps\caissa\eval-82-383B.pnn'
+if ($CaissaNetwork) { $caissaNetwork = $CaissaNetwork }
+$caissaLicenseGate = if ($CaissaLicenseGate) { $CaissaLicenseGate } else { Join-Path $projectRoot 'third_party\caissa\caissa-license-gate-template.v1.json' }
+$caissaScopeArgs = @()
+foreach ($scope in $CaissaLicenseScope | Where-Object { $_ }) {
+  $clean = $scope.Trim()
+  if ($clean) {
+    $caissaScopeArgs += '--require-scope'
+    $caissaScopeArgs += $clean
+  }
+}
+if (-not $caissaScopeArgs) {
+  $caissaScopeArgs = @('--require-scope', 'binary', '--require-scope', 'zip')
+}
 $cmakeSource = Get-Content -LiteralPath (Join-Path $projectRoot 'CMakeLists.txt') -Raw
 if ($cmakeSource -notmatch 'project\(Eloi VERSION ([0-9]+\.[0-9]+\.[0-9]+)') {
   throw 'Could not determine Eloi version from CMakeLists.txt'
@@ -27,6 +44,9 @@ if ($cmakeSource -match 'set\(ELOI_PRERELEASE "([^"]*)"\)' -and $Matches[1]) {
 if (& git -C $projectRoot status --porcelain) {
   throw 'Commit the exact source first; release packaging requires a clean worktree.'
 }
+
+& $PythonExecutable -B (Join-Path $PSScriptRoot 'caissa_license_gate.py') --network $caissaNetwork --gate $caissaLicenseGate --sha256 '22249DE582912F46F73F7CF7410D6D72ECCC77696B0B857E99B97A45F3F37116' --bytes 50367040 @caissaScopeArgs
+if ($LASTEXITCODE -ne 0) { throw 'Caissa license gate blocked packaging: network permission evidence missing or invalid.' }
 
 $artifactRoot = Join-Path $projectRoot 'dist\artifacts'
 $resolvedRoot = [IO.Path]::GetFullPath($projectRoot).TrimEnd('\')
@@ -95,3 +115,5 @@ foreach ($path in @($standaloneZip, $splitZip)) {
   $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
   Write-Host "  $($item.Name)  $($item.Length) bytes  SHA-256 $hash"
 }
+
+

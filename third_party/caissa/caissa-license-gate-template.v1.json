@@ -1,0 +1,23 @@
+{
+  "schema": "eloi-caissa-license-gate-v1",
+  "network": {
+    "sha256": "22249DE582912F46F73F7CF7410D6D72ECCC77696B0B857E99B97A45F3F37116",
+    "bytes": 50367040,
+    "source": "TBD: exact source URL or artifact ID for eval-82-383B.pnn",
+    "commit": "008b0b8f1fc6479890665a1a9c2ff6bbc2f1bc06"
+  },
+  "permission": {
+    "granted": false,
+    "source": "TBD: license/permission source text and contact",
+    "scope": [
+      "binary",
+      "zip"
+    ],
+    "evidence": {
+      "path": "caissa-license-evidence.txt",
+      "sha256": "TBD: SHA-256 of the exact permission text bytes",
+      "granted_text": "TBD: short exact permission grant phrase"
+    },
+    "notes": "This file is intentionally placeholder until permission is obtained."
+  }
+}

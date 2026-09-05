@@ -16,6 +16,7 @@ import subprocess
 import threading
 import time
 
+import caissa_license_gate
 import validation_support
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,7 +40,13 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest().upper()
 
 
-def verify_inputs(official: Path, embedded: Path, network: Path) -> dict:
+def verify_inputs(
+    official: Path,
+    embedded: Path,
+    network: Path,
+    gate: Path | None = None,
+    required_scopes: set[str] | None = None,
+) -> tuple[dict, dict]:
     for label, path in (
         ("official executable", official),
         ("embedded executable", embedded),
@@ -47,19 +54,30 @@ def verify_inputs(official: Path, embedded: Path, network: Path) -> dict:
     ):
         if not path.is_file():
             raise ProbeError(f"{label} is absent: {path}")
+
     identities = {
         "official_sha256": sha256_file(official),
         "embedded_sha256": sha256_file(embedded),
         "network_sha256": sha256_file(network),
         "network_size": network.stat().st_size,
     }
+
     if identities["official_sha256"] != OFFICIAL_SHA256:
         raise ProbeError("official Caissa executable hash mismatch")
     if identities["network_sha256"] != NETWORK_SHA256:
         raise ProbeError("Caissa network hash mismatch")
     if identities["network_size"] != NETWORK_SIZE:
         raise ProbeError("Caissa network size mismatch")
-    return identities
+
+    gate_path = gate if gate is not None else caissa_license_gate.default_gate_path()
+    gate_result = caissa_license_gate.validate_gate(
+        network_path=network,
+        expected_sha256=NETWORK_SHA256,
+        expected_bytes=NETWORK_SIZE,
+        gate_path=gate_path,
+        required_scope=required_scopes,
+    )
+    return identities, gate_result
 
 
 def selected_cases(case_ids: tuple[str, ...]) -> list[dict]:
@@ -218,6 +236,8 @@ def main() -> int:
     parser.add_argument("--official", required=True, type=Path)
     parser.add_argument("--embedded", required=True, type=Path)
     parser.add_argument("--network", required=True, type=Path)
+    parser.add_argument("--caissa-license-gate", type=Path, default=None)
+    parser.add_argument("--caissa-license-scope", action="append", default=["binary", "zip"])
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--nodes", type=int, default=10_000)
     parser.add_argument("--repeats", type=int, default=3)
@@ -237,7 +257,13 @@ def main() -> int:
     official = args.official.resolve()
     embedded = args.embedded.resolve()
     network = args.network.resolve()
-    identities = verify_inputs(official, embedded, network)
+    identities, gate_result = verify_inputs(
+        official,
+        embedded,
+        network,
+        args.caissa_license_gate,
+        required_scopes=set(args.caissa_license_scope),
+    )
     cases = selected_cases(tuple(args.cases or DEFAULT_CASE_IDS))
 
     evidence = {
@@ -255,8 +281,10 @@ def main() -> int:
             "repeats": args.repeats,
             "timeout_seconds": args.timeout_seconds,
             "priority": "idle" if os.name == "nt" else "default",
+            "license_scope": sorted(set(args.caissa_license_scope)),
         },
         "identities": identities,
+        "caissa_license_gate": gate_result,
         "cases": [],
     }
     for case in cases:
