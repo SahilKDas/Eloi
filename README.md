@@ -163,7 +163,7 @@ ignored. They are not source and must not be committed. The existing ABC100
 frontend and its dependencies are retained while that local session is active;
 they are not a release requirement or a new campaign recommendation.
 
-## Artwork, licenses and thanks
+## Artwork and licenses
 
 Eloi's source is MIT-licensed; see [LICENSE](LICENSE). Skia uses BSD 3-Clause.
 The twelve Maestro PNGs are CC BY 4.0 artwork from Kadagaden; preserve
@@ -171,6 +171,18 @@ The twelve Maestro PNGs are CC BY 4.0 artwork from Kadagaden; preserve
 Opening and training-source attribution is in [DATA_SOURCES.md](DATA_SOURCES.md).
 Stockfish supplied historical offline labels only, never Eloi runtime code
 or a playing backend.
+
+## Thank you, Caissa
+
+Eloi's experimental v3 hybrid incorporates carefully audited portions of
+[Caissa](https://github.com/Witek902/Caissa), created by
+[Michał Witanowski](https://github.com/Witek902). Thank you for building and
+open-sourcing the formidable second brain behind this experiment. Caissa's
+source attribution and MIT terms are preserved in [LICENSE](LICENSE),
+[third-party notices](THIRD_PARTY_NOTICES.md), and its
+[donor boundary](third_party/caissa/README.ELOI.md).
+
+## Thank you, Morlock
 
 Eloi began as a fork of [Morlock](https://github.com/herohde/morlock).
 Thank you to [Henning Rohde](https://github.com/herohde) and
