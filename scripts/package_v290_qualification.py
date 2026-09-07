@@ -121,7 +121,7 @@ def run(command, label: str, timeout: int = 180, cwd: Path | None = None,
     return log.read_text(encoding="utf-8", errors="replace")
 
 
-def configure(source: Path, build: Path, split: bool) -> None:
+def configure(source: Path, build: Path, split: bool, label: str) -> None:
     command = [MSYS / "cmake.exe", "-S", source, "-B", build, "-G", "Ninja",
                "-DCMAKE_BUILD_TYPE=Release", "-DELOI_BUILD_TESTS=ON",
                "-DCMAKE_CXX_COMPILER=" + str(MSYS / "c++.exe"),
@@ -134,7 +134,7 @@ def configure(source: Path, build: Path, split: bool) -> None:
                "-DELOI_ENABLE_CAISSA_PRODUCTION=ON",
                "-DELOI_EMBED_CAISSA_NETWORK=ON",
                "-DELOI_CAISSA_NETWORK_FILE=" + str(NETWORK)]
-    run([str(item).replace("\\", "/") for item in command], build.name + "-configure")
+    run([str(item).replace("\\", "/") for item in command], label + "-configure")
     cache = (build / "CMakeCache.txt").read_text(encoding="utf-8", errors="replace")
     require("ELOI_ENABLE_CAISSA_PRODUCTION:BOOL=ON" in cache, "hybrid production flag missing")
     require("ELOI_EMBED_CAISSA_NETWORK:BOOL=ON" in cache, "embedded network flag missing")
@@ -253,8 +253,8 @@ def main() -> int:
             for path in source.rglob("*"):
                 if path.is_file():
                     os.utime(path, (lock["source_date_epoch"], lock["source_date_epoch"]))
-            configure(source, build, split)
-            targets = ["Eloi", "eloi_tests", "eloi_gui_tests"] + (["EloiLichess"] if split else [])
+            configure(source, build, split, label)
+            targets = ["Eloi", "eloi_tests", "eloi_hybrid_tests", "eloi_gui_tests"] + (["EloiLichess"] if split else [])
             run([MSYS / "cmake.exe", "--build", build, "--target", *targets, "-j", "2"],
                 label + "-build", 900,
                 env={"SOURCE_DATE_EPOCH": str(lock["source_date_epoch"]), "TZ": "UTC", "LC_ALL": "C"})
