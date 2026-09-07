@@ -140,6 +140,44 @@ class HybridWdlCalibrationTests(unittest.TestCase):
             ):
                 calibration.load_samples(path)
 
+    def test_external_validation_is_disjoint_and_uses_selected_scales(self):
+        samples = [
+            calibration.Sample(
+                f"cal-{game}", brain, (-100, 100)[game % 2],
+                (0.0, 1.0)[game % 2],
+            )
+            for game in range(20)
+            for brain in calibration.BRAINS
+        ]
+        external = [
+            calibration.Sample(
+                f"ext-{game}", brain, (-80, 80)[game % 2],
+                (0.0, 1.0)[game % 2],
+            )
+            for game in range(10)
+            for brain in calibration.BRAINS
+        ]
+        report = calibration.evaluate(
+            samples, [300.0, 500.0], "external-test", 0.25
+        )
+        calibration.add_external_validation(
+            report, samples, external
+        )
+        self.assertEqual(
+            report["external_validation"]["game_overlap"], []
+        )
+        for brain in calibration.BRAINS:
+            self.assertEqual(
+                report["brains"][brain]["external_validation"][
+                    "selected_scale"
+                ],
+                report["brains"][brain]["selected_on_calibration"],
+            )
+        with self.assertRaises(calibration.CalibrationError):
+            calibration.add_external_validation(
+                report, samples, samples
+            )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

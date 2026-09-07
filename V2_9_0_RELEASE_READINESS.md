@@ -24,15 +24,18 @@ No historical result is silently promoted into a release qualification result.
    `scripts/release_v290.py` invokes that gate for each package before creating
    scratch or output. The checked-in template intentionally fails. Local
    diagnostics remain permitted; packaging does not.
-2. **WDL calibration evidence — open; tooling complete.** The arbiter's
-   400/360 expected-score scales now live in the named, tested
-   `hybrid-wdl-v1-uncalibrated` profile. `scripts/calibrate_hybrid_wdl.py`
-   calculates Brier score, log loss, and 10-bin calibration error on
-   deterministic whole-game-separated partitions; it excludes mate reports
-   because the arbiter handles them discretely. The retained PGNs do not contain
-   both brains' per-position scores, so they cannot manufacture the missing
-   calibration dataset. Playing behavior remains byte-for-byte mathematical
-   equivalent until a new evidence report supports changing either scale.
+2. **WDL calibration evidence — passed; requalification open.** A bounded
+   collector replayed 40 complete Standard games and sampled four positions per
+   game from the preserved 250-ms campaign, then queried each isolated brain in
+   a fresh three-thread, 2,000-node process. A second, separately hash-namespaced
+   40-game/160-position sample from the fixed-node campaign served only as
+   external validation; game overlap was zero. Eloi's selected 1,300 cp scale
+   improved external log loss from 0.88 to 0.60. Caissa's existing 360 cp scale
+   remained selected. Mate reports remain discrete and excluded. The exact
+   report is `data/v2_9_0_wdl_calibration.json`, SHA-256
+   `FE6B667A2BF0087E2A422BD35D8EB7F52C1B8BEE8A865642794F254A34950D20`.
+   This changes arbitration, so all older strength results are informative but
+   cannot qualify the calibrated binary.
 3. **Production routing — implemented behind an opt-in flag; final validation
    open.** `ELOI_ENABLE_CAISSA_PRODUCTION=ON` routes Standard searches from
    GUI, UCI, native Lichess, and the Exoskeleton bridge through one shared
@@ -48,7 +51,7 @@ No historical result is silently promoted into a release qualification result.
    failed, or Eloi-illegal hybrid results fall back safely when time remains.
    An operating-system-level in-process donor crash cannot be caught in C++ and
    remains a release-blocking watchdog test rather than a claimed fallback.
-5. **Adapter validation — bounded parity gate passed; corpus expansion open.**
+5. **Adapter validation — bounded parity and corpus gates passed.**
    The exact pinned official executable and embedded adapter matched all three
    depth-one moves. Every repeated 10,000-node probe completed with legal
    adapter output, sane score/mate telemetry, and no timeout. Deeper
@@ -56,8 +59,10 @@ No historical result is silently promoted into a release qualification result.
    falsely requiring deterministic best-move equality. Evidence is preserved
    at `tmp/caissa-parity/parity-v290-corrected-v2.json`, SHA-256
    `CEE70064FE80B3E800452131AC32BF28126B1CBDCD19CFC252AA7C96B2CBD3CC`,
-   from source `c31c004130d5261f6eff69ec25f6022cf3e99c01`. The larger seeded
-   Standard legal-move/FEN corpus remains part of end-to-end qualification.
+   from source `c31c004130d5261f6eff69ec25f6022cf3e99c01`. The embedded hybrid
+   suite also passed exact FEN round trips and legal-move equality across 256
+   seeded Standard positions, plus dedicated castling, en-passant, promotion,
+   clock, history, and repetition seams.
 6. **End-to-end correctness and packaging — technical embedding passed;
    release validation open.**
    The preservation-safe preflight refuses existing destinations, enforces all

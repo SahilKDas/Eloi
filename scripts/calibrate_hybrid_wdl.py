@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-CURRENT_SCALES = {"eloi": 400.0, "caissa": 360.0}
+CURRENT_SCALES = {"eloi": 1300.0, "caissa": 360.0}
 BRAINS = tuple(CURRENT_SCALES)
 
 
@@ -282,6 +282,48 @@ def evaluate(
     }
 
 
+def add_external_validation(
+    report: dict,
+    calibration_samples: list[Sample],
+    external_samples: list[Sample],
+) -> None:
+    calibration_games = {sample.game_id for sample in calibration_samples}
+    external_games = {sample.game_id for sample in external_samples}
+    overlap = sorted(calibration_games & external_games)
+    if overlap:
+        raise CalibrationError(
+            "external validation overlaps calibration games"
+        )
+    for brain in BRAINS:
+        rows = [
+            sample for sample in external_samples
+            if sample.brain == brain
+        ]
+        if not rows:
+            raise CalibrationError(
+                f"external validation has no {brain} samples"
+            )
+        result = report["brains"][brain]
+        selected = result["selected_on_calibration"]
+        current = result["current_scale"]
+        selected_metrics = metrics(rows, selected)
+        current_metrics = metrics(rows, current)
+        result["external_validation"] = {
+            "selected_scale": selected,
+            "selected": selected_metrics,
+            "current_scale": current,
+            "current": current_metrics,
+            "log_loss_delta_vs_current": (
+                selected_metrics["log_loss"]
+                - current_metrics["log_loss"]
+            ),
+        }
+    report["external_validation"] = {
+        "games": sorted(external_games),
+        "game_overlap": overlap,
+    }
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -296,6 +338,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--external-validation", type=Path)
     parser.add_argument("--seed", default="eloi-v2.9.0-wdl-v1")
     parser.add_argument(
         "--validation-fraction", type=float, default=0.25
@@ -325,6 +368,17 @@ def main() -> int:
         "samples": len(samples),
         "excluded_mate_samples": excluded_mates,
     }
+    if args.external_validation:
+        external_samples, external_excluded_mates = load_samples(
+            args.external_validation
+        )
+        add_external_validation(report, samples, external_samples)
+        report["external_input"] = {
+            "path": str(args.external_validation.resolve()),
+            "sha256": sha256_file(args.external_validation),
+            "samples": len(external_samples),
+            "excluded_mate_samples": external_excluded_mates,
+        }
     report["runner_sha256"] = sha256_file(Path(__file__))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

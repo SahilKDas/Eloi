@@ -308,10 +308,10 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
       // two networks are never compared directly.
       const double eloi_wdl =
           expected_score_from_cp(
-              current.eloi_score_cp, hybrid_wdl_v1.eloi_pawn_scale);
+              current.eloi_score_cp, hybrid_wdl_v2.eloi_pawn_scale);
       const double caissa_wdl =
           expected_score_from_cp(
-              current.caissa_score_cp, hybrid_wdl_v1.caissa_pawn_scale);
+              current.caissa_score_cp, hybrid_wdl_v2.caissa_pawn_scale);
       current.pessimistic = std::min(eloi_wdl, caissa_wdl);
       pessimistic_line = eloi_wdl <= caissa_wdl ? eloi_line : caissa_line;
     }
@@ -363,7 +363,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
   response.search.score_cp = best->mate
       ? best->eloi_score_cp
       : cp_from_expected_score(
-            best->pessimistic, hybrid_wdl_v1.report_pawn_scale);
+            best->pessimistic, hybrid_wdl_v2.report_pawn_scale);
   response.search.mate = best->mate;
   response.search.depth = std::min(caissa.search.depth, eloi.search.depth);
   response.search.nodes = caissa.search.nodes + eloi.search.nodes;
@@ -386,7 +386,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     alternative.score_cp = candidate.mate
         ? candidate.eloi_score_cp
         : cp_from_expected_score(
-              candidate.pessimistic, hybrid_wdl_v1.report_pawn_scale);
+              candidate.pessimistic, hybrid_wdl_v2.report_pawn_scale);
     alternative.mate = candidate.mate;
     response.lines.push_back(std::move(alternative));
   }

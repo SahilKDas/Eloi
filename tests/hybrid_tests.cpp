@@ -84,10 +84,12 @@ class FakeBrain final : public Brain {
 }  // namespace
 
 int main() {
-  expect(hybrid_wdl_v1.eloi_pawn_scale == 400.0 &&
-             hybrid_wdl_v1.caissa_pawn_scale == 360.0 &&
-             hybrid_wdl_v1.report_pawn_scale == 400.0,
-         "the retained match behavior uses the frozen v1 WDL profile");
+  expect(hybrid_wdl_v2.identity ==
+             "hybrid-wdl-v2-standard-pgn-calibrated" &&
+             hybrid_wdl_v2.eloi_pawn_scale == 1300.0 &&
+             hybrid_wdl_v2.caissa_pawn_scale == 360.0 &&
+             hybrid_wdl_v2.report_pawn_scale == 400.0,
+         "the hybrid uses the game-separated v2 WDL profile");
   expect(expected_score_from_cp(0, 400.0) == 0.5,
          "zero centipawns maps to an even expected score");
   expect(expected_score_from_cp(-250, 400.0) <
@@ -387,9 +389,16 @@ int main() {
     SearchLimits limits;
     limits.nodes = 1'000;
     const auto response = disagreement.search(board, limits);
+    const int expected_normalized_score = cp_from_expected_score(
+        std::min(
+            expected_score_from_cp(
+                20, hybrid_wdl_v2.eloi_pawn_scale),
+            expected_score_from_cp(
+                60, hybrid_wdl_v2.caissa_pawn_scale)),
+        hybrid_wdl_v2.report_pawn_scale);
     expect(response.has_legal_move(board) &&
                response.search.pv.front().uci() == "e2e4" &&
-               response.search.score_cp == 20 &&
+               response.search.score_cp == expected_normalized_score &&
                response.lines.size() == 2 &&
                response.lines.front().pv.front().uci() == "e2e4" &&
                fake_eloi.calls() == 2 && fake_caissa.calls() == 2 &&
