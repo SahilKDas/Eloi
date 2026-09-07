@@ -1,0 +1,76 @@
+{
+  "builds": {
+    "default_control": {
+      "bytes": 12192256,
+      "path": "build-v3-default/Eloi.exe",
+      "sha256": "80002F4AC83AD3D87DA0FB3A87E67A49179BEA0230A764167B58B112184E4695",
+      "unchanged_from_published_v2_7_5": true
+    },
+    "exoskeleton": {
+      "eloi": {
+        "bytes": 60932608,
+        "pe_timestamp_zero": true,
+        "sha256": "5C3F005E09B95ACA15435FDF19B3D4F3FE43DDD38609FC45A10FD8B775F20CCB"
+      },
+      "lichess": {
+        "bytes": 51603456,
+        "pe_timestamp_zero": true,
+        "sha256": "36E046DCAB393755DF8BAE822D6D1F7818DADD5E6BA82CB91C27BB5F81306386"
+      }
+    },
+    "standalone": {
+      "bytes": 62977536,
+      "pe_timestamp_zero": true,
+      "sha256": "0B0ABC9623DB4FCFF2CBE2A4E92975E3B28C5CFCD44870A239AB96C5819A38AB"
+    }
+  },
+  "configuration": {
+    "cmake_option": "ELOI_ENABLE_CAISSA_PRODUCTION",
+    "embed_option": "ELOI_EMBED_CAISSA_NETWORK",
+    "external_network_required": false,
+    "network_downloads": false,
+    "package_forms_built": [
+      "standalone",
+      "exoskeleton"
+    ],
+    "threads_per_brain": 3
+  },
+  "network": {
+    "bytes": 50367040,
+    "filename": "eval-82-383B.pnn",
+    "git_ignored": true,
+    "git_tracked": false,
+    "runtime_hash_verified": true,
+    "sha256": "22249DE582912F46F73F7CF7410D6D72ECCC77696B0B857E99B97A45F3F37116"
+  },
+  "release_qualified": false,
+  "resources": {
+    "free_bytes": 28149997568,
+    "scratch_fixture_bytes": 178147512,
+    "total_project_temporary_bytes": 3534176544,
+    "training_bytes": 1087636228
+  },
+  "schema": "eloi-v2.9.0-embedded-network-validation-v1",
+  "scope": "Local technical validation only; no network or package was redistributed.",
+  "smokes": {
+    "exoskeleton": {
+      "bestmove": "e2e4",
+      "config_check": "passed",
+      "elapsed_ms": 234,
+      "external_network_files": 0,
+      "hybrid_route_reported": true
+    },
+    "standalone": {
+      "bestmove": "d2d4",
+      "elapsed_ms": 219,
+      "external_network_files": 0,
+      "hybrid_route_reported": true
+    }
+  },
+  "source_commit": "d20bdfd2ab9c7e11701f9ff3e53d5bc421b0e19d",
+  "tests": {
+    "embedded_minimal_hybrid_suite": "passed",
+    "exoskeleton_core_hybrid_gui": "3/3 passed",
+    "standalone_core_hybrid_gui": "3/3 passed"
+  }
+}

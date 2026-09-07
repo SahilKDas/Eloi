@@ -147,11 +147,11 @@ def verify_technical_policy(path: Path, network_sha256: str) -> dict:
     require(re.fullmatch(r"[0-9A-F]{64}", evidence_sha) is not None,
             "implementation evidence SHA-256 is invalid")
     evidence_relative = Path(evidence_name)
-    require(not evidence_relative.is_absolute() and ".." not in evidence_relative.parts,
-            "implementation evidence must stay beside the package policy")
+    require(not evidence_relative.is_absolute(),
+            "implementation evidence path must be repository-relative")
     evidence = (path.parent / evidence_relative).resolve()
-    require(path.parent.resolve() in evidence.parents,
-            "implementation evidence escapes the policy directory")
+    require(evidence != ROOT.resolve() and evidence.is_relative_to(ROOT.resolve()),
+            "implementation evidence escapes the repository")
     require(evidence.is_file(), "implementation evidence is absent")
     require(sha256_file(evidence) == evidence_sha,
             "implementation evidence SHA-256 differs from policy")

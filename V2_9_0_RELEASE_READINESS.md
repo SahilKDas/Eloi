@@ -58,12 +58,14 @@ No historical result is silently promoted into a release qualification result.
    `CEE70064FE80B3E800452131AC32BF28126B1CBDCD19CFC252AA7C96B2CBD3CC`,
    from source `c31c004130d5261f6eff69ec25f6022cf3e99c01`. The larger seeded
    Standard legal-move/FEN corpus remains part of end-to-end qualification.
-6. **End-to-end correctness and packaging — open; preflight implemented.**
+6. **End-to-end correctness and packaging — technical embedding passed;
+   release validation open.**
    The preservation-safe preflight refuses existing destinations, enforces all
    storage limits, retains deterministic archive inputs, and creates nothing
-   when blocked. The checked-in package policy correctly records a second
-   blocker: current opt-in binaries require an explicit external network path,
-   while both release forms require a verified embedded network. All existing regressions,
+   when blocked. Both local app forms now embed and runtime-hash-verify the
+   exact network, run without an external network file, and preserve the
+   byte-identical flag-off v2.7.5 control. The hash-bound implementation report
+   is `data/v2_9_0_embedded_network_validation.json`. All existing regressions,
    perft, differential move generation, stop handling, GUI/bridge smoke tests,
    reproducible builds, clean extraction, and package-content checks must pass.
    No build or runtime network download is allowed.
