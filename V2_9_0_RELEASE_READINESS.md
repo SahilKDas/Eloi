@@ -55,19 +55,19 @@ No historical result is silently promoted into a release qualification result.
    failed, or Eloi-illegal hybrid results fall back safely when time remains.
    An operating-system-level in-process donor crash cannot be caught in C++ and
    remains a release-blocking watchdog test rather than a claimed fallback.
-5. **Adapter validation — v1.25-network depth-one parity passed; corpus
-   revalidation open.** The official v1.25 executable and v1.26-code adapter
+5. **Adapter validation — passed for the mixed configuration.** The official
+   v1.25 executable and v1.26-code adapter
    matched all three depth-one moves; initial-position evaluation also matched
    exactly at +29 cp. Deeper
    three-thread move distributions are retained as observations rather than
    falsely requiring deterministic best-move equality. Evidence is preserved
-   at `tmp/caissa-parity/parity-v290-corrected-v2.json`, SHA-256
-   `CEE70064FE80B3E800452131AC32BF28126B1CBDCD19CFC252AA7C96B2CBD3CC`,
-   from source `c31c004130d5261f6eff69ec25f6022cf3e99c01`. The embedded hybrid
+   at `tmp/caissa-parity/v125net-v126code-3d429fe.json`, SHA-256
+   `0B6D885CFA2A5CB08D727BF2DC209D672AC81DCA0609D1C2F1F3D45DA83A6E8E`,
+   from source `3d429fecd2981af34e498b35fe67feabb19a3330`. The embedded hybrid
    suite also passed exact FEN round trips and legal-move equality across 256
    seeded Standard positions, plus dedicated castling, en-passant, promotion,
    clock, history, and repetition seams.
-6. **Former bounded correctness — historical; new network checks in progress.**
+6. **Bounded standalone correctness — passed; package reproducibility open.**
    The preservation-safe preflight refuses existing destinations, enforces all
    storage limits, retains deterministic archive inputs, and creates nothing
    when blocked. Both local app forms now embed and runtime-hash-verify the
@@ -82,10 +82,14 @@ No historical result is silently promoted into a release qualification result.
    pre-UCI stdout, and offline Exoskeleton configuration also passed. Exact
    binary and evidence hashes are in
    `data/v2_9_0_calibrated_correctness_validation.json`, but it binds the old
-   network. The new combination has passed a clean standalone build, all three
-   CTest targets, perft 197,281, and UCI timed/stop smoke. Its 15-position gate,
-   differential move generation, and two independent
-   reproducible builds, deterministic archives, fresh extraction, full
+   network. At source
+   `3d429fecd2981af34e498b35fe67feabb19a3330`, the new combination passed a
+   clean standalone build, all three CTest targets, perft 197,281, UCI
+   timed/stop smoke, all 15 regressions with zero protocol failures, and
+   differential move generation on 96/96 Standard, Chess960, and Horde
+   positions. The compact record is
+   `data/v2_9_0_v125_network_validation.json`. Two independent reproducible
+   builds, deterministic archives, fresh extraction, full
    package-content/dependency checks, and security validation remain open.
    No build or runtime network download is allowed.
 7. **Post-integration strength — not started.** Only after behavior is frozen:
@@ -94,8 +98,9 @@ No historical result is silently promoted into a release qualification result.
    inform the decision but do not qualify a different binary.
 
 The current production and recoverable champion remains Eloi v2.7.5. The new
-v1.25-network controller has passed its first build, unit/GUI tests, perft, UCI
-smoke, and depth-one donor comparison. Broader correctness and all strength
-qualification are deliberately reset. No tag,
+v1.25-network controller has passed bounded standalone correctness, variant
+move-generation checks, and donor-adapter validation. Calibration, package
+reproducibility, crash containment, and all strength qualification remain
+deliberately open. No tag,
 release, package, or production installation should call the hybrid “v2.9.0”
 until every gate above is closed with retained evidence.
