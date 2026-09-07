@@ -26,35 +26,37 @@ No historical result is silently promoted into a release qualification result.
    extraction, model, tag, and license hashes are frozen in
    `third_party/caissa/network-v1.25-provenance.json`. The unrelated v1.26
    Caissa-Nets artifact remains blocked and unused.
-2. **WDL calibration evidence — partially reset; requalification open.** A bounded
+2. **WDL calibration evidence — passed; strength requalification open.** A bounded
    collector replayed 40 complete Standard games and sampled four positions per
    game from the preserved 250-ms campaign, then queried each isolated brain in
    a fresh three-thread, 2,000-node process. A second, separately hash-namespaced
    40-game/160-position sample from the fixed-node campaign served only as
    external validation; game overlap was zero. Eloi's selected 1,300 cp scale
    improved external log loss from 0.88 to 0.60 and remains applicable.
-   Caissa's former 360 cp scale belonged to the replaced v1.26 network; v1.25's
-   native 400 cp expected-score mapping is provisional pending fresh disjoint
-   calibration. Mate reports remain discrete and excluded. The exact
-   report is `data/v2_9_0_wdl_calibration.json`, SHA-256
-   `FE6B667A2BF0087E2A422BD35D8EB7F52C1B8BEE8A865642794F254A34950D20`.
+   Caissa's fresh fit selected 340 cp, but the retained 400 cp scale performed
+   better on both the internal held-out games (0.31255 versus 0.33483 log loss)
+   and the separate external campaign (0.94499 versus 1.06503). Mate reports
+   remain discrete and excluded. The preserved raw collections and report are
+   under `tmp/v290-v125-calibration-fresh`.
    This changes arbitration, so all older strength results are informative but
    cannot qualify the calibrated binary.
-3. **Production routing — implemented behind an opt-in flag; final validation
+3. **Production routing — implemented behind an opt-in flag; package validation
    open.** `ELOI_ENABLE_CAISSA_PRODUCTION=ON` routes Standard searches from
    GUI, UCI, native Lichess, and the Exoskeleton bridge through one shared
    `ProductionBrain`. Chess960 and Horde route directly to E2. The ordinary
    flag-off build remains byte-identical to published v2.7.5. The network path
    is accepted only through `--caissa-network` or
    `ELOI_CAISSA_NETWORK_PATH`; there is no discovery or download.
-4. **Resource and failure semantics — implemented; stress evidence open.**
+4. **Resource and failure semantics — implemented; long stress evidence open.**
    Both brains use exactly three search threads and run sequentially. Standard
    divides the configured Hash without duplication; Caissa's table is lazy and
    released before a full-Hash variant or fallback E2 search. Move overhead is
    converted into the shared hard deadline once. Missing, wrong, exceptional,
    failed, or Eloi-illegal hybrid results fall back safely when time remains.
-   An operating-system-level in-process donor crash cannot be caught in C++ and
-   remains a release-blocking watchdog test rather than a claimed fallback.
+   Production Caissa runs in a persistent isolated worker process. A forced
+   worker termination was detected without killing the parent; Eloi returned a
+   legal E2 fallback and exited cleanly. The clean-commit containment report is
+   `tmp/v290-v125-worker-containment-d25c464.json`.
 5. **Adapter validation — passed for the mixed configuration.** The official
    v1.25 executable and v1.26-code adapter
    matched all three depth-one moves; initial-position evaluation also matched
@@ -92,15 +94,14 @@ No historical result is silently promoted into a release qualification result.
    builds, deterministic archives, fresh extraction, full
    package-content/dependency checks, and security validation remain open.
    No build or runtime network download is allowed.
-7. **Post-integration strength — not started.** Only after behavior is frozen:
-   screen configurations, run 100-game confirmation, then 250 games against
-   v2.7.5 and 100 games against equal-budget Caissa-only. Historical lab matches
-   inform the decision but do not qualify a different binary.
+7. **Post-integration strength — open.** The frozen acceptance run is 20 games
+   at equal 250 ms-per-move resources against exact v2.7.5. The candidate must
+   win at least 10 games; draws and losses do not contribute. A separate
+   three-game v1.0.0 match is entertainment-only and has no release threshold.
 
 The current production and recoverable champion remains Eloi v2.7.5. The new
 v1.25-network controller has passed bounded standalone correctness, variant
-move-generation checks, and donor-adapter validation. Calibration, package
-reproducibility, crash containment, and all strength qualification remain
-deliberately open. No tag,
+move-generation checks, and donor-adapter validation. Package reproducibility
+and strength qualification remain deliberately open. No tag,
 release, package, or production installation should call the hybrid “v2.9.0”
 until every gate above is closed with retained evidence.

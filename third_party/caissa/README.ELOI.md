@@ -1,6 +1,6 @@
 # Caissa donor boundary
 
-Eloi's experimental `caissa-merge` branch pins Caissa 1.26 at commit
+Eloi's v2.9.0 candidate pins Caissa 1.26 at commit
 `008b0b8f1fc6479890665a1a9c2ff6bbc2f1bc06`. The upstream project is
 copyright (c) 2021 Michał Witanowski and distributed under the MIT license in
 this directory.
@@ -85,10 +85,11 @@ Those implementations are excluded from this import. Any eventual equivalent
 must be independently implemented from Eloi's requirements and tests, not
 copied with comments removed.
 
-Until both the source-provenance audit and network redistribution question are
-resolved, the Caissa backend is local-experiment-only. Eloi v2.7.5/E2 remains
-the production engine and the public UCI, GUI, clock, variants, and Lichess
-bridge remain exclusively Eloi-owned.
+The source-provenance and v1.25 network-redistribution gates are resolved. A
+release still requires reproducible package, correctness, crash-containment,
+and strength evidence. Eloi v2.7.5/E2 remains the published baseline until
+those gates close; the public UCI, GUI, clock, variants, and Lichess bridge
+remain exclusively Eloi-owned.
 
 Developers may opt into the separate `EloiHybridLab` UCI executable with
 `-DELOI_BUILD_CAISSA_LAB=ON`. It resolves the network from

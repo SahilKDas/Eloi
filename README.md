@@ -1,9 +1,12 @@
 # Eloi
 
 Eloi is a C++26 chess engine and native Windows chess application. The current
-source version is **2.7.5**, with the 64-unit **E2-ranking** NNUE and exactly
-three deterministic RootSplit search threads. Official packages target Windows
-x64; other platforms are not yet validated.
+source candidate is **2.9.0**: Eloi's 64-unit **E2-ranking** brain plus a
+hash-pinned Caissa 1.26 search / v1.25 network brain behind an Eloi-owned,
+crash-contained arbiter. Eloi v2.7.5 remains the released strength baseline
+until the candidate completes its package and match gates. Each active brain
+uses exactly three search threads, sequentially. Official packages target
+Windows x64; other platforms are not yet validated.
 
 ## Download and play
 
@@ -12,7 +15,9 @@ The last fully packaged release remains available on the
 Eloi 2.7.5 source promotes E2-ranking; package publication is tracked
 separately in [the v2.7.5 decision](RELEASE_V2_7_5.md).
 
-- **Standalone:** exactly `Eloi.exe` and an empty-token `config.yml`. The GUI,
+- **Standalone:** v2.7.5 contains exactly `Eloi.exe` and an empty-token
+  `config.yml`. Hybrid packages additionally carry `LICENSE.txt` so Caissa's
+  required MIT notice accompanies the binary. The GUI,
   engine, UCI interface, native Lichess client, artwork, opening book and NNUE
   are embedded; no non-system DLL or Python installation is required.
 - **Exoskeleton:** the engine plus separate `EloiLichess.exe`, runtime DLLs,
@@ -153,8 +158,8 @@ option is advertised.
 - [CONTRIBUTING.md](CONTRIBUTING.md): engineering and release invariants.
 - [Device constraints](constraints_on_SahilKDas_device.md): binding local limits.
 - [FUTURE_WORK.md](FUTURE_WORK.md): open work, not permission to launch experiments.
-- [Caissa donor boundary](third_party/caissa/README.ELOI.md): pinned local-only
-  v2.9.0 experiment, source allowlist, hashes, and redistribution blockers.
+- [Caissa donor boundary](third_party/caissa/README.ELOI.md): pinned v2.9.0
+  candidate, source allowlist, hashes, and redistribution requirements.
 - [v2.9.0 readiness](V2_9_0_RELEASE_READINESS.md): current hybrid gates and
   exact bounded evidence; it is not a release announcement.
 - [Third-party notices](THIRD_PARTY_NOTICES.md): licenses retained for imported
