@@ -68,6 +68,12 @@ struct VerifiedCandidate {
 constexpr int eloi_equivalent_tie_cp = 15;
 constexpr int eloi_safety_veto_cp = 100;
 
+int report_from_eloi_anchor(int score_cp) {
+  return cp_from_expected_score(
+      expected_score_from_cp(score_cp, hybrid_wdl_v2.eloi_pawn_scale),
+      hybrid_wdl_v2.report_pawn_scale);
+}
+
 }  // namespace
 
 bool HybridBudget::valid() const noexcept {
@@ -200,10 +206,22 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
 
   if (caissa_move->same_coordinates(*eloi_move) &&
       caissa_move->promotion == eloi_move->promotion) {
-    BrainResponse response = std::move(caissa);
+    // Agreement determines the move, but the public score and PV must retain a
+    // single meaning. Returning Caissa's raw centipawns here made the UCI
+    // score change scale depending on whether the two brains happened to
+    // agree. Eloi is the stable reporting anchor; Caissa still participates
+    // fully in move selection and agreement confidence.
+    BrainResponse response = std::move(eloi);
     response.requested = BrainIdentity::hybrid;
     response.selected = BrainIdentity::hybrid;
-    response.search.nodes += eloi.search.nodes;
+    response.search.nodes += caissa.search.nodes;
+    if (response.search.mate == 0)
+      response.search.score_cp = report_from_eloi_anchor(
+          response.search.score_cp);
+    if (!response.lines.empty()) {
+      response.lines.front().score_cp = response.search.score_cp;
+      response.lines.front().mate = response.search.mate;
+    }
     response.search.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - started);
     response.confidence = 1.0;
@@ -360,10 +378,13 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
   response.search.pv.insert(response.search.pv.end(),
                             best->continuation.begin(),
                             best->continuation.end());
+  // The pessimistic expectation selects the move and remains available as
+  // confidence. Public centipawns use the calibrated Eloi anchor so their
+  // scale does not fluctuate with Caissa's nondeterministic worker vote or
+  // with the agreement/disagreement route.
   response.search.score_cp = best->mate
       ? best->eloi_score_cp
-      : cp_from_expected_score(
-            best->pessimistic, hybrid_wdl_v2.report_pawn_scale);
+      : report_from_eloi_anchor(best->eloi_score_cp);
   response.search.mate = best->mate;
   response.search.depth = std::min(caissa.search.depth, eloi.search.depth);
   response.search.nodes = caissa.search.nodes + eloi.search.nodes;
@@ -385,8 +406,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
                           candidate.continuation.end());
     alternative.score_cp = candidate.mate
         ? candidate.eloi_score_cp
-        : cp_from_expected_score(
-              candidate.pessimistic, hybrid_wdl_v2.report_pawn_scale);
+        : report_from_eloi_anchor(candidate.eloi_score_cp);
     alternative.mate = candidate.mate;
     response.lines.push_back(std::move(alternative));
   }

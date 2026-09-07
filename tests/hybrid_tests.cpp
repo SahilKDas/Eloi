@@ -359,10 +359,14 @@ int main() {
     SearchLimits limits;
     limits.nodes = 1'000;
     const auto response = agreement.search(board, limits);
+    const int expected_report = cp_from_expected_score(
+        expected_score_from_cp(12, hybrid_wdl_v2.eloi_pawn_scale),
+        hybrid_wdl_v2.report_pawn_scale);
     expect(response.has_legal_move(board) &&
                response.search.pv.front().uci() == "e2e4" &&
+               response.search.score_cp == expected_report &&
                fake_eloi.calls() == 1 && fake_caissa.calls() == 1,
-           "agreement accepts the shared legal move without verification");
+           "agreement accepts the move and reports the calibrated Eloi anchor");
   }
 
   {
@@ -390,11 +394,7 @@ int main() {
     limits.nodes = 1'000;
     const auto response = disagreement.search(board, limits);
     const int expected_normalized_score = cp_from_expected_score(
-        std::min(
-            expected_score_from_cp(
-                20, hybrid_wdl_v2.eloi_pawn_scale),
-            expected_score_from_cp(
-                60, hybrid_wdl_v2.caissa_pawn_scale)),
+        expected_score_from_cp(20, hybrid_wdl_v2.eloi_pawn_scale),
         hybrid_wdl_v2.report_pawn_scale);
     expect(response.has_legal_move(board) &&
                response.search.pv.front().uci() == "e2e4" &&
@@ -403,7 +403,7 @@ int main() {
                response.lines.front().pv.front().uci() == "e2e4" &&
                fake_eloi.calls() == 2 && fake_caissa.calls() == 2 &&
                response.detail.find("cross-verification") != std::string::npos,
-           "disagreement reports normalized selected and alternative lines");
+           "disagreement reports Eloi-anchored selected and alternative lines");
   }
 
   {

@@ -140,3 +140,7 @@ selected on 40 complete Standard games and improved log loss on a disjoint
 40-game campaign; the Caissa scale remained unchanged. Exact evidence is in
 `data/v2_9_0_wdl_calibration.json`. This calibration changes arbitration, so
 the earlier gauntlets remain historical rather than release-qualifying.
+The pessimistic calibrated expectation selects moves and is retained as the
+hybrid confidence value. Public UCI centipawns use Eloi's calibrated reporting
+anchor, including the agreement route; this prevents Caissa worker-vote
+nondeterminism from changing the meaning or scale of the public score.
