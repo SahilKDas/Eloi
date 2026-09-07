@@ -621,9 +621,9 @@ static void InitRookAttacks()
 #endif // USE_PEXT_ATTACKS
     }
 
-#ifndef CONFIGURATION_FINAL
+#if !defined(CONFIGURATION_FINAL) && !defined(ELOI_EMBEDDED_BACKEND)
     std::cout << "Rook attack table size: " << tableSize << " entries (" << (tableSize * sizeof(Bitboard)) / 1024 << " KB)" << std::endl;
-#endif // CONFIGURATION_FINAL
+#endif
 
     ASSERT(tableSize == cRookAttackTableSize);
 }
@@ -697,9 +697,9 @@ static void InitBishopAttacks()
 #endif // USE_PEXT_ATTACKS
     }
 
-#ifndef CONFIGURATION_FINAL
+#if !defined(CONFIGURATION_FINAL) && !defined(ELOI_EMBEDDED_BACKEND)
     std::cout << "Bishop attack table size: " << tableSize << " entries (" << (tableSize * sizeof(Bitboard)) / 1024 << " KB)" << std::endl;
-#endif // CONFIGURATION_FINAL
+#endif
 
     ASSERT(tableSize == cBishopAttackTableSize);
 }

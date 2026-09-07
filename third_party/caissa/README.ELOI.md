@@ -31,6 +31,9 @@ in to an Eloi-owned `RCDATA` resource only when CMake has verified the exact
 frozen size and SHA-256. The adapter verifies those bytes again at runtime
 before handing them to the donor evaluator. The default build contains no
 Caissa network, and no build mode discovers or downloads one.
+The embedded backend also suppresses two donor attack-table size messages that
+would otherwise be written to stdout before UCI negotiation. Assertions and
+table construction remain unchanged.
 
 ## Network status
 
@@ -129,10 +132,11 @@ the donor commit, applies Idle priority and process timeouts, refuses output
 collisions, and writes only beneath a quota-checked dedicated scratch path.
 
 The arbiter keeps Eloi and Caissa scores separate and maps them through the
-named `hybrid-wdl-v1-uncalibrated` profile: development scales of 400 and 360
-centipawns per expected-score decade. The profile extraction did not change the
-formula or values used by the retained gauntlets. The deterministic
-`scripts/calibrate_hybrid_wdl.py` tool keeps entire games in one partition and
-reports Brier score, log loss, and calibration error without editing source.
-The constants have not yet been independently calibrated against held-out game
-outcomes, so calibration evidence remains an open pre-release gate.
+named `hybrid-wdl-v2-standard-pgn-calibrated` profile: 1,300 and 360
+centipawns per expected-score decade. The deterministic
+`scripts/calibrate_hybrid_wdl.py` tool keeps entire games in one partition
+and reports Brier score, log loss, and calibration error. The Eloi scale was
+selected on 40 complete Standard games and improved log loss on a disjoint
+40-game campaign; the Caissa scale remained unchanged. Exact evidence is in
+`data/v2_9_0_wdl_calibration.json`. This calibration changes arbitration, so
+the earlier gauntlets remain historical rather than release-qualifying.

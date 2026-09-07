@@ -118,6 +118,8 @@ add_library(caissa_foundation STATIC
   third_party/caissa/src/Waitable.cpp)
 target_include_directories(caissa_foundation PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/caissa/src)
+target_compile_definitions(caissa_foundation PRIVATE
+  ELOI_EMBEDDED_BACKEND)
 if(MSVC)
   target_compile_options(caissa_foundation PRIVATE /W4 /permissive-)
 else()
