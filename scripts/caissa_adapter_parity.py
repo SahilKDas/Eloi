@@ -127,8 +127,14 @@ def run_probe(
     deadline = started + timeout_seconds
 
     def send(command: str) -> None:
-        process.stdin.write(command + chr(10))
-        process.stdin.flush()
+        try:
+            process.stdin.write(command + chr(10))
+            process.stdin.flush()
+        except (BrokenPipeError, OSError) as error:
+            raise ProbeError(
+                f"engine exited before command {command!r}; "
+                f"code={process.poll()}"
+            ) from error
 
     def read_until(prefix: str) -> str:
         while True:
@@ -171,7 +177,13 @@ def run_probe(
         raise
     finally:
         if process.stdin:
-            process.stdin.close()
+            try:
+                process.stdin.close()
+            except OSError:
+                pass
+        reader.join(timeout=1)
+        if process.stdout:
+            process.stdout.close()
     info = next(
         (line for line in reversed(transcript) if line.startswith("info depth ")),
         "",

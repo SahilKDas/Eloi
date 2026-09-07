@@ -1,4 +1,6 @@
 import tempfile
+import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -85,6 +87,24 @@ class CaissaAdapterParityTests(unittest.TestCase):
             parity.write_evidence(output, {"first": True})
             with self.assertRaises(FileExistsError):
                 parity.write_evidence(output, {"second": True})
+
+    def test_watchdog_reports_an_os_level_child_crash(self):
+        with self.assertRaisesRegex(parity.ProbeError, "engine exited"):
+            parity.run_probe(
+                Path(sys.executable), Path.cwd(),
+                ["-c", "import os; os._exit(23)"],
+                parity.INITIAL_FEN, "go depth 1", 1.0,
+            )
+
+    def test_watchdog_stops_a_hung_owned_child(self):
+        started = time.monotonic()
+        with self.assertRaisesRegex(parity.ProbeError, "timeout"):
+            parity.run_probe(
+                Path(sys.executable), Path.cwd(),
+                ["-c", "import time; time.sleep(5)"],
+                parity.INITIAL_FEN, "go depth 1", 0.1,
+            )
+        self.assertLess(time.monotonic() - started, 2.0)
 
 
 if __name__ == "__main__":
