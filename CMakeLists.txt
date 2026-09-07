@@ -30,6 +30,8 @@ endif()
 option(ELOI_BUILD_APP "Build the production Eloi executable" ON)
 option(ELOI_BUILD_CAISSA_LAB
   "Build the local-only, non-redistributable Eloi/Caissa UCI laboratory" OFF)
+option(ELOI_ENABLE_CAISSA_PRODUCTION
+  "Route production Standard chess through the local hybrid controller" OFF)
 option(ELOI_SPLIT_PACKAGE
   "Build the Defender-friendly external-assets Windows release package" OFF)
 if(ELOI_SPLIT_PACKAGE AND NOT WIN32)
@@ -97,7 +99,8 @@ add_library(eloi_brains STATIC
   src/eloi_brain.cpp
   src/caissa_brain.cpp
   src/wdl_calibration.cpp
-  src/hybrid_brain.cpp)
+  src/hybrid_brain.cpp
+  src/production_brain.cpp)
 target_link_libraries(eloi_brains PUBLIC eloi_core)
 target_link_libraries(eloi_brains PRIVATE caissa_foundation)
 target_include_directories(eloi_brains PUBLIC
@@ -148,6 +151,11 @@ if(ELOI_BUILD_APP)
   endif()
   add_executable(Eloi ${ELOI_APP_SOURCES})
   target_link_libraries(Eloi PRIVATE eloi_core)
+  if(ELOI_ENABLE_CAISSA_PRODUCTION)
+    target_link_libraries(Eloi PRIVATE eloi_brains)
+    target_compile_definitions(Eloi PRIVATE
+      ELOI_ENABLE_CAISSA_PRODUCTION)
+  endif()
   if(ELOI_SPLIT_PACKAGE)
     configure_file(
       src/version-lichess.rc.in
@@ -157,8 +165,17 @@ if(ELOI_BUILD_APP)
       src/lichess_main.cpp
       src/lichess.cpp
       src/lichess_config_gui.cpp
+      src/version_match.cpp
       "${CMAKE_CURRENT_BINARY_DIR}/generated/version-lichess.rc")
     target_link_libraries(EloiLichess PRIVATE eloi_core)
+    if(ELOI_ENABLE_CAISSA_PRODUCTION)
+      target_link_libraries(EloiLichess PRIVATE eloi_brains)
+      if(WIN32)
+        target_link_libraries(EloiLichess PRIVATE bcrypt)
+      endif()
+      target_compile_definitions(EloiLichess PRIVATE
+        ELOI_ENABLE_CAISSA_PRODUCTION)
+    endif()
   endif()
 endif()
 
@@ -264,6 +281,11 @@ if(ELOI_BUILD_TESTS)
   if(WIN32 AND ELOI_BUILD_APP)
     add_executable(eloi_gui_tests tests/gui_smoke.cpp src/version_match.cpp)
     target_link_libraries(eloi_gui_tests PRIVATE eloi_core ${ELOI_GUI_LIBRARIES})
+    if(ELOI_ENABLE_CAISSA_PRODUCTION)
+      target_link_libraries(eloi_gui_tests PRIVATE eloi_brains)
+      target_compile_definitions(eloi_gui_tests PRIVATE
+        ELOI_ENABLE_CAISSA_PRODUCTION)
+    endif()
     target_include_directories(eloi_gui_tests PRIVATE "${SKIA_ROOT}/include/skia")
     if(ELOI_SPLIT_PACKAGE)
       add_custom_command(TARGET eloi_gui_tests POST_BUILD

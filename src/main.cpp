@@ -2,8 +2,12 @@
 #include "eloi/config.hpp"
 #include "eloi/version_match.hpp"
 #include "eloi/version.hpp"
+#ifdef ELOI_ENABLE_CAISSA_PRODUCTION
+#include "eloi/production_brain.hpp"
+#endif
 
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <iostream>
 
@@ -14,6 +18,15 @@
 
 int main(int argc, char** argv) {
   using namespace eloi;
+#ifdef ELOI_ENABLE_CAISSA_PRODUCTION
+  try {
+    configure_production_brain_runtime(argc, argv);
+  } catch (const std::exception& error) {
+    std::cerr << "hybrid configuration error: "
+              << error.what() << '\n';
+    return 2;
+  }
+#endif
   auto config = default_config();
 
   for (int i = 1; i < argc; ++i) {

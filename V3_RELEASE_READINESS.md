@@ -32,13 +32,21 @@ No historical result is silently promoted into a release qualification result.
    both brains' per-position scores, so they cannot manufacture the missing
    calibration dataset. Playing behavior remains byte-for-byte mathematical
    equivalent until a new evidence report supports changing either scale.
-3. **Production routing — open.** Standard chess must use the hybrid through an
-   Eloi-owned controller; Chess960 and Horde must remain E2-only. UCI, GUI,
-   Lichess, clocks, repetition, and final legality remain Eloi-owned.
-4. **Resource and failure semantics — open.** The integrated executable must
-   prove exactly three active search threads, sequential brain slices, one
-   shared Hash budget, one move-overhead deduction, hard-deadline propagation,
-   and legal E2 fallback for unavailable, late, crashed, or invalid Caissa work.
+3. **Production routing — implemented behind an opt-in flag; final validation
+   open.** `ELOI_ENABLE_CAISSA_PRODUCTION=ON` routes Standard searches from
+   GUI, UCI, native Lichess, and the Exoskeleton bridge through one shared
+   `ProductionBrain`. Chess960 and Horde route directly to E2. The ordinary
+   flag-off build remains byte-identical to published v2.7.5. The network path
+   is accepted only through `--caissa-network` or
+   `ELOI_CAISSA_NETWORK_PATH`; there is no discovery or download.
+4. **Resource and failure semantics — implemented; stress evidence open.**
+   Both brains use exactly three search threads and run sequentially. Standard
+   divides the configured Hash without duplication; Caissa's table is lazy and
+   released before a full-Hash variant or fallback E2 search. Move overhead is
+   converted into the shared hard deadline once. Missing, wrong, exceptional,
+   failed, or Eloi-illegal hybrid results fall back safely when time remains.
+   An operating-system-level in-process donor crash cannot be caught in C++ and
+   remains a release-blocking watchdog test rather than a claimed fallback.
 5. **Adapter validation — open.** Depth-one and board/legal parity are
    mechanical gates. Deeper three-thread runs are validated for legality,
    mate/score sanity, timing, and distributions rather than falsely requiring
@@ -52,6 +60,9 @@ No historical result is silently promoted into a release qualification result.
    v2.7.5 and 100 games against equal-budget Caissa-only. Historical lab matches
    inform the decision but do not qualify a different binary.
 
-The current production and recoverable champion remains Eloi v2.7.5. No tag,
+The current production and recoverable champion remains Eloi v2.7.5. The
+opt-in controller has passed its bounded C++ routing/Hash/fallback tests, UCI
+hybrid and missing-network smokes, GUI smoke, both Windows target builds, and
+offline Lichess configuration checks. No tag,
 release, package, or production installation should call the hybrid “v3.0.0”
 until every gate above is closed with retained evidence.

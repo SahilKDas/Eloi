@@ -1,5 +1,8 @@
 #include "eloi/chess.hpp"
 #include "eloi/version.hpp"
+#ifdef ELOI_ENABLE_CAISSA_PRODUCTION
+#include "eloi/production_brain.hpp"
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -12,6 +15,12 @@
 
 namespace eloi {
 namespace {
+
+#ifdef ELOI_ENABLE_CAISSA_PRODUCTION
+using EngineSearcher = ProductionBrain;
+#else
+using EngineSearcher = Searcher;
+#endif
 
 std::vector<std::string> words(std::string_view line) {
   std::istringstream input{std::string(line)};
@@ -135,7 +144,7 @@ int run_console(EngineConfig config, Board board) {
       SearchLimits limits; limits.depth = config.depth > 0 ? config.depth : 6;
       if (args.size() > 1) if (auto n=integer(args[1]))
         limits.depth=std::clamp(*n, 1, maximum_search_depth);
-      stopped = false; Searcher searcher(config, stopped);
+      stopped = false; EngineSearcher searcher(config, stopped);
       auto result = searcher.iterative(board, limits, [&](const SearchResult& r) {
         std::cout << "depth=" << r.depth << " score=" << r.score_cp << " nodes=" << r.nodes << " pv=";
         for (const auto& m:r.pv) std::cout << m.describe() << ' ';
@@ -178,7 +187,7 @@ int run_engine(EngineConfig config, int argc, char** argv) {
   std::atomic_bool stopped{false}, active{false};
   std::thread worker;
   std::mutex output;
-  std::unique_ptr<Searcher> persistent_searcher;
+  std::unique_ptr<EngineSearcher> persistent_searcher;
   std::optional<EngineConfig> persistent_config;
   auto same_search_config = [](const EngineConfig& left,
                                const EngineConfig& right) {
@@ -203,10 +212,11 @@ int run_engine(EngineConfig config, int argc, char** argv) {
     if (chess960_mode || snapshot.horde) current.own_book = false;
     if (!persistent_searcher || !persistent_config ||
         !same_search_config(*persistent_config, current)) {
-      persistent_searcher = std::make_unique<Searcher>(current, stopped);
+      persistent_searcher =
+          std::make_unique<EngineSearcher>(current, stopped);
       persistent_config = current;
     }
-    Searcher* active_searcher = persistent_searcher.get();
+    EngineSearcher* active_searcher = persistent_searcher.get();
     worker = std::thread([&, snapshot=std::move(snapshot),
                           active_searcher, limits,
                           chess960_mode]() mutable {
@@ -217,6 +227,11 @@ int run_engine(EngineConfig config, int argc, char** argv) {
           });
       {
         std::lock_guard lock(output);
+#ifdef ELOI_ENABLE_CAISSA_PRODUCTION
+        if (!active_searcher->last_detail().empty())
+          std::cout << "info string "
+                    << active_searcher->last_detail() << '\n';
+#endif
         std::cout << "bestmove "
                   << (result.pv.empty()
                           ? "0000"
@@ -383,7 +398,7 @@ int run_benchmark(int argc, char** argv) {
   for (std::string_view fen : positions) {
     auto board = parse_fen(fen);
     if (!board) return 2;
-    Searcher searcher(config, stopped);
+    EngineSearcher searcher(config, stopped);
     SearchLimits limits; limits.depth = depth;
     const auto result = searcher.iterative(*board, limits);
     nodes += result.nodes; qnodes += result.qnodes; hits += result.tt_hits;

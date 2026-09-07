@@ -110,6 +110,8 @@ class CaissaBrain final : public Brain {
   BrainResponse search(Board board, SearchLimits limits,
                        const BrainInfoCallback& info = {}) override;
   const std::filesystem::path& network_path() const noexcept;
+  void release_hash();
+  std::size_t allocated_hash_bytes() const noexcept;
 
  private:
   struct Impl;

@@ -82,6 +82,15 @@ target and must not be packaged. The command-line-only modes --brain caissa
 and --brain eloi isolate either adapter for parity diagnostics; hybrid is the
 default.
 
+The future production controller is a separate opt-in build path:
+`-DELOI_ENABLE_CAISSA_PRODUCTION=ON`. It affects Standard searches in the
+GUI, UCI, native Lichess bridge, and Exoskeleton bridge, while Chess960 and
+Horde stay E2-only. The controller accepts only an explicit
+`--caissa-network PATH` or `ELOI_CAISSA_NETWORK_PATH`; unlike the lab, it
+does not search the working directory. The option is off by default, and the
+resulting ordinary executable remains byte-identical to published v2.7.5.
+Enabling this development path does not authorize packaging the network.
+
 Caissa's node counter is flushed in batches across its search lanes, so a
 fixed-node request can overshoot modestly. Fixed-node hybrid results are not
 equal-resource qualification evidence until that accounting is bounded and

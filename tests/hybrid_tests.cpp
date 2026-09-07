@@ -1,4 +1,5 @@
 #include "eloi/brain.hpp"
+#include "eloi/production_brain.hpp"
 #include "eloi/wdl_calibration.hpp"
 
 #include <atomic>
@@ -124,6 +125,58 @@ int main() {
   EloiBrain eloi(config, stopped);
   CaissaBrain caissa{".deps/caissa/missing-test-network.pnn", stopped};
   HybridBrain hybrid(eloi, caissa);
+
+  {
+    auto production_config = config;
+    production_config.hash_mb = 32;
+    ProductionBrain production{
+        production_config, stopped,
+        ".deps/caissa/missing-production-network.pnn"};
+    expect(production.configured_hash_mb() == 32 &&
+               production.eloi_hash_mb() == 16 &&
+               production.caissa_hash_mb() == 16,
+           "production hybrid divides but does not duplicate Hash");
+    expect(!production.caissa_available(),
+           "production Caissa fails closed without its network");
+    auto board = *parse_fen(initial_fen);
+    expect(production.route_for(board) ==
+               ProductionRoute::eloi_fallback,
+           "Standard selects explicit E2 fallback when Caissa is absent");
+    SearchLimits limits;
+    limits.depth = 1;
+    const auto result = production.iterative(board, limits);
+    expect(!result.pv.empty() &&
+               std::ranges::any_of(
+                   board.legal_moves(),
+                   [&](const Move& move) {
+                     return move.same_coordinates(
+                                result.pv.front()) &&
+                            move.promotion ==
+                                result.pv.front().promotion;
+                   }),
+           "production fallback returns an Eloi-authoritative legal move");
+    board.chess960 = true;
+    expect(production.route_for(board) ==
+               ProductionRoute::eloi_variant,
+           "Chess960 routes directly to full-budget E2");
+    board.chess960 = false;
+    board.horde = true;
+    expect(production.route_for(board) ==
+               ProductionRoute::eloi_variant,
+           "Horde routes directly to full-budget E2");
+  }
+
+  {
+    auto tiny_config = config;
+    tiny_config.hash_mb = 1;
+    ProductionBrain tiny{
+        tiny_config, stopped,
+        ".deps/caissa/missing-production-network.pnn"};
+    expect(tiny.eloi_hash_mb() == 1 &&
+               tiny.caissa_hash_mb() == 0 &&
+               !tiny.caissa_available(),
+           "Hash below 2 MB disables Caissa without exceeding the budget");
+  }
 
   expect(eloi.available(), "E2 adapter is available");
   expect(!caissa.available(), "Caissa fails closed before backend audit");
@@ -406,6 +459,12 @@ int main() {
       expect(response.status == BrainStatus::complete &&
                  response.has_legal_move(board),
              "three-thread local Caissa search returns an Eloi-legal move");
+      expect(local_caissa.allocated_hash_bytes() ==
+                 4u * 1024u * 1024u,
+             "Caissa allocates exactly its assigned Hash on first search");
+      local_caissa.release_hash();
+      expect(local_caissa.allocated_hash_bytes() == 0,
+             "Caissa can release Hash before a full-budget E2 route");
 
       SearchLimits depth_one_limits;
       depth_one_limits.depth = 1;
@@ -458,6 +517,29 @@ int main() {
                  hybrid_response.selected == BrainIdentity::hybrid &&
                  hybrid_response.has_legal_move(board),
              "bounded two-brain arbitration returns an Eloi-legal move");
+
+      auto production_config = config;
+      production_config.hash_mb = 8;
+      ProductionBrain production{
+          production_config, stopped, local_network};
+      expect(production.caissa_available() &&
+                 production.route_for(board) ==
+                     ProductionRoute::hybrid_standard,
+             "hash-verified local network enables Standard hybrid routing");
+      SearchLimits production_limits;
+      production_limits.depth = 1;
+      const auto production_result =
+          production.iterative(board, production_limits);
+      expect(!production_result.pv.empty() &&
+                 std::ranges::any_of(
+                     board.legal_moves(),
+                     [&](const Move& move) {
+                       return move.same_coordinates(
+                                  production_result.pv.front()) &&
+                              move.promotion ==
+                                  production_result.pv.front().promotion;
+                     }),
+             "production Standard hybrid returns an Eloi-legal move");
     }
   }
 

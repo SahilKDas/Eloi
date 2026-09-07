@@ -71,13 +71,14 @@ std::vector<Move> translate_pv(Board board,
 }  // namespace
 
 struct CaissaBrain::Impl {
-  Impl(std::atomic_bool& stop_flag, std::size_t hash_bytes)
-      : stopped(stop_flag), table(hash_bytes) {}
+  explicit Impl(std::atomic_bool& stop_flag)
+      : stopped(stop_flag) {}
 
   std::atomic_bool& stopped;
-  ::TranspositionTable table;
+  std::unique_ptr<::TranspositionTable> table;
+  std::size_t hash_bytes{0};
   ::Search searcher;
-  std::mutex mutex;
+  mutable std::mutex mutex;
   bool ready{false};
   std::string failure;
 };
@@ -86,8 +87,13 @@ CaissaBrain::CaissaBrain(std::filesystem::path network_path,
                          std::atomic_bool& stopped,
                          std::size_t hash_bytes)
     : network_path_(std::move(network_path)),
-      impl_(std::make_unique<Impl>(stopped, hash_bytes)) {
+      impl_(std::make_unique<Impl>(stopped)) {
   ::InitEngine();
+  if (hash_bytes == 0) {
+    impl_->failure =
+        "Caissa disabled because the shared Hash budget is below 2 MB";
+    return;
+  }
   std::error_code error;
   if (!std::filesystem::is_regular_file(network_path_, error)) {
     impl_->failure = "Caissa network file is absent";
@@ -106,6 +112,7 @@ CaissaBrain::CaissaBrain(std::filesystem::path network_path,
     impl_->failure = "Caissa rejected the hash-verified network";
     return;
   }
+  impl_->hash_bytes = hash_bytes;
   impl_->ready = true;
 }
 
@@ -144,6 +151,9 @@ BrainResponse CaissaBrain::search(Board board, SearchLimits limits,
   }
 
   std::scoped_lock lock(impl_->mutex);
+  if (!impl_->table)
+    impl_->table = std::make_unique<::TranspositionTable>(
+        impl_->hash_bytes);
   ::Game game;
   if (!rebuild_game(board, game, response.detail)) {
     response.status = BrainStatus::failed;
@@ -175,7 +185,7 @@ BrainResponse CaissaBrain::search(Board board, SearchLimits limits,
     donor_limits.idealTimeCurrent = donor_limits.idealTimeBase;
   }
 
-  ::SearchParam parameters{impl_->table};
+  ::SearchParam parameters{*impl_->table};
   parameters.limits = donor_limits;
   parameters.numThreads = production_search_threads();
   parameters.numPvLines = 2;
@@ -188,7 +198,7 @@ BrainResponse CaissaBrain::search(Board board, SearchLimits limits,
   ::SearchResult donor_result;
   ::SearchStats stats;
   const auto started = std::chrono::steady_clock::now();
-  impl_->table.NextGeneration();
+  impl_->table->NextGeneration();
   impl_->searcher.DoSearch(game, parameters, donor_result, &stats);
   response.search.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now() - started);
@@ -238,6 +248,16 @@ BrainResponse CaissaBrain::search(Board board, SearchLimits limits,
 
 const std::filesystem::path& CaissaBrain::network_path() const noexcept {
   return network_path_;
+}
+
+void CaissaBrain::release_hash() {
+  std::scoped_lock lock(impl_->mutex);
+  impl_->table.reset();
+}
+
+std::size_t CaissaBrain::allocated_hash_bytes() const noexcept {
+  std::scoped_lock lock(impl_->mutex);
+  return impl_->table ? impl_->hash_bytes : 0;
 }
 
 }  // namespace eloi
