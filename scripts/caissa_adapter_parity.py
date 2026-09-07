@@ -97,6 +97,8 @@ def run_probe(
     fen: str,
     go_command: str,
     timeout_seconds: float,
+    *,
+    allow_null_bestmove: bool = False,
 ) -> dict:
     started = time.monotonic()
     process = subprocess.Popen(
@@ -158,7 +160,7 @@ def run_probe(
         send(go_command)
         best_line = read_until("bestmove ")
         best_move = best_line.split()[1]
-        if best_move == "0000":
+        if best_move == "0000" and not allow_null_bestmove:
             raise ProbeError("nonterminal parity case returned bestmove 0000")
         send("quit")
         process.wait(timeout=max(0.1, deadline - time.monotonic()))

@@ -60,6 +60,14 @@ struct VerifiedCandidate {
   std::vector<Move> continuation;
 };
 
+// RootSplit is Eloi's stable anchor when Caissa's shared-TT worker vote
+// changes between otherwise identical three-thread searches.  A nearly equal
+// Eloi score is a deterministic tie, while a full-pawn Eloi regression is a
+// safety veto.  The interval between them remains available to the calibrated
+// pessimistic hybrid selector.
+constexpr int eloi_equivalent_tie_cp = 15;
+constexpr int eloi_safety_veto_cp = 100;
+
 }  // namespace
 
 bool HybridBudget::valid() const noexcept {
@@ -88,13 +96,30 @@ bool HybridBrain::available() const noexcept {
 
 BrainResponse HybridBrain::search(Board board, SearchLimits limits,
                                   const BrainInfoCallback& info) {
-  if (board.legal_moves().empty()) {
-    BrainResponse response;
+  const bool authoritative_draw =
+      !board.horde &&
+      (board.position.insufficient_material() ||
+       board.is_fifty_move_draw() ||
+       board.is_threefold_repetition());
+  if (board.legal_moves().empty() || authoritative_draw) {
+    const bool checkmate = board.position.in_check(board.turn);
+    // Eloi owns terminal semantics.  Reuse its canonical score/mate mapping
+    // instead of returning a default-constructed zero score from the arbiter.
+    // Positions with a claimable or automatic draw can still have legal moves,
+    // so E2 also supplies their protocol-safe move while Caissa is bypassed.
+    BrainResponse response = eloi_.search(std::move(board), limits);
     response.requested = response.selected = BrainIdentity::hybrid;
     response.status = BrainStatus::complete;
-    response.detail = board.position.in_check(board.turn)
-        ? "terminal checkmate; no move"
-        : "terminal draw; no move";
+    if (authoritative_draw) {
+      response.search.score_cp = 0;
+      response.search.mate = 0;
+      response.used_fallback = true;
+      response.detail = "authoritative Eloi draw; Caissa bypassed";
+    } else {
+      response.detail = checkmate
+          ? "terminal checkmate; no move"
+          : "terminal draw; no move";
+    }
     if (info) info(response);
     return response;
   }
@@ -310,8 +335,26 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     return response;
   }
 
-  const auto best = std::ranges::max_element(
+  auto best = std::ranges::max_element(
       verified, {}, &VerifiedCandidate::pessimistic);
+  std::string selection_note;
+  const auto eloi_anchor = std::ranges::find_if(
+      verified, [&](const VerifiedCandidate& candidate) {
+        return candidate.move.same_coordinates(*eloi_move) &&
+               candidate.move.promotion == eloi_move->promotion;
+      });
+  if (eloi_anchor != verified.end() && best != eloi_anchor &&
+      best->mate == 0 && eloi_anchor->mate == 0) {
+    const int eloi_drop =
+        eloi_anchor->eloi_score_cp - best->eloi_score_cp;
+    if (std::abs(eloi_drop) <= eloi_equivalent_tie_cp) {
+      best = eloi_anchor;
+      selection_note = "; Eloi won a near-equivalent tie";
+    } else if (eloi_drop >= eloi_safety_veto_cp) {
+      best = eloi_anchor;
+      selection_note = "; Eloi vetoed a one-pawn regression";
+    }
+  }
   response.status = BrainStatus::complete;
   response.search.pv.push_back(best->move);
   response.search.pv.insert(response.search.pv.end(),
@@ -348,7 +391,8 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     response.lines.push_back(std::move(alternative));
   }
   response.detail =
-      "hybrid disagreement resolved by pessimistic cross-verification";
+      "hybrid disagreement resolved by pessimistic cross-verification" +
+      selection_note;
   if (!response.has_legal_move(board)) {
     response.status = BrainStatus::invalid_move;
     response.detail = "arbiter selected a move outside Eloi's legal list";

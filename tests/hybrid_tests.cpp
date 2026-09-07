@@ -305,8 +305,38 @@ int main() {
       const auto response = hybrid.search(*mate, {});
       expect(response.status == BrainStatus::complete &&
                  response.search.pv.empty() &&
+                 response.search.score_cp == -30'000 &&
+                 response.search.mate == -1 &&
                  response.detail.find("checkmate") != std::string::npos,
-             "terminal checkmate completes without inventing a move");
+             "terminal checkmate preserves Eloi's canonical loss score");
+    }
+    const auto draw = parse_fen("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1");
+    expect(draw.has_value(), "terminal stalemate position parses");
+    if (draw) {
+      const auto response = hybrid.search(*draw, {});
+      expect(response.status == BrainStatus::complete &&
+                 response.search.pv.empty() &&
+                 response.search.score_cp == 0 &&
+                 response.search.mate == 0 &&
+                 response.detail.find("draw") != std::string::npos,
+             "terminal stalemate preserves Eloi's canonical draw score");
+    }
+    const auto insufficient =
+        parse_fen("7k/8/8/8/8/8/6B1/K7 w - - 0 1");
+    expect(insufficient.has_value(),
+           "legal-move insufficient-material position parses");
+    if (insufficient) {
+      SearchLimits limits;
+      limits.depth = 2;
+      const auto response = hybrid.search(*insufficient, limits);
+      expect(response.status == BrainStatus::complete &&
+                 response.has_legal_move(*insufficient) &&
+                 response.search.score_cp == 0 &&
+                 response.search.mate == 0 &&
+                 response.used_fallback &&
+                 response.detail.find("authoritative Eloi draw") !=
+                     std::string::npos,
+             "insufficient material uses Eloi's draw score and a legal move");
     }
   }
 
@@ -365,6 +395,54 @@ int main() {
                fake_eloi.calls() == 2 && fake_caissa.calls() == 2 &&
                response.detail.find("cross-verification") != std::string::npos,
            "disagreement reports normalized selected and alternative lines");
+  }
+
+  {
+    const auto guarded_response = [](
+        int eloi_alternative_score, const char* expected_move,
+        const char* expected_detail) {
+      auto board = *parse_fen(initial_fen);
+      FakeBrain guarded_eloi{
+          BrainIdentity::eloi_e2,
+          [eloi_alternative_score](
+              const Board& position, const SearchLimits&, int) {
+            auto response = fake_response(
+                BrainIdentity::eloi_e2, position, "d2d4", 100);
+            const auto legal = position.legal_moves();
+            const auto e4 = std::ranges::find_if(
+                legal, [](const Move& move) {
+                  return move.uci() == "e2e4";
+                });
+            if (e4 != legal.end())
+              response.lines.push_back(
+                  {{*e4}, eloi_alternative_score, 0});
+            return response;
+          }};
+      FakeBrain guarded_caissa{
+          BrainIdentity::caissa_1_26,
+          [](const Board& position, const SearchLimits&, int) {
+            auto response = fake_response(
+                BrainIdentity::caissa_1_26, position, "e2e4", 200);
+            const auto legal = position.legal_moves();
+            const auto d4 = std::ranges::find_if(
+                legal, [](const Move& move) {
+                  return move.uci() == "d2d4";
+                });
+            if (d4 != legal.end())
+              response.lines.push_back({{*d4}, -300, 0});
+            return response;
+          }};
+      HybridBrain guarded{guarded_eloi, guarded_caissa};
+      SearchLimits limits;
+      limits.nodes = 1'000;
+      const auto response = guarded.search(board, limits);
+      expect(response.has_legal_move(board) &&
+                 response.search.pv.front().uci() == expected_move &&
+                 response.detail.find(expected_detail) != std::string::npos,
+             "Eloi anchor applies only its named deterministic safety rule");
+    };
+    guarded_response(95, "d2d4", "near-equivalent tie");
+    guarded_response(-25, "d2d4", "one-pawn regression");
   }
 
   {
