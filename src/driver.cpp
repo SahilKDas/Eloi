@@ -34,7 +34,8 @@ void print_info(const SearchResult& result, std::mutex& output,
   std::lock_guard lock(output);
   if (!result.opening_family.empty())
     std::cout << "info string opening " << result.opening_family << '\n';
-  std::cout << "info depth " << result.depth << " score ";
+  std::cout << "info depth " << result.depth << " seldepth "
+            << result.seldepth << " score ";
   if (result.mate) std::cout << "mate " << result.mate;
   else std::cout << "cp " << result.score_cp;
   std::cout << " nodes " << result.nodes << " time " << result.elapsed.count();

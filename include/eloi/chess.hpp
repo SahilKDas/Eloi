@@ -295,6 +295,7 @@ struct RootMoveDiagnostic {
 
 struct SearchResult {
   int depth{0};
+  int seldepth{0};
   int score_cp{0};
   int mate{0};
   std::uint64_t nodes{0};
@@ -356,6 +357,7 @@ class Searcher {
   EngineConfig config_;
   std::atomic_bool& stopped_;
   std::uint64_t nodes_{0};
+  int seldepth_{0};
   std::uint64_t qnodes_{0};
   std::uint64_t tt_hits_{0};
   std::uint64_t beta_cutoffs_{0};

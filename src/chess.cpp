@@ -1740,6 +1740,7 @@ void Searcher::advance_generation() {
 
 void Searcher::reset_statistics() {
   nodes_ = qnodes_ = tt_hits_ = beta_cutoffs_ = lmr_reductions_ = 0;
+  seldepth_ = 0;
   quiet_checks_ = null_cutoffs_ = probcut_cutoffs_ = 0;
   singular_extensions_ = late_move_prunes_ = 0;
   history_hits_ = countermove_hits_ = 0;
@@ -1758,6 +1759,7 @@ void Searcher::prepare_root_helper(const Searcher& principal,
 
 void Searcher::absorb_statistics(const Searcher& helper) {
   nodes_ += helper.nodes_;
+  seldepth_ = std::max(seldepth_, helper.seldepth_);
   qnodes_ += helper.qnodes_;
   tt_hits_ += helper.tt_hits_;
   beta_cutoffs_ += helper.beta_cutoffs_;
@@ -1804,6 +1806,11 @@ std::optional<int> Searcher::search_root_move(
     Board root, const Move& move, int depth, int alpha, int beta,
     bool pv_node, const Move& previous) {
   const Color side = root.turn;
+  // SEE must inspect the position before the root move is made. Running it
+  // on the child position leaves the source square empty and can suppress a
+  // sound recapture extension at the root.
+  const int capture_see = move.is_capture()
+      ? static_exchange_score(root.position, side, move) : 0;
   Board::SearchUndo undo;
   if (!root.make_search_move(move, undo)) return std::nullopt;
   repetition_keys_.push_back(root.key);
@@ -1815,7 +1822,7 @@ std::optional<int> Searcher::search_root_move(
       relative_rank >= 6 && passed_pawn(root.position, side, move.to);
   const bool recapture = move.is_capture() && previous.is_capture() &&
       move.to == previous.to &&
-      static_exchange_score(root.position, side, move) >= 0;
+      capture_see >= 0;
   const int extension = (gives_check || dangerous_passer || recapture) ? 1 : 0;
   const int score = -negamax(
       root, std::max(0, depth - 1 + extension), -beta, -alpha, 1,
@@ -2190,6 +2197,7 @@ std::vector<Move> Searcher::reconstruct_pv(Board board, const Move& root,
 int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
                          int qply) {
   if (halted()) return 0;
+  seldepth_ = std::max(seldepth_, ply);
   ++nodes_; ++qnodes_;
   if (board.horde_eliminated()) return -mate_score + ply;
   if (search_draw(board, ply)) return 0;
@@ -2259,6 +2267,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
                       bool pv_node, const Move& previous, int extensions,
                       PackedMove excluded, bool allow_null) {
   if (halted()) return 0;
+  seldepth_ = std::max(seldepth_, ply);
   ++nodes_;
   if (board.horde_eliminated()) return -mate_score + ply;
   if (search_draw(board, ply)) return 0;
@@ -2689,6 +2698,16 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
     return last;
   }
   last.pv.push_back(fallback_moves.front());
+  if (fallback_moves.size() == 1) {
+    // Searching cannot change the only legal move. Returning it immediately
+    // preserves correctness and avoids wasting clock in forced replies.
+    last.nodes = 1;
+    last.volatility = volatility(board, 1, 0);
+    last.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - started_);
+    if (info) info(last);
+    return last;
+  }
 
   int base_budget_ms = 0;
   int soft_budget_ms = 0;
@@ -2799,7 +2818,8 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
                                   std::max(1, base_budget_ms * minimum_factor / 100),
                                   hard_budget_ms);
     }
-    last.depth = depth; last.score_cp = score; last.nodes = nodes_;
+    last.depth = depth; last.seldepth = seldepth_;
+    last.score_cp = score; last.nodes = nodes_;
     last.qnodes = qnodes_; last.tt_hits = tt_hits_;
     last.beta_cutoffs = beta_cutoffs_;
     last.lmr_reductions = lmr_reductions_;

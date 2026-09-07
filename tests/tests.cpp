@@ -1223,6 +1223,8 @@ int main() {
            "diagnostic collection does not change search results or nodes");
     expect(actual.root_moves.size() == board->legal_moves().size(),
            "diagnostics include every legal root move with explicit missing scores");
+    expect(actual.seldepth >= actual.depth,
+           "selective depth reports the deepest visited ply");
     limits.profile = SearchProfile::full_width;
     Searcher exhaustive(config, stopped);
     const auto full = exhaustive.iterative(*board, limits);
@@ -1232,6 +1234,23 @@ int main() {
                full.lmr_reductions == 0 && full.null_cutoffs == 0 &&
                full.probcut_cutoffs == 0,
            "full-width diagnostic disables all declared selective pruning");
+  }
+
+  {
+    auto board = parse_fen("7k/8/5KR1/8/8/8/8/8 b - - 0 1");
+    expect(board && board->legal_moves().size() == 1,
+           "forced-reply fixture has exactly one legal move");
+    if (board) {
+      auto config = default_config();
+      config.own_book = false;
+      std::atomic_bool stopped{false};
+      SearchLimits limits;
+      limits.depth = 12;
+      Searcher searcher(config, stopped);
+      const auto result = searcher.iterative(*board, limits);
+      expect(best_uci(result) == "h8h7" && result.nodes == 1,
+             "forced reply returns immediately without tree search");
+    }
   }
 
   if (failures) {

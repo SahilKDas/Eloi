@@ -39,7 +39,8 @@ const char* bound_name(int flag) {
 }
 
 void result_json(std::ostream& out, const SearchResult& row, const Board& board) {
-  out << "{\"depth\":" << row.depth << ",\"score_cp\":" << row.score_cp
+  out << "{\"depth\":" << row.depth << ",\"seldepth\":" << row.seldepth
+      << ",\"score_cp\":" << row.score_cp
       << ",\"mate\":" << row.mate << ",\"elapsed_ms\":" << row.elapsed.count()
       << ",\"static_eval_cp\":" << row.static_eval_cp << ",\"selected_move\":";
   string_json(out, row.pv.empty() ? "0000" : uci_move(row.pv.front(), board.position, board.chess960));
