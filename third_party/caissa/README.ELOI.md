@@ -26,6 +26,12 @@ to preserve the repository's no-Stockfish-code boundary.
 The allowlist is explicit in Eloi's CMake files; future integrations must not
 replace it with source globbing.
 
+Eloi also adds a narrow packed-network memory loader. Windows builds may opt
+in to an Eloi-owned `RCDATA` resource only when CMake has verified the exact
+frozen size and SHA-256. The adapter verifies those bytes again at runtime
+before handing them to the donor evaluator. The default build contains no
+Caissa network, and no build mode discovers or downloads one.
+
 ## Network status
 
 The Caissa 1.26 build requests `eval-82-383B.pnn`. The file inspected locally

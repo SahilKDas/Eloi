@@ -1,4 +1,5 @@
 #include "eloi/brain.hpp"
+#include "eloi/embedded_caissa_network.hpp"
 #include "eloi/version_match.hpp"
 
 #include "Evaluate.hpp"
@@ -80,6 +81,7 @@ struct CaissaBrain::Impl {
   ::Search searcher;
   mutable std::mutex mutex;
   bool ready{false};
+  bool embedded{false};
   std::string failure;
 };
 
@@ -92,6 +94,31 @@ CaissaBrain::CaissaBrain(std::filesystem::path network_path,
   if (hash_bytes == 0) {
     impl_->failure =
         "Caissa disabled because the shared Hash budget is below 2 MB";
+    return;
+  }
+  if (network_path_.empty()) {
+    const auto bytes = embedded_caissa_network_bytes();
+    if (bytes.empty()) {
+      impl_->failure = "Caissa embedded network resource is absent";
+      return;
+    }
+    if (bytes.size() != caissa_1_26_network_size) {
+      impl_->failure =
+          "Caissa embedded network size does not match the frozen identity";
+      return;
+    }
+    if (sha256_bytes(bytes) != caissa_1_26_network_sha256) {
+      impl_->failure =
+          "Caissa embedded network SHA-256 does not match the frozen identity";
+      return;
+    }
+    if (!::LoadMainNeuralNetworkFromMemory(bytes.data(), bytes.size())) {
+      impl_->failure = "Caissa rejected the hash-verified embedded network";
+      return;
+    }
+    impl_->hash_bytes = hash_bytes;
+    impl_->embedded = true;
+    impl_->ready = true;
     return;
   }
   std::error_code error;
@@ -248,6 +275,10 @@ BrainResponse CaissaBrain::search(Board board, SearchLimits limits,
 
 const std::filesystem::path& CaissaBrain::network_path() const noexcept {
   return network_path_;
+}
+
+bool CaissaBrain::uses_embedded_network() const noexcept {
+  return impl_->ready && impl_->embedded;
 }
 
 void CaissaBrain::release_hash() {

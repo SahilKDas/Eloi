@@ -179,6 +179,9 @@ def run_probe(
         "bestmove": best_move,
         "bestmove_line": best_line,
         "last_info": info,
+        "info_strings": [
+            line for line in transcript if line.startswith("info string ")
+        ],
         "parsed_info": parsed_info,
         "elapsed_ms": round((time.monotonic() - started) * 1000),
     }

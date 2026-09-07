@@ -155,6 +155,9 @@ struct alignas(CACHELINE_SIZE) PackedNeuralNetwork
     // load from file
     bool LoadFromFile(const char* filePath);
 
+    // load exact packed bytes supplied by Eloi's audited resource boundary
+    bool LoadFromMemory(const void* data, size_t size);
+
     // save to file
     bool SaveToFile(const char* filePath) const;
 

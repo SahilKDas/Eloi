@@ -40,6 +40,7 @@ static constexpr PieceScore c_pieceValues[] =
 
 bool TryLoadingDefaultEvalFile();
 bool LoadMainNeuralNetwork(const char* path);
+bool LoadMainNeuralNetworkFromMemory(const void* data, size_t size);
 
 // scaling factor when converting from neural network output (logistic space) to centipawn value
 // equal to 400/ln(10) = 173.7177...

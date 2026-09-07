@@ -273,6 +273,17 @@ bool PackedNeuralNetwork::LoadFromFile(const char* filePath)
     return true;
 }
 
+bool PackedNeuralNetwork::LoadFromMemory(const void* data, size_t size)
+{
+    if (data == nullptr || size != sizeof(PackedNeuralNetwork))
+    {
+        return false;
+    }
+
+    memcpy(this, data, sizeof(PackedNeuralNetwork));
+    return true;
+}
+
 int32_t PackedNeuralNetwork::Run(const Accumulator& stmAccum, const Accumulator& nstmAccum, uint32_t variant) const
 {
     return LinearLayer_Accum_SingleOutput(

@@ -3,7 +3,7 @@
 #include "Search.hpp"
 
 #if defined(CAISSA_EVALFILE)
-#error "Eloi never embeds or implicitly packages the local-only Caissa network"
+#error "Eloi does not use Caissa's implicit CAISSA_EVALFILE loading path"
 #endif
 
 namespace {
@@ -14,22 +14,16 @@ static constexpr ScoreType c_castlingRightsBonus = 5;
 } // namespace
 
 const nn::PackedNeuralNetwork* g_mainNeuralNetwork = nullptr;
-static bool g_usingEmbeddedNeuralNetwork = false;
 
 bool LoadMainNeuralNetwork(const char* path)
 {
-    if (!g_usingEmbeddedNeuralNetwork)
-    {
-        // release previous network
-        delete g_mainNeuralNetwork;
-        g_mainNeuralNetwork = nullptr;
-    }
+    delete g_mainNeuralNetwork;
+    g_mainNeuralNetwork = nullptr;
 
     if (path == nullptr || strcmp(path, "") == 0 || strcmp(path, "<empty>") == 0)
     {
         std::cout << "info string disabled neural network evaluation" << std::endl;
         g_mainNeuralNetwork = nullptr;
-        g_usingEmbeddedNeuralNetwork = false;
         return true;
     }
 
@@ -37,7 +31,6 @@ bool LoadMainNeuralNetwork(const char* path)
     if (newNetwork->LoadFromFile(path))
     {
         g_mainNeuralNetwork = newNetwork;
-        g_usingEmbeddedNeuralNetwork = false;
         std::cout << "info string Loaded neural network: " << path << std::endl;
         return true;
     }
@@ -48,6 +41,23 @@ bool LoadMainNeuralNetwork(const char* path)
 
     // TODO use embedded net?
     
+    return false;
+}
+
+bool LoadMainNeuralNetworkFromMemory(const void* data, size_t size)
+{
+    delete g_mainNeuralNetwork;
+    g_mainNeuralNetwork = nullptr;
+
+    auto* newNetwork = new nn::PackedNeuralNetwork();
+    if (newNetwork->LoadFromMemory(data, size))
+    {
+        g_mainNeuralNetwork = newNetwork;
+        std::cout << "info string Loaded embedded hash-verified neural network"
+                  << std::endl;
+        return true;
+    }
+    delete newNetwork;
     return false;
 }
 

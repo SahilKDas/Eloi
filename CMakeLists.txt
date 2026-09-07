@@ -32,6 +32,37 @@ option(ELOI_BUILD_CAISSA_LAB
   "Build the local-only, non-redistributable Eloi/Caissa UCI laboratory" OFF)
 option(ELOI_ENABLE_CAISSA_PRODUCTION
   "Route production Standard chess through the local hybrid controller" OFF)
+option(ELOI_EMBED_CAISSA_NETWORK
+  "Embed the hash-pinned local Caissa network in opt-in Windows binaries" OFF)
+set(ELOI_CAISSA_NETWORK_FILE "" CACHE FILEPATH
+  "Local Caissa network to embed; never downloaded or copied into source")
+if(ELOI_EMBED_CAISSA_NETWORK)
+  if(NOT WIN32)
+    message(FATAL_ERROR "Embedded Caissa network resources are Windows-only")
+  endif()
+  if(NOT ELOI_ENABLE_CAISSA_PRODUCTION)
+    message(FATAL_ERROR
+      "ELOI_EMBED_CAISSA_NETWORK requires ELOI_ENABLE_CAISSA_PRODUCTION")
+  endif()
+  if(NOT EXISTS "${ELOI_CAISSA_NETWORK_FILE}")
+    message(FATAL_ERROR "ELOI_CAISSA_NETWORK_FILE is absent")
+  endif()
+  file(SIZE "${ELOI_CAISSA_NETWORK_FILE}" ELOI_CAISSA_NETWORK_BYTES)
+  file(SHA256 "${ELOI_CAISSA_NETWORK_FILE}" ELOI_CAISSA_NETWORK_SHA256)
+  string(TOUPPER "${ELOI_CAISSA_NETWORK_SHA256}"
+    ELOI_CAISSA_NETWORK_SHA256)
+  if(NOT ELOI_CAISSA_NETWORK_BYTES EQUAL 50367040 OR
+     NOT ELOI_CAISSA_NETWORK_SHA256 STREQUAL
+       "22249DE582912F46F73F7CF7410D6D72ECCC77696B0B857E99B97A45F3F37116")
+    message(FATAL_ERROR "Embedded Caissa network identity mismatch")
+  endif()
+  configure_file(
+    packaging/caissa-network.rc.in
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/caissa-network.rc"
+    @ONLY)
+  set(ELOI_CAISSA_NETWORK_RESOURCE
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/caissa-network.rc")
+endif()
 option(ELOI_SPLIT_PACKAGE
   "Build the Defender-friendly external-assets Windows release package" OFF)
 if(ELOI_SPLIT_PACKAGE AND NOT WIN32)
@@ -96,6 +127,7 @@ endif()
 
 add_library(eloi_brains STATIC
   src/caissa_position.cpp
+  src/embedded_caissa_network.cpp
   src/eloi_brain.cpp
   src/caissa_brain.cpp
   src/wdl_calibration.cpp
@@ -106,6 +138,10 @@ target_link_libraries(eloi_brains PRIVATE caissa_foundation)
 target_include_directories(eloi_brains PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   "${CMAKE_CURRENT_BINARY_DIR}/generated")
+if(ELOI_EMBED_CAISSA_NETWORK)
+  target_compile_definitions(eloi_brains PUBLIC
+    ELOI_EMBED_CAISSA_NETWORK)
+endif()
 if(MSVC)
   target_compile_options(eloi_brains PRIVATE /W4 /permissive-)
 else()
@@ -115,7 +151,8 @@ endif()
 if(ELOI_BUILD_CAISSA_LAB)
   add_executable(EloiHybridLab
     src/hybrid_lab_main.cpp
-    src/version_match.cpp)
+    src/version_match.cpp
+    ${ELOI_CAISSA_NETWORK_RESOURCE})
   target_link_libraries(EloiHybridLab PRIVATE eloi_brains)
   if(WIN32)
     target_link_libraries(EloiHybridLab PRIVATE bcrypt)
@@ -150,6 +187,9 @@ if(ELOI_BUILD_APP)
       "${CMAKE_CURRENT_BINARY_DIR}/generated/version.rc")
   endif()
   add_executable(Eloi ${ELOI_APP_SOURCES})
+  if(ELOI_EMBED_CAISSA_NETWORK)
+    target_sources(Eloi PRIVATE ${ELOI_CAISSA_NETWORK_RESOURCE})
+  endif()
   target_link_libraries(Eloi PRIVATE eloi_core)
   if(ELOI_ENABLE_CAISSA_PRODUCTION)
     target_link_libraries(Eloi PRIVATE eloi_brains)
@@ -167,6 +207,9 @@ if(ELOI_BUILD_APP)
       src/lichess_config_gui.cpp
       src/version_match.cpp
       "${CMAKE_CURRENT_BINARY_DIR}/generated/version-lichess.rc")
+    if(ELOI_EMBED_CAISSA_NETWORK)
+      target_sources(EloiLichess PRIVATE ${ELOI_CAISSA_NETWORK_RESOURCE})
+    endif()
     target_link_libraries(EloiLichess PRIVATE eloi_core)
     if(ELOI_ENABLE_CAISSA_PRODUCTION)
       target_link_libraries(EloiLichess PRIVATE eloi_brains)
@@ -269,7 +312,8 @@ if(ELOI_BUILD_TESTS)
   add_test(NAME eloi_tests COMMAND eloi_tests)
   add_executable(eloi_hybrid_tests
     tests/hybrid_tests.cpp
-    src/version_match.cpp)
+    src/version_match.cpp
+    ${ELOI_CAISSA_NETWORK_RESOURCE})
   target_link_libraries(eloi_hybrid_tests PRIVATE eloi_brains)
   target_compile_definitions(eloi_hybrid_tests PRIVATE
     ELOI_TEST_PROJECT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

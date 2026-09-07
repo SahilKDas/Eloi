@@ -2,9 +2,11 @@
 
 #include "eloi/chess.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -43,5 +45,6 @@ int run_version_match_smoke(const std::filesystem::path& current,
                             const std::filesystem::path& previous,
                             int depth = 2, int plies = 4);
 std::string sha256_file(const std::filesystem::path& path);
+std::string sha256_bytes(std::span<const std::byte> bytes);
 
 }  // namespace eloi

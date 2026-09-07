@@ -183,6 +183,14 @@ int main() {
   expect(caissa.network_path() == ".deps/caissa/missing-test-network.pnn",
          "local network path is retained without loading it");
 
+#ifdef ELOI_EMBED_CAISSA_NETWORK
+  CaissaBrain embedded_caissa{{}, stopped};
+  expect(embedded_caissa.available() &&
+             embedded_caissa.uses_embedded_network() &&
+             embedded_caissa.network_path().empty(),
+         "opt-in build loads the exact network from its executable resource");
+#endif
+
   CaissaBrain wrong_network{
       std::filesystem::path(ELOI_TEST_PROJECT_DIR) / "CMakeLists.txt",
       stopped};
