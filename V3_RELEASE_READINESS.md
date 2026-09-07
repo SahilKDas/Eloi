@@ -23,10 +23,15 @@ No historical result is silently promoted into a release qualification result.
    artifact and evidence hashes plus explicit rights for both package forms.
    The checked-in template intentionally fails. Local diagnostics remain
    permitted; packaging does not.
-2. **WDL calibration — open.** The arbiter's 400/360 expected-score scales are
-   development constants. A whole-game-separated calibration and held-out
-   validation report must support any replacement. Until then, playing behavior
-   stays frozen at the values that produced the recorded match evidence.
+2. **WDL calibration evidence — open; tooling complete.** The arbiter's
+   400/360 expected-score scales now live in the named, tested
+   `hybrid-wdl-v1-uncalibrated` profile. `scripts/calibrate_hybrid_wdl.py`
+   calculates Brier score, log loss, and 10-bin calibration error on
+   deterministic whole-game-separated partitions; it excludes mate reports
+   because the arbiter handles them discretely. The retained PGNs do not contain
+   both brains' per-position scores, so they cannot manufacture the missing
+   calibration dataset. Playing behavior remains byte-for-byte mathematical
+   equivalent until a new evidence report supports changing either scale.
 3. **Production routing — open.** Standard chess must use the hybrid through an
    Eloi-owned controller; Chess960 and Horde must remain E2-only. UCI, GUI,
    Lichess, clocks, repetition, and final legality remain Eloi-owned.

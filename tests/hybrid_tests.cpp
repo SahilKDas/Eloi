@@ -1,4 +1,5 @@
 #include "eloi/brain.hpp"
+#include "eloi/wdl_calibration.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -82,6 +83,34 @@ class FakeBrain final : public Brain {
 }  // namespace
 
 int main() {
+  expect(hybrid_wdl_v1.eloi_pawn_scale == 400.0 &&
+             hybrid_wdl_v1.caissa_pawn_scale == 360.0 &&
+             hybrid_wdl_v1.report_pawn_scale == 400.0,
+         "the retained match behavior uses the frozen v1 WDL profile");
+  expect(expected_score_from_cp(0, 400.0) == 0.5,
+         "zero centipawns maps to an even expected score");
+  expect(expected_score_from_cp(-250, 400.0) <
+             expected_score_from_cp(0, 400.0) &&
+             expected_score_from_cp(0, 400.0) <
+             expected_score_from_cp(250, 400.0),
+         "WDL conversion is strictly monotonic");
+  expect(std::abs(expected_score_from_cp(175, 400.0) +
+                      expected_score_from_cp(-175, 400.0) -
+                  1.0) < 1e-12,
+         "WDL conversion is symmetric around an even score");
+  expect(std::abs(cp_from_expected_score(
+                      expected_score_from_cp(321, 400.0), 400.0) -
+                  321) <= 1,
+         "WDL conversion round-trips ordinary centipawn values");
+  bool invalid_scale_rejected = false;
+  try {
+    static_cast<void>(expected_score_from_cp(0, 0.0));
+  } catch (const std::invalid_argument&) {
+    invalid_scale_rejected = true;
+  }
+  expect(invalid_scale_rejected,
+         "non-positive WDL scales fail closed");
+
   expect(production_search_threads() == 3,
          "every production brain process owns exactly three search threads");
   expect(HybridBudget{}.valid(), "default hybrid budget totals 100 percent");

@@ -96,6 +96,7 @@ add_library(eloi_brains STATIC
   src/caissa_position.cpp
   src/eloi_brain.cpp
   src/caissa_brain.cpp
+  src/wdl_calibration.cpp
   src/hybrid_brain.cpp)
 target_link_libraries(eloi_brains PUBLIC eloi_core)
 target_link_libraries(eloi_brains PRIVATE caissa_foundation)

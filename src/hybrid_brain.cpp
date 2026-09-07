@@ -1,8 +1,8 @@
 #include "eloi/brain.hpp"
+#include "eloi/wdl_calibration.hpp"
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <optional>
 #include <stdexcept>
 #include <vector>
@@ -10,12 +10,6 @@
 namespace eloi {
 
 namespace {
-
-// Development-only mappings. These are deliberately separate so calibration
-// can replace either scale without ever comparing raw engine centipawns.
-constexpr double eloi_wdl_pawn_scale = 400.0;
-constexpr double caissa_wdl_pawn_scale = 360.0;
-constexpr double hybrid_report_pawn_scale = 400.0;
 
 SearchLimits slice_limits(
     const SearchLimits& source, int percent,
@@ -38,16 +32,6 @@ SearchLimits slice_limits(
     result.increment_ms = source.increment_ms * percent / 100;
   }
   return result;
-}
-
-double expected_score(int centipawns, double pawn_scale) {
-  return 1.0 / (1.0 + std::pow(10.0, -centipawns / pawn_scale));
-}
-
-int normalized_score(double expectation) {
-  const double bounded = std::clamp(expectation, 0.000001, 0.999999);
-  return static_cast<int>(std::lround(
-      hybrid_report_pawn_scale * std::log10(bounded / (1.0 - bounded))));
 }
 
 std::optional<Move> first_legal(const Board& board,
@@ -298,9 +282,11 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
       // The mappings are intentionally independent; raw centipawns from the
       // two networks are never compared directly.
       const double eloi_wdl =
-          expected_score(current.eloi_score_cp, eloi_wdl_pawn_scale);
+          expected_score_from_cp(
+              current.eloi_score_cp, hybrid_wdl_v1.eloi_pawn_scale);
       const double caissa_wdl =
-          expected_score(current.caissa_score_cp, caissa_wdl_pawn_scale);
+          expected_score_from_cp(
+              current.caissa_score_cp, hybrid_wdl_v1.caissa_pawn_scale);
       current.pessimistic = std::min(eloi_wdl, caissa_wdl);
       pessimistic_line = eloi_wdl <= caissa_wdl ? eloi_line : caissa_line;
     }
@@ -333,7 +319,8 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
                             best->continuation.end());
   response.search.score_cp = best->mate
       ? best->eloi_score_cp
-      : normalized_score(best->pessimistic);
+      : cp_from_expected_score(
+            best->pessimistic, hybrid_wdl_v1.report_pawn_scale);
   response.search.mate = best->mate;
   response.search.depth = std::min(caissa.search.depth, eloi.search.depth);
   response.search.nodes = caissa.search.nodes + eloi.search.nodes;
@@ -355,7 +342,8 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
                           candidate.continuation.end());
     alternative.score_cp = candidate.mate
         ? candidate.eloi_score_cp
-        : normalized_score(candidate.pessimistic);
+        : cp_from_expected_score(
+              candidate.pessimistic, hybrid_wdl_v1.report_pawn_scale);
     alternative.mate = candidate.mate;
     response.lines.push_back(std::move(alternative));
   }

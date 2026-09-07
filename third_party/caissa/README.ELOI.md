@@ -108,8 +108,11 @@ the frozen official executable and local network, records its own hash and
 the donor commit, applies Idle priority and process timeouts, refuses output
 collisions, and writes only beneath a quota-checked dedicated scratch path.
 
-The arbiter currently keeps Eloi and Caissa scores separate and maps them
-through development scales of 400 and 360 centipawns per expected-score
-decade. These constants have not yet been independently calibrated against
-held-out game outcomes. They are suitable for exercising control flow, not
-for release qualification; WDL calibration remains an open pre-gauntlet gate.
+The arbiter keeps Eloi and Caissa scores separate and maps them through the
+named `hybrid-wdl-v1-uncalibrated` profile: development scales of 400 and 360
+centipawns per expected-score decade. The profile extraction did not change the
+formula or values used by the retained gauntlets. The deterministic
+`scripts/calibrate_hybrid_wdl.py` tool keeps entire games in one partition and
+reports Brier score, log loss, and calibration error without editing source.
+The constants have not yet been independently calibrated against held-out game
+outcomes, so calibration evidence remains an open pre-release gate.
