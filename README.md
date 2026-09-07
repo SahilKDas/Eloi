@@ -1,16 +1,17 @@
 # Eloi
 
 Eloi is a C++26 chess engine and native Windows chess application. The current
-source version is **2.7.5**, with the 64-unit **E2-ranking** NNUE and exactly
+source version is **2.8.0**, with the 64-unit **E2-ranking** NNUE and exactly
 three deterministic RootSplit search threads. Official packages target Windows
 x64; other platforms are not yet validated.
 
 ## Download and play
 
 The last fully packaged release remains available on the
-[v2.5.0 release page](https://github.com/SahilKDas/Eloi/releases/tag/v2.5.0).
-Eloi 2.7.5 source promotes E2-ranking; package publication is tracked
-separately in [the v2.7.5 decision](RELEASE_V2_7_5.md).
+[v2.7.5 release page](https://github.com/SahilKDas/Eloi/releases/tag/v2.7.5).
+Eloi 2.8.0 adds a corrected root-recapture extension and forced-move clock
+handling; its local promotion decision is documented in
+[the v2.8.0 decision](RELEASE_V2_8_0.md).
 
 - **Standalone:** exactly `Eloi.exe` and an empty-token `config.yml`. The GUI,
   engine, UCI interface, native Lichess client, artwork, opening book and NNUE
@@ -35,17 +36,16 @@ absolute UCI/analysis ceiling is 17,697. Deep searches can take a long time.
 
 ## Current strength and acceptance
 
-E2-ranking scored **45W/56D/24L (58.4%)** in its fully disjoint 125-game
-qualification against v2.5.0/C. A later 250-game confirmation on 125 mirrored,
-standard-only openings finished **93W/94D/63L: 140/250 points (56.0%)** with
-zero protocol failures and a descriptive paired interval of 51.36%–60.64%.
+The v2.8.0 search candidate scored **80W/104D/66L (52.8%)** against v2.7.5
+in a clean 250-game, 25,000-node-per-move match. A separate 250-ms match was
+leading **16W/12D/10L (57.89%)** when the candidate engine failed during game
+38; that run is incomplete and failed its protocol. The maintainer explicitly
+accepted v2.8.0 despite those limitations. This is not evidence of a 55%
+completed match or a statistically established +50 Elo gain.
 
-Both matches used 10,000 nodes per move. This supports E2 as stronger than C
-under the tested protocol; it is not a claim of 250 ms or online-blitz
-superiority. Historical failures and the superseded overlapping final remain
-preserved rather than retroactively reclassified.
-
-See [the v2.7.5 decision](RELEASE_V2_7_5.md),
+See [the v2.8.0 decision](RELEASE_V2_8_0.md),
+[the complete experiment report](V275_PLUS50_RESULTS.md),
+[the v2.7.5 decision](RELEASE_V2_7_5.md),
 [E2's campaign report](E2_STANDARD_CAMPAIGN.md),
 [data provenance](DATA_SOURCES.md), and [future work](FUTURE_WORK.md).
 Past campaign plans and unused legacy collections are available in Git
