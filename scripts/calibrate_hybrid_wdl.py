@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-CURRENT_SCALES = {"eloi": 1300.0, "caissa": 360.0}
+CURRENT_SCALES = {"eloi": 1300.0, "caissa": 400.0}
 BRAINS = tuple(CURRENT_SCALES)
 
 

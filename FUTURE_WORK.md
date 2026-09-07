@@ -76,10 +76,10 @@ patch are recoverable in Git history. Diagnose any new failure before choosing
 a search or dataset remedy.
 
 The active v2.9.0 experiment is developed on `main`; `caissa-merge` remains a
-recoverable pre-integration branch. It pins Caissa 1.26
-at source commit 008b0b8f1fc6479890665a1a9c2ff6bbc2f1bc06 and keeps the
-external network, whose redistribution license is not visible, in ignored
-local storage. The imported backend,
+recoverable pre-integration branch. It pins Caissa 1.26 search code
+at source commit 008b0b8f1fc6479890665a1a9c2ff6bbc2f1bc06 and pairs it with
+the CReLU `eval-71` network embedded in Caissa's official MIT-licensed v1.25
+release. The exact extracted network stays in ignored local storage. The imported backend,
 E2 adapter and Eloi-owned hybrid arbiter compile as a separate laboratory and,
 only when `ELOI_ENABLE_CAISSA_PRODUCTION=ON`, through the production-facing
 GUI, UCI, Lichess, and Exoskeleton routes. The default build and published
@@ -92,10 +92,10 @@ deadline propagation, legal fallbacks, normalized alternative reporting, and
 depth-one agreement with the frozen official Caissa binary. Every active brain
 uses three search threads sequentially, with 16 MB per brain in the 32 MB lab.
 
-The v2.9.0 experiment is not release-qualified. Caissa's network redistribution
-license is unresolved; deeper three-thread fixed-node parity is nondeterministic
-at small budgets and remains open; the two score-to-WDL mappings are explicit
-development constants rather than outcome-calibrated models. No adapter-sanity
+The v2.9.0 experiment is not release-qualified. The v1.25 network's MIT
+provenance is hash-frozen, but its new correctness, calibration, reproducible
+packaging, and strength gates remain open. Deeper three-thread fixed-node
+parity is nondeterministic at small budgets. No adapter-sanity
 games, screens, confirmation, final gauntlet, or package work should begin
 until the applicable pre-game gates are frozen and the user explicitly starts
 the long match stage.

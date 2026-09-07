@@ -37,23 +37,25 @@ table construction remain unchanged.
 
 ## Network status
 
-The Caissa 1.26 build requests `eval-82-383B.pnn`. The file inspected locally
-has:
+Eloi keeps Caissa 1.26 search but uses Caissa v1.25's `eval-71` CReLU
+network, extracted byte-for-byte from its official AVX2/BMI2 release:
 
 - Size: `50,367,040` bytes
-- SHA-256: `22249DE582912F46F73F7CF7410D6D72ECCC77696B0B857E99B97A45F3F37116`
+- SHA-256: `615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B`
 
-No redistribution license was visible in the separate Caissa-Nets repository
-when this branch was created. The network therefore remains an ignored local
-dependency under `.deps/caissa/`; it must not be committed, packaged, or
-downloaded by CMake or at runtime. The Caissa brain must fail closed if the
-file is absent or its hash differs.
+The official asset SHA-256 is
+`51929274A45CFC3057C35B07087EE9806E482DDCF64F0659EEDCDABF0FEA51FF`.
+Its `EmbedData`, `EmbedEnd`, and `EmbedSize` symbols independently delimit the
+network bytes. The v1.25 tag identifies the project as MIT and has the same
+license retained here. Exact details are in `network-v1.25-provenance.json`.
+The network remains an ignored local dependency and is embedded only by an
+explicitly enabled, hash-gated build.
 
 Any future v2.9.0 package must additionally pass
-`scripts/caissa_license_gate.py`. That gate binds the exact network bytes to
-hash-pinned documentary evidence and explicit rights for both package forms.
-`caissa-license-gate-template.v1.json` records the current blocked state and is
-not permission. Replacing the network is supported only by a new manifest plus
+`scripts/caissa_license_gate.py` with
+`caissa-network-license-v1.25.json`. The older
+`caissa-license-gate-template.v1.json` records the blocked v1.26 Caissa-Nets
+artifact and is not permission for that network. Replacing the network requires
 technical compatibility, parity, correctness, and strength validation; editing
 the frozen identity in this document is not sufficient.
 
@@ -67,7 +69,8 @@ Its UCI smoke test used exactly three threads, 32 MB hash, and 10,000 nodes and
 returned legal move `d2d4` from the initial position. This is a local adapter
 parity reference, not a redistributable Eloi artifact.
 
-The bounded adapter gate requires exact depth-one moves and validates deeper
+The bounded adapter gate uses the official v1.25 AVX2/BMI2 release for
+depth-one reference. It requires exact depth-one moves and validates deeper
 three-thread searches for accepted legal output, score/mate sanity, timing,
 and completion. Deeper exact best-move equality is retained as an observation,
 not a mechanical gate, because the donor's thread scheduling is nondeterministic.
@@ -131,15 +134,15 @@ the frozen official executable and local network, records its own hash and
 the donor commit, applies Idle priority and process timeouts, refuses output
 collisions, and writes only beneath a quota-checked dedicated scratch path.
 
-The arbiter keeps Eloi and Caissa scores separate and maps them through the
-named `hybrid-wdl-v2-standard-pgn-calibrated` profile: 1,300 and 360
-centipawns per expected-score decade. The deterministic
+The arbiter keeps Eloi and Caissa scores separate. Eloi retains its calibrated
+1,300-centipawn scale; Caissa provisionally uses v1.25's native 400-centipawn
+expected-score mapping until fresh disjoint calibration. The deterministic
 `scripts/calibrate_hybrid_wdl.py` tool keeps entire games in one partition
 and reports Brier score, log loss, and calibration error. The Eloi scale was
 selected on 40 complete Standard games and improved log loss on a disjoint
-40-game campaign; the Caissa scale remained unchanged. Exact evidence is in
-`data/v2_9_0_wdl_calibration.json`. This calibration changes arbitration, so
-the earlier gauntlets remain historical rather than release-qualifying.
+40-game campaign. The former Caissa scale and exact evidence in
+`data/v2_9_0_wdl_calibration.json` bind the replaced v1.26 network. Earlier
+gauntlets remain historical rather than release-qualifying.
 The pessimistic calibrated expectation selects moves and is retained as the
 hybrid confidence value. Public UCI centipawns use Eloi's calibrated reporting
 anchor, including the agreement route; this prevents Caissa worker-vote

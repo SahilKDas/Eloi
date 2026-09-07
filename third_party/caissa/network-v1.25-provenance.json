@@ -1,0 +1,44 @@
+{
+  "schema": "eloi-caissa-v1.25-network-provenance-v1",
+  "code_donor": {
+    "version": "1.26",
+    "commit": "008b0b8f1fc6479890665a1a9c2ff6bbc2f1bc06"
+  },
+  "network_source": {
+    "version": "1.25",
+    "tag_commit": "0c01e79ea36ae492585e88cca9d03abae9b7a3d5",
+    "release_url": "https://github.com/Witek902/Caissa/releases/tag/1.25",
+    "asset": "caissa-1.25-x64-avx2-bmi2.exe",
+    "asset_bytes": 53724350,
+    "asset_sha256": "51929274A45CFC3057C35B07087EE9806E482DDCF64F0659EEDCDABF0FEA51FF"
+  },
+  "extraction": {
+    "pe_section": ".rodata",
+    "file_offset_decimal": 1005568,
+    "file_offset_hex": "0x000F5800",
+    "embed_data_section_offset_hex": "0x00000000",
+    "embed_end_section_offset_hex": "0x03008A40",
+    "embed_size_symbol_value": 50367040,
+    "filename": "eval-71-v1.25.pnn",
+    "bytes": 50367040,
+    "sha256": "615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B"
+  },
+  "compatibility": {
+    "packed_layout_bytes_equal_to_v1_26": true,
+    "activation": "CReLU",
+    "activation_range": 256,
+    "output_scale_shift": 10,
+    "v1_25_depth_one_bestmove_matches": 3,
+    "v1_25_depth_one_cases": 3,
+    "initial_position_score_cp_official": 29,
+    "initial_position_score_cp_embedded": 29
+  },
+  "license": {
+    "name": "MIT",
+    "repository_license": "third_party/caissa/LICENSE",
+    "license_sha256": "59E58E1150C7361E6BA7D7AF79E804118979CCAD1339F0320B344A003F712215",
+    "tag_license_sha256": "59E58E1150C7361E6BA7D7AF79E804118979CCAD1339F0320B344A003F712215",
+    "basis": "The official v1.25 release executable embeds eval-71 and is released from the repository that identifies the project as MIT-licensed."
+  },
+  "release_qualified": false
+}

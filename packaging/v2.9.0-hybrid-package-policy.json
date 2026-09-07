@@ -3,15 +3,13 @@
   "implementation_evidence": "../data/v2_9_0_embedded_network_validation.json",
   "implementation_evidence_sha256": "A82A06E16C4393BB7E7DD472EDF7ED9238D7622B0F64E7DAED5D67721AC20E88",
   "network_delivery": "embedded",
-  "network_sha256": "22249DE582912F46F73F7CF7410D6D72ECCC77696B0B857E99B97A45F3F37116",
+  "network_sha256": "615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B",
   "runtime_downloads": false,
   "runtime_external_network_required": false,
   "schema": "eloi-v2.9.0-hybrid-package-policy-v1",
-  "status": "ready",
+  "status": "blocked",
+  "status_reason": "v1.25-network correctness, calibration, strength, and reproducible package evidence are not complete",
   "target_version": "2.9.0",
   "threads_per_brain": 3,
-  "verified_package_forms": [
-    "standalone",
-    "exoskeleton"
-  ]
+  "verified_package_forms": []
 }

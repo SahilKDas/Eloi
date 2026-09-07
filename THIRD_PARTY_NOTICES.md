@@ -7,9 +7,11 @@ commit `008b0b8f1fc6479890665a1a9c2ff6bbc2f1bc06`, copyright (c) 2021 Michał
 Witanowski. They are used under the MIT license reproduced at
 `third_party/caissa/LICENSE`.
 
-The Caissa neural network is not part of this repository or any Eloi package.
-See `third_party/caissa/README.ELOI.md` for the exact import allowlist,
-reference hashes, provenance exclusions, and redistribution blocker.
+Eloi's candidate uses the `eval-71` network embedded in Caissa's official
+MIT-licensed v1.25 release while retaining v1.26 search code. The network is
+not tracked in this repository and is not yet in any package. See
+`third_party/caissa/README.ELOI.md` and
+`third_party/caissa/network-v1.25-provenance.json` for exact hashes.
 
 Existing Eloi dependency and artwork notices remain documented in `README.md`,
 `DATA_SOURCES.md`, and the corresponding dependency/package license files.

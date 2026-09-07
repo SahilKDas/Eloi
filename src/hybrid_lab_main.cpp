@@ -45,7 +45,7 @@ std::filesystem::path network_path(int argc, char** argv) {
     return environment;
   }
   return std::filesystem::current_path() /
-         ".deps/caissa/eval-82-383B.pnn";
+         ".deps/caissa/eval-71-v1.25.pnn";
 }
 
 enum class LabBrainMode { hybrid, caissa, eloi };

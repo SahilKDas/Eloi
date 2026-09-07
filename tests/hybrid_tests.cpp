@@ -85,9 +85,9 @@ class FakeBrain final : public Brain {
 
 int main() {
   expect(hybrid_wdl_v2.identity ==
-             "hybrid-wdl-v2-standard-pgn-calibrated" &&
+             "hybrid-wdl-v3-v126-code-v125-network-provisional" &&
              hybrid_wdl_v2.eloi_pawn_scale == 1300.0 &&
-             hybrid_wdl_v2.caissa_pawn_scale == 360.0 &&
+             hybrid_wdl_v2.caissa_pawn_scale == 400.0 &&
              hybrid_wdl_v2.report_pawn_scale == 400.0,
          "the hybrid uses the game-separated v2 WDL profile");
   expect(expected_score_from_cp(0, 400.0) == 0.5,
@@ -541,7 +541,7 @@ int main() {
 
   const std::filesystem::path local_network =
       std::filesystem::path(ELOI_TEST_PROJECT_DIR) /
-      ".deps/caissa/eval-82-383B.pnn";
+      ".deps/caissa/eval-71-v1.25.pnn";
   if (std::filesystem::exists(local_network)) {
     CaissaBrain local_caissa{local_network, stopped, 4u * 1024u * 1024u};
     expect(local_caissa.available(),

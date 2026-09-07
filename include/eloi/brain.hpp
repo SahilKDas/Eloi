@@ -13,9 +13,9 @@ namespace eloi {
 
 inline constexpr std::string_view caissa_1_26_commit =
     "008b0b8f1fc6479890665a1a9c2ff6bbc2f1bc06";
-inline constexpr std::string_view caissa_1_26_network_sha256 =
-    "22249DE582912F46F73F7CF7410D6D72ECCC77696B0B857E99B97A45F3F37116";
-inline constexpr std::uintmax_t caissa_1_26_network_size = 50'367'040;
+inline constexpr std::string_view caissa_1_25_network_sha256 =
+    "615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B";
+inline constexpr std::uintmax_t caissa_1_25_network_size = 50'367'040;
 
 enum class BrainIdentity {
   eloi_e2,

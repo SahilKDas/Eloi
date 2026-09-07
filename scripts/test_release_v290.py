@@ -66,13 +66,15 @@ class ReleaseV290Tests(unittest.TestCase):
         ):
             release.deterministic_zip(first, a, 1787961600)
 
-    def test_checked_in_policy_is_ready_and_hash_bound(self):
+    def test_checked_in_policy_is_blocked_after_network_change(self):
         policy = release.ROOT / "packaging/v2.9.0-hybrid-package-policy.json"
-        result = release.verify_technical_policy(
-            policy,
-            "22249DE582912F46F73F7CF7410D6D72ECCC77696B0B857E99B97A45F3F37116",
-        )
-        self.assertEqual(result["status"], "passed")
+        with self.assertRaisesRegex(
+            release.ReleasePreflightError, "not marked ready"
+        ):
+            release.verify_technical_policy(
+                policy,
+                "615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B",
+            )
 
     def test_blocked_policy_is_rejected(self):
         policy = self.root / "blocked-policy.json"

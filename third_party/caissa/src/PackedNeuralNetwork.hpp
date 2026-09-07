@@ -101,19 +101,21 @@ static constexpr uint8_t KingBucketIndex[64] =
 };
 
 // by this value neuron inputs are scaled
-static constexpr int16_t ActivationRangeScaling = 255;
+// Eloi v2.9 uses Caissa 1.26 search with the MIT-distributed Caissa 1.25
+// eval-71 network.  That network was quantized for CReLU at range 256.
+static constexpr int16_t ActivationRangeScaling = 256;
 
 static constexpr int32_t WeightScaleShift = 8;
 static constexpr int32_t WeightScale = 1 << WeightScaleShift;
 
-static constexpr int32_t OutputScaleShift = 6;
+static constexpr int32_t OutputScaleShift = 10;
 static constexpr int32_t OutputScale = 1 << OutputScaleShift;
 
 static constexpr float InputLayerWeightQuantizationScale = ActivationRangeScaling;
 static constexpr float InputLayerBiasQuantizationScale = ActivationRangeScaling;
 static constexpr float HiddenLayerWeightQuantizationScale = WeightScale;
 static constexpr float HiddenLayerBiasQuantizationScale = WeightScale * ActivationRangeScaling;
-static constexpr float OutputLayerWeightQuantizationScale = WeightScale * OutputScale / (float)ActivationRangeScaling;
+static constexpr float OutputLayerWeightQuantizationScale = WeightScale * OutputScale / ActivationRangeScaling;
 static constexpr float OutputLayerBiasQuantizationScale = WeightScale * OutputScale;
 
 using FirstLayerWeightType = int16_t;

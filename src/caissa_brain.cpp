@@ -102,12 +102,12 @@ CaissaBrain::CaissaBrain(std::filesystem::path network_path,
       impl_->failure = "Caissa embedded network resource is absent";
       return;
     }
-    if (bytes.size() != caissa_1_26_network_size) {
+    if (bytes.size() != caissa_1_25_network_size) {
       impl_->failure =
           "Caissa embedded network size does not match the frozen identity";
       return;
     }
-    if (sha256_bytes(bytes) != caissa_1_26_network_sha256) {
+    if (sha256_bytes(bytes) != caissa_1_25_network_sha256) {
       impl_->failure =
           "Caissa embedded network SHA-256 does not match the frozen identity";
       return;
@@ -127,11 +127,11 @@ CaissaBrain::CaissaBrain(std::filesystem::path network_path,
     return;
   }
   if (std::filesystem::file_size(network_path_, error) !=
-          caissa_1_26_network_size || error) {
+          caissa_1_25_network_size || error) {
     impl_->failure = "Caissa network size does not match the frozen identity";
     return;
   }
-  if (sha256_file(network_path_) != caissa_1_26_network_sha256) {
+  if (sha256_file(network_path_) != caissa_1_25_network_sha256) {
     impl_->failure = "Caissa network SHA-256 does not match the frozen identity";
     return;
   }

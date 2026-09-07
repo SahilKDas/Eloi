@@ -11,12 +11,13 @@ struct WdlCalibrationProfile {
   double report_pawn_scale;
 };
 
-// Selected on 40 complete Standard games (160 positions) and confirmed on a
-// disjoint 40-game/160-position campaign.  The exact game-separated report is
-// data/v2_9_0_wdl_calibration.json.  The public report scale remains 400 cp;
-// it does not participate in move selection.
+// Eloi's scale remains supported by its game-separated calibration. Caissa's
+// scale was reset to the v1.25 network's native expected-score mapping after
+// replacing the v1.26 SCReLU net; it is provisional until fresh, disjoint
+// outcome calibration is complete. The public report scale remains 400 cp.
 inline constexpr WdlCalibrationProfile hybrid_wdl_v2{
-    "hybrid-wdl-v2-standard-pgn-calibrated", 1300.0, 360.0, 400.0};
+    "hybrid-wdl-v3-v126-code-v125-network-provisional",
+    1300.0, 400.0, 400.0};
 
 double expected_score_from_cp(int centipawns, double pawn_scale);
 int cp_from_expected_score(double expectation, double pawn_scale);
