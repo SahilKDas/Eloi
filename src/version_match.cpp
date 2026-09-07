@@ -98,53 +98,6 @@ std::string sha256_file(const std::filesystem::path& path) {
   return output.str();
 }
 
-std::string sha256_bytes(std::span<const std::byte> bytes) {
-  BCRYPT_ALG_HANDLE algorithm = nullptr;
-  BCRYPT_HASH_HANDLE hash = nullptr;
-  DWORD object_size = 0;
-  DWORD digest_size = 0;
-  DWORD copied = 0;
-  std::vector<unsigned char> object;
-  std::vector<unsigned char> digest;
-  auto close = [&] {
-    if (hash) BCryptDestroyHash(hash);
-    if (algorithm) BCryptCloseAlgorithmProvider(algorithm, 0);
-  };
-  if (bytes.size() > static_cast<std::size_t>(ULONG_MAX) ||
-      BCryptOpenAlgorithmProvider(
-          &algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0) < 0 ||
-      BCryptGetProperty(
-          algorithm, BCRYPT_OBJECT_LENGTH,
-          reinterpret_cast<PUCHAR>(&object_size), sizeof(object_size),
-          &copied, 0) < 0 ||
-      BCryptGetProperty(
-          algorithm, BCRYPT_HASH_LENGTH,
-          reinterpret_cast<PUCHAR>(&digest_size), sizeof(digest_size),
-          &copied, 0) < 0) {
-    close();
-    return {};
-  }
-  object.resize(object_size);
-  digest.resize(digest_size);
-  if (BCryptCreateHash(algorithm, &hash, object.data(), object_size,
-                       nullptr, 0, 0) < 0 ||
-      BCryptHashData(
-          hash,
-          reinterpret_cast<PUCHAR>(
-              const_cast<std::byte*>(bytes.data())),
-          static_cast<ULONG>(bytes.size()), 0) < 0 ||
-      BCryptFinishHash(hash, digest.data(), digest_size, 0) < 0) {
-    close();
-    return {};
-  }
-  close();
-  std::ostringstream output;
-  output << std::uppercase << std::hex << std::setfill('0');
-  for (unsigned char byte : digest)
-    output << std::setw(2) << static_cast<unsigned>(byte);
-  return output.str();
-}
-
 struct UciVersionEngine::Impl {
   explicit Impl(std::filesystem::path path)
       : executable(std::move(path)) {}
@@ -409,7 +362,6 @@ int run_version_match_smoke(const std::filesystem::path&,
   return 2;
 }
 std::string sha256_file(const std::filesystem::path&) { return {}; }
-std::string sha256_bytes(std::span<const std::byte>) { return {}; }
 }  // namespace eloi
 
 #endif

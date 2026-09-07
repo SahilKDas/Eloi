@@ -77,12 +77,6 @@ Historical failures remain failures in their archived evidence.
 - Do not replace an active installation, overwrite existing artifacts or
   publish externally without the maintainer's authorization.
 
-Hybrid v2.9.0 packaging must first pass `scripts/release_v290.py`. The
-preflight binds both package forms to explicit redistribution evidence and a
-hash-pinned implementation report proving that the network is embedded, no
-external network file is required, and runtime downloading remains disabled.
-Its checked-in policy is intentionally blocked until those facts are true.
-
 Use the preservation workflow in [REPRODUCING.md](REPRODUCING.md).
 Generic legacy packaging helpers remain for compatibility, but their cleanup
 options are not permission to delete unrelated files. Never change historical

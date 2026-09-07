@@ -1,7 +1,4 @@
 #include "eloi/chess.hpp"
-#ifdef ELOI_ENABLE_CAISSA_PRODUCTION
-#include "eloi/production_brain.hpp"
-#endif
 #include "eloi/version_match.hpp"
 
 #ifdef _WIN32
@@ -46,12 +43,6 @@
 
 namespace eloi {
 namespace {
-
-#ifdef ELOI_ENABLE_CAISSA_PRODUCTION
-using EngineSearcher = ProductionBrain;
-#else
-using EngineSearcher = Searcher;
-#endif
 
 constexpr UINT engine_finished_message = WM_APP + 26;
 constexpr UINT animation_timer_id = 27;
@@ -264,7 +255,7 @@ struct App {
   std::atomic_bool thinking{false};
   std::atomic_uint64_t search_generation{0};
   std::thread worker;
-  std::unique_ptr<EngineSearcher> local_searcher;
+  std::unique_ptr<Searcher> local_searcher;
   std::optional<EngineConfig> local_searcher_config;
   std::unique_ptr<UciVersionEngine> current_version_engine;
   std::unique_ptr<UciVersionEngine> previous_version_engine;
@@ -686,8 +677,7 @@ void start_engine(App& app) {
     config.own_book = config.own_book && !root.chess960 && !root.horde;
     if (!app.local_searcher || app.local_searcher_config != config) {
       app.local_searcher.reset();
-      app.local_searcher =
-          std::make_unique<EngineSearcher>(config, app.stop);
+      app.local_searcher = std::make_unique<Searcher>(config, app.stop);
       app.local_searcher_config = config;
     }
     SearchLimits limits;

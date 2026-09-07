@@ -1,23 +1,19 @@
 # Eloi
 
 Eloi is a C++26 chess engine and native Windows chess application. The current
-source candidate is **2.9.0**: Eloi's 64-unit **E2-ranking** brain plus a
-hash-pinned Caissa 1.26 search / v1.25 network brain behind an Eloi-owned,
-crash-contained arbiter. Eloi v2.7.5 remains the released strength baseline
-until the candidate completes its package and match gates. Each active brain
-uses exactly three search threads, sequentially. Official packages target
-Windows x64; other platforms are not yet validated.
+source version is **2.8.0**, with the 64-unit **E2-ranking** NNUE and exactly
+three deterministic RootSplit search threads. Official packages target Windows
+x64; other platforms are not yet validated.
 
 ## Download and play
 
 The last fully packaged release remains available on the
-[v2.5.0 release page](https://github.com/SahilKDas/Eloi/releases/tag/v2.5.0).
-Eloi 2.7.5 source promotes E2-ranking; package publication is tracked
-separately in [the v2.7.5 decision](RELEASE_V2_7_5.md).
+[v2.7.5 release page](https://github.com/SahilKDas/Eloi/releases/tag/v2.7.5).
+Eloi 2.8.0 adds a corrected root-recapture extension and forced-move clock
+handling; its local promotion decision is documented in
+[the v2.8.0 decision](RELEASE_V2_8_0.md).
 
-- **Standalone:** v2.7.5 contains exactly `Eloi.exe` and an empty-token
-  `config.yml`. Hybrid packages additionally carry `LICENSE.txt` so Caissa's
-  required MIT notice accompanies the binary. The GUI,
+- **Standalone:** exactly `Eloi.exe` and an empty-token `config.yml`. The GUI,
   engine, UCI interface, native Lichess client, artwork, opening book and NNUE
   are embedded; no non-system DLL or Python installation is required.
 - **Exoskeleton:** the engine plus separate `EloiLichess.exe`, runtime DLLs,
@@ -40,17 +36,16 @@ absolute UCI/analysis ceiling is 17,697. Deep searches can take a long time.
 
 ## Current strength and acceptance
 
-E2-ranking scored **45W/56D/24L (58.4%)** in its fully disjoint 125-game
-qualification against v2.5.0/C. A later 250-game confirmation on 125 mirrored,
-standard-only openings finished **93W/94D/63L: 140/250 points (56.0%)** with
-zero protocol failures and a descriptive paired interval of 51.36%–60.64%.
+The v2.8.0 search candidate scored **80W/104D/66L (52.8%)** against v2.7.5
+in a clean 250-game, 25,000-node-per-move match. A separate 250-ms match was
+leading **16W/12D/10L (57.89%)** when the candidate engine failed during game
+38; that run is incomplete and failed its protocol. The maintainer explicitly
+accepted v2.8.0 despite those limitations. This is not evidence of a 55%
+completed match or a statistically established +50 Elo gain.
 
-Both matches used 10,000 nodes per move. This supports E2 as stronger than C
-under the tested protocol; it is not a claim of 250 ms or online-blitz
-superiority. Historical failures and the superseded overlapping final remain
-preserved rather than retroactively reclassified.
-
-See [the v2.7.5 decision](RELEASE_V2_7_5.md),
+See [the v2.8.0 decision](RELEASE_V2_8_0.md),
+[the complete experiment report](V275_PLUS50_RESULTS.md),
+[the v2.7.5 decision](RELEASE_V2_7_5.md),
 [E2's campaign report](E2_STANDARD_CAMPAIGN.md),
 [data provenance](DATA_SOURCES.md), and [future work](FUTURE_WORK.md).
 Past campaign plans and unused legacy collections are available in Git
@@ -158,19 +153,13 @@ option is advertised.
 - [CONTRIBUTING.md](CONTRIBUTING.md): engineering and release invariants.
 - [Device constraints](constraints_on_SahilKDas_device.md): binding local limits.
 - [FUTURE_WORK.md](FUTURE_WORK.md): open work, not permission to launch experiments.
-- [Caissa donor boundary](third_party/caissa/README.ELOI.md): pinned v2.9.0
-  candidate, source allowlist, hashes, and redistribution requirements.
-- [v2.9.0 readiness](V2_9_0_RELEASE_READINESS.md): current hybrid gates and
-  exact bounded evidence; it is not a release announcement.
-- [Third-party notices](THIRD_PARTY_NOTICES.md): licenses retained for imported
-  experimental donor code.
 
 `.deps`, `tmp`, `build-*`, `dist`, binaries and private `config.yml` are
 ignored. They are not source and must not be committed. The existing ABC100
 frontend and its dependencies are retained while that local session is active;
 they are not a release requirement or a new campaign recommendation.
 
-## Artwork and licenses
+## Artwork, licenses and thanks
 
 Eloi's source is MIT-licensed; see [LICENSE](LICENSE). Skia uses BSD 3-Clause.
 The twelve Maestro PNGs are CC BY 4.0 artwork from Kadagaden; preserve
@@ -178,18 +167,6 @@ The twelve Maestro PNGs are CC BY 4.0 artwork from Kadagaden; preserve
 Opening and training-source attribution is in [DATA_SOURCES.md](DATA_SOURCES.md).
 Stockfish supplied historical offline labels only, never Eloi runtime code
 or a playing backend.
-
-## Thank you, Caissa
-
-Eloi's experimental v2.9.0 hybrid incorporates carefully audited portions of
-[Caissa](https://github.com/Witek902/Caissa), created by
-[Michał Witanowski](https://github.com/Witek902). Thank you for building and
-open-sourcing the formidable second brain behind this experiment. Caissa's
-source attribution and MIT terms are preserved in [LICENSE](LICENSE),
-[third-party notices](THIRD_PARTY_NOTICES.md), and its
-[donor boundary](third_party/caissa/README.ELOI.md).
-
-## Thank you, Morlock
 
 Eloi began as a fork of [Morlock](https://github.com/herohde/morlock).
 Thank you to [Henning Rohde](https://github.com/herohde) and

@@ -1,9 +1,6 @@
 #include "eloi/config.hpp"
 #include "eloi/chess.hpp"
 #include "eloi/version.hpp"
-#ifdef ELOI_ENABLE_CAISSA_PRODUCTION
-#include "eloi/production_brain.hpp"
-#endif
 
 #ifdef _WIN32
 
@@ -24,12 +21,6 @@
 
 namespace eloi {
 namespace {
-
-#ifdef ELOI_ENABLE_CAISSA_PRODUCTION
-using EngineSearcher = ProductionBrain;
-#else
-using EngineSearcher = Searcher;
-#endif
 
 std::wstring wide(std::string_view text) {
   if (text.empty()) return {};
@@ -299,7 +290,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
   std::optional<Color> bot_side;
   std::optional<std::string> last_acted_moves;
   std::atomic_bool search_stopped{false};
-  std::unique_ptr<EngineSearcher> game_searcher;
+  std::unique_ptr<Searcher> game_searcher;
   std::optional<EngineConfig> game_searcher_config;
   std::thread ponder_thread;
   std::optional<SearchResult> ponder_result;
@@ -392,12 +383,10 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     ponder_thread.join();
   };
 
-  auto persistent_searcher =
-      [&](const EngineConfig& engine) -> EngineSearcher& {
+  auto persistent_searcher = [&](const EngineConfig& engine) -> Searcher& {
     if (!game_searcher || game_searcher_config != engine) {
       game_searcher.reset();
-      game_searcher =
-          std::make_unique<EngineSearcher>(engine, search_stopped);
+      game_searcher = std::make_unique<Searcher>(engine, search_stopped);
       game_searcher_config = engine;
     }
     return *game_searcher;
@@ -425,12 +414,6 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
                           const SearchResult& result) {
     if (!ponder_enabled || result.pv.size() < 2 ||
         ponder_thread.joinable()) return;
-#ifdef ELOI_ENABLE_CAISSA_PRODUCTION
-    // An unbounded Standard ponder would remain in Caissa's first sequential
-    // slice and never become a completed two-brain result. Keep variant E2
-    // pondering, but require a bounded hybrid design before Standard uses it.
-    if (!chess960 && !horde) return;
-#endif
     Board predicted = board_before_move;
     const Move our_move = result.pv[0];
     if (!predicted.push(our_move)) return;
@@ -450,7 +433,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     engine.hash_mb = config.hash_mb;
     engine.move_overhead_ms = config.move_overhead_ms;
     engine.own_book = config.own_book && !chess960 && !horde;
-    EngineSearcher* searcher = &persistent_searcher(engine);
+    Searcher* searcher = &persistent_searcher(engine);
     ponder_thread = std::thread(
         [&, predicted = std::move(predicted), searcher]() mutable {
           SearchLimits limits;
