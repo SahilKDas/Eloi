@@ -40,6 +40,14 @@ dependency under `.deps/caissa/`; it must not be committed, packaged, or
 downloaded by CMake or at runtime. The Caissa brain must fail closed if the
 file is absent or its hash differs.
 
+Any future v3 package must additionally pass
+`scripts/caissa_license_gate.py`. That gate binds the exact network bytes to
+hash-pinned documentary evidence and explicit rights for both package forms.
+`caissa-license-gate-template.v1.json` records the current blocked state and is
+not permission. Replacing the network is supported only by a new manifest plus
+technical compatibility, parity, correctness, and strength validation; editing
+the frozen identity in this document is not sufficient.
+
 ## Reference identity
 
 An untouched local reference build from the pinned source, configured with

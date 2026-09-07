@@ -1,0 +1,70 @@
+{
+  "candidate": {
+    "binary_sha256": "1F6B8B0C74813DA359CB904B780E7E9CB5455BE9A6F9EA6AE9C0493FAEFE452F",
+    "mode": "hybrid",
+    "network_bytes": 50367040,
+    "network_sha256": "22249DE582912F46F73F7CF7410D6D72ECCC77696B0B857E99B97A45F3F37116",
+    "source_revision": "4f4b24d7b933905f76e56bddd406c34c929014d7"
+  },
+  "control": {
+    "binary_sha256": "80002F4AC83AD3D87DA0FB3A87E67A49179BEA0230A764167B58B112184E4695",
+    "name": "Eloi v2.7.5"
+  },
+  "experiments": [
+    {
+      "checkpoint_sha256": "AF89578CD11042A2E719AF7F367438AC505C0FA2AE557F5FF9F68A5809999338",
+      "draws": 32,
+      "games": 150,
+      "losses": 23,
+      "non_loss_rate": 0.8466666666666667,
+      "non_losses": 127,
+      "openings_sha256": "4DD2C326C1CEE7C27677372B36BB8FA3DFFA6E5F5726E80A4F4BD7192C2D6247",
+      "pgn_sha256": "BEECDB1B1987A076495276373753146B78A4A933F9CE8021B19FCB77B7AEF3B7",
+      "protocol_failures": 0,
+      "protocol_sha256": "8816F6A678FE7CEE20367FF6F28E811A0635E6BEE6C86E703E5271ECFF35ADF8",
+      "replay_verified_games": 150,
+      "score": 111.0,
+      "score_rate": 0.74,
+      "settings": {
+        "hash_mb_per_engine": 32,
+        "nodes_per_move": 10000,
+        "threads_per_engine": 3,
+        "variant": "standard"
+      },
+      "wins": 95
+    },
+    {
+      "checkpoint_sha256": "F108BE6F6EDD2538D6E050FE3B5B9FE759AC5B030448DA3493395DB2916F1E82",
+      "draws": 10,
+      "games": 150,
+      "losses": 1,
+      "non_loss_gate": {
+        "passed": true,
+        "required": 91
+      },
+      "non_loss_rate": 0.9933333333333333,
+      "non_losses": 149,
+      "openings_sha256": "66DF716D6D7AD5FA3040D89E9919196D74E989A4BE93F871AF8488E786CC1565",
+      "pgn_sha256": "9D3704F2E65FBF5B6C8FDAA47E7D9A86F7B2108F168262CFB4D9F6AFB073FC66",
+      "protocol_failures": 0,
+      "protocol_sha256": "A95CB4E9F0ADC8949BCFF2206BB8387895B5650C4B167A620F101138AB8D74D7",
+      "replay_verified_games": 150,
+      "runner_sha256": "3607A1DE2EEADBCB51FC473B7B1FEDA3896729DBB03447AD977D4AFEEF356E8C",
+      "score": 144.0,
+      "score_rate": 0.96,
+      "settings": {
+        "hash_mb_per_engine": 32,
+        "movetime_ms": 250,
+        "threads_per_engine": 3,
+        "variant": "standard"
+      },
+      "wins": 139
+    }
+  ],
+  "limitations": [
+    "These experiments used the EloiHybridLab binary, not a future production v3 executable.",
+    "The 250 ms result is strong preliminary evidence but does not replace the frozen post-integration release gate.",
+    "The Caissa network remains non-redistributable until the separate permission gate passes."
+  ],
+  "schema": "eloi-v3-strength-evidence-v1"
+}
