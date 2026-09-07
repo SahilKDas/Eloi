@@ -296,7 +296,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--seed", default="eloi-v3-wdl-v1")
+    parser.add_argument("--seed", default="eloi-v2.9.0-wdl-v1")
     parser.add_argument(
         "--validation-fraction", type=float, default=0.25
     )

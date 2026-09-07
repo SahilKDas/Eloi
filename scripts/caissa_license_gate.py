@@ -1,6 +1,6 @@
 """Fail-closed redistribution gate for a Caissa neural-network artifact.
 
-Local development and parity diagnostics do not need this gate. Any v3 build
+Local development and parity diagnostics do not need this gate. Any v2.9.0 build
 or package that redistributes a Caissa network must call :func:`verify_gate`
 before staging bytes. The manifest deliberately carries the artifact identity
 instead of hard-coding one network, so a technically validated replacement can

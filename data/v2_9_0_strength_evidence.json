@@ -62,9 +62,9 @@
     }
   ],
   "limitations": [
-    "These experiments used the EloiHybridLab binary, not a future production v3 executable.",
+    "These experiments used the EloiHybridLab binary, not a future production v2.9.0 executable.",
     "The 250 ms result is strong preliminary evidence but does not replace the frozen post-integration release gate.",
     "The Caissa network remains non-redistributable until the separate permission gate passes."
   ],
-  "schema": "eloi-v3-strength-evidence-v1"
+  "schema": "eloi-v2.9.0-strength-evidence-v1"
 }

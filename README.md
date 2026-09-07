@@ -154,7 +154,7 @@ option is advertised.
 - [Device constraints](constraints_on_SahilKDas_device.md): binding local limits.
 - [FUTURE_WORK.md](FUTURE_WORK.md): open work, not permission to launch experiments.
 - [Caissa donor boundary](third_party/caissa/README.ELOI.md): pinned local-only
-  v3.0 experiment, source allowlist, hashes, and redistribution blockers.
+  v2.9.0 experiment, source allowlist, hashes, and redistribution blockers.
 - [Third-party notices](THIRD_PARTY_NOTICES.md): licenses retained for imported
   experimental donor code.
 
@@ -174,7 +174,7 @@ or a playing backend.
 
 ## Thank you, Caissa
 
-Eloi's experimental v3 hybrid incorporates carefully audited portions of
+Eloi's experimental v2.9.0 hybrid incorporates carefully audited portions of
 [Caissa](https://github.com/Witek902/Caissa), created by
 [Michał Witanowski](https://github.com/Witek902). Thank you for building and
 open-sourcing the formidable second brain behind this experiment. Caissa's

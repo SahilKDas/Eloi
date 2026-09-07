@@ -54,7 +54,7 @@ if(ELOI_NNUE_INCLUDE_DIR)
   target_include_directories(eloi_core BEFORE PUBLIC "${ELOI_NNUE_INCLUDE_DIR}")
 endif()
 
-# The experimental v3 brain layer is linked separately so merely compiling its
+# The experimental v2.9.0 brain layer is linked separately so merely compiling its
 # adapters cannot change the production v2.7.5 executable. Every admitted
 # Caissa donor file is named explicitly; never glob third_party/caissa.
 add_library(caissa_foundation STATIC

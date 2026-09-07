@@ -1,6 +1,6 @@
-# Eloi v3.0.0 release readiness
+# Eloi v2.9.0 release readiness
 
-Eloi v3 is not currently releasable. The experimental hybrid has strong local
+Eloi v2.9.0 is not currently releasable. The experimental hybrid has strong local
 match evidence, but a future production binary must clear every gate below.
 No historical result is silently promoted into a release qualification result.
 
@@ -13,7 +13,7 @@ No historical result is silently promoted into a release qualification result.
 - The hybrid lab scored 95/32/23 (74.0%) at 10,000 nodes per move and
   139/10/1 (96.0%) at 250 ms per move against the exact v2.7.5 binary.
 - Both 150-game PGNs replayed successfully, with zero protocol failures.
-  Exact identities are preserved in `data/v3_strength_evidence.json`.
+  Exact identities are preserved in `data/v2_9_0_strength_evidence.json`.
 
 ## Blocking gates
 
@@ -64,5 +64,5 @@ The current production and recoverable champion remains Eloi v2.7.5. The
 opt-in controller has passed its bounded C++ routing/Hash/fallback tests, UCI
 hybrid and missing-network smokes, GUI smoke, both Windows target builds, and
 offline Lichess configuration checks. No tag,
-release, package, or production installation should call the hybrid “v3.0.0”
+release, package, or production installation should call the hybrid “v2.9.0”
 until every gate above is closed with retained evidence.
