@@ -132,7 +132,7 @@ function Build-Copy {
     '-DELOI_BUILD_TESTS=ON'
   ) | Out-Host
   Invoke-Checked $cmake @(
-    '--build', $build, '--target', 'release', 'eloi_tests', '-j', '2'
+    '--build', $build, '--target', 'release', 'eloi_tests', 'eloi_gui_tests', '-j', '2'
   ) | Out-Host
   Invoke-Checked $ctest @('--test-dir', $build, '--output-on-failure') | Out-Host
 
