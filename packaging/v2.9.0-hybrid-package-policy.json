@@ -1,0 +1,14 @@
+{
+  "cmake_option": "ELOI_ENABLE_CAISSA_PRODUCTION",
+  "implementation_evidence": null,
+  "implementation_evidence_sha256": null,
+  "network_delivery": "external-explicit-path",
+  "network_sha256": "22249DE582912F46F73F7CF7410D6D72ECCC77696B0B857E99B97A45F3F37116",
+  "runtime_downloads": false,
+  "runtime_external_network_required": true,
+  "schema": "eloi-v2.9.0-hybrid-package-policy-v1",
+  "status": "blocked",
+  "target_version": "2.9.0",
+  "threads_per_brain": 3,
+  "verified_package_forms": []
+}

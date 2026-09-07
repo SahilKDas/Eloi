@@ -155,6 +155,8 @@ option is advertised.
 - [FUTURE_WORK.md](FUTURE_WORK.md): open work, not permission to launch experiments.
 - [Caissa donor boundary](third_party/caissa/README.ELOI.md): pinned local-only
   v2.9.0 experiment, source allowlist, hashes, and redistribution blockers.
+- [v2.9.0 readiness](V2_9_0_RELEASE_READINESS.md): current hybrid gates and
+  exact bounded evidence; it is not a release announcement.
 - [Third-party notices](THIRD_PARTY_NOTICES.md): licenses retained for imported
   experimental donor code.
 

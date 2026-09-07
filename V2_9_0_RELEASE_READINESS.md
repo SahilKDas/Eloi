@@ -21,8 +21,9 @@ No historical result is silently promoted into a release qualification result.
    is MIT-licensed, but no license for the separate Caissa-Nets artifact was
    visible during the audit. `scripts/caissa_license_gate.py` requires exact
    artifact and evidence hashes plus explicit rights for both package forms.
-   The checked-in template intentionally fails. Local diagnostics remain
-   permitted; packaging does not.
+   `scripts/release_v290.py` invokes that gate for each package before creating
+   scratch or output. The checked-in template intentionally fails. Local
+   diagnostics remain permitted; packaging does not.
 2. **WDL calibration evidence — open; tooling complete.** The arbiter's
    400/360 expected-score scales now live in the named, tested
    `hybrid-wdl-v1-uncalibrated` profile. `scripts/calibrate_hybrid_wdl.py`
@@ -57,7 +58,12 @@ No historical result is silently promoted into a release qualification result.
    `CEE70064FE80B3E800452131AC32BF28126B1CBDCD19CFC252AA7C96B2CBD3CC`,
    from source `c31c004130d5261f6eff69ec25f6022cf3e99c01`. The larger seeded
    Standard legal-move/FEN corpus remains part of end-to-end qualification.
-6. **End-to-end correctness and packaging — open.** All existing regressions,
+6. **End-to-end correctness and packaging — open; preflight implemented.**
+   The preservation-safe preflight refuses existing destinations, enforces all
+   storage limits, retains deterministic archive inputs, and creates nothing
+   when blocked. The checked-in package policy correctly records a second
+   blocker: current opt-in binaries require an explicit external network path,
+   while both release forms require a verified embedded network. All existing regressions,
    perft, differential move generation, stop handling, GUI/bridge smoke tests,
    reproducible builds, clean extraction, and package-content checks must pass.
    No build or runtime network download is allowed.
