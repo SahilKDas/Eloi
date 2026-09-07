@@ -1,7 +1,7 @@
 # Eloi v2.9.0 release readiness
 
-Eloi v2.9.0 is not currently releasable. The experimental hybrid has strong local
-match evidence, but a future production binary must clear every gate below.
+Eloi v2.9.0 is not releasable. The mixed v1.25-network hybrid failed its frozen
+strength gate, although its package and containment engineering succeeded.
 No historical result is silently promoted into a release qualification result.
 
 ## Current evidence
@@ -69,7 +69,7 @@ No historical result is silently promoted into a release qualification result.
    suite also passed exact FEN round trips and legal-move equality across 256
    seeded Standard positions, plus dedicated castling, en-passant, promotion,
    clock, history, and repetition seams.
-6. **Bounded standalone correctness — passed; package reproducibility open.**
+6. **Bounded correctness and package reproducibility — passed technically.**
    The preservation-safe preflight refuses existing destinations, enforces all
    storage limits, retains deterministic archive inputs, and creates nothing
    when blocked. Both local app forms now embed and runtime-hash-verify the
@@ -90,18 +90,19 @@ No historical result is silently promoted into a release qualification result.
    timed/stop smoke, all 15 regressions with zero protocol failures, and
    differential move generation on 96/96 Standard, Chess960, and Horde
    positions. The compact record is
-   `data/v2_9_0_v125_network_validation.json`. Two independent reproducible
-   builds, deterministic archives, fresh extraction, full
-   package-content/dependency checks, and security validation remain open.
-   No build or runtime network download is allowed.
-7. **Post-integration strength — open.** The frozen acceptance run is 20 games
+   `data/v2_9_0_v125_network_validation.json`. Two independent builds of both
+   package forms produced identical payloads and deterministic ZIPs. Every
+   build passed all three CTest targets; fresh extractions passed version,
+   perft, PE/import, and normal/forced-crash worker checks. The ZIPs are
+   retained as qualification artifacts only. No build or runtime network
+   download occurred.
+7. **Post-integration strength — failed.** The frozen acceptance run was 20 games
    at equal 250 ms-per-move resources against exact v2.7.5. The candidate must
-   win at least 10 games; draws and losses do not contribute. A separate
-   three-game v1.0.0 match is entertainment-only and has no release threshold.
+   win at least 10 games; draws and losses did not contribute. It scored
+   **1W/3D/16L**, only 1/20 wins and 2.5/20 chess points, with zero protocol
+   failures. All 20 PGNs replayed legally. The separate entertainment-only
+   v1.0.0 match scored 2W/1D/0L and does not affect rejection. Exact hashes are
+   in `data/v2_9_0_v125_qualification.json`.
 
-The current production and recoverable champion remains Eloi v2.7.5. The new
-v1.25-network controller has passed bounded standalone correctness, variant
-move-generation checks, and donor-adapter validation. Package reproducibility
-and strength qualification remain deliberately open. No tag,
-release, package, or production installation should call the hybrid “v2.9.0”
-until every gate above is closed with retained evidence.
+The candidate is rejected. No tag, release, package, or production installation
+should call this hybrid “v2.9.0”. Eloi v2.7.5 remains the strength champion.

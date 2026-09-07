@@ -1,0 +1,72 @@
+{
+  "schema": "eloi-v2.9.0-v125-qualification-v1",
+  "decision": "rejected",
+  "candidate": {
+    "description": "Caissa 1.26 search with Caissa v1.25 eval-71 network, Eloi E2, and isolated-worker hybrid arbitration",
+    "binary_sha256": "4B79EEBA09F96CAA6937EEF997DF6D9290B376E8EDC6A50B268F380FF4EE2F6E",
+    "network_sha256": "615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B",
+    "package_source_commit": "132a4b376383eb2b63808859f89aaec146716d01"
+  },
+  "baseline": {
+    "version": "2.7.5",
+    "binary_sha256": "80002F4AC83AD3D87DA0FB3A87E67A49179BEA0230A764167B58B112184E4695"
+  },
+  "strength_gate": {
+    "games": 20,
+    "movetime_ms": 250,
+    "threads_per_engine": 3,
+    "hash_mb_per_engine": 32,
+    "max_plies": 200,
+    "required_wins": 10,
+    "wins": 1,
+    "draws": 3,
+    "losses": 16,
+    "chess_score": 2.5,
+    "score_rate": 0.125,
+    "win_rate": 0.05,
+    "protocol_failures": 0,
+    "passed": false,
+    "checkpoint": "../tmp/v290-v125-qualification20/checkpoint.json",
+    "checkpoint_sha256": "51490876405EB6D23B5FAAD97A818AC8FF9439E1A146CF9D1744A7EAA3BA6821",
+    "pgn": "../tmp/v290-v125-qualification20/games.pgn",
+    "pgn_sha256": "312C196E360A8D608DB836129AF900E68D205392A15EE8C8BA7F62B126355CDD",
+    "independent_replay": {
+      "games": 20,
+      "illegal_moves": 0,
+      "passed": true
+    }
+  },
+  "fun_match_v1_0_0": {
+    "release_zip_sha256": "974BC872CD153606B2C98D4D49EB61705A5E6D30159EB432998F2FA27914E83D",
+    "baseline_binary_sha256": "EDBB502E975FDFB76FD63826515B95523771EA2AEFAFF0B4A2E0714FE3C7B092",
+    "games": 3,
+    "wins": 2,
+    "draws": 1,
+    "losses": 0,
+    "protocol_failures": 0,
+    "checkpoint_sha256": "4333BFF561B7C72119C863C10182BC8826345BE0666F726C7DD5C1988963A5FD",
+    "pgn_sha256": "017D8613647DA5C135C47F5E17526546AD4549EF00E6D005F2AB0287E5F46CB3",
+    "independent_replay_passed": true,
+    "release_significance": "none"
+  },
+  "package_proof": {
+    "status": "technically reproducible but not release-qualified",
+    "proof_sha256": "0B8A1CAFED0DAF8F00B45F6DF962D39459422DF62B685FBD7382FB9361FD53FA",
+    "standalone_zip_sha256": "6BD6B0A092CB7A1E3D1E78DC477B97219F154D10610C631EF4B3AE971B01797D",
+    "exoskeleton_zip_sha256": "E8A16B4E14B996AAA1468089C77FB891A936365D0E3226D592A04E33115212DC",
+    "independent_builds_per_form": 2,
+    "payloads_identical": true,
+    "archives_identical": true,
+    "ctest_passed_in_all_builds": true,
+    "fresh_extraction_perft_197281": true,
+    "normal_worker_path_passed": true,
+    "forced_worker_crash_contained": true
+  },
+  "calibration": {
+    "eloi_cp_scale": 1300,
+    "caissa_cp_scale": 400,
+    "selection_note": "340 fit the calibration partition, but 400 performed better on both held-out partitions",
+    "report_sha256": "3C2FE5A46164F34BB6793F1511BD32CB8A905A4835E7D2172746F80C5D2757AB"
+  },
+  "release_effect": "Eloi v2.7.5 remains the recoverable strength champion. Do not publish or install this v2.9.0 candidate."
+}

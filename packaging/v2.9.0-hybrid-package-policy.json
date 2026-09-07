@@ -8,8 +8,13 @@
   "runtime_external_network_required": false,
   "schema": "eloi-v2.9.0-hybrid-package-policy-v1",
   "status": "blocked",
-  "status_reason": "v1.25-network correctness, calibration, strength, and reproducible package evidence are not complete",
+  "status_reason": "rejected: the v1.25-network hybrid scored 1W/3D/16L and missed the required 10 wins in 20 games against v2.7.5",
   "target_version": "2.9.0",
   "threads_per_brain": 3,
-  "verified_package_forms": []
+  "verified_package_forms": [
+    "standalone",
+    "exoskeleton"
+  ],
+  "qualification_evidence": "../data/v2_9_0_v125_qualification.json",
+  "qualification_evidence_sha256": "4EDCCEC353E1C5B8AF47E0363FA4B7C9021AB1FB60C9A1CE0F6CA680F40B3BE5"
 }
