@@ -19,6 +19,7 @@ enum class ProductionRoute {
 // discovery occurs and no network is downloaded.
 void configure_production_brain_runtime(int argc, char** argv);
 std::optional<std::filesystem::path> production_caissa_network_path();
+std::filesystem::path production_executable_path();
 
 class ProductionBrain final {
  public:

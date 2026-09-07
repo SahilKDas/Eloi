@@ -26,6 +26,8 @@ int main(int argc, char** argv) {
               << error.what() << '\n';
     return 2;
   }
+  if (caissa_worker_requested(argc, argv))
+    return run_caissa_worker(argc, argv);
 #endif
   auto config = default_config();
 

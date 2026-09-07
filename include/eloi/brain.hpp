@@ -120,6 +120,34 @@ class CaissaBrain final : public Brain {
   std::unique_ptr<Impl> impl_;
 };
 
+// Production-only process boundary around Caissa. A native donor crash, hang,
+// or malformed response destroys only the child process; HybridBrain then
+// receives a failed response and retains Eloi's legal-move fallback.
+class IsolatedCaissaBrain final : public Brain {
+ public:
+  IsolatedCaissaBrain(std::filesystem::path executable_path,
+                      std::filesystem::path network_path,
+                      std::atomic_bool& stopped,
+                      std::size_t hash_bytes = 16u * 1024u * 1024u);
+  ~IsolatedCaissaBrain();
+
+  IsolatedCaissaBrain(const IsolatedCaissaBrain&) = delete;
+  IsolatedCaissaBrain& operator=(const IsolatedCaissaBrain&) = delete;
+
+  BrainIdentity identity() const noexcept override;
+  bool available() const noexcept override;
+  BrainResponse search(Board board, SearchLimits limits,
+                       const BrainInfoCallback& info = {}) override;
+  void release_hash();
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
+
+bool caissa_worker_requested(int argc, char** argv) noexcept;
+int run_caissa_worker(int argc, char** argv);
+
 struct HybridBudget {
   int caissa_percent{70};
   int eloi_percent{20};

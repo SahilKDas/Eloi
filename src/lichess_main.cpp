@@ -16,6 +16,8 @@ int main(int argc, char** argv) {
   } catch (const std::exception&) {
     return 2;
   }
+  if (eloi::caissa_worker_requested(argc, argv))
+    return eloi::run_caissa_worker(argc, argv);
 #endif
   bool configure = argc == 1;
   for (int i = 1; i < argc; ++i)

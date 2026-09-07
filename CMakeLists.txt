@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Eloi VERSION 2.7.5 LANGUAGES CXX)
+project(Eloi VERSION 2.9.0 LANGUAGES CXX)
 set(ELOI_PRERELEASE "")
 if(ELOI_PRERELEASE)
   set(ELOI_VERSION "${PROJECT_VERSION}-${ELOI_PRERELEASE}")
@@ -132,6 +132,7 @@ add_library(eloi_brains STATIC
   src/embedded_caissa_network.cpp
   src/eloi_brain.cpp
   src/caissa_brain.cpp
+  src/isolated_caissa_brain.cpp
   src/wdl_calibration.cpp
   src/hybrid_brain.cpp
   src/production_brain.cpp)

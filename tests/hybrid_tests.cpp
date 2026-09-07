@@ -85,11 +85,11 @@ class FakeBrain final : public Brain {
 
 int main() {
   expect(hybrid_wdl_v2.identity ==
-             "hybrid-wdl-v3-v126-code-v125-network-provisional" &&
+             "hybrid-wdl-v4-v126-code-v125-network-calibrated" &&
              hybrid_wdl_v2.eloi_pawn_scale == 1300.0 &&
              hybrid_wdl_v2.caissa_pawn_scale == 400.0 &&
              hybrid_wdl_v2.report_pawn_scale == 400.0,
-         "the hybrid uses the game-separated v2 WDL profile");
+         "the hybrid uses the held-out v1.25-network WDL profile");
   expect(expected_score_from_cp(0, 400.0) == 0.5,
          "zero centipawns maps to an even expected score");
   expect(expected_score_from_cp(-250, 400.0) <

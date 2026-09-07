@@ -11,6 +11,7 @@ namespace {
 
 std::mutex runtime_mutex;
 std::optional<std::filesystem::path> runtime_network_path;
+std::filesystem::path runtime_executable_path;
 bool runtime_configured = false;
 
 std::optional<std::filesystem::path> resolve_network_path(
@@ -48,6 +49,8 @@ void configure_production_brain_runtime(int argc, char** argv) {
   runtime_network_path = resolved
       ? std::optional{std::filesystem::absolute(*resolved)}
       : std::nullopt;
+  if (argc > 0 && argv && argv[0] && *argv[0])
+    runtime_executable_path = std::filesystem::absolute(argv[0]);
   runtime_configured = true;
 }
 
@@ -65,9 +68,15 @@ std::optional<std::filesystem::path> production_caissa_network_path() {
   return runtime_network_path;
 }
 
+std::filesystem::path production_executable_path() {
+  std::scoped_lock lock(runtime_mutex);
+  return runtime_executable_path;
+}
+
 struct ProductionBrain::Impl {
   Impl(EngineConfig source, std::atomic_bool& stopped,
-       std::filesystem::path network)
+       std::filesystem::path executable, std::filesystem::path network,
+       bool isolate_caissa)
       : configured_hash(bounded_hash(source.hash_mb)),
         caissa_hash(configured_hash >= 2 ? configured_hash / 2 : 0),
         eloi_hash(configured_hash - caissa_hash) {
@@ -77,8 +86,13 @@ struct ProductionBrain::Impl {
     EngineConfig shared = source;
     shared.hash_mb = eloi_hash;
     hybrid_eloi = std::make_unique<EloiBrain>(shared, stopped);
-    caissa = std::make_unique<CaissaBrain>(
-        std::move(network), stopped, megabytes(caissa_hash));
+    if (isolate_caissa)
+      caissa = std::make_unique<IsolatedCaissaBrain>(
+          std::move(executable), std::move(network), stopped,
+          megabytes(caissa_hash));
+    else
+      caissa = std::make_unique<CaissaBrain>(
+          std::move(network), stopped, megabytes(caissa_hash));
     hybrid = std::make_unique<HybridBrain>(
         *hybrid_eloi, *caissa);
   }
@@ -88,23 +102,24 @@ struct ProductionBrain::Impl {
   int eloi_hash;
   std::unique_ptr<EloiBrain> full_eloi;
   std::unique_ptr<EloiBrain> hybrid_eloi;
-  std::unique_ptr<CaissaBrain> caissa;
+  std::unique_ptr<Brain> caissa;
   std::unique_ptr<HybridBrain> hybrid;
   std::string detail;
 };
 
 ProductionBrain::ProductionBrain(
     EngineConfig config, std::atomic_bool& stopped)
-    : ProductionBrain(
-          std::move(config), stopped,
+    : impl_(std::make_unique<Impl>(
+          std::move(config), stopped, production_executable_path(),
           production_caissa_network_path().value_or(
-              std::filesystem::path{})) {}
+              std::filesystem::path{}), true)) {}
 
 ProductionBrain::ProductionBrain(
     EngineConfig config, std::atomic_bool& stopped,
     std::filesystem::path network_path)
     : impl_(std::make_unique<Impl>(
-          std::move(config), stopped, std::move(network_path))) {}
+          std::move(config), stopped, std::filesystem::path{},
+          std::move(network_path), false)) {}
 
 ProductionBrain::~ProductionBrain() = default;
 
@@ -125,7 +140,11 @@ SearchResult ProductionBrain::iterative(
   const ProductionRoute route = route_for(root);
   switch (route) {
     case ProductionRoute::eloi_variant:
-      impl_->caissa->release_hash();
+      if (auto* direct = dynamic_cast<CaissaBrain*>(impl_->caissa.get()))
+        direct->release_hash();
+      if (auto* isolated =
+              dynamic_cast<IsolatedCaissaBrain*>(impl_->caissa.get()))
+        isolated->release_hash();
       response = impl_->full_eloi->search(
           std::move(board), limits,
           [&](const BrainResponse& update) {
@@ -135,7 +154,11 @@ SearchResult ProductionBrain::iterative(
           "Chess960/Horde routed to Eloi E2";
       break;
     case ProductionRoute::eloi_fallback:
-      impl_->caissa->release_hash();
+      if (auto* direct = dynamic_cast<CaissaBrain*>(impl_->caissa.get()))
+        direct->release_hash();
+      if (auto* isolated =
+              dynamic_cast<IsolatedCaissaBrain*>(impl_->caissa.get()))
+        isolated->release_hash();
       response = impl_->full_eloi->search(
           std::move(board), limits,
           [&](const BrainResponse& update) {
@@ -171,7 +194,11 @@ SearchResult ProductionBrain::iterative(
       (!limits.deadline ||
        std::chrono::steady_clock::now() < *limits.deadline)) {
     const std::string failure = response.detail;
-    impl_->caissa->release_hash();
+    if (auto* direct = dynamic_cast<CaissaBrain*>(impl_->caissa.get()))
+      direct->release_hash();
+    if (auto* isolated =
+            dynamic_cast<IsolatedCaissaBrain*>(impl_->caissa.get()))
+      isolated->release_hash();
     response = impl_->full_eloi->search(
         root, limits,
         [&](const BrainResponse& update) {
