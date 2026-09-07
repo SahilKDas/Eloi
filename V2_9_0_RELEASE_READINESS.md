@@ -24,7 +24,7 @@ No historical result is silently promoted into a release qualification result.
    `scripts/release_v290.py` invokes that gate for each package before creating
    scratch or output. The checked-in template intentionally fails. Local
    diagnostics remain permitted; packaging does not.
-2. **WDL calibration evidence — passed; requalification open.** A bounded
+2. **WDL calibration evidence — passed; strength requalification open.** A bounded
    collector replayed 40 complete Standard games and sampled four positions per
    game from the preserved 250-ms campaign, then queried each isolated brain in
    a fresh three-thread, 2,000-node process. A second, separately hash-namespaced
@@ -63,16 +63,23 @@ No historical result is silently promoted into a release qualification result.
    suite also passed exact FEN round trips and legal-move equality across 256
    seeded Standard positions, plus dedicated castling, en-passant, promotion,
    clock, history, and repetition seams.
-6. **End-to-end correctness and packaging — technical embedding passed;
-   release validation open.**
+6. **Bounded end-to-end correctness — passed; reproducible packaging open.**
    The preservation-safe preflight refuses existing destinations, enforces all
    storage limits, retains deterministic archive inputs, and creates nothing
    when blocked. Both local app forms now embed and runtime-hash-verify the
    exact network, run without an external network file, and preserve the
    byte-identical flag-off v2.7.5 control. The hash-bound implementation report
-   is `data/v2_9_0_embedded_network_validation.json`. All existing regressions,
-   perft, differential move generation, stop handling, GUI/bridge smoke tests,
-   reproducible builds, clean extraction, and package-content checks must pass.
+   is `data/v2_9_0_embedded_network_validation.json`. At source
+   `a7ec2ff2a414f8500a55c112e23f469b476b7e50`, both Windows forms passed all
+   three CTest targets; the production hybrid route passed all 15 regressions
+   with zero protocol failures; perft reached 197,281 nodes; and seeded
+   differential generation passed 96/96 Standard, Chess960, and Horde
+   positions. UCI readiness, three bounded timed moves, stop, clean exit,
+   pre-UCI stdout, and offline Exoskeleton configuration also passed. Exact
+   binary and evidence hashes are in
+   `data/v2_9_0_calibrated_correctness_validation.json`. Two independent
+   reproducible builds, deterministic archives, fresh extraction, full
+   package-content/dependency checks, and security validation remain open.
    No build or runtime network download is allowed.
 7. **Post-integration strength — not started.** Only after behavior is frozen:
    screen configurations, run 100-game confirmation, then 250 games against
@@ -80,8 +87,9 @@ No historical result is silently promoted into a release qualification result.
    inform the decision but do not qualify a different binary.
 
 The current production and recoverable champion remains Eloi v2.7.5. The
-opt-in controller has passed its bounded C++ routing/Hash/fallback tests, UCI
-hybrid and missing-network smokes, GUI smoke, both Windows target builds, and
-offline Lichess configuration checks. No tag,
+opt-in controller has passed its bounded C++ routing/Hash/fallback tests, the
+calibrated 15-position production-route gate, perft and differential move
+generation, UCI hybrid and missing-network smokes, GUI tests, both Windows
+target builds, and offline Lichess configuration checks. No tag,
 release, package, or production installation should call the hybrid “v2.9.0”
 until every gate above is closed with retained evidence.

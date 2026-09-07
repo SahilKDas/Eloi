@@ -1,0 +1,123 @@
+{
+  "schema": "eloi-v2.9.0-calibrated-correctness-validation-v1",
+  "created_utc": "2026-09-07T05:31:45.5915166Z",
+  "source_revision": "a7ec2ff2a414f8500a55c112e23f469b476b7e50",
+  "source_dirty_during_validation": false,
+  "release_qualified": false,
+  "scope": "bounded correctness and protocol validation; no games or release packaging",
+  "network": {
+    "name": "eval-82-383B.pnn",
+    "bytes": 50367040,
+    "sha256": "22249DE582912F46F73F7CF7410D6D72ECCC77696B0B857E99B97A45F3F37116",
+    "embedded_and_runtime_verified": true,
+    "redistribution_permission": "blocked"
+  },
+  "calibration": {
+    "report": "data/v2_9_0_wdl_calibration.json",
+    "sha256": "FE6B667A2BF0087E2A422BD35D8EB7F52C1B8BEE8A865642794F254A34950D20",
+    "selection_profile": "hybrid-wdl-v2-standard-pgn-calibrated",
+    "eloi_pawn_scale": 1300,
+    "caissa_pawn_scale": 360,
+    "public_score_policy": "calibrated Eloi anchor; pessimistic cross-brain expectation remains the move-selection confidence"
+  },
+  "binaries": {
+    "standalone": {
+      "path": "build-v290-embedded-standalone/Eloi.exe",
+      "bytes": 62978560,
+      "sha256": "9A30E53077418241338A1869A83B3909F09E8D50E674E4408E13B19E644B191B",
+      "pe_timestamp_zero": true
+    },
+    "exoskeleton_engine": {
+      "path": "build-v290-embedded-exoskeleton/Eloi.exe",
+      "bytes": 60934656,
+      "sha256": "74264EEEE898597FC677731D511D98A038CC7FAD2E7A2DBA03553252FB42F506",
+      "pe_timestamp_zero": true
+    },
+    "exoskeleton_bridge": {
+      "path": "build-v290-embedded-exoskeleton/EloiLichess.exe",
+      "bytes": 51604480,
+      "sha256": "C38CDD191B0F7F950685B6526FC0C07501B2CB43C6707A54C975678E3825B828",
+      "pe_timestamp_zero": true
+    }
+  },
+  "checks": {
+    "standalone_ctest": {
+      "passed": 3,
+      "total": 3,
+      "tests": ["eloi_tests", "eloi_hybrid_tests", "eloi_gui_tests"]
+    },
+    "exoskeleton_ctest": {
+      "passed": 3,
+      "total": 3,
+      "tests": ["eloi_tests", "eloi_hybrid_tests", "eloi_gui_tests"]
+    },
+    "hybrid_regressions": {
+      "passed": 15,
+      "total": 15,
+      "protocol_failures": 0,
+      "evidence": "tmp/v290-hybrid-regressions-a7ec2ff/evidence.json",
+      "evidence_sha256": "6F2CE7DC6DB909C11A6109F7C764C6CB40079BF46F070D9F0BE74A5C49D59344",
+      "runner_sha256": "066F28ABA521C48385F10E932349355B4B0E8B4AAAE1EE5309E2C6C229516DE8",
+      "fresh_process_per_depth": true,
+      "threads": 3,
+      "priority": "Idle"
+    },
+    "lichess_001XA_repeat": {
+      "runs": 10,
+      "depth_5": {"move": "f1d1", "score_cp": -18},
+      "depth_7": {"move": "b1b7", "score_cp": 34},
+      "score_swing_cp": 52,
+      "limit_cp": 250,
+      "passed": true
+    },
+    "perft": {
+      "position": "standard-start",
+      "depth": 4,
+      "nodes": 197281,
+      "passed": true
+    },
+    "differential_move_generation": {
+      "standard": 32,
+      "chess960": 32,
+      "horde": 32,
+      "positions_checked": 96,
+      "failures": 0,
+      "evidence": "tmp/v290-movegen-a7ec2ff.json",
+      "evidence_sha256": "203FFCD6C87D68EAC6CFD6EC9E626484FF2AD38C23289B5787695B324B01C4D0"
+    },
+    "uci_smoke": {
+      "threads_contract": 3,
+      "movetime_ms": 250,
+      "legal_moves": 3,
+      "maximum_observed_seconds": 0.25,
+      "stop_seconds": 0.0,
+      "unexpected_pre_uci_stdout": false,
+      "passed": true
+    },
+    "exoskeleton_offline_config": {
+      "command": "EloiLichess.exe --check-config --config config.example.yml",
+      "result": "config ok",
+      "passed": true
+    },
+    "python_helpers": {
+      "passed": 14,
+      "total": 14,
+      "suites": [
+        "test_validate_v290_regressions.py",
+        "test_calibrate_hybrid_wdl.py",
+        "test_collect_hybrid_wdl_samples.py"
+      ]
+    }
+  },
+  "resources": {
+    "free_bytes_after_checks": 27710472192,
+    "owned_search_processes_after_checks": 0
+  },
+  "open_release_gates": [
+    "explicit Caissa network redistribution permission",
+    "operating-system donor-crash watchdog evidence",
+    "two independent reproducible release builds and deterministic archives",
+    "fresh-extraction package, GUI, bridge, dependency, and security validation",
+    "post-calibration strength qualification"
+  ]
+}
