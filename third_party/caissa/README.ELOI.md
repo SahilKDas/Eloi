@@ -58,6 +58,11 @@ Its UCI smoke test used exactly three threads, 32 MB hash, and 10,000 nodes and
 returned legal move `d2d4` from the initial position. This is a local adapter
 parity reference, not a redistributable Eloi artifact.
 
+The bounded adapter gate requires exact depth-one moves and validates deeper
+three-thread searches for accepted legal output, score/mate sanity, timing,
+and completion. Deeper exact best-move equality is retained as an observation,
+not a mechanical gate, because the donor's thread scheduling is nondeterministic.
+
 ## Provenance exclusions
 
 The pinned donor contains implementations or comments that explicitly credit

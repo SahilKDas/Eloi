@@ -47,10 +47,16 @@ No historical result is silently promoted into a release qualification result.
    failed, or Eloi-illegal hybrid results fall back safely when time remains.
    An operating-system-level in-process donor crash cannot be caught in C++ and
    remains a release-blocking watchdog test rather than a claimed fallback.
-5. **Adapter validation — open.** Depth-one and board/legal parity are
-   mechanical gates. Deeper three-thread runs are validated for legality,
-   mate/score sanity, timing, and distributions rather than falsely requiring
-   deterministic best-move equality.
+5. **Adapter validation — bounded parity gate passed; corpus expansion open.**
+   The exact pinned official executable and embedded adapter matched all three
+   depth-one moves. Every repeated 10,000-node probe completed with legal
+   adapter output, sane score/mate telemetry, and no timeout. Deeper
+   three-thread move distributions are retained as observations rather than
+   falsely requiring deterministic best-move equality. Evidence is preserved
+   at `tmp/caissa-parity/parity-v290-corrected-v2.json`, SHA-256
+   `CEE70064FE80B3E800452131AC32BF28126B1CBDCD19CFC252AA7C96B2CBD3CC`,
+   from source `c31c004130d5261f6eff69ec25f6022cf3e99c01`. The larger seeded
+   Standard legal-move/FEN corpus remains part of end-to-end qualification.
 6. **End-to-end correctness and packaging — open.** All existing regressions,
    perft, differential move generation, stop handling, GUI/bridge smoke tests,
    reproducible builds, clean extraction, and package-content checks must pass.
