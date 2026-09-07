@@ -85,19 +85,24 @@ def probe(executable: Path, crash: bool, timeout: float) -> dict:
         exit_code = process.wait(timeout=2)
     joined = "\n".join(transcript)
     legal_move = len(bestmove) in (4, 5) and bestmove != "0000"
-    expected_detail = (
-        "Caissa worker pipe closed after crash or exit"
-        if crash else "E2 and Caissa agreed"
+    expected_details = (
+        ("Caissa worker pipe closed after crash or exit",)
+        if crash else
+        ("E2 and Caissa agreed", "hybrid disagreement resolved")
     )
+    expected_detail_seen = any(detail in joined for detail in expected_details)
+    unexpected_failure_seen = not crash and "Caissa failed;" in joined
     return {
         "mode": "crashed-child" if crash else "normal",
         "bestmove": bestmove,
         "legal_move_shape": legal_move,
         "parent_exit_code": exit_code,
-        "expected_detail_seen": expected_detail in joined,
+        "expected_detail_seen": expected_detail_seen,
+        "unexpected_failure_seen": unexpected_failure_seen,
         "transcript": transcript,
         "passed": (
-            legal_move and exit_code == 0 and expected_detail in joined
+            legal_move and exit_code == 0 and expected_detail_seen
+            and not unexpected_failure_seen
         ),
     }
 

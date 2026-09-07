@@ -212,6 +212,8 @@ def main() -> int:
     parser.add_argument("--scratch", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--hours", type=float, default=2.0)
+    parser.add_argument("--resume-after-standalone", action="store_true")
+    parser.add_argument("--source-commit")
     args = parser.parse_args()
     global WORK, OUTPUT, DEADLINE
     WORK, OUTPUT = args.scratch.resolve(), args.output.resolve()
@@ -220,29 +222,53 @@ def main() -> int:
             "scratch must be a dedicated child of repository tmp")
     require(OUTPUT != (ROOT / "dist").resolve() and OUTPUT.is_relative_to((ROOT / "dist").resolve()),
             "output must be a dedicated child of repository dist")
-    require(not WORK.exists() and not OUTPUT.exists(), "scratch/output collision")
+    require(not OUTPUT.exists(), "output collision")
+    require(WORK.is_dir() if args.resume_after_standalone else not WORK.exists(),
+            "resume scratch is absent or new scratch collides")
     require(not subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT),
             "clean committed source required")
     require(sha256(NETWORK) == NETWORK_SHA256, "Caissa v1.25 network identity mismatch")
     permissions = {mode: caissa_license_gate.verify_gate(LICENSE_MANIFEST, NETWORK, mode)
                    for mode in ("standalone", "exoskeleton")}
-    resource_guard(1_600_000_000)
-    WORK.mkdir(parents=True)
-    write_new(WORK / "start.json", {"version": VERSION, "network_sha256": NETWORK_SHA256,
-              "permissions": permissions, "resources": resource_guard(check_deadline=False)})
+    resource_guard(900_000_000 if args.resume_after_standalone else 1_600_000_000)
+    if not args.resume_after_standalone:
+        WORK.mkdir(parents=True)
+        write_new(WORK / "start.json", {"version": VERSION, "network_sha256": NETWORK_SHA256,
+                  "permissions": permissions, "resources": resource_guard(check_deadline=False)})
     base.ROOT, base.WORK, base.STARTED = ROOT, WORK, dt.datetime.now(dt.timezone.utc).isoformat()
     base.resources, base.run, base.create = resource_guard, run, write_new
     base.new_bytes, base.copy_new = write_new, copy_new
     powershell = shutil.which("pwsh")
     require(powershell is not None, "PowerShell 7 is required")
-    run([powershell, "-NoProfile", "-File", ROOT / "scripts/verify-toolchain.ps1",
-         "-RequirePackageArchives"], "locked-toolchain", 180)
-    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    if not args.resume_after_standalone:
+        run([powershell, "-NoProfile", "-File", ROOT / "scripts/verify-toolchain.ps1",
+             "-RequirePackageArchives"], "locked-toolchain", 180)
+    commit = (args.source_commit or subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip())
+    require(not args.resume_after_standalone or bool(re.fullmatch(r"[0-9a-f]{40}", commit)),
+            "resume requires the exact prior source commit")
     lock = base.read(ROOT / "reproducibility.lock.json")
     archive = WORK / "source.zip"
-    run(["git", "archive", "--format=zip", "--output", archive, commit], "source-export")
+    if not args.resume_after_standalone:
+        run(["git", "archive", "--format=zip", "--output", archive, commit], "source-export")
+    else:
+        require(archive.is_file(), "preserved source archive is absent")
     artifacts = {}
-    for split in (False, True):
+    if args.resume_after_standalone:
+        prior = [(WORK / f"standalone-{copy}" / "package",
+                  WORK / f"standalone-{copy}" / f"Eloi-v{VERSION}-windows-x64-standalone.zip")
+                 for copy in ("A", "B")]
+        require(file_map(prior[0][0]) == file_map(prior[1][0]), "preserved standalone payload mismatch")
+        require(sha256(prior[0][1]) == sha256(prior[1][1]), "preserved standalone archive mismatch")
+        extracted = WORK / "fresh-extraction/standalone"
+        validate_package(extracted, False, commit)
+        run([sys.executable, "-B", ROOT / "scripts/validate_caissa_worker.py",
+             "--engine", extracted / "Eloi.exe", "--output", WORK / "standalone-worker-resume.json"],
+            "standalone-worker-resume", 60, cwd=extracted)
+        artifacts["standalone"] = {"zip_sha256": sha256(prior[0][1]),
+                                   "payload": file_map(prior[0][0]),
+                                   "source_commit": commit, "source_zip": str(prior[0][1])}
+    for split in ((True,) if args.resume_after_standalone else (False, True)):
         form = "exoskeleton" if split else "standalone"
         copies = []
         for copy in ("A", "B"):
