@@ -71,6 +71,20 @@ def copy_new(source: Path, target: Path) -> None:
     require(sha256(source) == sha256(target), f"copy hash mismatch: {target}")
 
 
+def copy_release_output(source: Path, target: Path) -> None:
+    """Copy a verified archive to dist without charging it to scratch."""
+    require(not target.exists(), f"output collision: {target}")
+    snapshot = validation_support.resource_snapshot(WORK, 0)
+    amount = Path(source).stat().st_size
+    require(snapshot["total_bytes"] + amount <= 10_000_000_000,
+            "release copy would exceed total temporary quota")
+    require(snapshot["free_bytes"] - amount >= 5_000_000_000,
+            "release copy would breach free-space reserve")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, target)
+    require(sha256(source) == sha256(target), f"release copy hash mismatch: {target}")
+
+
 def resource_guard(projected: int = 0, check_deadline: bool = True):
     snapshot = validation_support.resource_snapshot(WORK, projected)
     if check_deadline:
@@ -213,6 +227,7 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--hours", type=float, default=2.0)
     parser.add_argument("--resume-after-standalone", action="store_true")
+    parser.add_argument("--finalize-existing", action="store_true")
     parser.add_argument("--source-commit")
     args = parser.parse_args()
     global WORK, OUTPUT, DEADLINE
@@ -222,14 +237,43 @@ def main() -> int:
             "scratch must be a dedicated child of repository tmp")
     require(OUTPUT != (ROOT / "dist").resolve() and OUTPUT.is_relative_to((ROOT / "dist").resolve()),
             "output must be a dedicated child of repository dist")
-    require(not OUTPUT.exists(), "output collision")
-    require(WORK.is_dir() if args.resume_after_standalone else not WORK.exists(),
+    require(OUTPUT.is_dir() if args.finalize_existing else not OUTPUT.exists(),
+            "output collision or finalize destination absent")
+    require(WORK.is_dir() if (args.resume_after_standalone or args.finalize_existing) else not WORK.exists(),
             "resume scratch is absent or new scratch collides")
     require(not subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT),
             "clean committed source required")
     require(sha256(NETWORK) == NETWORK_SHA256, "Caissa v1.25 network identity mismatch")
     permissions = {mode: caissa_license_gate.verify_gate(LICENSE_MANIFEST, NETWORK, mode)
                    for mode in ("standalone", "exoskeleton")}
+    if args.finalize_existing:
+        require(args.source_commit and re.fullmatch(r"[0-9a-f]{40}", args.source_commit),
+                "finalization requires the exact package source commit")
+        require(not any(OUTPUT.iterdir()), "finalize destination is not empty")
+        artifacts = {}
+        for form in ("standalone", "exoskeleton"):
+            pairs = [(WORK / f"{form}-{copy}" / "package",
+                      WORK / f"{form}-{copy}" / f"Eloi-v{VERSION}-windows-x64-{form}.zip")
+                     for copy in ("A", "B")]
+            require(file_map(pairs[0][0]) == file_map(pairs[1][0]), f"{form} payload mismatch")
+            require(sha256(pairs[0][1]) == sha256(pairs[1][1]), f"{form} archive mismatch")
+            validate_package(WORK / "fresh-extraction" / form,
+                             form == "exoskeleton", args.source_commit)
+            worker = json.loads((WORK / (f"{form}-worker.json" if form == "exoskeleton"
+                                          else "standalone-worker-resume.json")).read_text())
+            require(worker.get("passed") is True, f"{form} worker proof did not pass")
+            target = OUTPUT / pairs[0][1].name
+            copy_release_output(pairs[0][1], target)
+            artifacts[form] = {"zip_sha256": sha256(target), "final_path": str(target),
+                               "payload": file_map(pairs[0][0]),
+                               "source_commit": args.source_commit}
+        report = {"schema": "eloi-v2.9.0-package-qualification-v1", "status": "passed",
+                  "source_commit": args.source_commit, "network_sha256": NETWORK_SHA256,
+                  "artifacts": artifacts, "resources": resource_guard(check_deadline=False),
+                  "resumed_after_preserved_failures": True}
+        write_new(WORK / "package-proof.json", report)
+        print(json.dumps(report, indent=2, sort_keys=True))
+        return 0
     resource_guard(900_000_000 if args.resume_after_standalone else 1_600_000_000)
     if not args.resume_after_standalone:
         WORK.mkdir(parents=True)
@@ -315,7 +359,7 @@ def main() -> int:
     for form, artifact in artifacts.items():
         origin = Path(artifact["source_zip"])
         target = OUTPUT / origin.name
-        copy_new(origin, target)
+        copy_release_output(origin, target)
         artifact["final_path"] = str(target)
     report = {"schema": "eloi-v2.9.0-package-qualification-v1", "status": "passed",
               "source_commit": commit, "network_sha256": NETWORK_SHA256,
