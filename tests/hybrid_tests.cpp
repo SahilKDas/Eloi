@@ -1,4 +1,5 @@
 #include "eloi/brain.hpp"
+#include "eloi/wdl_calibration.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -269,7 +270,11 @@ int main() {
     const auto response = disagreement.search(board, limits);
     expect(response.has_legal_move(board) &&
                response.search.pv.front().uci() == "e2e4" &&
-               response.search.score_cp == 20 &&
+               response.search.score_cp ==
+                   cp_from_expected_score(
+                       expected_score_from_cp(
+                           20, hybrid_wdl_v2.eloi_pawn_scale),
+                       hybrid_wdl_v2.report_pawn_scale) &&
                response.lines.size() == 2 &&
                response.lines.front().pv.front().uci() == "e2e4" &&
                fake_eloi.calls() == 2 && fake_caissa.calls() == 2 &&

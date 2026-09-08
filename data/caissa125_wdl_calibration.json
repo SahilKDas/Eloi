@@ -1,0 +1,775 @@
+{
+  "brains": {
+    "caissa": {
+      "candidates": [
+        {
+          "calibration": {
+            "brier": 0.08506461150344773,
+            "ece_10": 0.16526563262096744,
+            "log_loss": 1.1100591764165713,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 200.0,
+          "validation": {
+            "brier": 0.10250449996700334,
+            "ece_10": 0.23981993620994657,
+            "log_loss": 1.0687403538648799,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.0682353352649021,
+            "ece_10": 0.1274595353554873,
+            "log_loss": 1.0340857226689153,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 300.0,
+          "validation": {
+            "brier": 0.09672295516922534,
+            "ece_10": 0.1967471632230597,
+            "log_loss": 0.8138320852790669,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.06221206913754368,
+            "ece_10": 0.12925415242053392,
+            "log_loss": 1.0163758689976177,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 360.0,
+          "validation": {
+            "brier": 0.09231343805092819,
+            "ece_10": 0.18884962579812373,
+            "log_loss": 0.7394114063313434,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.059384949726618674,
+            "ece_10": 0.12836351787667744,
+            "log_loss": 1.0097556343328016,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 400.0,
+          "validation": {
+            "brier": 0.08940271895910572,
+            "ece_10": 0.20402889381077913,
+            "log_loss": 0.7055823649561704,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.055194113706249034,
+            "ece_10": 0.10103889211624119,
+            "log_loss": 1.0028279109490237,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 500.0,
+          "validation": {
+            "brier": 0.08301072309047429,
+            "ece_10": 0.16544191074710823,
+            "log_loss": 0.6525060209819888,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.05362724471041663,
+            "ece_10": 0.12373381463976907,
+            "log_loss": 1.0028166607241906,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 600.0,
+          "validation": {
+            "brier": 0.07828227370575129,
+            "ece_10": 0.15296401903189052,
+            "log_loss": 0.6243831046664717,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.05420221575141858,
+            "ece_10": 0.08977235537587809,
+            "log_loss": 1.0099463737275698,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 800.0,
+          "validation": {
+            "brier": 0.07305431750569291,
+            "ece_10": 0.1811619562931274,
+            "log_loss": 0.6000160889067248,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.05663571814587676,
+            "ece_10": 0.10198760796784712,
+            "log_loss": 1.0193953417825015,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 1000.0,
+          "validation": {
+            "brier": 0.07124217662297087,
+            "ece_10": 0.13735396465505503,
+            "log_loss": 0.5924291699568397,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.0609459423920504,
+            "ece_10": 0.0811246499122458,
+            "log_loss": 1.0329091715571406,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 1300.0,
+          "validation": {
+            "brier": 0.0712475166937978,
+            "ece_10": 0.18344955617093503,
+            "log_loss": 0.5908978594429731,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.06504380270701643,
+            "ece_10": 0.09522592897764967,
+            "log_loss": 1.0444168714461095,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 1600.0,
+          "validation": {
+            "brier": 0.07237632469001522,
+            "ece_10": 0.14984289976829834,
+            "log_loss": 0.5928624291965211,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.0698014345650875,
+            "ece_10": 0.10960587028386456,
+            "log_loss": 0.9931168700885672,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 2000.0,
+          "validation": {
+            "brier": 0.0742034648460289,
+            "ece_10": 0.15600770986924603,
+            "log_loss": 0.5964959313853053,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.07465405098864185,
+            "ece_10": 0.12203221671957959,
+            "log_loss": 0.9189608421504604,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 2500.0,
+          "validation": {
+            "brier": 0.07629704971489909,
+            "ece_10": 0.1449343155016623,
+            "log_loss": 0.6007414654422143,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.07851750586026336,
+            "ece_10": 0.13077047588430604,
+            "log_loss": 0.8705819966625439,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 3000.0,
+          "validation": {
+            "brier": 0.07802561068510737,
+            "ece_10": 0.1537734849493702,
+            "log_loss": 0.6042487462656286,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.08416122833930688,
+            "ece_10": 0.14216886557924407,
+            "log_loss": 0.8114159927341803,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 4000.0,
+          "validation": {
+            "brier": 0.080576145781168,
+            "ece_10": 0.1467009211876154,
+            "log_loss": 0.6094071715665222,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.08801800066418677,
+            "ece_10": 0.14922939911805588,
+            "log_loss": 0.7766626198574879,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 5000.0,
+          "validation": {
+            "brier": 0.08231908081629823,
+            "ece_10": 0.1536792167764167,
+            "log_loss": 0.6129220064262795,
+            "samples": 11
+          }
+        }
+      ],
+      "current_scale": 360.0,
+      "current_validation": {
+        "brier": 0.09231343805092819,
+        "ece_10": 0.18884962579812373,
+        "log_loss": 0.7394114063313434,
+        "samples": 11
+      },
+      "external_validation": {
+        "current": {
+          "brier": 0.06086414023880703,
+          "ece_10": 0.11170522536503585,
+          "log_loss": 0.4443621041528729,
+          "samples": 40
+        },
+        "current_scale": 360.0,
+        "log_loss_delta_vs_current": 0.15233998622181244,
+        "selected": {
+          "brier": 0.12828371640196493,
+          "ece_10": 0.23385679028355083,
+          "log_loss": 0.5967020903746854,
+          "samples": 40
+        },
+        "selected_scale": 5000.0
+      },
+      "selected_on_calibration": 5000.0,
+      "selected_validation": {
+        "brier": 0.08231908081629823,
+        "ece_10": 0.1536792167764167,
+        "log_loss": 0.6129220064262795,
+        "samples": 11
+      },
+      "validation_log_loss_delta_vs_current": -0.12648939990506392
+    },
+    "eloi": {
+      "candidates": [
+        {
+          "calibration": {
+            "brier": 0.08253666958672064,
+            "ece_10": 0.19068592724442335,
+            "log_loss": 0.8346241788801494,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 200.0,
+          "validation": {
+            "brier": 0.13388595144209878,
+            "ece_10": 0.22202292277885488,
+            "log_loss": 0.8537819681219971,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.065696315161532,
+            "ece_10": 0.1437567410201729,
+            "log_loss": 0.6847404394162935,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 300.0,
+          "validation": {
+            "brier": 0.1062650797002135,
+            "ece_10": 0.17238067428824172,
+            "log_loss": 0.693505074847046,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.06041877924823824,
+            "ece_10": 0.12299667405827774,
+            "log_loss": 0.6434400060974926,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 360.0,
+          "validation": {
+            "brier": 0.09541244799040283,
+            "ece_10": 0.14932063539425022,
+            "log_loss": 0.6519469037281875,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.05807491144733603,
+            "ece_10": 0.11329339787194301,
+            "log_loss": 0.6252558028304301,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 400.0,
+          "validation": {
+            "brier": 0.09002264215482264,
+            "ece_10": 0.1365806190183004,
+            "log_loss": 0.6343652029782628,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.05476980064697568,
+            "ece_10": 0.09745413217879396,
+            "log_loss": 0.5979950206558895,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 500.0,
+          "validation": {
+            "brier": 0.0811053103380124,
+            "ece_10": 0.11179755999512772,
+            "log_loss": 0.6092705523395602,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.053587357664138975,
+            "ece_10": 0.09876766908026904,
+            "log_loss": 0.584930514449456,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 600.0,
+          "validation": {
+            "brier": 0.07636010421693519,
+            "ece_10": 0.10387046351673156,
+            "log_loss": 0.5980451174630204,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.053959188351361584,
+            "ece_10": 0.10313443115866147,
+            "log_loss": 0.5768116733556,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 800.0,
+          "validation": {
+            "brier": 0.07284846852782569,
+            "ece_10": 0.07475196719080443,
+            "log_loss": 0.5914815563009295,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.055696725092377775,
+            "ece_10": 0.12651256624137933,
+            "log_loss": 0.578158150082893,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 1000.0,
+          "validation": {
+            "brier": 0.07257750159144222,
+            "ece_10": 0.0778648337681771,
+            "log_loss": 0.5923745306404815,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.05895822244712604,
+            "ece_10": 0.07540850699284689,
+            "log_loss": 0.5854420499269652,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 1300.0,
+          "validation": {
+            "brier": 0.07392637469961609,
+            "ece_10": 0.06999372910808885,
+            "log_loss": 0.5975012851551531,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.06228159944074486,
+            "ece_10": 0.07542141305996085,
+            "log_loss": 0.5940088869153205,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 1600.0,
+          "validation": {
+            "brier": 0.07576743946096272,
+            "ece_10": 0.07650259029531647,
+            "log_loss": 0.6036664962063207,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.06641116677943588,
+            "ece_10": 0.07413071938314575,
+            "log_loss": 0.6047022796358451,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 2000.0,
+          "validation": {
+            "brier": 0.07826634196913113,
+            "ece_10": 0.08369784722667936,
+            "log_loss": 0.6116896296430407,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.07091614638285017,
+            "ece_10": 0.06941232635510436,
+            "log_loss": 0.6159363414442821,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 2500.0,
+          "validation": {
+            "brier": 0.08121609524648545,
+            "ece_10": 0.09094114390037258,
+            "log_loss": 0.6205769019292119,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.07470587646563005,
+            "ece_10": 0.08027136107694935,
+            "log_loss": 0.6249699108326455,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 1.1102230246251565e-16,
+            "strictly_monotonic": true
+          },
+          "scale": 3000.0,
+          "validation": {
+            "brier": 0.08390099922366635,
+            "ece_10": 0.0966825296010964,
+            "log_loss": 0.6280764144568247,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.0805439830852824,
+            "ece_10": 0.0949216483990203,
+            "log_loss": 0.6382233880442328,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 4000.0,
+          "validation": {
+            "brier": 0.0884227210381626,
+            "ece_10": 0.10499878998353024,
+            "log_loss": 0.6396310915905686,
+            "samples": 11
+          }
+        },
+        {
+          "calibration": {
+            "brier": 0.0847241716043488,
+            "ece_10": 0.10410923917741657,
+            "log_loss": 0.6473144997742868,
+            "samples": 28
+          },
+          "model_checks": {
+            "finite": true,
+            "mate_handling": "excluded; arbiter mate veto remains discrete",
+            "maximum_symmetry_error": 0.0,
+            "strictly_monotonic": true
+          },
+          "scale": 5000.0,
+          "validation": {
+            "brier": 0.09193717665758622,
+            "ece_10": 0.1105978412073981,
+            "log_loss": 0.6479115909643443,
+            "samples": 11
+          }
+        }
+      ],
+      "current_scale": 1300.0,
+      "current_validation": {
+        "brier": 0.07392637469961609,
+        "ece_10": 0.06999372910808885,
+        "log_loss": 0.5975012851551531,
+        "samples": 11
+      },
+      "external_validation": {
+        "current": {
+          "brier": 0.06806518025755012,
+          "ece_10": 0.11047303159343469,
+          "log_loss": 0.4498835151232997,
+          "samples": 40
+        },
+        "current_scale": 1300.0,
+        "log_loss_delta_vs_current": -0.05105160757797622,
+        "selected": {
+          "brier": 0.05406149812433815,
+          "ece_10": 0.054975487921919176,
+          "log_loss": 0.3988319075453235,
+          "samples": 40
+        },
+        "selected_scale": 800.0
+      },
+      "selected_on_calibration": 800.0,
+      "selected_validation": {
+        "brier": 0.07284846852782569,
+        "ece_10": 0.07475196719080443,
+        "log_loss": 0.5914815563009295,
+        "samples": 11
+      },
+      "validation_log_loss_delta_vs_current": -0.006019728854223638
+    }
+  },
+  "external_input": {
+    "excluded_mate_samples": 0,
+    "path": "C:\\SahilAppProjects\\Eloi\\tmp\\caissa125-calibration-external-6ea4dd1\\samples.jsonl",
+    "samples": 80,
+    "sha256": "1B95833374CF8FB803F26F6C22633E5264AAA86A591F28E82C28E76C497879F0"
+  },
+  "external_validation": {
+    "game_overlap": [],
+    "games": [
+      "013EFE5F581B784E:106:none:Black:106",
+      "013EFE5F581B784E:112:none:Black:112",
+      "013EFE5F581B784E:116:none:Black:116",
+      "013EFE5F581B784E:133:none:White:133",
+      "013EFE5F581B784E:152:none:Black:152",
+      "013EFE5F581B784E:161:none:White:161",
+      "013EFE5F581B784E:176:none:Black:176",
+      "013EFE5F581B784E:195:none:White:195",
+      "013EFE5F581B784E:214:none:Black:214",
+      "013EFE5F581B784E:227:none:White:227",
+      "013EFE5F581B784E:240:none:Black:240",
+      "013EFE5F581B784E:242:none:Black:242",
+      "013EFE5F581B784E:244:none:Black:244",
+      "013EFE5F581B784E:250:none:Black:250",
+      "013EFE5F581B784E:35:none:White:35",
+      "013EFE5F581B784E:47:none:White:47",
+      "013EFE5F581B784E:57:none:White:57",
+      "013EFE5F581B784E:7:none:White:7",
+      "013EFE5F581B784E:86:none:Black:86",
+      "013EFE5F581B784E:97:none:White:97"
+    ]
+  },
+  "input": {
+    "excluded_mate_samples": 2,
+    "path": "C:\\SahilAppProjects\\Eloi\\tmp\\caissa125-calibration-6ea4dd1\\samples.jsonl",
+    "samples": 78,
+    "sha256": "2E298E342D61C2FFD676AEE159D47382D7A98C1E0130C9D088E626635F8F840D"
+  },
+  "partition": {
+    "calibration_games": [
+      "2CDCECD73C9CAE6E:101:none:White:101",
+      "2CDCECD73C9CAE6E:134:none:Black:134",
+      "2CDCECD73C9CAE6E:183:none:White:183",
+      "2CDCECD73C9CAE6E:1:none:White:1",
+      "2CDCECD73C9CAE6E:214:none:Black:214",
+      "2CDCECD73C9CAE6E:226:none:Black:226",
+      "2CDCECD73C9CAE6E:233:none:White:233",
+      "2CDCECD73C9CAE6E:234:none:Black:234",
+      "2CDCECD73C9CAE6E:248:none:Black:248",
+      "2CDCECD73C9CAE6E:27:none:White:27",
+      "2CDCECD73C9CAE6E:54:none:Black:54",
+      "2CDCECD73C9CAE6E:69:none:White:69",
+      "2CDCECD73C9CAE6E:93:none:White:93",
+      "2CDCECD73C9CAE6E:95:none:White:95"
+    ],
+    "game_overlap": [],
+    "validation_games": [
+      "2CDCECD73C9CAE6E:165:none:White:165",
+      "2CDCECD73C9CAE6E:184:none:Black:184",
+      "2CDCECD73C9CAE6E:185:none:White:185",
+      "2CDCECD73C9CAE6E:206:none:Black:206",
+      "2CDCECD73C9CAE6E:225:none:White:225",
+      "2CDCECD73C9CAE6E:71:none:White:71"
+    ]
+  },
+  "runner_sha256": "567FF17D1878DCEB1050538608B64DD88ABE42A58C9C8F53A703BD1AD9A4EEF7",
+  "schema": "eloi-hybrid-wdl-calibration-v1",
+  "seed": "eloi-caissa125-fresh-fit-v1",
+  "source_change": "none; this report is evidence only",
+  "validation_fraction": 0.3
+}

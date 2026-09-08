@@ -1,8 +1,8 @@
 #include "eloi/brain.hpp"
+#include "eloi/wdl_calibration.hpp"
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <optional>
 #include <stdexcept>
 #include <vector>
@@ -10,12 +10,6 @@
 namespace eloi {
 
 namespace {
-
-// Development-only mappings. These are deliberately separate so calibration
-// can replace either scale without ever comparing raw engine centipawns.
-constexpr double eloi_wdl_pawn_scale = 400.0;
-constexpr double caissa_wdl_pawn_scale = 360.0;
-constexpr double hybrid_report_pawn_scale = 400.0;
 
 SearchLimits slice_limits(
     const SearchLimits& source, int percent,
@@ -38,16 +32,6 @@ SearchLimits slice_limits(
     result.increment_ms = source.increment_ms * percent / 100;
   }
   return result;
-}
-
-double expected_score(int centipawns, double pawn_scale) {
-  return 1.0 / (1.0 + std::pow(10.0, -centipawns / pawn_scale));
-}
-
-int normalized_score(double expectation) {
-  const double bounded = std::clamp(expectation, 0.000001, 0.999999);
-  return static_cast<int>(std::lround(
-      hybrid_report_pawn_scale * std::log10(bounded / (1.0 - bounded))));
 }
 
 std::optional<Move> first_legal(const Board& board,
@@ -75,6 +59,20 @@ struct VerifiedCandidate {
   std::uint64_t nodes{0};
   std::vector<Move> continuation;
 };
+
+// RootSplit is Eloi's stable anchor when Caissa's shared-TT worker vote
+// changes between otherwise identical three-thread searches.  A nearly equal
+// Eloi score is a deterministic tie, while a full-pawn Eloi regression is a
+// safety veto.  The interval between them remains available to the calibrated
+// pessimistic hybrid selector.
+constexpr int eloi_equivalent_tie_cp = 15;
+constexpr int eloi_safety_veto_cp = 100;
+
+int report_from_eloi_anchor(int score_cp) {
+  return cp_from_expected_score(
+      expected_score_from_cp(score_cp, hybrid_wdl_v2.eloi_pawn_scale),
+      hybrid_wdl_v2.report_pawn_scale);
+}
 
 }  // namespace
 
@@ -104,13 +102,30 @@ bool HybridBrain::available() const noexcept {
 
 BrainResponse HybridBrain::search(Board board, SearchLimits limits,
                                   const BrainInfoCallback& info) {
-  if (board.legal_moves().empty()) {
-    BrainResponse response;
+  const bool authoritative_draw =
+      !board.horde &&
+      (board.position.insufficient_material() ||
+       board.is_fifty_move_draw() ||
+       board.is_threefold_repetition());
+  if (board.legal_moves().empty() || authoritative_draw) {
+    const bool checkmate = board.position.in_check(board.turn);
+    // Eloi owns terminal semantics.  Reuse its canonical score/mate mapping
+    // instead of returning a default-constructed zero score from the arbiter.
+    // Positions with a claimable or automatic draw can still have legal moves,
+    // so E2 also supplies their protocol-safe move while Caissa is bypassed.
+    BrainResponse response = eloi_.search(std::move(board), limits);
     response.requested = response.selected = BrainIdentity::hybrid;
     response.status = BrainStatus::complete;
-    response.detail = board.position.in_check(board.turn)
-        ? "terminal checkmate; no move"
-        : "terminal draw; no move";
+    if (authoritative_draw) {
+      response.search.score_cp = 0;
+      response.search.mate = 0;
+      response.used_fallback = true;
+      response.detail = "authoritative Eloi draw; Caissa bypassed";
+    } else {
+      response.detail = checkmate
+          ? "terminal checkmate; no move"
+          : "terminal draw; no move";
+    }
     if (info) info(response);
     return response;
   }
@@ -195,10 +210,22 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
 
   if (caissa_move->same_coordinates(*eloi_move) &&
       caissa_move->promotion == eloi_move->promotion) {
-    BrainResponse response = std::move(caissa);
+    // Agreement determines the move, but the public score and PV must retain a
+    // single meaning. Returning Caissa's raw centipawns here made the UCI
+    // score change scale depending on whether the two brains happened to
+    // agree. Eloi is the stable reporting anchor; Caissa still participates
+    // fully in move selection and agreement confidence.
+    BrainResponse response = std::move(eloi);
     response.requested = BrainIdentity::hybrid;
     response.selected = BrainIdentity::hybrid;
-    response.search.nodes += eloi.search.nodes;
+    response.search.nodes += caissa.search.nodes;
+    if (response.search.mate == 0)
+      response.search.score_cp = report_from_eloi_anchor(
+          response.search.score_cp);
+    if (!response.lines.empty()) {
+      response.lines.front().score_cp = response.search.score_cp;
+      response.lines.front().mate = response.search.mate;
+    }
     response.search.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - started);
     response.confidence = 1.0;
@@ -302,9 +329,11 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
       // The mappings are intentionally independent; raw centipawns from the
       // two networks are never compared directly.
       const double eloi_wdl =
-          expected_score(current.eloi_score_cp, eloi_wdl_pawn_scale);
+          expected_score_from_cp(
+              current.eloi_score_cp, hybrid_wdl_v2.eloi_pawn_scale);
       const double caissa_wdl =
-          expected_score(current.caissa_score_cp, caissa_wdl_pawn_scale);
+          expected_score_from_cp(
+              current.caissa_score_cp, hybrid_wdl_v2.caissa_pawn_scale);
       current.pessimistic = std::min(eloi_wdl, caissa_wdl);
       pessimistic_line = eloi_wdl <= caissa_wdl ? eloi_line : caissa_line;
     }
@@ -328,16 +357,38 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     return response;
   }
 
-  const auto best = std::ranges::max_element(
+  auto best = std::ranges::max_element(
       verified, {}, &VerifiedCandidate::pessimistic);
+  std::string selection_note;
+  const auto eloi_anchor = std::ranges::find_if(
+      verified, [&](const VerifiedCandidate& candidate) {
+        return candidate.move.same_coordinates(*eloi_move) &&
+               candidate.move.promotion == eloi_move->promotion;
+      });
+  if (eloi_anchor != verified.end() && best != eloi_anchor &&
+      best->mate == 0 && eloi_anchor->mate == 0) {
+    const int eloi_drop =
+        eloi_anchor->eloi_score_cp - best->eloi_score_cp;
+    if (std::abs(eloi_drop) <= eloi_equivalent_tie_cp) {
+      best = eloi_anchor;
+      selection_note = "; Eloi won a near-equivalent tie";
+    } else if (eloi_drop >= eloi_safety_veto_cp) {
+      best = eloi_anchor;
+      selection_note = "; Eloi vetoed a one-pawn regression";
+    }
+  }
   response.status = BrainStatus::complete;
   response.search.pv.push_back(best->move);
   response.search.pv.insert(response.search.pv.end(),
                             best->continuation.begin(),
                             best->continuation.end());
+  // The pessimistic expectation selects the move and remains available as
+  // confidence. Public centipawns use the calibrated Eloi anchor so their
+  // scale does not fluctuate with Caissa's nondeterministic worker vote or
+  // with the agreement/disagreement route.
   response.search.score_cp = best->mate
       ? best->eloi_score_cp
-      : normalized_score(best->pessimistic);
+      : report_from_eloi_anchor(best->eloi_score_cp);
   response.search.mate = best->mate;
   response.search.depth = std::min(caissa.search.depth, eloi.search.depth);
   response.search.nodes = caissa.search.nodes + eloi.search.nodes;
@@ -359,12 +410,13 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
                           candidate.continuation.end());
     alternative.score_cp = candidate.mate
         ? candidate.eloi_score_cp
-        : normalized_score(candidate.pessimistic);
+        : report_from_eloi_anchor(candidate.eloi_score_cp);
     alternative.mate = candidate.mate;
     response.lines.push_back(std::move(alternative));
   }
   response.detail =
-      "hybrid disagreement resolved by pessimistic cross-verification";
+      "hybrid disagreement resolved by pessimistic cross-verification" +
+      selection_note;
   if (!response.has_legal_move(board)) {
     response.status = BrainStatus::invalid_move;
     response.detail = "arbiter selected a move outside Eloi's legal list";
