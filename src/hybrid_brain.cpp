@@ -60,14 +60,6 @@ struct VerifiedCandidate {
   std::vector<Move> continuation;
 };
 
-// RootSplit is Eloi's stable anchor when Caissa's shared-TT worker vote
-// changes between otherwise identical three-thread searches.  A nearly equal
-// Eloi score is a deterministic tie, while a full-pawn Eloi regression is a
-// safety veto.  The interval between them remains available to the calibrated
-// pessimistic hybrid selector.
-constexpr int eloi_equivalent_tie_cp = 15;
-constexpr int eloi_safety_veto_cp = 100;
-
 int report_from_eloi_anchor(int score_cp) {
   return cp_from_expected_score(
       expected_score_from_cp(score_cp, hybrid_wdl_v2.eloi_pawn_scale),
@@ -357,26 +349,27 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     return response;
   }
 
-  auto best = std::ranges::max_element(
-      verified, {}, &VerifiedCandidate::pessimistic);
-  std::string selection_note;
-  const auto eloi_anchor = std::ranges::find_if(
+  auto best = std::ranges::find_if(
       verified, [&](const VerifiedCandidate& candidate) {
-        return candidate.move.same_coordinates(*eloi_move) &&
-               candidate.move.promotion == eloi_move->promotion;
+        return candidate.move.same_coordinates(*caissa_move) &&
+               candidate.move.promotion == caissa_move->promotion;
       });
-  if (eloi_anchor != verified.end() && best != eloi_anchor &&
-      best->mate == 0 && eloi_anchor->mate == 0) {
-    const int eloi_drop =
-        eloi_anchor->eloi_score_cp - best->eloi_score_cp;
-    if (std::abs(eloi_drop) <= eloi_equivalent_tie_cp) {
-      best = eloi_anchor;
-      selection_note = "; Eloi won a near-equivalent tie";
-    } else if (eloi_drop >= eloi_safety_veto_cp) {
-      best = eloi_anchor;
-      selection_note = "; Eloi vetoed a one-pawn regression";
+  if (best == verified.end()) best = verified.begin();
+  for (auto candidate = verified.begin(); candidate != verified.end();
+       ++candidate) {
+    const bool candidate_wins = candidate->mate > 0;
+    const bool best_wins = best->mate > 0;
+    const bool candidate_loses = candidate->mate < 0;
+    const bool best_loses = best->mate < 0;
+    if ((candidate_wins && !best_wins) ||
+        (candidate_wins && best_wins && candidate->mate < best->mate) ||
+        (!candidate_loses && best_loses) ||
+        (candidate_loses && best_loses && candidate->mate < best->mate)) {
+      best = candidate;
     }
   }
+  const std::string selection_note =
+      "; ordinary cp vetoes disabled at asymmetric search budgets";
   response.status = BrainStatus::complete;
   response.search.pv.push_back(best->move);
   response.search.pv.insert(response.search.pv.end(),
@@ -415,7 +408,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     response.lines.push_back(std::move(alternative));
   }
   response.detail =
-      "hybrid disagreement resolved by pessimistic cross-verification" +
+      "hybrid disagreement resolved by Caissa anchor with mate-only Eloi safety" +
       selection_note;
   if (!response.has_legal_move(board)) {
     response.status = BrainStatus::invalid_move;

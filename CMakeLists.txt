@@ -172,6 +172,14 @@ if(NOT MSVC)
     "-fdebug-prefix-map=${CMAKE_SOURCE_DIR}=."
     "-fdebug-prefix-map=${CMAKE_BINARY_DIR}=."
     "-frandom-seed=eloi-${ELOI_VERSION}")
+  if(ELOI_BUILD_CAISSA_125_LAB)
+    foreach(ELOI_CAISSA_REPRO_TARGET caissa125_backend eloi_brains EloiHybridLab)
+      target_compile_options(${ELOI_CAISSA_REPRO_TARGET} PRIVATE
+        $<$<CONFIG:Release>:${ELOI_REPRO_COMPILE_FLAGS}>)
+    endforeach()
+    target_link_options(EloiHybridLab PRIVATE
+      $<$<CONFIG:Release>:-flto=1;-Wl,--gc-sections,--no-insert-timestamp;-s>)
+  endif()
   target_compile_options(eloi_core PRIVATE
     $<$<CONFIG:Release>:${ELOI_REPRO_COMPILE_FLAGS}>)
   if(ELOI_BUILD_APP)

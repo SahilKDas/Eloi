@@ -14,7 +14,9 @@ bool BrainResponse::has_legal_move(const Board& board) const {
 }
 
 EloiBrain::EloiBrain(EngineConfig config, std::atomic_bool& stopped)
-    : config_(std::move(config)), stopped_(stopped) {}
+    : config_(std::move(config)),
+      stopped_(stopped),
+      searcher_(std::make_unique<Searcher>(config_, stopped_)) {}
 
 BrainIdentity EloiBrain::identity() const noexcept {
   return BrainIdentity::eloi_e2;
@@ -26,12 +28,11 @@ bool EloiBrain::available() const noexcept {
 
 BrainResponse EloiBrain::search(Board board, SearchLimits limits,
                                 const BrainInfoCallback& info) {
-  Searcher searcher(config_, stopped_);
   const Board root = board;
   BrainResponse response;
   response.requested = BrainIdentity::eloi_e2;
   response.selected = BrainIdentity::eloi_e2;
-  response.search = searcher.iterative(
+  response.search = searcher_->iterative(
       std::move(board), limits,
       [&](const SearchResult& result) {
         if (!info) return;

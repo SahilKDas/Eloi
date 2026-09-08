@@ -278,7 +278,7 @@ int main() {
                response.lines.size() == 2 &&
                response.lines.front().pv.front().uci() == "e2e4" &&
                fake_eloi.calls() == 2 && fake_caissa.calls() == 2 &&
-               response.detail.find("cross-verification") != std::string::npos,
+               response.detail.find("Caissa anchor") != std::string::npos,
            "disagreement reports normalized selected and alternative lines");
   }
 
@@ -352,19 +352,17 @@ int main() {
           if (position.history.empty())
             return fake_response(
                 BrainIdentity::caissa_1_25, position, "e2e4", 0);
-          BrainResponse failed;
-          failed.requested = failed.selected = BrainIdentity::caissa_1_25;
-          failed.status = BrainStatus::failed;
-          return failed;
+          return fake_response(
+              BrainIdentity::caissa_1_25, position, "d7d5", -10);
         }};
     HybridBrain mate_veto{fake_eloi, fake_caissa};
     SearchLimits limits;
     limits.nodes = 1'000;
     const auto response = mate_veto.search(board, limits);
     expect(response.has_legal_move(board) &&
-               response.search.pv.front().uci() == "e2e4" &&
-               response.search.mate == -2,
-           "one brain's forced-loss report survives an ordinary peer score");
+               response.search.pv.front().uci() == "d2d4" &&
+               response.search.mate == 0,
+           "an ordinary candidate is preferred over a forced-loss candidate");
   }
 
   const std::filesystem::path local_network =

@@ -93,6 +93,7 @@ class EloiBrain final : public Brain {
  private:
   EngineConfig config_;
   std::atomic_bool& stopped_;
+  std::unique_ptr<Searcher> searcher_;
 };
 
 // This adapter intentionally fails closed until the remaining Caissa backend
