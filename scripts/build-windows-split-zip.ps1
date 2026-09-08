@@ -156,7 +156,8 @@ Invoke-Checked $cmake @(
   ('-DELOI_CAISSA_NETWORK=' + (Join-Path $projectRoot '.deps\caissa\eval-71-v1.25.pnn'))
 )
 Invoke-Checked $cmake @(
-  '--build', $buildRoot, '--target', 'Eloi', 'EloiLichess', 'eloi_tests', '-j', '2'
+  '--build', $buildRoot, '--target', 'Eloi', 'EloiLichess', 'eloi_tests',
+  'eloi_hybrid_tests', 'eloi_gui_tests', '-j', '2'
 )
 Invoke-Checked $ctest @('--test-dir', $buildRoot, '--output-on-failure')
 
