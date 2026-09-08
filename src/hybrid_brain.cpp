@@ -177,6 +177,10 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     response.detail = caissa_move
         ? "E2 failed; hybrid used Eloi-legal Caissa fallback"
         : "Caissa failed; hybrid used Eloi E2 fallback";
+    if (!caissa_move && !caissa.detail.empty())
+      response.detail += " (" + caissa.detail + ")";
+    if (caissa_move && !eloi.detail.empty())
+      response.detail += " (" + eloi.detail + ")";
     if (!caissa_move && !eloi_move) {
       response.status = BrainStatus::failed;
       response.selected = BrainIdentity::hybrid;

@@ -115,8 +115,9 @@ int run_hybrid_lab(int argc, char** argv) {
   config.own_book = false;
   config.hash_mb = 16;
   EloiBrain eloi(config, stopped);
-  CaissaBrain caissa(network_path(argc, argv), stopped,
-                     16u * 1024u * 1024u);
+  IsolatedCaissaBrain caissa(std::filesystem::absolute(argv[0]),
+                             network_path(argc, argv), stopped,
+                             16u * 1024u * 1024u);
   HybridBrain hybrid(eloi, caissa);
   const LabBrainMode mode = brain_mode(argc, argv);
   Brain* active_brain = &hybrid;
@@ -281,5 +282,7 @@ int run_hybrid_lab(int argc, char** argv) {
 }  // namespace eloi
 
 int main(int argc, char** argv) {
+  if (eloi::caissa_worker_requested(argc, argv))
+    return eloi::run_caissa_worker(argc, argv);
   return eloi::run_hybrid_lab(argc, argv);
 }
