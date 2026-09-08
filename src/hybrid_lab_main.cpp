@@ -44,6 +44,10 @@ std::filesystem::path network_path(int argc, char** argv) {
       environment && *environment) {
     return environment;
   }
+const auto adjacent = std::filesystem::absolute(argv[0]).parent_path() /
+                        "eval-71-v1.25.pnn";
+  std::error_code error;
+  if (std::filesystem::is_regular_file(adjacent, error)) return adjacent;
   return std::filesystem::current_path() /
          ".deps/caissa/eval-71-v1.25.pnn";
 }
