@@ -10,5 +10,6 @@ if ($AllowDirty) { $arguments.AllowDirty = $true }
 if ($SkipDefenderScan) { $arguments.SkipDefenderScan = $true }
 if ($OutputRoot) { $arguments.OutputRoot = $OutputRoot }
 if ($CandidateLabel) { $arguments.CandidateLabel = $CandidateLabel }
+if ($BuildRoot) { $arguments.BuildRoot = $BuildRoot }
 
 & (Join-Path $PSScriptRoot 'build-windows-split-zip.ps1') @arguments

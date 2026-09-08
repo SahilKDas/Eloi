@@ -2,7 +2,8 @@ param(
   [switch] $AllowDirty,
   [switch] $SkipDefenderScan,
   [string] $OutputRoot,
-  [string] $CandidateLabel
+  [string] $CandidateLabel,
+  [string] $BuildRoot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,7 +24,11 @@ if ($CandidateLabel) {
   $releaseVersion += '-' + $CandidateLabel
 }
 $packageName = "Eloi-v$releaseVersion-windows-x64-exoskeleton"
-$buildRoot = Join-Path $projectRoot 'build-split-runtime'
+if ($BuildRoot) {
+  $buildRoot = [IO.Path]::GetFullPath($BuildRoot)
+} else {
+  $buildRoot = Join-Path $projectRoot 'build-split-runtime'
+}
 if ($OutputRoot) {
   $outputRoot = [IO.Path]::GetFullPath($OutputRoot)
 } else {
@@ -125,15 +130,18 @@ if (-not $AllowDirty -and (& git -C $projectRoot status --porcelain)) {
   throw 'Commit the exact source first; the Exoskeleton ZIP packager requires a clean worktree.'
 }
 $null = Assert-UnderProject $outputRoot
+$null = Assert-UnderProject $buildRoot
 
 & (Join-Path $PSScriptRoot 'verify-toolchain.ps1') -RequirePackageArchives
 if ($LASTEXITCODE -ne 0) { throw 'Pinned input verification failed' }
 
 $env:SOURCE_DATE_EPOCH = [string]$lock.source_date_epoch
-Remove-SafeDirectory $buildRoot
-Remove-SafeDirectory $packageRoot
+foreach ($collision in @($buildRoot, $packageRoot, $zipPath)) {
+  if (Test-Path -LiteralPath $collision) {
+    throw "Refusing existing output collision: $collision"
+  }
+}
 New-Item -ItemType Directory -Force -Path $outputRoot, $packageRoot | Out-Null
-if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
 
 Invoke-Checked $cmake @(
   '-S', $projectRoot,
@@ -144,7 +152,8 @@ Invoke-Checked $cmake @(
   "-DCMAKE_CXX_COMPILER=$cxx",
   "-DCMAKE_RC_COMPILER=$windres",
   '-DELOI_BUILD_TESTS=ON',
-  '-DELOI_SPLIT_PACKAGE=ON'
+  '-DELOI_SPLIT_PACKAGE=ON',
+  ('-DELOI_CAISSA_NETWORK=' + (Join-Path $projectRoot '.deps\caissa\eval-71-v1.25.pnn'))
 )
 Invoke-Checked $cmake @(
   '--build', $buildRoot, '--target', 'Eloi', 'EloiLichess', 'eloi_tests', '-j', '2'
@@ -167,6 +176,10 @@ $licenseRoot = Join-Path $packageRoot 'licenses'
 New-Item -ItemType Directory -Force -Path $licenseRoot | Out-Null
 Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') `
   -Destination (Join-Path $licenseRoot 'Eloi-MIT.txt')
+Copy-Item -LiteralPath (Join-Path $projectRoot 'third_party\caissa125\LICENSE') `
+  -Destination (Join-Path $licenseRoot 'Caissa-MIT.txt')
+Copy-Item -LiteralPath (Join-Path $projectRoot '.deps\caissa\eval-71-v1.25.pnn') `
+  -Destination (Join-Path $packageRoot 'eval-71-v1.25.pnn')
 Copy-Item -LiteralPath 'C:\msys64\ucrt64\share\licenses\gcc-libs' `
   -Destination (Join-Path $licenseRoot 'gcc-libs') -Recurse
 Copy-Item -LiteralPath 'C:\msys64\ucrt64\share\licenses\libwinpthread' `
@@ -249,8 +262,8 @@ $manifest = foreach ($file in Get-ChildItem -LiteralPath $packageRoot -File -Rec
 [IO.File]::WriteAllLines(
   $manifestPath, $manifest, [Text.UTF8Encoding]::new($false))
 
-Compress-Archive -Path (Join-Path $packageRoot '*') `
-  -DestinationPath $zipPath -CompressionLevel Optimal
+$zipCode = 'import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from release_v250 import deterministic_zip; deterministic_zip(Path(sys.argv[2]), Path(sys.argv[3]), int(sys.argv[4]))'
+Invoke-Checked 'python' @('-B', '-c', $zipCode, (Join-Path $projectRoot 'scripts'), $packageRoot, $zipPath, [string]$lock.source_date_epoch)
 
 if (-not $SkipDefenderScan) {
   $scanner = 'C:\Program Files\Windows Defender\MpCmdRun.exe'
@@ -263,7 +276,7 @@ if (-not $SkipDefenderScan) {
 $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
 $reportedMainImports = $mainImports -join ', '
 $reportedLichessImports = $lichessImports -join ', '
-Remove-SafeDirectory $packageRoot
+Write-Host "Preserved package staging: $packageRoot"
 Write-Host "Exoskeleton ZIP: $zipPath"
 Write-Host "SHA-256: $zipHash"
 Write-Host "Main imports: $reportedMainImports"

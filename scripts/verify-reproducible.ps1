@@ -88,15 +88,15 @@ function Assert-PeTimestampZero {
   }
 }
 
-function Assert-TwoFileRelease {
+function Assert-FourFileRelease {
   param([string] $Directory)
   $files = @(Get-ChildItem -LiteralPath $Directory -File)
   $directories = @(Get-ChildItem -LiteralPath $Directory -Directory)
-  if ($directories.Count -ne 0 -or $files.Count -ne 2) {
-    throw "Release contract failed in $Directory; expected exactly two files"
+  if ($directories.Count -ne 0 -or $files.Count -ne 4) {
+    throw "Release contract failed in $Directory; expected exactly four files"
   }
   $names = @($files.Name | Sort-Object)
-  if ($names[0] -ne 'config.yml' -or $names[1] -ne 'Eloi.exe') {
+  if (($names -join ',') -ne 'CAISSA_LICENSE.txt,config.yml,Eloi.exe,eval-71-v1.25.pnn') {
     throw "Release contract failed in $Directory; found: $($names -join ', ')"
   }
 }
@@ -129,7 +129,8 @@ function Build-Copy {
     "-DCMAKE_RC_COMPILER=$windres",
     "-DSKIA_ROOT=$skiaRoot",
     "-DELOI_STATIC_ROOT=$staticRoot",
-    '-DELOI_BUILD_TESTS=ON'
+    '-DELOI_BUILD_TESTS=ON',
+    "-DELOI_CAISSA_NETWORK=$(Join-Path $projectRoot '.deps\caissa\eval-71-v1.25.pnn')"
   ) | Out-Host
   Invoke-Checked $cmake @(
     '--build', $build, '--target', 'release', 'eloi_tests', 'eloi_gui_tests', '-j', '2'
@@ -137,7 +138,7 @@ function Build-Copy {
   Invoke-Checked $ctest @('--test-dir', $build, '--output-on-failure') | Out-Host
 
   $release = Join-Path $source 'dist\release'
-  Assert-TwoFileRelease $release
+  Assert-FourFileRelease $release
   Assert-PeTimestampZero (Join-Path $release 'Eloi.exe')
   return $release
 }
@@ -164,7 +165,7 @@ try {
   Write-Host 'Starting independent clean build B'
   $releaseB = Build-Copy 'B'
 
-  foreach ($name in @('Eloi.exe', 'config.yml')) {
+  foreach ($name in @('CAISSA_LICENSE.txt', 'config.yml', 'Eloi.exe', 'eval-71-v1.25.pnn')) {
     $left = Join-Path $releaseA $name
     $right = Join-Path $releaseB $name
     if (-not (Test-FilesEqual $left $right)) {
@@ -208,7 +209,9 @@ try {
     New-Item -ItemType Directory -Force -Path $resolvedStage | Out-Null
     Copy-Item -LiteralPath (Join-Path $releaseA 'Eloi.exe') -Destination $resolvedStage
     Copy-Item -LiteralPath (Join-Path $releaseA 'config.yml') -Destination $resolvedStage
-    Assert-TwoFileRelease $resolvedStage
+    Copy-Item -LiteralPath (Join-Path $releaseA 'eval-71-v1.25.pnn') -Destination $resolvedStage
+    Copy-Item -LiteralPath (Join-Path $releaseA 'CAISSA_LICENSE.txt') -Destination $resolvedStage
+    Assert-FourFileRelease $resolvedStage
     Write-Host "Staged verified release in $resolvedStage"
   }
 

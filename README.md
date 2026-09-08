@@ -196,8 +196,8 @@ The repository includes tools for:
 - toolchain verification;
 - reproducibility proof.
 
-Eloi 2.8.0 does not ship Caissa, a hybrid arbiter, a Caissa network, Syzygy,
-Lazy SMP, variable thread counts, Linux packages, runtime model downloads,
+Eloi 3.0.0 does not ship Syzygy,
+Lazy SMP, variable production thread counts, Linux packages, runtime model downloads,
 Stockfish as a playing backend, Reckless source, or any AGPL component.
 
 Some appear in old branches or plans.
@@ -2895,7 +2895,8 @@ explicitly and conservatively.
 
 This README is engineering documentation, not legal advice.
 
-For v3.0.0, the maintainer accepts that official v1.25 distribution as the`r`nredistribution basis; the Caissa MIT notice remains bundled.
+For v3.0.0, the maintainer accepts that official v1.25 distribution as the
+redistribution basis; the Caissa MIT notice remains bundled.
 
 ---
 
@@ -4302,9 +4303,9 @@ Thank you to
 for creating and open-sourcing
 [Caissa](https://github.com/Witek902/Caissa).
 
-Caissa is not part of current Eloi 2.8.0.
+Caissa 1.25 is the Standard-search donor in Eloi 3.0.0.
 
-If the planned 1.25 integration proceeds, its MIT notice remains prominent.
+Its MIT notice and network identity remain prominent in both package forms.
 
 Thank you to Kadagaden for Maestro chess-piece artwork under CC BY 4.0.
 
@@ -4323,39 +4324,21 @@ Precise bug reports are how the engine survives.
 
 ## Final note
 
-Eloi 2.8.0 is the current engine.
+Eloi 3.0.0 combines Eloi's authoritative board, legal-move validation, variants,
+GUI, UCI, and bridge ownership with a crash-contained Caissa 1.25 Standard
+search brain. Standard UCI play uses the mate-safe hybrid policy; Chess960 and
+Horde remain on Eloi's E2 search until separate donor adapters qualify.
 
-E2-ranking is the current evaluator.
+The bundled `eval-71-v1.25.pnn` is byte-identical to the network extracted from
+the official Caissa v1.25 release executable. Its SHA-256 is
+`615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B`.
+Caissa's MIT notice ships with the network and imported source.
 
-Three-thread RootSplit is the current search.
+At 10,000 nodes per move, the selected policy scored 20W/0D/0L against v2.7.5
+and 19W/1D/0L against v2.8.0 in separate bounded 20-game screens. These are
+strong preliminary results, not a statistically reliable Elo estimate. The
+rejected calibration and veto policies remain documented as failures.
 
-Standard, Chess960, and Horde are current variants.
-
-The Caissa 1.25 system is now an opt-in local experiment.
-
-Its pinned backend, board/history adapter, isolated crash-contained worker,
-three-thread sequential budget, and mate-only hybrid arbiter are implemented.
-The production v2.8.0 engine remains unchanged.
-
-At 10,000 nodes per move, the final experimental arbiter scored 20W/0D/0L
-against v2.7.5 and 19W/1D/0L against v2.8.0 in separate bounded 20-game
-screens. These small deterministic-opening screens justify further testing;
-they are not an Elo estimate or a release qualification.
-
-It inherits no rejected-hybrid claims.
-
-It will not use the unlicensed Caissa 1.26 model.
-
-It will not import AGPL source.
-
-It will not become a release merely because it compiles.
-
-The two brains and their seams are preserved and tested.
-
-The failed calibrated maximin and ordinary-centipawn veto policies were cut
-after scoring 2.5% and 18.75% in bounded screens. Caissa now anchors ordinary
-Standard moves while Eloi supplies legal authority, variant fallback, and
-discrete mate safety.
-
-The next honest step is a larger sealed confirmation only after the Caissa
-1.25 network's redistribution permission is documented explicitly.
+Production packages contain no runtime model downloader. A missing or
+hash-mismatched donor network fails closed rather than silently changing the
+engine identity.

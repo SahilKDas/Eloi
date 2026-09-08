@@ -45,21 +45,23 @@ if ($LASTEXITCODE -ne 0) { throw 'Canonical two-build proof failed' }
 
 $releaseRoot = Join-Path $projectRoot 'dist\release'
 $releaseFiles = @(Get-ChildItem -LiteralPath $releaseRoot -File)
-if ($releaseFiles.Count -ne 2 -or
-    @($releaseFiles.Name | Sort-Object) -join ',' -ne 'config.yml,Eloi.exe') {
-  throw 'Canonical staging must contain exactly Eloi.exe and config.yml'
+if ($releaseFiles.Count -ne 4 -or
+    @($releaseFiles.Name | Sort-Object) -join ',' -ne 'CAISSA_LICENSE.txt,config.yml,Eloi.exe,eval-71-v1.25.pnn') {
+  throw 'Canonical staging must contain exactly the v3 executable, config, Caissa network, and license'
 }
 
 $standaloneName = "Eloi-v$releaseVersion-windows-x64-standalone.zip"
 $standaloneZip = Join-Path $resolvedArtifacts $standaloneName
 Compress-Archive -LiteralPath @(
   (Join-Path $releaseRoot 'Eloi.exe'),
-  (Join-Path $releaseRoot 'config.yml')
+  (Join-Path $releaseRoot 'config.yml'),
+  (Join-Path $releaseRoot 'eval-71-v1.25.pnn'),
+  (Join-Path $releaseRoot 'CAISSA_LICENSE.txt')
 ) -DestinationPath $standaloneZip -CompressionLevel Optimal
 $standaloneEntries = @(tar -tf $standaloneZip)
-if ($LASTEXITCODE -ne 0 -or $standaloneEntries.Count -ne 2 -or
-    @($standaloneEntries | Sort-Object) -join ',' -ne 'config.yml,Eloi.exe') {
-  throw 'Standalone ZIP must contain exactly Eloi.exe and config.yml at its root'
+if ($LASTEXITCODE -ne 0 -or $standaloneEntries.Count -ne 4 -or
+    @($standaloneEntries | Sort-Object) -join ',' -ne 'CAISSA_LICENSE.txt,config.yml,Eloi.exe,eval-71-v1.25.pnn') {
+  throw 'Standalone ZIP must contain exactly the v3 executable, config, Caissa network, and license at its root'
 }
 
 if (-not $SkipDefenderScan) {
