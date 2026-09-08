@@ -143,6 +143,7 @@ class IsolatedCaissaBrain final : public Brain {
 
 bool caissa_worker_requested(int argc, char** argv) noexcept;
 int run_caissa_worker(int argc, char** argv);
+int run_hybrid_lab(int argc, char** argv);
 
 struct HybridBudget {
   int caissa_percent{70};

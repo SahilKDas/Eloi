@@ -1,4 +1,5 @@
 #include "eloi/chess.hpp"
+#include "eloi/brain.hpp"
 #include "eloi/config.hpp"
 #include "eloi/version_match.hpp"
 #include "eloi/version.hpp"
@@ -14,6 +15,8 @@
 
 int main(int argc, char** argv) {
   using namespace eloi;
+  if (caissa_worker_requested(argc, argv))
+    return run_caissa_worker(argc, argv);
   auto config = default_config();
 
   for (int i = 1; i < argc; ++i) {
@@ -34,7 +37,7 @@ int main(int argc, char** argv) {
       return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--screenshot-engine-lab") == 0)
       return run_gui(argc, argv);
-    if (std::strcmp(argv[i], "--uci") == 0) return run_engine(config, argc, argv);
+    if (std::strcmp(argv[i], "--uci") == 0) return run_hybrid_lab(argc, argv);
     if (std::strcmp(argv[i], "--lichess") == 0) {
 #ifdef ELOI_SEPARATE_LICHESS_EXE
       std::cerr << "This Exoskeleton package isolates native Lichess networking.\n"
@@ -71,9 +74,9 @@ int main(int argc, char** argv) {
 
 #ifdef _WIN32
   const DWORD input_type = GetFileType(GetStdHandle(STD_INPUT_HANDLE));
-  if (input_type == FILE_TYPE_PIPE) return run_engine(config, argc, argv);
+  if (input_type == FILE_TYPE_PIPE) return run_hybrid_lab(argc, argv);
   return run_gui(argc, argv);
 #else
-  return run_engine(config, argc, argv);
+  return run_hybrid_lab(argc, argv);
 #endif
 }

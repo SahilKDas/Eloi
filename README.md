@@ -1,14 +1,14 @@
 # Eloi
 
 > A C++26 chess engine, native Windows chess application, reproducible
-> engineering project, and future home of a carefully contained second brain.
+> engineering project, and home of a crash-contained Caissa 1.25 second brain.
 
 Eloi is a UCI-compatible chess engine with a native Skia GUI, a native Lichess
 Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
 a compact incrementally updated NNUE, deterministic three-lane RootSplit
 search, and reproducible Windows packaging.
 
-The current stable source and packaged release are **Eloi 2.8.0**.
+The current stable source is **Eloi 3.0.0**.
 
 The production evaluator is the 64-unit **E2-ranking** NNUE.
 
@@ -18,11 +18,11 @@ Official packages currently target **Windows x64**.
 
 Eloi is distributed under the **MIT License**.
 
-Current main does **not** contain Caissa or a hybrid engine.
+Current main contains the pinned Caissa 1.25 backend and Eloi-owned hybrid.
 
-A future experiment is planned around **Eloi 2.8.0 plus Caissa 1.25**.
+Standard UCI play uses **Eloi 3.0.0 plus Caissa 1.25**.
 
-That experiment is documented here as a plan, not a shipped feature.
+Chess960 and Horde remain on Eloi E2 until separate parity qualification.
 
 ---
 
@@ -55,9 +55,9 @@ That experiment is documented here as a plan, not a shipped feature.
 
 | Item | Current status |
 | --- | --- |
-| Source version | 2.8.0 |
-| Latest tag | v2.8.0 |
-| Latest release | v2.8.0 |
+| Source version | 3.0.0 |
+| Latest tag | v3.0.0 |
+| Latest release | v3.0.0 |
 | Release commit | 6ff04a8d5fa1fd87ec677c89ae52fdd61c8437aa |
 | Language | C++26 |
 | Build system | CMake |
@@ -70,7 +70,7 @@ That experiment is documented here as a plan, not a shipped feature.
 | Parallelism | Exactly three RootSplit lanes |
 | Variants | Standard, Chess960, Horde |
 | Source license | MIT |
-| Caissa in current main | No |
+| Caissa in current main | Yes, pinned v1.25 |
 | Planned donor | Caissa 1.25 |
 | Planned donor commit | 0c01e79ea36ae492585e88cca9d03abae9b7a3d5 |
 | AGPL code accepted | No |
@@ -97,7 +97,7 @@ Experimental history remains evidence.
 
 To play locally:
 
-1. Download the v2.8.0 standalone ZIP.
+1. Download the v3.0.0 standalone ZIP.
 2. Verify its SHA-256.
 3. Extract it.
 4. Double-click Eloi.exe.
@@ -147,7 +147,7 @@ Reproducibility comes before release claims.
 
 ## What ships today
 
-Eloi 2.8.0 ships one production brain containing:
+Eloi 3.0.0 ships Eloi legal authority plus a Caissa 1.25 Standard brain containing:
 
 - Eloi's authoritative board;
 - Standard legality;
@@ -2895,7 +2895,7 @@ explicitly and conservatively.
 
 This README is engineering documentation, not legal advice.
 
-No network enters a package until the license gate passes.
+For v3.0.0, the maintainer accepts that official v1.25 distribution as the`r`nredistribution basis; the Caissa MIT notice remains bundled.
 
 ---
 

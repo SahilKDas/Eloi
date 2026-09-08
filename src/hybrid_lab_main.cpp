@@ -130,8 +130,12 @@ int run_hybrid_lab(int argc, char** argv) {
 
   std::string first;
   if (!std::getline(std::cin, first) || first != "uci") return 2;
-  std::cout << "id name Eloi Hybrid Lab " << version << "\n"
-            << "id author Sahil Das; Caissa backend by Michal Witanowski\n"
+#ifdef ELOI_HYBRID_EMBEDDED
+  std::cout << "id name Eloi " << version << "\n";
+#else
+  std::cout << "id name Eloi Hybrid Lab " << version << "\n";
+#endif
+  std::cout            << "id author Sahil Das; Caissa backend by Michal Witanowski\n"
             << "option name Threads type spin default 3 min 3 max 3\n"
             << "option name Hash type spin default 32 min 32 max 32\n"
             << "option name Move Overhead type spin default 25 min 0 max 5000\n"
@@ -285,8 +289,10 @@ int run_hybrid_lab(int argc, char** argv) {
 
 }  // namespace eloi
 
+#ifndef ELOI_HYBRID_EMBEDDED
 int main(int argc, char** argv) {
   if (eloi::caissa_worker_requested(argc, argv))
     return eloi::run_caissa_worker(argc, argv);
   return eloi::run_hybrid_lab(argc, argv);
 }
+#endif

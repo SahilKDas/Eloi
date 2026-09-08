@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Eloi VERSION 2.8.0 LANGUAGES CXX)
+project(Eloi VERSION 3.0.0 LANGUAGES CXX)
 set(ELOI_PRERELEASE "")
 if(ELOI_PRERELEASE)
   set(ELOI_VERSION "${PROJECT_VERSION}-${ELOI_PRERELEASE}")
@@ -32,6 +32,11 @@ option(ELOI_BUILD_CAISSA_125_LAB
   "Build the isolated Eloi/Caissa 1.25 laboratory" OFF)
 option(ELOI_SPLIT_PACKAGE
   "Build the Defender-friendly external-assets Windows release package" OFF)
+set(ELOI_CAISSA_NETWORK "${CMAKE_CURRENT_SOURCE_DIR}/.deps/caissa/eval-71-v1.25.pnn"
+    CACHE FILEPATH "Hash-pinned Caissa 1.25 eval-71 network")
+if(ELOI_BUILD_APP AND NOT EXISTS "${ELOI_CAISSA_NETWORK}")
+  message(FATAL_ERROR "Caissa 1.25 network not found: ${ELOI_CAISSA_NETWORK}")
+endif()
 if(ELOI_SPLIT_PACKAGE AND NOT WIN32)
   message(FATAL_ERROR "The Exoskeleton package is Windows-only")
 endif()
@@ -68,7 +73,8 @@ if(ELOI_BUILD_APP)
     src/driver.cpp
     src/search_diagnostic.cpp
     src/gui.cpp
-    src/version_match.cpp)
+    src/version_match.cpp
+    src/hybrid_lab_main.cpp)
   if(ELOI_SPLIT_PACKAGE)
     target_sources(eloi_core PRIVATE src/config_writer.cpp)
     add_compile_definitions(ELOI_EXTERNAL_ASSETS ELOI_SEPARATE_LICHESS_EXE)
@@ -96,7 +102,7 @@ if(ELOI_BUILD_APP)
 endif()
 
 
-if(ELOI_BUILD_CAISSA_125_LAB)
+if(ELOI_BUILD_CAISSA_125_LAB OR ELOI_BUILD_APP)
   add_library(caissa125_backend STATIC
     third_party/caissa125/backend/Bitboard.cpp
     third_party/caissa125/backend/Common.cpp
@@ -152,10 +158,16 @@ if(ELOI_BUILD_CAISSA_125_LAB)
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     "${CMAKE_CURRENT_BINARY_DIR}/generated")
 
-  add_executable(EloiHybridLab src/hybrid_lab_main.cpp src/version_match.cpp)
-  target_link_libraries(EloiHybridLab PRIVATE eloi_brains)
-  if(WIN32)
-    target_link_libraries(EloiHybridLab PRIVATE bcrypt)
+  if(ELOI_BUILD_CAISSA_125_LAB)
+    add_executable(EloiHybridLab src/hybrid_lab_main.cpp src/version_match.cpp)
+    target_link_libraries(EloiHybridLab PRIVATE eloi_brains)
+    if(WIN32)
+      target_link_libraries(EloiHybridLab PRIVATE bcrypt)
+    endif()
+  endif()
+  if(ELOI_BUILD_APP)
+    target_compile_definitions(Eloi PRIVATE ELOI_HYBRID_EMBEDDED)
+    target_link_libraries(Eloi PRIVATE eloi_brains)
   endif()
 endif()
 if(NOT MSVC)
@@ -172,11 +184,15 @@ if(NOT MSVC)
     "-fdebug-prefix-map=${CMAKE_SOURCE_DIR}=."
     "-fdebug-prefix-map=${CMAKE_BINARY_DIR}=."
     "-frandom-seed=eloi-${ELOI_VERSION}")
-  if(ELOI_BUILD_CAISSA_125_LAB)
-    foreach(ELOI_CAISSA_REPRO_TARGET caissa125_backend eloi_brains EloiHybridLab)
+  if(ELOI_BUILD_CAISSA_125_LAB OR ELOI_BUILD_APP)
+    foreach(ELOI_CAISSA_REPRO_TARGET caissa125_backend eloi_brains)
       target_compile_options(${ELOI_CAISSA_REPRO_TARGET} PRIVATE
         $<$<CONFIG:Release>:${ELOI_REPRO_COMPILE_FLAGS}>)
     endforeach()
+  endif()
+  if(ELOI_BUILD_CAISSA_125_LAB)
+    target_compile_options(EloiHybridLab PRIVATE
+      $<$<CONFIG:Release>:${ELOI_REPRO_COMPILE_FLAGS}>)
     target_link_options(EloiHybridLab PRIVATE
       $<$<CONFIG:Release>:-flto=1;-Wl,--gc-sections,--no-insert-timestamp;-s>)
   endif()
@@ -239,8 +255,13 @@ if(WIN32 AND ELOI_BUILD_APP)
     COMMAND ${CMAKE_COMMAND} -E copy
             "${CMAKE_CURRENT_SOURCE_DIR}/config.example.yml"
             "${ELOI_RELEASE_DIR}/config.yml"
+COMMAND ${CMAKE_COMMAND} -E copy "${ELOI_CAISSA_NETWORK}"
+            "${ELOI_RELEASE_DIR}/eval-71-v1.25.pnn"
+    COMMAND ${CMAKE_COMMAND} -E copy
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/caissa125/LICENSE"
+            "${ELOI_RELEASE_DIR}/CAISSA_LICENSE.txt"
     DEPENDS Eloi
-    COMMENT "Staging the two-file Eloi release")
+    COMMENT "Staging the four-file Eloi release")
 endif()
 
 option(ELOI_BUILD_TESTS "Build the separate Eloi test runner" OFF)
@@ -254,7 +275,7 @@ if(ELOI_BUILD_TESTS)
     target_link_options(eloi_tests PRIVATE $<$<CONFIG:Release>:-flto=1>)
   endif()
   add_test(NAME eloi_tests COMMAND eloi_tests)
-  if(ELOI_BUILD_CAISSA_125_LAB)
+  if(ELOI_BUILD_CAISSA_125_LAB OR ELOI_BUILD_APP)
     add_executable(eloi_hybrid_tests tests/hybrid_tests.cpp src/version_match.cpp)
     target_link_libraries(eloi_hybrid_tests PRIVATE eloi_brains)
     target_compile_definitions(eloi_hybrid_tests PRIVATE
