@@ -28,6 +28,8 @@ else()
 endif()
 
 option(ELOI_BUILD_APP "Build the production Eloi executable" ON)
+option(ELOI_BUILD_CAISSA_125_LAB
+  "Build the isolated Eloi/Caissa 1.25 laboratory" OFF)
 option(ELOI_SPLIT_PACKAGE
   "Build the Defender-friendly external-assets Windows release package" OFF)
 if(ELOI_SPLIT_PACKAGE AND NOT WIN32)
@@ -93,6 +95,68 @@ if(ELOI_BUILD_APP)
   endif()
 endif()
 
+
+if(ELOI_BUILD_CAISSA_125_LAB)
+  add_library(caissa125_backend STATIC
+    third_party/caissa125/backend/Bitboard.cpp
+    third_party/caissa125/backend/Common.cpp
+    third_party/caissa125/backend/Endgame.cpp
+    third_party/caissa125/backend/Evaluate.cpp
+    third_party/caissa125/backend/Game.cpp
+    third_party/caissa125/backend/Material.cpp
+    third_party/caissa125/backend/Memory.cpp
+    third_party/caissa125/backend/Move.cpp
+    third_party/caissa125/backend/MoveList.cpp
+    third_party/caissa125/backend/MoveOrderer.cpp
+    third_party/caissa125/backend/MovePicker.cpp
+    third_party/caissa125/backend/NeuralNetworkEvaluator.cpp
+    third_party/caissa125/backend/NodeCache.cpp
+    third_party/caissa125/backend/Numa.cpp
+    third_party/caissa125/backend/PackedNeuralNetwork.cpp
+    third_party/caissa125/backend/Position.cpp
+    third_party/caissa125/backend/PositionHash.cpp
+    third_party/caissa125/backend/PositionUtils.cpp
+    third_party/caissa125/backend/Search.cpp
+    third_party/caissa125/backend/SearchUtils.cpp
+    third_party/caissa125/backend/Square.cpp
+    third_party/caissa125/backend/Tablebase.cpp
+    third_party/caissa125/backend/Time.cpp
+    third_party/caissa125/backend/TimeManager.cpp
+    third_party/caissa125/backend/TranspositionTable.cpp
+    third_party/caissa125/backend/Tuning.cpp
+    third_party/caissa125/backend/Waitable.cpp
+    third_party/caissa125/backend/syzygy/tbprobe.cpp)
+  target_include_directories(caissa125_backend PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/caissa125/backend)
+  target_compile_definitions(caissa125_backend PRIVATE
+    CAISSA_VERSION="1.25" ARCHITECTURE_X64
+    USE_SSE USE_SSE2 USE_SSE4 USE_POPCNT USE_AVX USE_AVX2 USE_BMI2)
+  if(MSVC)
+    target_compile_options(caissa125_backend PRIVATE /W4 /permissive- /arch:AVX2 /GR-)
+  else()
+    target_compile_options(caissa125_backend PRIVATE
+      -Wall -Wextra -Werror -Wno-unknown-pragmas -Wno-array-bounds -Wno-maybe-uninitialized
+      -Wno-unused-function
+      -Wno-multichar -Wno-switch -Wno-attributes
+      -Wno-missing-field-initializers -Wno-unused-const-variable
+      -Wno-deprecated-declarations -mavx -mfma -mavx2 -mbmi2 -fno-rtti)
+  endif()
+
+  add_library(eloi_brains STATIC
+    src/caissa_position.cpp src/eloi_brain.cpp
+    src/caissa_brain.cpp src/hybrid_brain.cpp)
+  target_link_libraries(eloi_brains PUBLIC eloi_core)
+  target_link_libraries(eloi_brains PRIVATE caissa125_backend)
+  target_include_directories(eloi_brains PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    "${CMAKE_CURRENT_BINARY_DIR}/generated")
+
+  add_executable(EloiHybridLab src/hybrid_lab_main.cpp src/version_match.cpp)
+  target_link_libraries(EloiHybridLab PRIVATE eloi_brains)
+  if(WIN32)
+    target_link_libraries(EloiHybridLab PRIVATE bcrypt)
+  endif()
+endif()
 if(NOT MSVC)
   # Keep release code generation reproducible. CMake's IPO property expands to
   # -flto=auto with GCC, which makes the partition count host-dependent. A
@@ -181,6 +245,17 @@ if(ELOI_BUILD_TESTS)
     target_link_options(eloi_tests PRIVATE $<$<CONFIG:Release>:-flto=1>)
   endif()
   add_test(NAME eloi_tests COMMAND eloi_tests)
+  if(ELOI_BUILD_CAISSA_125_LAB)
+    add_executable(eloi_hybrid_tests tests/hybrid_tests.cpp src/version_match.cpp)
+    target_link_libraries(eloi_hybrid_tests PRIVATE eloi_brains)
+    target_compile_definitions(eloi_hybrid_tests PRIVATE
+      ELOI_TEST_PROJECT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+    if(WIN32)
+      target_link_libraries(eloi_hybrid_tests PRIVATE bcrypt)
+    endif()
+    add_test(NAME eloi_hybrid_tests COMMAND eloi_hybrid_tests)
+    set_tests_properties(eloi_hybrid_tests PROPERTIES TIMEOUT 30)
+  endif()
   if(WIN32 AND ELOI_BUILD_APP)
     add_executable(eloi_gui_tests tests/gui_smoke.cpp src/version_match.cpp)
     target_link_libraries(eloi_gui_tests PRIVATE eloi_core ${ELOI_GUI_LIBRARIES})
