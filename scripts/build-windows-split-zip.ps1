@@ -263,8 +263,7 @@ $manifest = foreach ($file in Get-ChildItem -LiteralPath $packageRoot -File -Rec
 [IO.File]::WriteAllLines(
   $manifestPath, $manifest, [Text.UTF8Encoding]::new($false))
 
-$zipCode = 'import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from release_v250 import deterministic_zip; deterministic_zip(Path(sys.argv[2]), Path(sys.argv[3]), int(sys.argv[4]))'
-Invoke-Checked 'python' @('-B', '-c', $zipCode, (Join-Path $projectRoot 'scripts'), $packageRoot, $zipPath, [string]$lock.source_date_epoch)
+Invoke-Checked 'python' @('-B', (Join-Path $projectRoot 'scripts\deterministic_zip.py'), $packageRoot, $zipPath, [string]$lock.source_date_epoch)
 
 if (-not $SkipDefenderScan) {
   $scanner = 'C:\Program Files\Windows Defender\MpCmdRun.exe'
