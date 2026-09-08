@@ -133,7 +133,8 @@ function Build-Copy {
     "-DELOI_CAISSA_NETWORK=$(Join-Path $projectRoot '.deps\caissa\eval-71-v1.25.pnn')"
   ) | Out-Host
   Invoke-Checked $cmake @(
-    '--build', $build, '--target', 'release', 'eloi_tests', 'eloi_gui_tests', '-j', '2'
+    '--build', $build, '--target', 'release', 'eloi_tests', 'eloi_hybrid_tests',
+    'eloi_gui_tests', '-j', '2'
   ) | Out-Host
   Invoke-Checked $ctest @('--test-dir', $build, '--output-on-failure') | Out-Host
 
