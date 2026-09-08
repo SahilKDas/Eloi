@@ -2,7 +2,8 @@ param(
   [switch] $AllowDirty,
   [switch] $SkipDefenderScan,
   [string] $OutputRoot,
-  [string] $CandidateLabel
+  [string] $CandidateLabel,
+  [string] $BuildRoot
 )
 
 $arguments = @{}
