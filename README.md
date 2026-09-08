@@ -4331,7 +4331,16 @@ Three-thread RootSplit is the current search.
 
 Standard, Chess960, and Horde are current variants.
 
-The Caissa 1.25 system is a future experiment.
+The Caissa 1.25 system is now an opt-in local experiment.
+
+Its pinned backend, board/history adapter, isolated crash-contained worker,
+three-thread sequential budget, and mate-only hybrid arbiter are implemented.
+The production v2.8.0 engine remains unchanged.
+
+At 10,000 nodes per move, the final experimental arbiter scored 20W/0D/0L
+against v2.7.5 and 19W/1D/0L against v2.8.0 in separate bounded 20-game
+screens. These small deterministic-opening screens justify further testing;
+they are not an Elo estimate or a release qualification.
 
 It inherits no rejected-hybrid claims.
 
@@ -4341,10 +4350,12 @@ It will not import AGPL source.
 
 It will not become a release merely because it compiles.
 
-First preserve both brains.
+The two brains and their seams are preserved and tested.
 
-Then prove the seams.
+The failed calibrated maximin and ordinary-centipawn veto policies were cut
+after scoring 2.5% and 18.75% in bounded screens. Caissa now anchors ordinary
+Standard moves while Eloi supplies legal authority, variant fallback, and
+discrete mate safety.
 
-Then measure the monster.
-
-Then cut away whatever does not earn its place.
+The next honest step is a larger sealed confirmation only after the Caissa
+1.25 network's redistribution permission is documented explicitly.

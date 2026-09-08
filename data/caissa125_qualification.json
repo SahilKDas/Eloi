@@ -1,0 +1,38 @@
+{
+  "schema": "eloi-caissa125-qualification-v1",
+  "source_commit": "012348440a6d5ac948567e2b50a86b95868a6410",
+  "production_unchanged": true,
+  "candidate": {
+    "sha256": "EBBADE60E64EC7C50B282E5B6790E10C40AEFC0C1DA94563D991C8B0B7BA084C",
+    "independent_release_builds_match": true,
+    "pe_timestamp_zero": true,
+    "threads_per_search": 3
+  },
+  "donor": {
+    "name": "Caissa 1.25",
+    "commit": "0c01e79ea36ae492585e88cca9d03abae9b7a3d5",
+    "network_sha256": "615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B",
+    "network_redistribution": "unresolved; local experiment packages only"
+  },
+  "evidence": {
+    "parity_manifest_sha256": "16D09D327DF549F0F83A38BF9D1125E21243A0FB0AC4468BE1C3112C294C8513",
+    "crash_containment_manifest_sha256": "895F89737B6AE070F05EDF3EC04EAF3F63B49D5AB16480837FA7AB9F17555283",
+    "calibration_manifest_sha256": "8CEBA143D2A2F4F4788701F499111DD51B67ED87E1584D37EF4EEE66764F090C"
+  },
+  "screens": [
+    {"opponent": "v2.8.0", "games": 20, "nodes_per_move": 10000, "wins": 19, "draws": 1, "losses": 0, "score_percent": 97.5},
+    {"opponent": "v2.7.5", "games": 20, "nodes_per_move": 10000, "wins": 20, "draws": 0, "losses": 0, "score_percent": 100.0},
+    {"opponent": "v1.0.0", "games": 3, "nodes_per_move": 10000, "wins": 3, "draws": 0, "losses": 0, "score_percent": 100.0, "note": "unbalanced novelty match"}
+  ],
+  "rejected_policies": [
+    {"name": "calibrated maximin", "wins": 0, "draws": 1, "losses": 19, "games": 20},
+    {"name": "Caissa anchor plus ordinary cp vetoes", "wins": 0, "draws": 3, "losses": 5, "games": 8}
+  ],
+  "experiment_package": {
+    "sha256": "711FA6EB96808CF4854FE68C11353ACB8DF541CF20529C3274980C0B17F093B3",
+    "reproducible": true,
+    "fresh_extraction_startup": true,
+    "fresh_extraction_search": true,
+    "publishable": false
+  }
+}
