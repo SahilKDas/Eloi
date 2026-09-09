@@ -179,6 +179,9 @@ BrainResponse CaissaBrain::search(Board board, SearchLimits limits,
   ::SearchParam parameters{impl_->table};
   parameters.limits = donor_limits;
   parameters.numThreads = production_search_threads();
+  // Keep two root lines in the embedded adapter. Unlike the official UCI
+  // frontend's default, this setting is empirically required by Eloi's
+  // three-thread embedding and preserves the validated best-move behavior.
   parameters.numPvLines = 2;
   parameters.debugLog = false;
   parameters.useRootTablebase = false;

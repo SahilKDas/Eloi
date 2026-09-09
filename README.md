@@ -1,7 +1,7 @@
 # Eloi
 
 > A C++26 chess engine, native Windows chess application, reproducible
-> engineering project, and home of a crash-contained Caissa 1.25 second brain.
+> engineering project, and home of a crash-contained Caissa 1.25 Standard brain.
 
 Eloi is a UCI-compatible chess engine with a native Skia GUI, a native Lichess
 Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
@@ -18,9 +18,9 @@ Official packages currently target **Windows x64**.
 
 Eloi is distributed under the **MIT License**.
 
-Current main contains the pinned Caissa 1.25 backend and Eloi-owned hybrid.
+Current main contains the pinned Caissa 1.25 backend with Eloi-owned routing, legality, protocols, variants, GUI, and crash containment.
 
-Standard UCI play uses **Eloi 3.0.0 plus Caissa 1.25**.
+Standard UCI play uses the embedded **Caissa 1.25 search directly**. The experimental two-brain arbiter remains available for development but is not the production default.
 
 Chess960 and Horde remain on Eloi E2 until separate parity qualification.
 
@@ -71,8 +71,8 @@ Chess960 and Horde remain on Eloi E2 until separate parity qualification.
 | Variants | Standard, Chess960, Horde |
 | Source license | MIT |
 | Caissa in current main | Yes, pinned v1.25 |
-| Planned donor | Caissa 1.25 |
-| Planned donor commit | 0c01e79ea36ae492585e88cca9d03abae9b7a3d5 |
+| Standard search donor | Caissa 1.25 |
+| Donor commit | 0c01e79ea36ae492585e88cca9d03abae9b7a3d5 |
 | AGPL code accepted | No |
 
 Source version, Git tag, and packaged release are related but distinct.
@@ -147,7 +147,7 @@ Reproducibility comes before release claims.
 
 ## What ships today
 
-Eloi 3.0.0 ships Eloi legal authority plus a Caissa 1.25 Standard brain containing:
+Eloi 3.0.0 ships Eloi legal authority plus a Caissa 1.25 Standard search brain. Chess960 and Horde use Eloi's E2 search. Together they provide:
 
 - Eloi's authoritative board;
 - Standard legality;
@@ -4326,8 +4326,10 @@ Precise bug reports are how the engine survives.
 
 Eloi 3.0.0 combines Eloi's authoritative board, legal-move validation, variants,
 GUI, UCI, and bridge ownership with a crash-contained Caissa 1.25 Standard
-search brain. Standard UCI play uses the mate-safe hybrid policy; Chess960 and
-Horde remain on Eloi's E2 search until separate donor adapters qualify.
+search brain. Standard UCI play routes directly to embedded Caissa 1.25;
+Chess960 and Horde remain on Eloi's E2 search until separate donor adapters
+qualify. If the pinned Caissa network is unavailable or fails verification,
+Standard play fails safely to E2.
 
 The bundled `eval-71-v1.25.pnn` is byte-identical to the network extracted from
 the official Caissa v1.25 release executable. Its SHA-256 is

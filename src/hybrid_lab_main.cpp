@@ -52,20 +52,22 @@ const auto adjacent = std::filesystem::absolute(argv[0]).parent_path() /
          ".deps/caissa/eval-71-v1.25.pnn";
 }
 
-enum class LabBrainMode { hybrid, caissa, eloi };
+enum class LabBrainMode { production, hybrid, caissa, eloi };
 
 LabBrainMode brain_mode(int argc, char** argv) {
   for (int index = 1; index + 1 < argc; ++index) {
     if (std::string_view(argv[index]) != "--brain") continue;
     const std::string_view value = argv[index + 1];
+    if (value == "hybrid") return LabBrainMode::hybrid;
     if (value == "caissa") return LabBrainMode::caissa;
     if (value == "eloi") return LabBrainMode::eloi;
   }
-  return LabBrainMode::hybrid;
+  return LabBrainMode::production;
 }
 
 std::string_view brain_mode_name(LabBrainMode mode) {
   switch (mode) {
+    case LabBrainMode::production: return "production";
     case LabBrainMode::caissa: return "caissa";
     case LabBrainMode::eloi: return "eloi";
     default: return "hybrid";
@@ -124,9 +126,10 @@ int run_hybrid_lab(int argc, char** argv) {
                              16u * 1024u * 1024u);
   HybridBrain hybrid(eloi, caissa);
   const LabBrainMode mode = brain_mode(argc, argv);
-  Brain* active_brain = &hybrid;
+  Brain* active_brain = nullptr;
   if (mode == LabBrainMode::caissa) active_brain = &caissa;
   else if (mode == LabBrainMode::eloi) active_brain = &eloi;
+  else if (mode == LabBrainMode::hybrid) active_brain = &hybrid;
 
   std::string first;
   if (!std::getline(std::cin, first) || first != "uci") return 2;
@@ -161,7 +164,34 @@ int run_hybrid_lab(int argc, char** argv) {
     snapshot.chess960 = !snapshot.horde &&
                         (snapshot.chess960 || uci_chess960);
     worker = std::thread([&, snapshot = std::move(snapshot), limits]() mutable {
-      const BrainResponse response = active_brain->search(snapshot, limits);
+      Brain* selected_brain = active_brain;
+      if (!selected_brain) {
+        selected_brain = (!snapshot.horde && !snapshot.chess960 &&
+                          caissa.available())
+                             ? static_cast<Brain*>(&caissa)
+                             : static_cast<Brain*>(&eloi);
+      }
+      BrainResponse response = selected_brain->search(snapshot, limits);
+      bool runtime_fallback = false;
+      if (!active_brain && selected_brain == &caissa &&
+          response.status != BrainStatus::stopped &&
+          !response.has_legal_move(snapshot)) {
+        const std::string donor_failure = response.detail;
+        response = eloi.search(snapshot, limits);
+        response.used_fallback = true;
+        response.detail = "production routing: Caissa failed; used Eloi E2";
+        if (!donor_failure.empty())
+          response.detail += " (" + donor_failure + ")";
+        runtime_fallback = true;
+      }
+      if (!active_brain && selected_brain == &eloi) {
+        response.used_fallback = true;
+        response.detail = snapshot.horde || snapshot.chess960
+            ? "production routing: variant uses Eloi E2"
+            : "production routing: Caissa unavailable; used Eloi E2";
+      } else if (!active_brain && !runtime_fallback) {
+        response.detail = "production routing: Standard uses Caissa 1.25";
+      }
       print_result(response, snapshot, snapshot.chess960, output);
     });
   };
