@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "date": "2026-09-10",
+  "production_unchanged": true,
+  "baseline": {"name": "C0", "sha256": "615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B"},
+  "c5": {
+    "purpose": "Full-network quantization-aware deployed-score training",
+    "sha256": "C7049CA22742C09A8AE74BED1BF1B5C91B2A5F1AC39A5636E9B387B4D130826C",
+    "training_rows": 65150,
+    "validation_rows": 8134,
+    "sealed_test_rows": 8096,
+    "changed_input_weights": 1350359,
+    "changed_output_weights": 11440,
+    "validation_mae_before_cp": 503.314627275259,
+    "validation_mae_after_cp": 480.19151220143215,
+    "screen": {"planned_games": 40, "completed_games": 25, "nodes_per_move": 10000, "wins": 0, "draws": 0, "losses": 25, "status": "rejected_threshold_unreachable"}
+  },
+  "c6": {
+    "purpose": "Conservative C0 fine-tune with offline C0/Stockfish-3 disagreement-child labels",
+    "sha256": "8F4D95DAC6692EDE9449B710BF256934F3B08E3E72D69A059E9BD5780A086591",
+    "disagreement_positions_scanned": 500,
+    "disagreement_positions": 276,
+    "hard_child_rows": 552,
+    "teacher_nodes": 5000,
+    "training_rows": 65150,
+    "validation_rows": 8134,
+    "sealed_test_rows": 8096,
+    "changed_input_weights": 90647,
+    "changed_output_weights": 5663,
+    "validation_mae_before_cp": 503.314627275259,
+    "validation_mae_after_cp": 487.23305897109447,
+    "screen": {"planned_games": 40, "completed_games": 23, "nodes_per_move": 10000, "wins": 0, "draws": 0, "losses": 23, "status": "rejected_threshold_unreachable"}
+  },
+  "conclusion": "Both candidates improved held-out static-score MAE and passed mechanical tests, but catastrophically weakened search. Neither is eligible for promotion. Future candidates require explicit pairwise policy or search-aware distillation with C0 move-order retention."
+}
