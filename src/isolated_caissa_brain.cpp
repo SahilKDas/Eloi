@@ -138,8 +138,11 @@ int run_caissa_worker(int argc, char** argv) {
   std::ostringstream startup_telemetry;
   std::streambuf* protocol_output = std::cout.rdbuf(
       startup_telemetry.rdbuf());
+  // The parent adapter owns stop/deadline enforcement and kills this worker on
+  // cancellation, so a second per-search polling thread here only adds latency.
   CaissaBrain brain(worker_network(argc, argv), stopped,
-                    static_cast<std::size_t>(hash_mb) * 1024u * 1024u);
+                    static_cast<std::size_t>(hash_mb) * 1024u * 1024u,
+                    false);
   std::cout.rdbuf(protocol_output);
   if (!brain.available()) return 70;
   std::cout << "READY\n" << std::flush;
@@ -214,6 +217,7 @@ struct IsolatedCaissaBrain::Impl {
   PROCESS_INFORMATION process{};
   HANDLE input{nullptr};
   HANDLE output{nullptr};
+  std::string buffered_output;
 
   void close_worker(bool terminate) noexcept {
     if (input) {
@@ -238,6 +242,7 @@ struct IsolatedCaissaBrain::Impl {
       CloseHandle(output);
       output = nullptr;
     }
+    buffered_output.clear();
   }
 
   bool start_worker() {
@@ -277,7 +282,7 @@ struct IsolatedCaissaBrain::Impl {
     mutable_command.push_back(L'\0');
     const BOOL created = CreateProcessW(
         executable.c_str(), mutable_command.data(), nullptr, nullptr, TRUE,
-        CREATE_NO_WINDOW | IDLE_PRIORITY_CLASS, nullptr,
+        CREATE_NO_WINDOW, nullptr,
         executable.parent_path().c_str(), &startup, &process);
     CloseHandle(child_input);
     CloseHandle(child_output);
@@ -305,8 +310,14 @@ const auto ready = read_line(
 
   std::optional<std::string> read_line(
       std::optional<std::chrono::steady_clock::time_point> deadline) {
-    std::string line;
     for (;;) {
+      if (const auto newline = buffered_output.find('\n');
+          newline != std::string::npos) {
+        std::string line = buffered_output.substr(0, newline);
+        buffered_output.erase(0, newline + 1);
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        return line;
+      }
       if (stopped) {
         failure = "Caissa worker stopped";
         close_worker(true);
@@ -324,16 +335,16 @@ const auto ready = read_line(
         return std::nullopt;
       }
       if (available) {
-        char character = 0;
+        char chunk[4096];
         DWORD read = 0;
-        if (!ReadFile(output, &character, 1, &read, nullptr) || read != 1) {
+        const DWORD requested = std::min<DWORD>(available, sizeof(chunk));
+        if (!ReadFile(output, chunk, requested, &read, nullptr) || read == 0) {
           failure = "Caissa worker response read failed";
           close_worker(true);
           return std::nullopt;
         }
-        if (character == '\n') return line;
-        if (character != '\r') line.push_back(character);
-        if (line.size() > 1'000'000) {
+        buffered_output.append(chunk, read);
+        if (buffered_output.size() > 1'000'000) {
           failure = "Caissa worker response exceeded protocol limit";
           close_worker(true);
           return std::nullopt;

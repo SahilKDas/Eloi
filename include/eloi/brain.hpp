@@ -103,7 +103,8 @@ class CaissaBrain final : public Brain {
  public:
   CaissaBrain(std::filesystem::path network_path,
               std::atomic_bool& stopped,
-              std::size_t hash_bytes = 16u * 1024u * 1024u);
+              std::size_t hash_bytes = 16u * 1024u * 1024u,
+              bool bridge_external_stop = true);
   ~CaissaBrain();
 
   CaissaBrain(const CaissaBrain&) = delete;

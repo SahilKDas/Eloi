@@ -72,22 +72,27 @@ std::vector<Move> translate_pv(Board board,
 }  // namespace
 
 struct CaissaBrain::Impl {
-  Impl(std::atomic_bool& stop_flag, std::size_t hash_bytes)
-      : stopped(stop_flag), table(hash_bytes) {}
+  Impl(std::atomic_bool& stop_flag, std::size_t hash_bytes,
+       bool bridge_external_stop)
+      : stopped(stop_flag), table(hash_bytes),
+        bridge_external_stop(bridge_external_stop) {}
 
   std::atomic_bool& stopped;
   ::TranspositionTable table;
   ::Search searcher;
   std::mutex mutex;
+  bool bridge_external_stop;
   bool ready{false};
   std::string failure;
 };
 
 CaissaBrain::CaissaBrain(std::filesystem::path network_path,
                          std::atomic_bool& stopped,
-                         std::size_t hash_bytes)
+                         std::size_t hash_bytes,
+                         bool bridge_external_stop)
     : network_path_(std::move(network_path)),
-      impl_(std::make_unique<Impl>(stopped, hash_bytes)) {
+      impl_(std::make_unique<Impl>(stopped, hash_bytes,
+                                   bridge_external_stop)) {
   initialize_caissa_backend();
   std::error_code error;
   if (!std::filesystem::is_regular_file(network_path_, error)) {
@@ -191,19 +196,22 @@ BrainResponse CaissaBrain::search(Board board, SearchLimits limits,
   ::SearchStats stats;
   const auto started = std::chrono::steady_clock::now();
   std::atomic_bool search_finished{false};
-  std::jthread stop_bridge([&] {
-    while (!search_finished.load(std::memory_order_acquire)) {
-      if (impl_->stopped.load(std::memory_order_relaxed)) {
-        parameters.stopSearch.store(true, std::memory_order_release);
-        return;
+  std::optional<std::jthread> stop_bridge;
+  if (impl_->bridge_external_stop) {
+    stop_bridge.emplace([&] {
+      while (!search_finished.load(std::memory_order_acquire)) {
+        if (impl_->stopped.load(std::memory_order_relaxed)) {
+          parameters.stopSearch.store(true, std::memory_order_release);
+          return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-  });
+    });
+  }
   impl_->table.NextGeneration();
   impl_->searcher.DoSearch(game, parameters, donor_result, &stats);
   search_finished.store(true, std::memory_order_release);
-  stop_bridge.join();
+  if (stop_bridge) stop_bridge->join();
   response.search.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now() - started);
   response.search.nodes = stats.nodes.load();
