@@ -8,7 +8,7 @@ Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
 a compact incrementally updated NNUE, deterministic three-lane RootSplit
 search, and reproducible Windows packaging.
 
-The current stable source is **Eloi 3.1.0**.
+The current development source is **Eloi 3.1.1**, a native-Lichess hotfix pending live validation.
 
 The production evaluator is the 64-unit **E2-ranking** NNUE.
 
@@ -55,7 +55,7 @@ Chess960 and Horde remain on Eloi E2 until separate parity qualification.
 
 | Item | Current status |
 | --- | --- |
-| Source version | 3.1.0 |
+| Source version | 3.1.1 |
 | Latest tag | v3.1.0 |
 | Latest release | v3.1.0 |
 | Release commit | See the `v3.1.0` tag |

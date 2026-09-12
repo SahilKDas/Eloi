@@ -1,5 +1,6 @@
 #include "eloi/config.hpp"
 #include "eloi/chess.hpp"
+#include "eloi/brain.hpp"
 #include "eloi/version.hpp"
 
 #ifdef _WIN32
@@ -184,11 +185,21 @@ class HttpClient {
       WinHttpCloseHandle(request);
       return false;
     }
+    if (line_handler)
+      std::cout << "Lichess stream connected: "
+                << std::string(path.begin(), path.end()) << '\n';
     std::string pending;
     char buffer[8192];
     for (;;) {
+      DWORD available = 0;
+      if (!WinHttpQueryDataAvailable(request, &available)) break;
+      if (!available) {
+        WinHttpCloseHandle(request);
+        return true;
+      }
       DWORD read = 0;
-      if (!WinHttpReadData(request, buffer, sizeof(buffer), &read)) break;
+      const DWORD requested = std::min<DWORD>(available, sizeof(buffer));
+      if (!WinHttpReadData(request, buffer, requested, &read)) break;
       if (!read) {
         WinHttpCloseHandle(request);
         return true;
@@ -292,6 +303,8 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
   std::atomic_bool search_stopped{false};
   std::unique_ptr<Searcher> game_searcher;
   std::optional<EngineConfig> game_searcher_config;
+  std::unique_ptr<IsolatedCaissaBrain> caissa_searcher;
+  int caissa_hash_mb{-1};
   std::thread ponder_thread;
   std::optional<SearchResult> ponder_result;
   std::optional<SearchResult> last_search;
@@ -392,6 +405,27 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     return *game_searcher;
   };
 
+  auto search_position = [&](Board board, const EngineConfig& engine,
+                             SearchLimits limits) -> SearchResult {
+    if (!board.chess960 && !board.horde) {
+      if (!caissa_searcher || caissa_hash_mb != engine.hash_mb) {
+        const auto directory = executable_directory();
+        caissa_searcher = std::make_unique<IsolatedCaissaBrain>(
+            directory / "Eloi.exe", directory / "eval-71-v1.25.pnn",
+            search_stopped,
+            static_cast<std::size_t>(std::max(1, engine.hash_mb)) *
+                1024u * 1024u);
+        caissa_hash_mb = engine.hash_mb;
+      }
+      BrainResponse response = caissa_searcher->search(board, limits);
+      if (response.has_legal_move(board)) return std::move(response.search);
+      if (response.status == BrainStatus::stopped) return {};
+      std::cerr << "Caissa Lichess search failed; using Eloi E2 fallback: "
+                << response.detail << '\n';
+      search_stopped.store(false, std::memory_order_relaxed);
+    }
+    return persistent_searcher(engine).iterative(std::move(board), limits);
+  };
   auto take_ponder = [&](std::string_view moves, bool game_running)
       -> std::optional<SearchResult> {
     if (!ponder_thread.joinable()) return std::nullopt;
@@ -433,13 +467,13 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     engine.hash_mb = config.hash_mb;
     engine.move_overhead_ms = config.move_overhead_ms;
     engine.own_book = config.own_book && !chess960 && !horde;
-    Searcher* searcher = &persistent_searcher(engine);
     ponder_thread = std::thread(
-        [&, predicted = std::move(predicted), searcher]() mutable {
+        [&, predicted = std::move(predicted), engine]() mutable {
           SearchLimits limits;
           limits.depth = config.depth;
           limits.move_overhead_ms = config.move_overhead_ms;
-          ponder_result = searcher->iterative(std::move(predicted), limits);
+          ponder_result = search_position(
+              std::move(predicted), engine, limits);
         });
     if (!ponder_chat_sent) {
       ponder_chat_sent = true;
@@ -495,7 +529,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
           state, *bot_side == Color::white ? "winc" : "binc").value_or(0);
       limits.move_overhead_ms = config.move_overhead_ms;
       search_stopped.store(false, std::memory_order_relaxed);
-      result = persistent_searcher(engine).iterative(*board, limits);
+      result = search_position(*board, engine, limits);
     }
     last_search = result;
     if (result.pv.empty()) return;
