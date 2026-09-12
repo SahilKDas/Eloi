@@ -75,6 +75,11 @@ Chess960 and Horde remain on Eloi E2 until separate parity qualification.
 | Donor commit | 0c01e79ea36ae492585e88cca9d03abae9b7a3d5 |
 | AGPL code accepted | No |
 
+Newer Caissa releases are tracked through a fail-closed, source-only laboratory
+described in [CAISSA_UPSTREAM.md](CAISSA_UPSTREAM.md). Eloi does not download
+models at build time or runtime, mix evaluator generations, or promote donor
+code without a matching licensed model and complete qualification evidence.
+
 Source version, Git tag, and packaged release are related but distinct.
 
 Stable releases should make all three identities agree.

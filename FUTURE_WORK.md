@@ -5,6 +5,15 @@ to train, benchmark, publish or replace a user's installation.
 Follow [device constraints](constraints_on_SahilKDas_device.md) and freeze a
 new protocol before expensive experiments.
 
+## Upstream Caissa scaling
+
+Caissa is Eloi's long-term Standard-search foundation. New upstream releases
+are governed by [CAISSA_UPSTREAM.md](CAISSA_UPSTREAM.md) and the pinned
+machine-readable manifest in `data/caissa_upstream_releases.json`. Caissa 1.26
+is source-only research until the matching SCReLU model has an affirmative
+redistribution basis and a reviewed identity; it must never run with the 1.25
+CReLU network. Production therefore remains on qualified Caissa 1.25.
+
 ## Current baseline
 
 Use the exact E2-ranking network in

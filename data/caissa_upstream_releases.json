@@ -1,0 +1,49 @@
+{
+  "schema": "eloi-caissa-upstream-releases-v1",
+  "policy": {
+    "production_release": "1.25",
+    "production_route": "standard=caissa-1.25;chess960=eloi-e2;horde=eloi-e2",
+    "runtime_downloads_allowed": false,
+    "unlicensed_models_may_be_committed_or_packaged": false,
+    "mixed_evaluator_generations_allowed": false,
+    "promotion_score_percent_strictly_greater_than": 50.0
+  },
+  "releases": {
+    "1.25": {
+      "status": "production",
+      "source_commit": "0c01e79ea36ae492585e88cca9d03abae9b7a3d5",
+      "source_license": "MIT",
+      "source_location": "third_party/caissa125",
+      "evaluator_family": "CReLU eval-71",
+      "required_network": "eval-71-v1.25.pnn",
+      "network_sha256": "615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B",
+      "network_size": 50367040,
+      "network_redistributable": true,
+      "network_redistribution_basis": "Frozen Eloi v3.1.1 production record; preserve the bundled Caissa MIT notice"
+    },
+    "1.26": {
+      "status": "source-only-lab",
+      "source_tag": "1.26",
+      "source_commit": "008b0b8f1fc6479890665a1a9c2ff6bbc2f1bc06",
+      "source_archive_url": "https://github.com/Witek902/Caissa/archive/refs/tags/1.26.tar.gz",
+      "source_archive_sha256": "A1EFD9B3B0E4C2D4355DDDC15C68A51B51F8BA5E0190D615A4EE20AE269264ED",
+      "source_license": "MIT",
+      "source_license_sha256": "59E58E1150C7361E6BA7D7AF79E804118979CCAD1339F0320B344A003F712215",
+      "evaluator_family": "SCReLU eval-82",
+      "required_network": "eval-82-383B.pnn",
+      "network_repository": "https://github.com/Witek902/Caissa-Nets",
+      "network_sha256": null,
+      "network_size": null,
+      "network_redistributable": false,
+      "network_redistribution_basis": null,
+      "upstream_changes": [
+        "SCReLU evaluation trained separately from the 1.25 CReLU model",
+        "mate-search and endgame improvements",
+        "low-node aspiration running-average initialization",
+        "history retention and move-ordering refinements",
+        "accumulator refresh, correction-history prefetch, and move-generation speed work"
+      ],
+      "release_blocker": "The matching model has no affirmative license recorded by Eloi"
+    }
+  }
+}
