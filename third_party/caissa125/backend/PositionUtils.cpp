@@ -1259,9 +1259,15 @@ bool Position::IsMoveValid_Fast(const PackedMove& move) const
 
 bool Position::IsCapture(const PackedMove& move) const
 {
+#ifdef ELOI_CAISSA_LAB_FAST_CAPTURE
+    return
+        (GetCurrentSide().pieces[move.FromSquare().Index()] != Piece::None) &&
+        (GetOpponentSide().pieces[move.ToSquare().Index()] != Piece::None);
+#else
     return
         (GetCurrentSide().Occupied() & move.FromSquare().GetBitboard()) &&
         (GetOpponentSide().Occupied() & move.ToSquare().GetBitboard());
+#endif
 }
 
 uint64_t Position::Perft(uint32_t depth, bool print) const

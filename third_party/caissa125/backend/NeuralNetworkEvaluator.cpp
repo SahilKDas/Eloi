@@ -350,8 +350,13 @@ INLINE static void RefreshAccumulator(const nn::PackedNeuralNetwork& network, No
     AccumulatorCache::KingBucket& kingBucketCache = cache.kingBuckets[color][kingBucket + kingSide * nn::NumKingBuckets];
 
     // find closest parent node that has valid accumulator
+#ifdef ELOI_CAISSA_LAB_NSTAGE_ACCUM
+    NodeInfo* prevAccumNode = nullptr;
+    for (NodeInfo* nodePtr = &node; ; --nodePtr)
+#else
     const NodeInfo* prevAccumNode = nullptr;
     for (const NodeInfo* nodePtr = &node; ; --nodePtr)
+#endif
     {
         uint32_t newKingSide, newKingBucket;
         if constexpr (perspective == White)
@@ -379,19 +384,29 @@ INLINE static void RefreshAccumulator(const nn::PackedNeuralNetwork& network, No
         }
     }
 
-    NodeInfo* parentInfo = &node - 1;
-
+#ifdef ELOI_CAISSA_LAB_NSTAGE_ACCUM
     if (prevAccumNode == &node)
     {
-        // do nothing - accumulator is already up to date (was cached)
+        return;
+    }
+    else if (prevAccumNode)
+    {
+        for (NodeInfo* nodePtr = prevAccumNode + 1; nodePtr <= &node; ++nodePtr)
+            UpdateAccumulator<perspective>(network, nodePtr - 1, *nodePtr, kingBucketCache);
+    }
+    else
+    {
+        UpdateAccumulator<perspective>(network, nullptr, node, kingBucketCache);
+    }
+#else
+    NodeInfo* parentInfo = &node - 1;
+    if (prevAccumNode == &node)
+    {
     }
     else if (node.ply > 0 && prevAccumNode &&
         parentInfo != prevAccumNode &&
         parentInfo->nnContext.accumDirty[color])
     {
-        // two-stage update:
-        // if parent node has invalid accumulator, update it first
-        // this way, sibling nodes can reuse parent's accumulator
         UpdateAccumulator<perspective>(network, prevAccumNode, *parentInfo, kingBucketCache);
         UpdateAccumulator<perspective>(network, parentInfo, node, kingBucketCache);
     }
@@ -399,6 +414,7 @@ INLINE static void RefreshAccumulator(const nn::PackedNeuralNetwork& network, No
     {
         UpdateAccumulator<perspective>(network, prevAccumNode, node, kingBucketCache);
     }
+#endif
 }
 
 int32_t NNEvaluator::Evaluate(const nn::PackedNeuralNetwork& network, NodeInfo& node, AccumulatorCache& cache)

@@ -1,0 +1,58 @@
+{
+  "schema": "eloi-safe-speed-campaign-v1",
+  "outcome": "rejected",
+  "production_remains": "v3.1.1",
+  "frozen": {
+    "source_revision": "3892c8e",
+    "executable_sha256": "78242B1213A52FB00E6730AF5D3D0D23E71B03EB397978709E4376C6A3081EE6",
+    "network_sha256": "615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B",
+    "threads": 3,
+    "hash_mb": 32
+  },
+  "gate": {
+    "minimum_overall_median_nps_ratio": 1.05,
+    "minimum_per_tier_nps_ratio": 0.98,
+    "no_median_depth_reduction": true,
+    "no_deadline_overrun": true
+  },
+  "candidates": [
+    {
+      "name": "combined",
+      "ratios": {"250_ms": 0.899318978126361, "500_ms": 1.02889894192345, "1000_ms": 1.02421333931217},
+      "overall_median_ratio": 1.02421333931217,
+      "passed": false,
+      "evidence_sha256": "395FA14ABA08A4354FB6AAA22B5A09657AD6F326C1095299069B76C8FE1BFF16"
+    },
+    {
+      "name": "fast_capture",
+      "executable_sha256": "320C9D1410E0C61BB42778E369BA81E2D29E77ABC5076789CBEBEA2C53712E0B",
+      "ratios": {"250_ms": 0.982140824221508, "500_ms": 0.836976148070268, "1000_ms": 1.05930630190017},
+      "overall_median_ratio": 0.982140824221508,
+      "passed": false,
+      "evidence_sha256": "3D8B242872F4DDC4E0F3659D198D4C9FEBF229FBECE629A9E78911A93A24018A"
+    },
+    {
+      "name": "nstage_accumulator",
+      "executable_sha256": "062784531662972E735F938D29763000C8E21A64D13B3A0224B2696FD446E884",
+      "ratios": {"250_ms": 1.00881901479073, "500_ms": 1.07325766460545, "1000_ms": 1.0000649424462},
+      "overall_median_ratio": 1.00881901479073,
+      "passed": false,
+      "evidence_sha256": "D748D08D974C7EA302E1B2F3ABE307C95A7C1DDFCA1E4339769AB8EE6C554756"
+    },
+    {
+      "name": "correction_prefetch",
+      "executable_sha256": "19FB5186B6703BD10980AB55D3277A8DD7D8D01CD9AC859C0DA7D9163A8B11",
+      "ratios": {"250_ms": 1.01304951933734, "500_ms": 0.979740528926773, "1000_ms": 0.910825421800188},
+      "overall_median_ratio": 0.979740528926773,
+      "passed": false,
+      "evidence_sha256": "C2BDBB3E2A6CCC31B0FE9B7EA4198A63AED2D6F57588E4CE248687EA8EB23275"
+    }
+  ],
+  "depth_telemetry": {
+    "available": false,
+    "observed_value": 0,
+    "disposition": "recorded limitation; no positive depth claim"
+  },
+  "strength_games_run": 0,
+  "reason_strength_games_skipped": "mandatory performance gate failed"
+}

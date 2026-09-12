@@ -30,6 +30,9 @@ endif()
 option(ELOI_BUILD_APP "Build the production Eloi executable" ON)
 option(ELOI_BUILD_CAISSA_125_LAB
   "Build the isolated Eloi/Caissa 1.25 laboratory" OFF)
+option(ELOI_CAISSA_LAB_FAST_CAPTURE "Lab-only 1.26 capture lookup backport" OFF)
+option(ELOI_CAISSA_LAB_NSTAGE_ACCUM "Lab-only 1.26 accumulator walk backport" OFF)
+option(ELOI_CAISSA_LAB_CORR_PREFETCH "Lab-only 1.26 correction-history prefetch" OFF)
 option(ELOI_SPLIT_PACKAGE
   "Build the Defender-friendly external-assets Windows release package" OFF)
 set(ELOI_CAISSA_NETWORK "${CMAKE_CURRENT_SOURCE_DIR}/.deps/caissa/eval-71-v1.25.pnn"
@@ -137,6 +140,14 @@ if(ELOI_BUILD_CAISSA_125_LAB OR ELOI_BUILD_APP)
   target_compile_definitions(caissa125_backend PRIVATE
     CAISSA_VERSION="1.25" ARCHITECTURE_X64
     USE_SSE USE_SSE2 USE_SSE4 USE_POPCNT USE_AVX USE_AVX2 USE_BMI2)
+  foreach(ELOI_CAISSA_LAB_OPTION
+      ELOI_CAISSA_LAB_FAST_CAPTURE
+      ELOI_CAISSA_LAB_NSTAGE_ACCUM
+      ELOI_CAISSA_LAB_CORR_PREFETCH)
+    if(${ELOI_CAISSA_LAB_OPTION})
+      target_compile_definitions(caissa125_backend PRIVATE ${ELOI_CAISSA_LAB_OPTION})
+    endif()
+  endforeach()
   if(MSVC)
     target_compile_options(caissa125_backend PRIVATE /W4 /permissive- /arch:AVX2 /GR-)
   else()
