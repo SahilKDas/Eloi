@@ -1,6 +1,6 @@
 # Eloi v3.1.1 hotfix
 
-Status: local candidate pending live Lichess validation. Do not publish yet.
+Status: stable hotfix. Live Lichess validation passed before publication.
 
 ## Defects found in v3.1.0
 
@@ -32,8 +32,8 @@ Status: local candidate pending live Lichess validation. Do not publish yet.
 - Caissa network SHA-256 remained
   `615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B`.
 
-## Remaining publication gate
+## Live validation
 
-Run the candidate visibly against a real Lichess game. Require an immediate
-`gameStart` reaction, a connected game stream, and at least one legal move POST.
-Only then build reproducible v3.1.1 packages and publish the hotfix.
+The candidate connected visibly to the Lichess account and event streams,
+reacted to a real game, and submitted legal moves. This closed the final
+functional gate that v3.1.0 had failed.

@@ -8,7 +8,7 @@ Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
 a compact incrementally updated NNUE, deterministic three-lane RootSplit
 search, and reproducible Windows packaging.
 
-The current development source is **Eloi 3.1.1**, a native-Lichess hotfix pending live validation.
+The current stable source is **Eloi 3.1.1**.
 
 The production evaluator is the 64-unit **E2-ranking** NNUE.
 
@@ -56,9 +56,9 @@ Chess960 and Horde remain on Eloi E2 until separate parity qualification.
 | Item | Current status |
 | --- | --- |
 | Source version | 3.1.1 |
-| Latest tag | v3.1.0 |
-| Latest release | v3.1.0 |
-| Release commit | See the `v3.1.0` tag |
+| Latest tag | v3.1.1 |
+| Latest release | v3.1.1 |
+| Release commit | See the `v3.1.1` tag |
 | Language | C++26 |
 | Build system | CMake |
 | Primary toolchain | MSYS2 UCRT64 GCC |
@@ -97,7 +97,7 @@ Experimental history remains evidence.
 
 To play locally:
 
-1. Download the v3.1.0 standalone ZIP.
+1. Download the v3.1.1 standalone ZIP.
 2. Verify its SHA-256.
 3. Extract it.
 4. Double-click Eloi.exe.
@@ -147,7 +147,7 @@ Reproducibility comes before release claims.
 
 ## What ships today
 
-Eloi 3.1.0 ships Eloi legal authority plus a faster Caissa 1.25 Standard search brain. Chess960 and Horde use Eloi's E2 search. Together they provide:
+Eloi 3.1.1 ships Eloi legal authority plus a faster Caissa 1.25 Standard search brain. Chess960 and Horde use Eloi's E2 search. Together they provide:
 
 - Eloi's authoritative board;
 - Standard legality;
@@ -196,7 +196,7 @@ The repository includes tools for:
 - toolchain verification;
 - reproducibility proof.
 
-Eloi 3.1.0 does not ship Syzygy,
+Eloi 3.1.1 does not ship Syzygy,
 Lazy SMP, variable production thread counts, Linux packages, runtime model downloads,
 Stockfish as a playing backend, Reckless source, or any AGPL component.
 
