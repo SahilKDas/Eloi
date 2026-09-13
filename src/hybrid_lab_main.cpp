@@ -1,4 +1,5 @@
 #include "eloi/brain.hpp"
+#include "eloi/policy_value.hpp"
 #include "eloi/version.hpp"
 
 #include <algorithm>
@@ -53,7 +54,7 @@ const auto adjacent = std::filesystem::absolute(argv[0]).parent_path() /
          ".deps/caissa/eval-71-v1.25.pnn";
 }
 
-enum class LabBrainMode { production, hybrid, caissa, eloi, eloi_single };
+enum class LabBrainMode { production, hybrid, caissa, eloi, eloi_single, eloi_policy };
 
 LabBrainMode brain_mode(int argc, char** argv) {
   for (int index = 1; index + 1 < argc; ++index) {
@@ -63,6 +64,7 @@ LabBrainMode brain_mode(int argc, char** argv) {
     if (value == "caissa") return LabBrainMode::caissa;
     if (value == "eloi") return LabBrainMode::eloi;
     if (value == "eloi-single") return LabBrainMode::eloi_single;
+    if (value == "eloi-policy") return LabBrainMode::eloi_policy;
   }
   return LabBrainMode::production;
 }
@@ -73,10 +75,17 @@ std::string_view brain_mode_name(LabBrainMode mode) {
     case LabBrainMode::caissa: return "caissa";
     case LabBrainMode::eloi: return "eloi";
     case LabBrainMode::eloi_single: return "eloi-single";
+    case LabBrainMode::eloi_policy: return "eloi-policy";
     default: return "hybrid";
   }
 }
 
+std::filesystem::path policy_value_path(int argc, char** argv) {
+  for (int index = 1; index + 1 < argc; ++index)
+    if (std::string_view(argv[index]) == "--policy-value")
+      return argv[index + 1];
+  return {};
+}
 std::uint32_t selectivity_mask(int argc, char** argv) {
   for (int index = 1; index + 1 < argc; ++index) {
     if (std::string_view(argv[index]) != "--selectivity") continue;
@@ -152,7 +161,28 @@ int run_hybrid_lab(int argc, char** argv) {
   config.own_book = false;
   config.hash_mb = 16;
   EloiBrain eloi(config, stopped);
-  EloiBrain eloi_single(config, stopped, SearchConcurrency::single_thread_lab);
+  auto policy_value = std::make_shared<PolicyValueNetwork>();
+  std::string policy_error;
+  const auto policy_path = policy_value_path(argc, argv);
+  const bool policy_loaded = !policy_path.empty() &&
+      policy_value->load(policy_path, &policy_error);
+  Searcher::MovePrior move_prior;
+  if (policy_loaded) {
+    move_prior = [policy_value](const Board& position, const MoveList& moves) {
+      const auto prediction = policy_value->predict(position, moves);
+      std::vector<float> result;
+      result.reserve(prediction.policy.size());
+      for (const auto& [move, probability] : prediction.policy) {
+        (void)move;
+        result.push_back(probability);
+      }
+      return result;
+    };
+  }
+  EloiBrain eloi_single(config, stopped, SearchConcurrency::single_thread_lab,
+                        move_prior);
+  EloiBrain eloi_policy(config, stopped,
+                        SearchConcurrency::production_three_threads, move_prior);
   IsolatedCaissaBrain caissa(std::filesystem::absolute(argv[0]),
                              network_path(argc, argv), stopped,
                              16u * 1024u * 1024u);
@@ -163,6 +193,7 @@ int run_hybrid_lab(int argc, char** argv) {
   if (mode == LabBrainMode::caissa) active_brain = &caissa;
   else if (mode == LabBrainMode::eloi) active_brain = &eloi;
   else if (mode == LabBrainMode::eloi_single) active_brain = &eloi_single;
+  else if (mode == LabBrainMode::eloi_policy) active_brain = &eloi_policy;
   else if (mode == LabBrainMode::hybrid) active_brain = &hybrid;
 
   std::string first;
@@ -183,6 +214,9 @@ int run_hybrid_lab(int argc, char** argv) {
                                    : "unavailable; E2 fallback active")
             << "\ninfo string Lab brain mode " << brain_mode_name(mode)
             << "\ninfo string Lab selectivity mask " << lab_selectivity
+            << "\ninfo string Lab policy/value "
+            << (policy_loaded ? "loaded as root-order prior" :
+                (policy_path.empty() ? "disabled" : policy_error))
             << "\nuciok" << std::endl;
 
   std::thread worker;

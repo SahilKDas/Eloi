@@ -1,4 +1,5 @@
 #include "eloi/brain.hpp"
+#include "eloi/policy_value.hpp"
 #include "eloi/wdl_calibration.hpp"
 
 #include <atomic>
@@ -83,6 +84,12 @@ class FakeBrain final : public Brain {
 }  // namespace
 
 int main() {
+  {
+    PolicyValueNetwork missing;
+    std::string error;
+    expect(!missing.load("definitely-absent.epv", &error) && !error.empty(),
+           "policy/value loader fails closed on a missing artifact");
+  }
   expect(production_search_threads() == 3,
          "every production brain process owns exactly three search threads");
   expect(HybridBudget{}.valid(), "default hybrid budget totals 100 percent");

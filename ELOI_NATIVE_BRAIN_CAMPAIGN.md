@@ -23,10 +23,10 @@ UCI/Lichess, while E2 remains the legal fallback and the Chess960/Horde brain.
 |---|---|---|
 | F0: instrument E2 and teacher data | Implemented; 1,000-row campaign complete | `tmp/eloi-native-f0-teacher-1000`; dataset SHA-256 `CCFCF806055EE18AF5B38A2B95D17608EF30E3658F3E59E815E4F2A96CD175A8` |
 | F1: modern single-thread E2 | Laboratory path implemented; mechanical suites pass | `--brain eloi-single`; no helper lanes; full configured TT belongs to the single lane |
-| F2: policy/value network | Trainer and first model implemented; not search-integrated | 800 train, 95 validation, 105 sealed test; candidate under `tmp/eloi-native-f2-candidate2` |
-| F3: conservative selectivity | Mechanism isolation implemented; no new pruning | `--selectivity none|all|reverse-futility,razoring,internal-reduction,null-move,probcut,futility,lmp,lmr` |
-| F4: restore three-thread Eloi | Structural mode exists and is tested | production Searcher owns exactly three lanes with private TT shards |
-| F5: challenge Caissa-era Eloi | Blocked by design | requires an F2 model integrated into F1, per-mechanism F3 selection, and tactical qualification |
+| F2: policy/value network | Implemented and root-order integrated in the lab | Python/C++ parity max error `5.94e-08`; model remains unqualified |
+| F3: conservative selectivity | Mechanisms screened independently | no-null combination passes; full stack repeats the knight-hang regression |
+| F4: restore three-thread Eloi | Implemented and tactically green | three-lane policy candidate passes core and humiliation EPDs |
+| F5: challenge Caissa-era Eloi | Completed and rejected | 0W/0D/20L at 20,000 nodes per move against frozen v3.1.1 |
 
 ## F0 dataset semantics
 
@@ -83,9 +83,9 @@ Those numbers are preliminary: 1,000 roots are enough to prove the pipeline,
 not enough to establish a strong chess model. The test partition was not
 opened.
 
-The model must not steer production or enter a package until native C++
-inference parity, root-order integration, tactical gates, and strength gates
-all pass.
+The model must not steer production or enter a package: although inference
+parity, root-order integration, and tactical gates passed, its F5 strength gate
+failed decisively.
 
 ## F3 isolation
 
@@ -100,19 +100,34 @@ Selection must start with full-width F1, add one mechanism at a time, and keep
 only changes that improve work without adding a tactical or stability failure.
 No pruning threshold should be tuned against the sealed test set.
 
-## Required next gates
+## Gate disposition
 
-1. Implement a strict C++ `EPV1` loader and prove Python/C++ inference parity.
-2. Integrate policy only as a root/move-order prior in the one-thread lab;
-   retain alpha-beta as the authority over the final score and move.
-3. Expand F0 with game-balanced positions and tactical refutations while
-   staying under device quotas; keep the existing 105 test roots sealed.
-4. Run the complete EPD and humiliation suites on full-width F1+F2.
-5. Screen each F3 mechanism independently at equal nodes, then validate the
-   retained combination.
-6. Restore F4 three-thread search and re-run determinism-distribution, deadline,
-   legality, and tactical gates.
-7. Only then run F5 mirrored games against frozen v3.1.1/Caissa-era Eloi.
+1. C++ `EPV1` loader and Python parity: passed.
+2. One-thread root-policy integration with alpha-beta authority: passed.
+3. Core plus humiliation tactical suites: passed for F1/F2.
+4. Per-mechanism F3 screen: completed; combined full stack rejected.
+5. Conservative no-null F3 combination: passed tactical gates.
+6. Three-thread F4 restoration: passed tactical gates.
+7. F5 mirrored screen: failed 0W/0D/20L; candidate rejected.
+
+## F2–F5 qualification result
+
+The strict C++ loader fails closed on malformed artifacts. Python/C++ inference
+parity passed across opening, middlegame, and endgame positions with maximum
+absolute difference `5.94e-08` at tolerance `2e-06`. The model was attached
+only as a root-order prior; alpha-beta remained authoritative.
+
+Every selectivity mechanism passed alone, but the full combination repeated
+`online-bIw09dp9-knight-hang` by playing forbidden `c6e5`. Removing null-move
+pruning produced the fastest conservative passing ablation and passed both the
+15-position core suite and the humiliation suite after restoring three lanes.
+
+That F4 candidate then played a 20-game mirrored F5 screen at 20,000 nodes per
+move against frozen v3.1.1 and scored **0W/0D/20L (0.0%)** with no reported
+protocol failures. It is rejected. Production remains unchanged.
+
+The next model must use far more teacher positions and a policy head capable of
+move interactions. No further gauntlet is justified for candidate 1.
 
 Until step 7 succeeds, Caissa-era Eloi remains the champion and production is
 unchanged.

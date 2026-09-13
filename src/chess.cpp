@@ -2103,6 +2103,13 @@ MoveList Searcher::ordered_moves(const Board& board, PackedMove tt_move,
   std::array<int, MoveList::capacity> scores{};
   for (std::size_t index = 0; index < moves.size(); ++index)
     scores[index] = priority(moves[index]);
+  if (ply == 0 && lane_ == 0 && move_prior_) {
+    const auto prior = move_prior_(board, moves);
+    if (prior.size() == moves.size())
+      for (std::size_t index = 0; index < moves.size(); ++index)
+        scores[index] += static_cast<int>(
+            std::clamp(prior[index], 0.0f, 1.0f) * 100'000.0f);
+  }
   for (std::size_t index = 1; index < moves.size(); ++index) {
     const Move move = moves[index];
     const int score = scores[index];

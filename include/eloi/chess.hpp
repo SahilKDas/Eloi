@@ -350,6 +350,8 @@ enum class SearchConcurrency { production_three_threads, single_thread_lab };
 
 class Searcher {
  public:
+  using MovePrior = std::function<std::vector<float>(const Board&,
+                                                     const MoveList&)>;
   Searcher(EngineConfig config, std::atomic_bool& stopped);
   Searcher(EngineConfig config, std::atomic_bool& stopped,
            SearchConcurrency concurrency);
@@ -359,6 +361,7 @@ class Searcher {
                          const std::function<void(const SearchResult&)>& info = {});
   int static_evaluation(const Board& board) { return evaluate(board); }
   std::uint64_t nodes_searched() const { return nodes_; }
+  void set_move_prior(MovePrior prior) { move_prior_ = std::move(prior); }
 
  private:
   friend struct SearcherTestAccess;
@@ -409,6 +412,7 @@ class Searcher {
   Move root_best_{};
   int lane_{0};
   SearchConcurrency concurrency_{SearchConcurrency::production_three_threads};
+  MovePrior move_prior_;
   std::array<std::unique_ptr<Searcher>, search_thread_count - 1>
       owned_helpers_{};
   std::array<Searcher*, search_thread_count - 1> root_helpers_{};

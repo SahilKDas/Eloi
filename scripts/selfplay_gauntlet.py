@@ -89,6 +89,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidate", required=True, type=pathlib.Path)
     parser.add_argument("--baseline", required=True, type=pathlib.Path)
+    parser.add_argument("--candidate-arg", action="append", default=[])
+    parser.add_argument("--baseline-arg", action="append", default=[])
     parser.add_argument(
         "--candidate-parallel-mode",
         choices=("RootSplit", "LazySMP"), default="RootSplit",
@@ -165,9 +167,11 @@ def main() -> int:
     scores = []
     engine_timeout = 60.0 if args.idle_priority else 10.0
     candidate = chess.engine.SimpleEngine.popen_uci(
-        [str(args.candidate), "--uci"], timeout=engine_timeout, **popen_args)
+        [str(args.candidate), "--uci", *args.candidate_arg],
+        timeout=engine_timeout, **popen_args)
     baseline = chess.engine.SimpleEngine.popen_uci(
-        [str(args.baseline), "--uci"], timeout=engine_timeout, **popen_args)
+        [str(args.baseline), "--uci", *args.baseline_arg],
+        timeout=engine_timeout, **popen_args)
     try:
         configure(candidate, timed=args.movetime_ms is not None,
                   parallel_mode=args.candidate_parallel_mode)

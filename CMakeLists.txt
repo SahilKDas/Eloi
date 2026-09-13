@@ -162,7 +162,7 @@ if(ELOI_BUILD_CAISSA_125_LAB OR ELOI_BUILD_APP)
   add_library(eloi_brains STATIC
     src/caissa_position.cpp src/eloi_brain.cpp
     src/caissa_brain.cpp src/isolated_caissa_brain.cpp
-    src/wdl_calibration.cpp src/hybrid_brain.cpp)
+    src/wdl_calibration.cpp src/hybrid_brain.cpp src/policy_value.cpp)
   target_link_libraries(eloi_brains PUBLIC eloi_core)
   target_link_libraries(eloi_brains PRIVATE caissa125_backend)
   target_include_directories(eloi_brains PUBLIC
@@ -172,6 +172,8 @@ if(ELOI_BUILD_CAISSA_125_LAB OR ELOI_BUILD_APP)
   if(ELOI_BUILD_CAISSA_125_LAB)
     add_executable(EloiHybridLab src/hybrid_lab_main.cpp src/version_match.cpp)
     target_link_libraries(EloiHybridLab PRIVATE eloi_brains)
+    add_executable(EloiPolicyValueProbe src/policy_value_probe.cpp)
+    target_link_libraries(EloiPolicyValueProbe PRIVATE eloi_brains)
     if(WIN32)
       target_link_libraries(EloiHybridLab PRIVATE bcrypt)
     endif()
