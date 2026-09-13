@@ -13,10 +13,11 @@ bool BrainResponse::has_legal_move(const Board& board) const {
   });
 }
 
-EloiBrain::EloiBrain(EngineConfig config, std::atomic_bool& stopped)
+EloiBrain::EloiBrain(EngineConfig config, std::atomic_bool& stopped,
+                     SearchConcurrency concurrency)
     : config_(std::move(config)),
       stopped_(stopped),
-      searcher_(std::make_unique<Searcher>(config_, stopped_)) {}
+      searcher_(std::make_unique<Searcher>(config_, stopped_, concurrency)) {}
 
 BrainIdentity EloiBrain::identity() const noexcept {
   return BrainIdentity::eloi_e2;

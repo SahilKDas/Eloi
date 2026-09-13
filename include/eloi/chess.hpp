@@ -247,6 +247,18 @@ struct EngineConfig {
 
 enum class SearchProfile { production, full_width };
 
+enum class Selectivity : std::uint32_t {
+  reverse_futility = 1u << 0,
+  razoring = 1u << 1,
+  internal_reduction = 1u << 2,
+  null_move = 1u << 3,
+  probcut = 1u << 4,
+  futility = 1u << 5,
+  late_move_pruning = 1u << 6,
+  late_move_reduction = 1u << 7,
+  all = (1u << 8) - 1,
+};
+
 struct SearchLimits {
   int depth{0};
   std::uint64_t nodes{0};
@@ -257,6 +269,8 @@ struct SearchLimits {
   int move_overhead_ms{50};
   // Diagnostic-only: never exposed as a production UCI tuning option.
   SearchProfile profile{SearchProfile::production};
+  // Laboratory mechanism isolation. Production leaves this at all.
+  std::uint32_t selectivity_mask{static_cast<std::uint32_t>(Selectivity::all)};
   bool collect_diagnostics{false};
 };
 
@@ -332,9 +346,13 @@ struct SearchResult {
   int root_tt_score_cp{0};
 };
 
+enum class SearchConcurrency { production_three_threads, single_thread_lab };
+
 class Searcher {
  public:
   Searcher(EngineConfig config, std::atomic_bool& stopped);
+  Searcher(EngineConfig config, std::atomic_bool& stopped,
+           SearchConcurrency concurrency);
   Searcher(EngineConfig config, std::atomic_bool& stopped, int lane);
   ~Searcher();
   SearchResult iterative(Board board, SearchLimits limits,
@@ -390,6 +408,7 @@ class Searcher {
   std::vector<std::uint64_t> repetition_keys_;
   Move root_best_{};
   int lane_{0};
+  SearchConcurrency concurrency_{SearchConcurrency::production_three_threads};
   std::array<std::unique_ptr<Searcher>, search_thread_count - 1>
       owned_helpers_{};
   std::array<Searcher*, search_thread_count - 1> root_helpers_{};

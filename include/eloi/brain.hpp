@@ -83,7 +83,9 @@ class Brain {
 
 class EloiBrain final : public Brain {
  public:
-  EloiBrain(EngineConfig config, std::atomic_bool& stopped);
+  EloiBrain(EngineConfig config, std::atomic_bool& stopped,
+            SearchConcurrency concurrency =
+                SearchConcurrency::production_three_threads);
 
   BrainIdentity identity() const noexcept override;
   bool available() const noexcept override;

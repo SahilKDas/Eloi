@@ -1100,6 +1100,16 @@ int main() {
     expect(SearcherTestAccess::lane_count(root_splitter) == 3 &&
                !SearcherTestAccess::helpers_share_table(root_splitter),
            "root splitter owns exactly three lanes with private TT shards");
+    Searcher single(root_config, stopped,
+                    SearchConcurrency::single_thread_lab);
+    expect(SearcherTestAccess::lane_count(single) == 1,
+           "lab-only single-thread search owns no helper lanes");
+    SearchLimits isolated;
+    isolated.selectivity_mask =
+        static_cast<std::uint32_t>(Selectivity::late_move_reduction);
+    expect(isolated.selectivity_mask !=
+               static_cast<std::uint32_t>(Selectivity::all),
+           "lab search can isolate one selectivity mechanism");
   }
 
   {

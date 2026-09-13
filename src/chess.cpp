@@ -1670,45 +1670,54 @@ std::string board_ascii(const Board& board) {
 }
 
 Searcher::Searcher(EngineConfig config, std::atomic_bool& stopped)
-    : Searcher(std::move(config), stopped, 0) {}
+    : Searcher(std::move(config), stopped,
+               SearchConcurrency::production_three_threads) {}
+
+Searcher::Searcher(EngineConfig config, std::atomic_bool& stopped,
+                   SearchConcurrency concurrency)
+    : config_(std::move(config)), stopped_(stopped),
+      killers_(maximum_search_depth + 32), lane_(0),
+      concurrency_(concurrency) {
+  if (config_.hash_mb > 0) {
+    const std::size_t parts = concurrency_ ==
+        SearchConcurrency::production_three_threads ? 2 : 4;
+    const std::size_t requested = static_cast<std::size_t>(config_.hash_mb) *
+        1024 * 1024 * parts / 4 / sizeof(TTBucket);
+    table_.resize(std::bit_floor(std::max<std::size_t>(1, requested)));
+  }
+  if (concurrency_ == SearchConcurrency::single_thread_lab) return;
+  for (int index = 0; index < search_thread_count - 1; ++index) {
+    owned_helpers_[index] =
+        std::make_unique<Searcher>(config_, stopped_, index + 1);
+    root_helpers_[index] = owned_helpers_[index].get();
+    root_worker_threads_[index] = std::thread([this, index] {
+      std::uint64_t observed_epoch = 0;
+      std::unique_lock lock(root_work_mutex_);
+      for (;;) {
+        root_work_ready_.wait(lock, [&] {
+          return root_work_shutdown_ || root_work_epoch_ != observed_epoch;
+        });
+        if (root_work_shutdown_) return;
+        observed_epoch = root_work_epoch_;
+        auto work = root_work_;
+        lock.unlock();
+        work(index + 1);
+        lock.lock();
+        ++root_work_completed_;
+        root_work_done_.notify_one();
+      }
+    });
+  }
+}
 
 Searcher::Searcher(EngineConfig config, std::atomic_bool& stopped, int lane)
     : config_(std::move(config)), stopped_(stopped),
-      killers_(maximum_search_depth + 32), lane_(lane) {
+      killers_(maximum_search_depth + 32), lane_(lane),
+      concurrency_(SearchConcurrency::single_thread_lab) {
   if (config_.hash_mb > 0) {
-    // Keep half of the fixed memory budget on the coherent principal search;
-    // the two diversified helpers receive one quarter each. This preserves
-    // the configured total instead of silently tripling memory usage.
-    const std::size_t budget_parts = lane_ == 0 ? 2 : 1;
     const std::size_t requested = static_cast<std::size_t>(config_.hash_mb) *
-        1024 * 1024 * budget_parts / 4 / sizeof(TTBucket);
-    const std::size_t buckets = std::bit_floor(std::max<std::size_t>(1, requested));
-    table_.resize(buckets);
-  }
-  if (lane_ == 0) {
-    for (int index = 0; index < search_thread_count - 1; ++index) {
-      owned_helpers_[index] =
-          std::make_unique<Searcher>(config_, stopped_, index + 1);
-      root_helpers_[index] = owned_helpers_[index].get();
-      root_worker_threads_[index] = std::thread([this, index] {
-        std::uint64_t observed_epoch = 0;
-        std::unique_lock lock(root_work_mutex_);
-        for (;;) {
-          root_work_ready_.wait(lock, [&] {
-            return root_work_shutdown_ ||
-                   root_work_epoch_ != observed_epoch;
-          });
-          if (root_work_shutdown_) return;
-          observed_epoch = root_work_epoch_;
-          auto work = root_work_;
-          lock.unlock();
-          work(index + 1);
-          lock.lock();
-          ++root_work_completed_;
-          root_work_done_.notify_one();
-        }
-      });
-    }
+        1024 * 1024 / 4 / sizeof(TTBucket);
+    table_.resize(std::bit_floor(std::max<std::size_t>(1, requested)));
   }
 }
 
@@ -2297,20 +2306,24 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       ? volatility(board, 4) : (in_check ? 65 : 20);
 
   const bool full_width = limits_.profile == SearchProfile::full_width;
-  if (!full_width && !pv_node && !excluded && !in_check && depth <= 5 &&
+  const auto selective = [&](Selectivity mechanism) {
+    return !full_width && (limits_.selectivity_mask &
+        static_cast<std::uint32_t>(mechanism)) != 0;
+  };
+  if (selective(Selectivity::reverse_futility) && !pv_node && !excluded && !in_check && depth <= 5 &&
       base_volatility < 50 && std::abs(beta) < mate_score - 1'000 &&
       static_score - (70 + 85 * depth) >= beta) {
     ++reverse_futility_cutoffs_;
     return static_score;
   }
 
-  if (!full_width && !pv_node && !excluded && !in_check && depth <= 2 &&
+  if (selective(Selectivity::razoring) && !pv_node && !excluded && !in_check && depth <= 2 &&
       base_volatility < 55 && static_score + 180 * depth <= alpha) {
     const int razor = quiescence(board, alpha, beta, ply, 0);
     if (razor <= alpha) { ++razor_cutoffs_; return razor; }
   }
 
-  if (!full_width && !pv_node && !excluded && depth >= 6 && !tt_move) {
+  if (selective(Selectivity::internal_reduction) && !pv_node && !excluded && depth >= 6 && !tt_move) {
     ++internal_reductions_;
     --depth;
   }
@@ -2326,7 +2339,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       300 * minor_count + 500 * rook_count + 900 * queen_count;
   const int non_pawn_count = minor_count + rook_count + queen_count;
 
-  if (!full_width && !board.horde && allow_null && !pv_node && !excluded && !in_check &&
+  if (selective(Selectivity::null_move) && !board.horde && allow_null && !pv_node && !excluded && !in_check &&
       depth >= 3 && ply > 0 && board.halfmove < 80 &&
       base_volatility < 65 &&
       (non_pawn_value >= 500 || non_pawn_count >= 2) &&
@@ -2363,7 +2376,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     return parallel_root(
         board, moves, depth, alpha, beta, static_score, previous);
 
-  if (!full_width && !pv_node && !excluded && !in_check && depth >= 5 &&
+  if (selective(Selectivity::probcut) && !pv_node && !excluded && !in_check && depth >= 5 &&
       node_volatility < 80 && beta < mate_score - 1'000) {
     const int prob_beta = std::min(mate_score - ply - 1, beta + 140);
     int candidates = 0;
@@ -2410,7 +2423,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       ++countermove_hits_;
     const int futility_margin = node_volatility >= 55 ? 190
         : (node_volatility <= 22 ? 75 : 120);
-    if (!full_width && move_index > 0 && depth == 1 && quiet && !in_check &&
+    if (selective(Selectivity::futility) && move_index > 0 && depth == 1 && quiet && !in_check &&
         static_score + futility_margin <= alpha) {
       ++futility_prunes_;
       ++late_move_prunes_;
@@ -2458,7 +2471,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
          (move.same_coordinates(killers_[ply][0]) ||
           move.same_coordinates(killers_[ply][1])));
     const int lmp_threshold = 4 + depth * 2;
-    if (!full_width && !pv_node && !in_check && quiet && depth <= 3 &&
+    if (selective(Selectivity::late_move_pruning) && !pv_node && !in_check && quiet && depth <= 3 &&
         move_index >= lmp_threshold && history < 0 &&
         node_volatility < 55 && !protected_quiet) {
       repetition_keys_.pop_back();
@@ -2475,7 +2488,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       extension = 1;
     const int child_extensions = extensions + extension;
     int child_depth = depth - 1 + extension;
-    const bool reduce = !full_width && child_depth >= 2 && move_index >= 2 &&
+    const bool reduce = selective(Selectivity::late_move_reduction) && child_depth >= 2 && move_index >= 2 &&
                         quiet && !in_check && !gives_check && !singular;
     int score;
     if (reduce) {

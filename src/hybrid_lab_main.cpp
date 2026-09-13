@@ -2,6 +2,7 @@
 #include "eloi/version.hpp"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
@@ -52,7 +53,7 @@ const auto adjacent = std::filesystem::absolute(argv[0]).parent_path() /
          ".deps/caissa/eval-71-v1.25.pnn";
 }
 
-enum class LabBrainMode { production, hybrid, caissa, eloi };
+enum class LabBrainMode { production, hybrid, caissa, eloi, eloi_single };
 
 LabBrainMode brain_mode(int argc, char** argv) {
   for (int index = 1; index + 1 < argc; ++index) {
@@ -61,6 +62,7 @@ LabBrainMode brain_mode(int argc, char** argv) {
     if (value == "hybrid") return LabBrainMode::hybrid;
     if (value == "caissa") return LabBrainMode::caissa;
     if (value == "eloi") return LabBrainMode::eloi;
+    if (value == "eloi-single") return LabBrainMode::eloi_single;
   }
   return LabBrainMode::production;
 }
@@ -70,10 +72,39 @@ std::string_view brain_mode_name(LabBrainMode mode) {
     case LabBrainMode::production: return "production";
     case LabBrainMode::caissa: return "caissa";
     case LabBrainMode::eloi: return "eloi";
+    case LabBrainMode::eloi_single: return "eloi-single";
     default: return "hybrid";
   }
 }
 
+std::uint32_t selectivity_mask(int argc, char** argv) {
+  for (int index = 1; index + 1 < argc; ++index) {
+    if (std::string_view(argv[index]) != "--selectivity") continue;
+    const std::string value = argv[index + 1];
+    if (value == "none") return 0;
+    if (value == "all") return static_cast<std::uint32_t>(Selectivity::all);
+    const std::array choices{
+        std::pair{"reverse-futility", Selectivity::reverse_futility},
+        std::pair{"razoring", Selectivity::razoring},
+        std::pair{"internal-reduction", Selectivity::internal_reduction},
+        std::pair{"null-move", Selectivity::null_move},
+        std::pair{"probcut", Selectivity::probcut},
+        std::pair{"futility", Selectivity::futility},
+        std::pair{"lmp", Selectivity::late_move_pruning},
+        std::pair{"lmr", Selectivity::late_move_reduction}};
+    std::uint32_t result = 0;
+    std::istringstream names(value);
+    for (std::string name; std::getline(names, name, ',');) {
+      const auto found = std::ranges::find_if(
+          choices, [&](const auto& choice) { return choice.first == name; });
+      if (found == choices.end())
+        return static_cast<std::uint32_t>(Selectivity::all);
+      result |= static_cast<std::uint32_t>(found->second);
+    }
+    return result;
+  }
+  return static_cast<std::uint32_t>(Selectivity::all);
+}
 void print_result(const BrainResponse& response, const Board& root,
                   bool chess960, std::mutex& output) {
   std::scoped_lock lock(output);
@@ -121,14 +152,17 @@ int run_hybrid_lab(int argc, char** argv) {
   config.own_book = false;
   config.hash_mb = 16;
   EloiBrain eloi(config, stopped);
+  EloiBrain eloi_single(config, stopped, SearchConcurrency::single_thread_lab);
   IsolatedCaissaBrain caissa(std::filesystem::absolute(argv[0]),
                              network_path(argc, argv), stopped,
                              16u * 1024u * 1024u);
   HybridBrain hybrid(eloi, caissa);
   const LabBrainMode mode = brain_mode(argc, argv);
+  const std::uint32_t lab_selectivity = selectivity_mask(argc, argv);
   Brain* active_brain = nullptr;
   if (mode == LabBrainMode::caissa) active_brain = &caissa;
   else if (mode == LabBrainMode::eloi) active_brain = &eloi;
+  else if (mode == LabBrainMode::eloi_single) active_brain = &eloi_single;
   else if (mode == LabBrainMode::hybrid) active_brain = &hybrid;
 
   std::string first;
@@ -148,6 +182,7 @@ int run_hybrid_lab(int argc, char** argv) {
             << (caissa.available() ? "hash-verified and available"
                                    : "unavailable; E2 fallback active")
             << "\ninfo string Lab brain mode " << brain_mode_name(mode)
+            << "\ninfo string Lab selectivity mask " << lab_selectivity
             << "\nuciok" << std::endl;
 
   std::thread worker;
@@ -159,6 +194,7 @@ int run_hybrid_lab(int argc, char** argv) {
   };
   auto launch = [&](SearchLimits limits) {
     stop_worker();
+    limits.selectivity_mask = lab_selectivity;
     Board snapshot = board;
     snapshot.horde = uci_variant == "horde";
     snapshot.chess960 = !snapshot.horde &&
