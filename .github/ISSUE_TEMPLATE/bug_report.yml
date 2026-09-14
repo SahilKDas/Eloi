@@ -1,0 +1,66 @@
+name: Bug report
+description: Report reproducible engine, GUI, UCI, Lichess, build, or packaging behavior.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping Eloi. Remove tokens, credentials, and private configuration. Report security issues privately through SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Eloi version or commit
+      placeholder: v3.1.1 or a full commit hash
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Chess engine or UCI
+        - Native GUI
+        - Lichess client
+        - Chess960 or Horde
+        - Build or tests
+        - Packaging or reproducibility
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Explain the observed behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: Include commands, FEN/PGN, time or node limits, and configuration with secrets removed.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs and evidence
+      description: Add relevant output, screenshots, hashes, crash details, or minimal files. Do not paste a Lichess token.
+  - type: input
+    id: system
+    attributes:
+      label: System
+      placeholder: Windows version, CPU, RAM, and package form
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: I removed credentials and private data.
+          required: true
+        - label: This is not a privately reportable security vulnerability.
+          required: true

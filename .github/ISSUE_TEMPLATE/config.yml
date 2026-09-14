@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Private security report
+    url: https://github.com/SahilKDas/Eloi/security/advisories/new
+    about: Report vulnerabilities privately; never include tokens in a public issue.
+  - name: Questions and discussion
+    url: https://github.com/SahilKDas/Eloi/discussions
+    about: Ask usage questions or discuss ideas that are not yet actionable issues.

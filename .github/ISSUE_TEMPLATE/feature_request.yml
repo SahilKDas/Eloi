@@ -1,0 +1,52 @@
+name: Feature request
+description: Propose a focused improvement to Eloi.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: What user or engineering problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the smallest useful implementation and its expected behavior.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Search or evaluation
+        - GUI or accessibility
+        - UCI or Lichess
+        - Chess960 or Horde
+        - Testing or diagnostics
+        - Build, packaging, or portability
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation approach
+      description: Explain how correctness, performance, or strength should be measured without weakening existing gates.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project constraints
+      options:
+        - label: I have read CONTRIBUTING.md and the device constraints.
+          required: true
+        - label: This proposal does not assume that an offline metric alone proves chess strength.
+          required: true
