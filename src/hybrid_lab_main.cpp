@@ -291,8 +291,8 @@ int run_hybrid_lab(int argc, char** argv) {
       continue;
     }
     if (command == "setoption") {
-      const auto name = std::ranges::find(args, "name");
-      const auto value = std::ranges::find(args, "value");
+      const auto name = std::ranges::find(args, std::string_view{"name"});
+      const auto value = std::ranges::find(args, std::string_view{"value"});
       if (name == args.end() || value == args.end() || name + 1 == args.end() ||
           value + 1 == args.end()) {
         continue;

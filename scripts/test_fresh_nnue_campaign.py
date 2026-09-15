@@ -4,6 +4,7 @@ from unittest import mock
 import run_fresh_nnue_campaign as campaign
 import numpy as np
 import subprocess
+import shutil
 import time
 import datetime as dt
 import io
@@ -146,7 +147,9 @@ class CampaignTests(unittest.TestCase):
         self.assertEqual(campaign.data.sha(header), campaign.data.sha(duplicate))
         for before, after in zip(model, campaign.trainer.load_quantized_header(header)):
             np.testing.assert_array_equal(before, after)
-        compiler = campaign.MSYS + '/c++.exe'
+        compiler = shutil.which('c++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++ syntax check requires c++ or g++ on PATH')
         source = f'#include "{header.as_posix()}"\nstatic_assert(eloi::nnue_weights::input.size() == 6144 * 64);\nint main(){{return 0;}}\n'
         result = subprocess.run([compiler, '-std=c++2c', '-x', 'c++', '-fsyntax-only', '-'],
                                 input=source, text=True, capture_output=True, timeout=30)
