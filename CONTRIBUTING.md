@@ -30,6 +30,26 @@ may create tiny synthetic models; that is not permission for a real training
 campaign. Bound all tests and keep heavyweight work sequential at Idle
 priority. Never treat a timeout as a pass.
 
+Public Windows CI intentionally builds the source-only core and Caissa
+laboratory with `ELOI_BUILD_APP=OFF`. It never downloads the separately pinned
+production network and therefore cannot replace the complete local release
+validation described in `REPRODUCING.md`.
+
+## Good first contributions
+
+- **Documentation:** reconcile a statement with current source, release, or
+  evidence and identify the authoritative reference in the pull request.
+- **Regression tests:** add a minimal legal FEN/EPD, parser case, or protocol
+  fixture that reproduces one behavior without weakening an existing gate.
+- **Diagnostics:** improve bounded, machine-readable evidence without changing
+  move selection, clocks, or production defaults.
+- **Platform research:** document a reproducible portability finding. Do not
+  claim platform support until its build, runtime, and correctness gates pass.
+
+Avoid search tuning, network training, dependency replacement, and release
+automation as a first change. Ask in Discussions when the correct gate is
+unclear.
+
 ## Playing-code invariants
 
 - Exactly three deterministic RootSplit lanes; no public ParallelMode or

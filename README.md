@@ -8,11 +8,11 @@ Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
 a compact incrementally updated NNUE, deterministic three-lane RootSplit
 search, and reproducible Windows packaging.
 
-The current stable source is **Eloi 3.1.1**.
+The current stable source is **Eloi 3.1.2**.
 
-The production evaluator is the 64-unit **E2-ranking** NNUE.
-
-Production search uses exactly **three RootSplit lanes**.
+Standard UCI and native Lichess use the crash-contained **Caissa 1.25** brain.
+The native GUI, Chess960, Horde, and emergency fallback use Eloi's 64-unit
+**E2-ranking** NNUE with exactly three RootSplit lanes.
 
 Official packages currently target **Windows x64**.
 
@@ -55,10 +55,10 @@ Chess960 and Horde remain on Eloi E2 until separate parity qualification.
 
 | Item | Current status |
 | --- | --- |
-| Source version | 3.1.1 |
-| Latest tag | v3.1.1 |
-| Latest release | v3.1.1 |
-| Release commit | See the `v3.1.1` tag |
+| Source version | 3.1.2 |
+| Latest tag | v3.1.2 |
+| Latest release | v3.1.2 |
+| Release commit | See the `v3.1.2` tag |
 | Language | C++26 |
 | Build system | CMake |
 | Primary toolchain | MSYS2 UCRT64 GCC |
@@ -66,8 +66,8 @@ Chess960 and Horde remain on Eloi E2 until separate parity qualification.
 | GUI | Native Skia |
 | Protocol | UCI |
 | Online client | Native Lichess Bot API |
-| Evaluator | E2-ranking, 64 units |
-| Parallelism | Exactly three RootSplit lanes |
+| Standard UCI/Lichess brain | Crash-contained Caissa 1.25 |
+| GUI/Chess960/Horde/fallback brain | E2-ranking, 64 units, three RootSplit lanes |
 | Variants | Standard, Chess960, Horde |
 | Source license | MIT |
 | Caissa in current main | Yes, pinned v1.25 |
@@ -102,7 +102,7 @@ Experimental history remains evidence.
 
 To play locally:
 
-1. Download the v3.1.1 standalone ZIP.
+1. Download the v3.1.2 standalone ZIP.
 2. Verify its SHA-256.
 3. Extract it.
 4. Double-click Eloi.exe.
@@ -152,7 +152,9 @@ Reproducibility comes before release claims.
 
 ## What ships today
 
-Eloi 3.1.1 ships Eloi legal authority plus a faster Caissa 1.25 Standard search brain. Chess960 and Horde use Eloi's E2 search. Together they provide:
+Eloi 3.1.2 ships Eloi legal authority plus a crash-contained Caissa 1.25
+Standard brain for UCI and native Lichess. The native GUI, Chess960, Horde,
+and emergency fallback use Eloi's E2 search. Together they provide:
 
 - Eloi's authoritative board;
 - Standard legality;
@@ -201,7 +203,7 @@ The repository includes tools for:
 - toolchain verification;
 - reproducibility proof.
 
-Eloi 3.1.1 does not ship Syzygy,
+Eloi 3.1.2 does not ship Syzygy,
 Lazy SMP, variable production thread counts, Linux packages, runtime model downloads,
 Stockfish as a playing backend, Reckless source, or any AGPL component.
 
@@ -1843,6 +1845,13 @@ Do not publish without maintainer authorization.
 
 ## Release history
 
+### v3.1.2
+
+Contributor-experience patch release. It adds community-health files, safe
+source-only Windows CI, focused newcomer guidance, and an architecture
+consistency sweep. It does not change production chess behavior or claim a
+strength gain over v3.1.1.
+
 ### v2.8.0
 
 Published September 7, 2026.
@@ -2522,7 +2531,18 @@ Partitions must remain separate from training and sealed confirmation.
 
 ## Contributing
 
-Read CONTRIBUTING.md first.
+New here? Start with one contained, verifiable contribution:
+
+- repair a documentation inconsistency and cite the current source behavior;
+- add a regression position without changing its expected result;
+- improve diagnostic output and add a parser test;
+- investigate a platform port without changing production playing code.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Use the structured
+[bug report](.github/ISSUE_TEMPLATE/bug_report.yml) or
+[feature request](.github/ISSUE_TEMPLATE/feature_request.yml) when proposing
+work. Security reports belong in [SECURITY.md](SECURITY.md), never a public
+issue.
 
 Read the device constraints before heavy work.
 
@@ -2745,19 +2765,18 @@ E2 was trained only on Standard chess.
 
 Tablebases are not shipped.
 
-Caissa is not in current main.
+Standard UCI and native Lichess use Caissa 1.25, but the native GUI still uses
+E2. Newer Caissa releases remain blocked from production without a coherent,
+redistributable matching model and full qualification.
 
-The previous hybrid was rejected.
-
-The next Caissa plan starts from different donor assumptions.
-
-It inherits no strength credit.
+The earlier mixed-generation hybrid remains rejected and contributes no
+strength credit to the current coherent Caissa 1.25 integration.
 
 ---
 
-## The Caissa 1.25 plan
+## The Caissa 1.25 integration history
 
-The next large experiment is planned as:
+The completed integration began from this design:
 
 ~~~text
 Eloi 2.8.0
@@ -2792,13 +2811,12 @@ Automation and manifests must use the real tag.
 
 ### Current status
 
-- Planning is active.
-- Implementation on main has not started.
-- Current donor code is absent.
-- Current donor network is absent.
-- No hybrid package exists.
-- No hybrid release exists.
-- No hybrid strength claim exists.
+- Caissa 1.25 source and its pinned network are present in current main.
+- Standard UCI and native Lichess route through an isolated worker.
+- Eloi retains legality, protocol, clock, variant, GUI, and crash-containment
+  authority.
+- The experimental two-brain arbiter is not the production default.
+- Chess960, Horde, native GUI Standard, and fallback remain on E2.
 
 ### Intended result
 
@@ -3753,9 +3771,9 @@ Verify the archive hash.
 
 ### Is Caissa already inside Eloi?
 
-No.
-
-Current main contains E2 only.
+Yes. Current main contains a coherent Caissa 1.25 Standard backend. Standard
+UCI and native Lichess use it through Eloi's isolated worker; the native GUI,
+Chess960, Horde, and emergency fallback remain on E2.
 
 ### Was there a Caissa experiment?
 
@@ -3763,7 +3781,8 @@ Yes.
 
 It survives in Git history.
 
-It was rejected and removed from production main.
+The original mixed-generation hybrid was rejected. It is distinct from the
+later coherent Caissa 1.25 backend now used in production.
 
 ### Why start again with Caissa 1.25?
 
@@ -4329,7 +4348,7 @@ Precise bug reports are how the engine survives.
 
 ## Final note
 
-Eloi 3.0.0 combines Eloi's authoritative board, legal-move validation, variants,
+Eloi 3.1.2 combines Eloi's authoritative board, legal-move validation, variants,
 GUI, UCI, and bridge ownership with a crash-contained Caissa 1.25 Standard
 search brain. Standard UCI play routes directly to embedded Caissa 1.25;
 Chess960 and Horde remain on Eloi's E2 search until separate donor adapters
