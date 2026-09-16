@@ -2,6 +2,7 @@
 #include "eloi/chess.hpp"
 #include "eloi/brain.hpp"
 #include "eloi/version.hpp"
+#include "eloi/version_match.hpp"
 
 #ifdef _WIN32
 
@@ -14,6 +15,7 @@
 #include <chrono>
 #include <filesystem>
 #include <functional>
+#include <fstream>
 #include <iostream>
 #include <optional>
 #include <sstream>
@@ -33,12 +35,16 @@ std::wstring wide(std::string_view text) {
   return result;
 }
 
-std::filesystem::path executable_directory() {
+std::filesystem::path running_executable_path() {
   std::wstring path(32768, L'\0');
   const DWORD length = GetModuleFileNameW(
       nullptr, path.data(), static_cast<DWORD>(path.size()));
   path.resize(length);
-  return std::filesystem::path(path).parent_path();
+  return std::filesystem::path(path);
+}
+
+std::filesystem::path executable_directory() {
+  return running_executable_path().parent_path();
 }
 
 std::optional<std::size_t> json_value_start(
@@ -284,6 +290,28 @@ std::string game_event_id(std::string_view game) {
   return {};
 }
 
+std::string json_escape(std::string_view text) {
+  std::string result;
+  for (const unsigned char c : text) {
+    switch (c) {
+      case '\\': result += "\\\\"; break;
+      case '"': result += "\\\""; break;
+      case '\n': result += "\\n"; break;
+      case '\r': result += "\\r"; break;
+      case '\t': result += "\\t"; break;
+      default: if (c >= 0x20) result += static_cast<char>(c);
+    }
+  }
+  return result;
+}
+
+std::filesystem::path autopsy_root() {
+  const wchar_t* local = _wgetenv(L"LOCALAPPDATA");
+  const auto base = local && *local ? std::filesystem::path(local)
+                                    : executable_directory();
+  return base / "Eloi" / "autopsy";
+}
+
 void play_game(const RuntimeConfig& config, std::string_view game_id,
                std::string_view account_id,
                std::string_view tournament_id = {},
@@ -314,6 +342,16 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
   std::string active_swiss(swiss_id);
   bool active_swiss_pairing = swiss_pairing || !active_swiss.empty();
   bool competition_announced = false;
+  std::vector<std::string> journal_searches;
+  std::string final_moves;
+  std::string final_status{"unknown"};
+  std::string last_brain_route{"unknown"};
+  const auto journal_root = autopsy_root();
+  std::error_code journal_error;
+  std::filesystem::create_directories(journal_root / "queue", journal_error);
+  const auto active_lock = journal_root / "active-game.lock";
+  { std::ofstream lock(active_lock, std::ios::trunc);
+    lock << game_id << '\n' << GetCurrentProcessId() << '\n'; }
   const std::wstring path = L"/api/bot/game/stream/" + wide(game_id);
 
   auto announce_competition = [&] {
@@ -418,12 +456,16 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
         caissa_hash_mb = engine.hash_mb;
       }
       BrainResponse response = caissa_searcher->search(board, limits);
+      last_brain_route = "caissa_1_25";
       if (response.has_legal_move(board)) return std::move(response.search);
       if (response.status == BrainStatus::stopped) return {};
+      last_brain_route = "eloi_e2_fallback";
       std::cerr << "Caissa Lichess search failed; using Eloi E2 fallback: "
                 << response.detail << '\n';
       search_stopped.store(false, std::memory_order_relaxed);
     }
+    last_brain_route = board.chess960 ? "eloi_e2_chess960" :
+                       board.horde ? "eloi_e2_horde" : "eloi_e2";
     return persistent_searcher(engine).iterative(std::move(board), limits);
   };
   auto take_ponder = [&](std::string_view moves, bool game_running)
@@ -495,6 +537,8 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
   auto act = [&](std::string_view state) {
     const std::string status = json_string(state, "status").value_or("started");
     const std::string moves = json_string(state, "moves").value_or("");
+    final_status = status;
+    final_moves = moves;
     const bool game_running = status == "started" || status == "created";
     std::optional<SearchResult> ponder_hit = take_ponder(moves, game_running);
     if (!game_running) return;
@@ -532,6 +576,28 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       result = search_position(*board, engine, limits);
     }
     last_search = result;
+    {
+      std::ostringstream record;
+      record << "{\"moves_before\":\"" << json_escape(moves)
+             << "\",\"wtime_ms\":" << json_int(state, "wtime").value_or(-1)
+             << ",\"btime_ms\":" << json_int(state, "btime").value_or(-1)
+             << ",\"winc_ms\":" << json_int(state, "winc").value_or(-1)
+             << ",\"binc_ms\":" << json_int(state, "binc").value_or(-1)
+             << ",\"elapsed_ms\":" << result.elapsed.count()
+             << ",\"depth\":" << result.depth << ",\"seldepth\":" << result.seldepth
+             << ",\"score_cp\":" << result.score_cp << ",\"mate\":" << result.mate
+             << ",\"nodes\":" << result.nodes << ",\"brain_route\":\""
+             << json_escape(last_brain_route) << "\",\"stop_reason\":\""
+             << (ponder_hit ? "ponder_hit" : "completed_budgeted_search") << "\",\"pv\":[";
+      Board pv_board = *board;
+      for (std::size_t i = 0; i < result.pv.size(); ++i) {
+        if (i) record << ',';
+        record << '\"' << json_escape(uci_move(result.pv[i], pv_board.position, chess960)) << '\"';
+        if (!pv_board.push(result.pv[i])) break;
+      }
+      record << "]}";
+      journal_searches.push_back(record.str());
+    }
     if (result.pv.empty()) return;
     const std::string move = uci_move(
         result.pv.front(), board->position, chess960);
@@ -600,6 +666,32 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
   });
   stop_ponder();
   if (ponder_chat_thread.joinable()) ponder_chat_thread.join();
+  {
+    const auto output = journal_root / "queue" / (std::string(game_id) + ".json");
+    const auto temporary = output.string() + ".new";
+    std::ofstream journal(temporary, std::ios::binary | std::ios::trunc);
+    journal << "{\n  \"schema\": \"eloi-lichess-game-journal-v1\",\n"
+            << "  \"game_id\": \"" << json_escape(game_id) << "\",\n"
+            << "  \"url\": \"https://lichess.org/" << json_escape(game_id) << "\",\n"
+            << "  \"variant\": \"" << json_escape(variant_key) << "\",\n"
+            << "  \"status\": \"" << json_escape(final_status) << "\",\n"
+            << "  \"bot_color\": \"" << (bot_side == Color::white ? "white" : "black") << "\",\n"
+            << "  \"moves\": \"" << json_escape(final_moves) << "\",\n"
+            << "  \"version\": \"" << version << "\",\n"
+            << "  \"executable_sha256\": \"" << sha256_file(running_executable_path()) << "\",\n"
+            << "  \"network_sha256\": \"" << caissa_1_25_network_sha256 << "\",\n"
+            << "  \"playing_model_role\": \"production_or_legacy\",\n"
+            << "  \"searches\": [\n";
+    for (std::size_t i = 0; i < journal_searches.size(); ++i)
+      journal << (i ? ",\n" : "") << "    " << journal_searches[i];
+    journal << "\n  ]\n}\n";
+    journal.close();
+    if (!std::filesystem::exists(output))
+      std::filesystem::rename(temporary, output, journal_error);
+    else
+      std::filesystem::remove(temporary, journal_error);
+  }
+  std::filesystem::remove(active_lock, journal_error);
 }
 
 }  // namespace

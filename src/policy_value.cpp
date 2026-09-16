@@ -6,7 +6,8 @@
 
 namespace eloi {
 namespace {
-constexpr std::array<char, 4> magic{'E', 'P', 'V', '1'};
+constexpr std::array<char, 4> magic_v1{'E', 'P', 'V', '1'};
+constexpr std::array<char, 4> magic_v2{'E', 'P', 'V', '2'};
 
 int oriented(int square, Color side) {
   return side == Color::white ? square : square ^ 56;
@@ -32,6 +33,13 @@ int promotion_plane(Piece piece) {
     case Piece::queen: return 4;
     default: return 0;
   }
+}
+
+std::size_t move_index(const Move& move, Color side) {
+  const std::size_t source = static_cast<std::size_t>(oriented(move.from, side));
+  const std::size_t target = static_cast<std::size_t>(oriented(move.to, side));
+  const std::size_t promotion = static_cast<std::size_t>(promotion_plane(move.promotion));
+  return (source * 64 + target) * PolicyValueNetwork::promotion_count + promotion;
 }
 
 template <typename Range>
@@ -82,6 +90,8 @@ std::array<float, Size> softmax(std::array<float, Size> logits) {
 bool PolicyValueNetwork::load(const std::filesystem::path& path,
                               std::string* error) {
   available_ = false;
+  interaction_policy_ = false;
+  policy_move_.clear();
   auto fail = [&](std::string message) {
     if (error) *error = std::move(message);
     return false;
@@ -92,25 +102,38 @@ bool PolicyValueNetwork::load(const std::filesystem::path& path,
   std::array<std::uint32_t, 4> dimensions{};
   stream.read(found_magic.data(), found_magic.size());
   stream.read(reinterpret_cast<char*>(dimensions.data()), sizeof(dimensions));
-  if (!stream || found_magic != magic)
+  const bool v1 = found_magic == magic_v1;
+  const bool v2 = found_magic == magic_v2;
+  if (!stream || (!v1 && !v2))
     return fail("policy/value artifact has an invalid header");
-  if (dimensions != std::array<std::uint32_t, 4>{
-          input_count, hidden_count, promotion_count, piece_count})
+  const auto expected = v1
+      ? std::array<std::uint32_t, 4>{input_count, hidden_count,
+                                     promotion_count, piece_count}
+      : std::array<std::uint32_t, 4>{input_count, hidden_count,
+                                     promotion_count, move_count};
+  if (dimensions != expected)
     return fail("policy/value artifact dimensions do not match Eloi");
   input_.resize(input_count * hidden_count);
   if (!read_floats(stream, input_) || !read_floats(stream, bias_) ||
-      !read_floats(stream, value_) || !read_floats(stream, value_bias_) ||
-      !read_floats(stream, policy_from_) || !read_floats(stream, policy_to_) ||
-      !read_floats(stream, policy_promotion_) ||
-      !read_floats(stream, policy_piece_))
+      !read_floats(stream, value_) || !read_floats(stream, value_bias_))
     return fail("policy/value artifact is truncated or non-finite");
+  if (v1) {
+    if (!read_floats(stream, policy_from_) || !read_floats(stream, policy_to_) ||
+        !read_floats(stream, policy_promotion_) ||
+        !read_floats(stream, policy_piece_))
+      return fail("policy/value artifact is truncated or non-finite");
+  } else {
+    policy_move_.resize(static_cast<std::size_t>(move_count) * hidden_count);
+    if (!read_floats(stream, policy_move_))
+      return fail("policy/value artifact is truncated or non-finite");
+    interaction_policy_ = true;
+  }
   if (stream.peek() != std::ifstream::traits_type::eof())
     return fail("policy/value artifact has trailing bytes");
   available_ = true;
   if (error) error->clear();
   return true;
 }
-
 PolicyValuePrediction PolicyValueNetwork::predict(
     const Board& board, const MoveList& candidates) const {
   PolicyValuePrediction result;
@@ -132,17 +155,23 @@ PolicyValuePrediction PolicyValueNetwork::predict(
   std::vector<float> logits;
   logits.reserve(candidates.size());
   for (const Move& move : candidates) {
-    const int source = oriented(move.from, board.turn);
-    const int target = oriented(move.to, board.turn);
-    const int promotion = promotion_plane(move.promotion);
-    const int piece = piece_plane(move.piece);
     float score = 0.0f;
-    for (std::size_t unit = 0; unit < hidden.size(); ++unit)
-      score += hidden[unit] * (
-          policy_from_[source * hidden_count + unit] +
-          policy_to_[target * hidden_count + unit] +
-          policy_promotion_[promotion * hidden_count + unit] +
-          policy_piece_[piece * hidden_count + unit]);
+    if (interaction_policy_) {
+      const std::size_t index = move_index(move, board.turn);
+      for (std::size_t unit = 0; unit < hidden.size(); ++unit)
+        score += hidden[unit] * policy_move_[index * hidden_count + unit];
+    } else {
+      const int source = oriented(move.from, board.turn);
+      const int target = oriented(move.to, board.turn);
+      const int promotion = promotion_plane(move.promotion);
+      const int piece = piece_plane(move.piece);
+      for (std::size_t unit = 0; unit < hidden.size(); ++unit)
+        score += hidden[unit] * (
+            policy_from_[source * hidden_count + unit] +
+            policy_to_[target * hidden_count + unit] +
+            policy_promotion_[promotion * hidden_count + unit] +
+            policy_piece_[piece * hidden_count + unit]);
+    }
     logits.push_back(score);
   }
   const float peak = *std::ranges::max_element(logits);

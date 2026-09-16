@@ -148,3 +148,20 @@ and superseded campaign reports are available in Git history at
 `24e8a4538fd1fcf164ad1747a62e91a01acdccec`.
 They are not required to build, run or validate current Eloi.
 See [data/README.md](data/README.md) for the retained-file index.
+
+## Eloi-native policy/value v2 laboratory corpus
+
+The EPV2 campaign consumes the retained canonical Lichess CC0 evaluation and
+puzzle JSONL files only. It selects exactly 150,000 Standard positions with
+source-group isolation, exact 80/10/10 train/validation/sealed-test counts,
+canonical and color-mirrored deduplication, explicit source-game deduplication,
+and exclusion of Eloi regression fixtures. Caissa 1.25 and its pinned local
+network provide offline labels at 10,000 nodes; neither becomes an EPV2 runtime
+dependency. Rare category shortfalls are reported and backfilled from unique
+broad positions rather than duplicated.
+
+The generated dataset, screening rows, checkpoints, and EPV2 models remain
+ignored laboratory artifacts under `tmp/`. Their source, runner, executable,
+network, partition, category, and output hashes are recorded by the campaign
+manifest. The sealed test partition is not opened during checkpoint selection.
+See [ELOI_NATIVE_POLICY_VALUE_V2.md](ELOI_NATIVE_POLICY_VALUE_V2.md).

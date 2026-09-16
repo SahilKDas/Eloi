@@ -99,6 +99,7 @@ if(ELOI_BUILD_APP)
       src/lichess_main.cpp
       src/lichess.cpp
       src/lichess_config_gui.cpp
+      src/version_match.cpp
       "${CMAKE_CURRENT_BINARY_DIR}/generated/version-lichess.rc")
     target_link_libraries(EloiLichess PRIVATE eloi_core)
   endif()
@@ -255,7 +256,7 @@ if(WIN32 AND ELOI_BUILD_APP)
   )
   target_link_libraries(Eloi PRIVATE ${ELOI_GUI_LIBRARIES})
   if(ELOI_SPLIT_PACKAGE)
-    target_link_libraries(EloiLichess PRIVATE winhttp user32 gdi32)
+    target_link_libraries(EloiLichess PRIVATE winhttp user32 gdi32 bcrypt)
   else()
     target_link_libraries(Eloi PRIVATE winhttp)
     target_link_options(Eloi PRIVATE

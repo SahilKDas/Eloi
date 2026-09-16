@@ -80,6 +80,16 @@ described in [CAISSA_UPSTREAM.md](CAISSA_UPSTREAM.md). Eloi does not download
 models at build time or runtime, mix evaluator generations, or promote donor
 code without a matching licensed model and complete qualification evidence.
 
+The current Eloi-native successor research is documented in
+[ELOI_NATIVE_POLICY_VALUE_V2.md](ELOI_NATIVE_POLICY_VALUE_V2.md). It trains a
+complete-move EPV2 policy/value prior from a frozen 150,000-position
+Standard-only teacher dataset and qualifies first against native E2. This work
+is laboratory-only and does not change v3.1.2 playing behavior or packages.
+
+Native Lichess can now write token-free completed-game journals for the
+separate headless autopsy worker. Those reports identify the exact playing
+binary and remain production/legacy diagnostics unless EPV2 actually played.
+
 Source version, Git tag, and packaged release are related but distinct.
 
 Stable releases should make all three identities agree.
