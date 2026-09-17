@@ -59,6 +59,20 @@ def load_pool(paths,seed):
     if source_game: seen_source_games.add(source_game)
  return sorted(seen.values(),key=lambda r:digest(seed,r['record_id']))
 
+def required_analysis(engine,board,nodes,attempts=3):
+ last='missing PV'
+ for attempt in range(1,attempts+1):
+  try:
+   info=engine.analyse(board,nodes)
+   if info.get('pv') and info.get('score') is not None: return info
+   last=f'attempt {attempt} omitted PV or score'
+  except Exception as error: last=f'{type(error).__name__}: {error}'
+ raise v1.DatasetError(last)
+
+def required_child_score(engine,board,move,nodes,attempts=3):
+ child=board.copy(stack=False); child.push(move)
+ return -v1.cp_from_info(required_analysis(engine,child,nodes,attempts),child)
+
 def classify(screen):
  cats=set(screen['static_categories']);
  if screen['e2_move']!=screen['teacher_move']: cats.add('disagreement')
@@ -121,16 +135,16 @@ def main():
    for line in existing:
     if line.strip():
      row=json.loads(line); screened[row['record_id']]=row
- e2=v1.Engine([str(a.e2.resolve()),'--uci','--brain','eloi-single'],ROOT,15); teacher=v1.Engine([str(a.teacher.resolve()),'--uci','--brain','caissa','--caissa-network',str(a.network.resolve())],ROOT,15); started=time.monotonic(); failures=[]
+ e2=v1.Engine([str(a.e2.resolve()),'--uci','--brain','eloi-single'],ROOT,15); teacher=v1.Engine([str(a.teacher.resolve()),'--uci','--brain','caissa','--caissa-network',str(a.network.resolve())],ROOT,15); started=time.monotonic(); failures=[]; quarantines=[]
  try:
   with screen_path.open('a' if screen_path.exists() else 'x',encoding='utf-8',newline='\n') as f:
    for root in pool:
     if root['record_id'] in screened: continue
     try:
-     b=chess.Board(root['fen']); ei=e2.analyse(b,a.screen_nodes); ti=teacher.analyse(b,a.screen_nodes); row=dict(root,e2_move=ei['pv'][0].uci(),teacher_move=ti['pv'][0].uci(),teacher_cp=v1.cp_from_info(ti,b)); f.write(json.dumps(row,sort_keys=True)+'\n'); screened[root['record_id']]=row
-    except Exception as ex: failures.append({'stage':'screen','record_id':root['record_id'],'error':f'{type(ex).__name__}: {ex}'}); break
-    if len(screened)%100==0: f.flush(); atomic(checkpoint,{'status':'screening','frozen':frozen,'screened':len(screened),'labelled':0,'failures':failures})
-  if failures: atomic(checkpoint,{'status':'failed','frozen':frozen,'screened':len(screened),'labelled':0,'failures':failures}); raise v1.DatasetError(failures[-1]['error'])
+     b=chess.Board(root['fen']); ei=required_analysis(e2,b,a.screen_nodes); ti=required_analysis(teacher,b,a.screen_nodes); row=dict(root,e2_move=ei['pv'][0].uci(),teacher_move=ti['pv'][0].uci(),teacher_cp=v1.cp_from_info(ti,b)); f.write(json.dumps(row,sort_keys=True)+'\n'); screened[root['record_id']]=row
+    except Exception as ex: quarantines.append({'stage':'screen','record_id':root['record_id'],'fen':root['fen'],'error':f'{type(ex).__name__}: {ex}'}); continue
+    if len(screened)%100==0: f.flush(); atomic(checkpoint,{'status':'screening','frozen':frozen,'screened':len(screened),'labelled':0,'failures':failures,'quarantines':quarantines})
+  if failures: atomic(checkpoint,{'status':'failed','frozen':frozen,'screened':len(screened),'labelled':0,'failures':failures,'quarantines':quarantines}); raise v1.DatasetError(failures[-1]['error'])
   selected,selection_counts,shortages=choose(list(screened.values()),a.positions,a.seed)
   if not selected_path.exists(): selected_path.write_text(''.join(json.dumps(r,sort_keys=True)+'\n' for r in selected),encoding='utf-8')
   done=set()
@@ -142,7 +156,7 @@ def main():
    for root in selected:
     if root['record_id'] in done: continue
     try:
-     b=chess.Board(root['fen']); ei=e2.analyse(b,a.nodes); ti=teacher.analyse(b,a.nodes); em=ei['pv'][0].uci(); tm=ti['pv'][0].uci(); moves=v1.candidate_moves(b,em,tm,a.candidates,a.seed,root['record_id']); scored=[(m,v1.teacher_score_child(teacher,b,chess.Move.from_uci(m),a.nodes)) for m in moves]; peak=max(x[1] for x in scored); cats=set(root['static_categories']);
+     b=chess.Board(root['fen']); ei=required_analysis(e2,b,a.nodes); ti=required_analysis(teacher,b,a.nodes); em=ei['pv'][0].uci(); tm=ti['pv'][0].uci(); moves=v1.candidate_moves(b,em,tm,a.candidates,a.seed,root['record_id']); scored=[(m,required_child_score(teacher,b,chess.Move.from_uci(m),a.nodes)) for m in moves]; peak=max(x[1] for x in scored); cats=set(root['static_categories']);
      if em!=tm: cats.add('disagreement')
      if b.is_check() or b.legal_moves.count()<=3: cats.add('forced')
      if any(chess.Move.from_uci(m).promotion for m,_ in scored): cats.add('promotion')
@@ -151,14 +165,14 @@ def main():
      if quiet and dict(scored).get(em,peak)+150<peak: cats.add('quiet_defense')
      primary=next((c for c in ('quiet_defense','mate','promotion','forced','disagreement') if c in cats),'broad'); row=dict(root,legal_move_count=b.legal_moves.count(),e2_move=em,teacher_move=tm,disagreement=em!=tm,teacher_root_cp=peak,value_wdl=v1.wdl_target(peak),policy=v1.policy_targets(scored),categories=sorted(cats),primary_category=primary,tactical_weight=min(3.,2. if em!=tm and dict(scored).get(em,peak)+150<peak else 1.)); f.write(json.dumps(row,sort_keys=True)+'\n'); done.add(root['record_id'])
     except Exception as ex: failures.append({'stage':'label','record_id':root['record_id'],'error':f'{type(ex).__name__}: {ex}'}); break
-    if len(done)%100==0: f.flush(); atomic(checkpoint,{'status':'labelling','frozen':frozen,'screened':len(screened),'labelled':len(done),'failures':failures})
+    if len(done)%100==0: f.flush(); atomic(checkpoint,{'status':'labelling','frozen':frozen,'screened':len(screened),'labelled':len(done),'failures':failures,'quarantines':quarantines})
  finally: e2.close(); teacher.close()
  counts={p:0 for p in v1.PARTITIONS}; categories={c:0 for c in CATEGORIES}
  if rows_path.exists():
   for line in rows_path.read_text(encoding='utf-8').splitlines():
    if line.strip():
     r=json.loads(line); counts[r['partition']]+=1; categories[r['primary_category']]+=1
- evidence={'status':'complete' if len(done)==a.positions and not failures else 'failed','created_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'frozen':frozen,'screened':len(screened),'rows':len(done),'partition_counts':counts,'category_counts':categories,'selection_counts':selection_counts,'quota_shortfalls':shortages,'dataset_sha256':sha(rows_path) if rows_path.exists() else None,'failures':failures,'elapsed_seconds':round(time.monotonic()-started,3)}; atomic(checkpoint,evidence)
+ evidence={'status':'complete' if len(done)==a.positions and not failures else 'failed','created_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'frozen':frozen,'screened':len(screened),'rows':len(done),'partition_counts':counts,'category_counts':categories,'selection_counts':selection_counts,'quota_shortfalls':shortages,'dataset_sha256':sha(rows_path) if rows_path.exists() else None,'failures':failures,'quarantines':quarantines,'elapsed_seconds':round(time.monotonic()-started,3)}; atomic(checkpoint,evidence)
  if evidence['status']=='complete' and not manifest.exists(): manifest.write_text(json.dumps(evidence,indent=2,sort_keys=True)+'\n',encoding='utf-8')
  print(json.dumps(evidence,indent=2,sort_keys=True)); return 0 if evidence['status']=='complete' else 1
 if __name__=='__main__': raise SystemExit(main())

@@ -4,6 +4,18 @@ def load(name,file):
  spec=importlib.util.spec_from_file_location(name,ROOT/'scripts'/file); mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod); return mod
 A=load('autopsy','lichess_autopsy.py'); D=load('datasetv2','build_eloi_teacher_dataset_v2.py')
 class CampaignV2Tests(unittest.TestCase):
+ def test_required_analysis_retries_missing_pv(self):
+  class Engine:
+   def __init__(self): self.calls=0
+   def analyse(self,board,nodes):
+    self.calls+=1
+    return {} if self.calls<3 else {'pv':[A.chess.Move.from_uci('e2e4')],'score':object()}
+  engine=Engine(); info=D.required_analysis(engine,A.chess.Board(),1000)
+  self.assertEqual(engine.calls,3); self.assertEqual(info['pv'][0].uci(),'e2e4')
+ def test_required_analysis_fails_after_three_omissions(self):
+  class Engine:
+   def analyse(self,board,nodes): return {}
+  with self.assertRaises(D.v1.DatasetError): D.required_analysis(Engine(),A.chess.Board(),1000)
  def test_quota_selection_is_unique_and_reports_shortfall(self):
   rows=[]
   for i in range(12): rows.append({'record_id':str(i),'fen':A.chess.Board().fen(),'static_categories':['forced'] if i<2 else [],'e2_move':'e2e4','teacher_move':'d2d4' if i<5 else 'e2e4','teacher_cp':0})
