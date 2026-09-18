@@ -71,7 +71,18 @@ def required_analysis(engine,board,nodes,attempts=3):
 
 def required_child_score(engine,board,move,nodes,attempts=3):
  child=board.copy(stack=False); child.push(move)
- return -v1.cp_from_info(required_analysis(engine,child,nodes,attempts),child)
+ outcome=child.outcome(claim_draw=True)
+ if outcome is not None:
+  if outcome.winner is None: return 0
+  return 30000 if outcome.winner==board.turn else -30000
+ last='missing score'
+ for attempt in range(1,attempts+1):
+  try:
+   info=engine.analyse(child,nodes)
+   if info.get('score') is not None: return -v1.cp_from_info(info,child)
+   last=f'attempt {attempt} omitted score'
+  except Exception as error: last=f'{type(error).__name__}: {error}'
+ raise v1.DatasetError(last)
 
 def classify(screen):
  cats=set(screen['static_categories']);

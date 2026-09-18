@@ -16,6 +16,17 @@ class CampaignV2Tests(unittest.TestCase):
   class Engine:
    def analyse(self,board,nodes): return {}
   with self.assertRaises(D.v1.DatasetError): D.required_analysis(Engine(),A.chess.Board(),1000)
+ def test_child_score_does_not_require_pv(self):
+  class Engine:
+   def analyse(self,board,nodes): return {'score':A.chess.engine.PovScore(A.chess.engine.Cp(42),board.turn)}
+  board=A.chess.Board(); score=D.required_child_score(Engine(),board,A.chess.Move.from_uci('e2e4'),1000)
+  self.assertEqual(score,-42)
+ def test_terminal_child_is_scored_without_engine(self):
+  class Engine:
+   def analyse(self,board,nodes): raise AssertionError('terminal child must not call engine')
+  board=A.chess.Board('7k/5K2/6Q1/8/8/8/8/8 w - - 0 1')
+  score=D.required_child_score(Engine(),board,A.chess.Move.from_uci('g6g7'),1000)
+  self.assertEqual(score,30000)
  def test_quota_selection_is_unique_and_reports_shortfall(self):
   rows=[]
   for i in range(12): rows.append({'record_id':str(i),'fen':A.chess.Board().fen(),'static_categories':['forced'] if i<2 else [],'e2_move':'e2e4','teacher_move':'d2d4' if i<5 else 'e2e4','teacher_cp':0})
