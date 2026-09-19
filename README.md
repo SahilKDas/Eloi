@@ -8,7 +8,7 @@ Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
 a compact incrementally updated NNUE, deterministic three-lane RootSplit
 search, and reproducible Windows packaging.
 
-The current stable source is **Eloi 3.1.2**.
+The current stable source is **Eloi 3.2.2**.
 
 Standard UCI and native Lichess use the crash-contained **Caissa 1.25** brain.
 The native GUI now offers **Caissa 1.25** or Eloi's 64-unit **E4-10** brain
@@ -56,10 +56,10 @@ Chess960 and Horde use Eloi E4-10; Caissa remains Standard-only.
 
 | Item | Current status |
 | --- | --- |
-| Source version | 3.1.2 |
-| Latest tag | v3.1.2 |
-| Latest release | v3.1.2 |
-| Release commit | See the `v3.1.2` tag |
+| Source version | 3.2.2 |
+| Latest tag | v3.1.2 (published); v3.2.2 is being prepared locally |
+| Latest release | v3.1.2 (published) |
+| Release commit | v3.2.2 local release commit; publication pending |
 | Language | C++26 |
 | Build system | CMake |
 | Primary toolchain | MSYS2 UCRT64 GCC |
@@ -86,7 +86,7 @@ The current Eloi-native successor research is documented in
 [ELOI_NATIVE_POLICY_VALUE_V2.md](ELOI_NATIVE_POLICY_VALUE_V2.md). It trains a
 complete-move EPV2 policy/value prior from a frozen 150,000-position
 Standard-only teacher dataset and qualifies first against native E2. This work
-is laboratory-only and does not change v3.1.2 playing behavior or packages.
+is laboratory-only and does not control v3.2.2 playing behavior or packages.
 
 Native Lichess can now write token-free completed-game journals for the
 separate headless autopsy worker. Those reports identify the exact playing
@@ -96,7 +96,7 @@ Current main selects **E4-10** as the conservative Eloi-native successor.
 Its 400-game direct comparison against E4-20 finished 205.5/400 (51.375%)
 from E4-10's perspective with zero protocol failures and complete legal
 replay. See [E4_CAMPAIGN.md](E4_CAMPAIGN.md). This does not alter already
-published v3.1.2 packages.
+published v3.1.2 packages; it is promoted in v3.2.2.
 
 Source version, Git tag, and packaged release are related but distinct.
 
@@ -120,7 +120,7 @@ Experimental history remains evidence.
 
 To play locally:
 
-1. Download the v3.1.2 standalone ZIP.
+1. Download the v3.2.2 standalone ZIP.
 2. Verify its SHA-256.
 3. Extract it.
 4. Double-click Eloi.exe.
@@ -170,9 +170,9 @@ Reproducibility comes before release claims.
 
 ## What ships today
 
-Eloi 3.1.2 ships Eloi legal authority plus a crash-contained Caissa 1.25
+Eloi 3.2.2 ships Eloi legal authority plus a crash-contained Caissa 1.25
 Standard brain for UCI and native Lichess. The native GUI, Chess960, Horde,
-and emergency fallback use Eloi's E2 search. Together they provide:
+and emergency fallback use Eloi E4-10. Together they provide:
 
 - Eloi's authoritative board;
 - Standard legality;
@@ -221,7 +221,7 @@ The repository includes tools for:
 - toolchain verification;
 - reproducibility proof.
 
-Eloi 3.1.2 does not ship Syzygy,
+Eloi 3.2.2 does not ship Syzygy,
 Lazy SMP, variable production thread counts, Linux packages, runtime model downloads,
 Stockfish as a playing backend, Reckless source, or any AGPL component.
 
@@ -1862,6 +1862,13 @@ Do not publish without maintainer authorization.
 ---
 
 ## Release history
+
+### v3.2.2
+
+Adds a native GUI Standard-brain selector for Caissa 1.25 and Eloi E4-10,
+promotes the hash-verified E4-10 native network, and keeps Caissa 1.25 as the
+default Standard brain for UCI and Lichess. E4-10 remains the Chess960, Horde,
+and emergency-fallback brain. See RELEASE_V3_2_2.md.
 
 ### v3.1.2
 
@@ -4366,12 +4373,12 @@ Precise bug reports are how the engine survives.
 
 ## Final note
 
-Eloi 3.1.2 combines Eloi's authoritative board, legal-move validation, variants,
+Eloi 3.2.2 combines Eloi's authoritative board, legal-move validation, variants,
 GUI, UCI, and bridge ownership with a crash-contained Caissa 1.25 Standard
 search brain. Standard UCI play routes directly to embedded Caissa 1.25;
-Chess960 and Horde remain on Eloi's E2 search until separate donor adapters
-qualify. If the pinned Caissa network is unavailable or fails verification,
-Standard play fails safely to E2.
+Chess960 and Horde use Eloi E4-10 while Caissa remains Standard-only.
+If the pinned Caissa network is unavailable or fails verification,
+Standard play fails safely to E4-10.
 
 The bundled `eval-71-v1.25.pnn` is byte-identical to the network extracted from
 the official Caissa v1.25 release executable. Its SHA-256 is
