@@ -16,4 +16,12 @@ class EPV2Tests(unittest.TestCase):
  def test_epv2_serialization_is_deterministic(self):
   with tempfile.TemporaryDirectory() as d:
    n=M.Network(11); a=pathlib.Path(d)/'a'; b=pathlib.Path(d)/'b'; n.save(a); n.save(b); self.assertEqual(a.read_bytes(),b.read_bytes()); self.assertEqual(a.read_bytes()[:4],b'EPV2')
+ def test_sealed_test_rows_are_counted_without_json_parsing(self):
+  with tempfile.TemporaryDirectory() as d:
+   path=pathlib.Path(d)/'dataset.jsonl'
+   row={'fen':M.chess.Board().fen(),'partition':'train','primary_category':'broad','value_wdl':{'win':.4,'draw':.3,'loss':.3},'policy':[{'move':'e2e4','probability':1.}]}
+   validation=dict(row,partition='validation')
+   path.write_text(json.dumps(row)+'\n'+json.dumps(validation)+'\n'+r'{"partition":"test",this is deliberately not parsed}'+ '\n',encoding='utf-8')
+   rows,sealed=M.load(path)
+   self.assertEqual((len(rows['train']),len(rows['validation']),sealed),(1,1,1))
 if __name__=='__main__': unittest.main()

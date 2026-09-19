@@ -4,7 +4,10 @@
 
 #include <atomic>
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <ranges>
 #include <stdexcept>
@@ -35,6 +38,40 @@ bool caissa_matches(const Board& board) {
   const auto probe = probe_caissa_position(board);
   return probe.parsed && probe.fen_round_trip &&
          probe.legal_moves == eloi_legal_moves(board);
+}
+
+std::filesystem::path malformed_policy_path(std::string_view suffix) {
+  return std::filesystem::temp_directory_path() /
+      ("eloi-epv2-malformed-" + std::string(suffix) + ".epv2");
+}
+
+void write_epv2(const std::filesystem::path& path, bool non_finite = false,
+                bool trailing = false) {
+  std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+  const std::array<char, 4> magic{'E', 'P', 'V', '2'};
+  const std::array<std::uint32_t, 4> dimensions{
+      PolicyValueNetwork::input_count, PolicyValueNetwork::hidden_count,
+      PolicyValueNetwork::promotion_count, PolicyValueNetwork::move_count};
+  stream.write(magic.data(), magic.size());
+  stream.write(reinterpret_cast<const char*>(dimensions.data()),
+               sizeof(dimensions));
+  std::vector<float> input(PolicyValueNetwork::input_count *
+                           PolicyValueNetwork::hidden_count);
+  if (non_finite) input.front() = std::numeric_limits<float>::quiet_NaN();
+  const std::array<float, PolicyValueNetwork::hidden_count> bias{};
+  const std::array<float, PolicyValueNetwork::hidden_count * 3> value{};
+  const std::array<float, 3> value_bias{};
+  std::vector<float> policy(PolicyValueNetwork::move_count *
+                            PolicyValueNetwork::hidden_count);
+  stream.write(reinterpret_cast<const char*>(input.data()),
+               static_cast<std::streamsize>(input.size() * sizeof(float)));
+  stream.write(reinterpret_cast<const char*>(bias.data()), sizeof(bias));
+  stream.write(reinterpret_cast<const char*>(value.data()), sizeof(value));
+  stream.write(reinterpret_cast<const char*>(value_bias.data()),
+               sizeof(value_bias));
+  stream.write(reinterpret_cast<const char*>(policy.data()),
+               static_cast<std::streamsize>(policy.size() * sizeof(float)));
+  if (trailing) stream.put('x');
 }
 
 BrainResponse fake_response(BrainIdentity identity, const Board& board,
@@ -89,6 +126,33 @@ int main() {
     std::string error;
     expect(!missing.load("definitely-absent.epv", &error) && !error.empty(),
            "policy/value loader fails closed on a missing artifact");
+  }
+  {
+    const auto invalid = malformed_policy_path("invalid-header");
+    const auto truncated = malformed_policy_path("truncated");
+    const auto non_finite = malformed_policy_path("non-finite");
+    const auto trailing = malformed_policy_path("trailing");
+    {
+      std::ofstream stream(invalid, std::ios::binary | std::ios::trunc);
+      stream << "NOPE";
+    }
+    {
+      std::ofstream stream(truncated, std::ios::binary | std::ios::trunc);
+      stream << "EPV2";
+    }
+    write_epv2(non_finite, true, false);
+    write_epv2(trailing, false, true);
+    for (const auto& [path, expected] : {
+             std::pair{invalid, "invalid header"},
+             std::pair{truncated, "invalid header"},
+             std::pair{non_finite, "non-finite"},
+             std::pair{trailing, "trailing bytes"}}) {
+      PolicyValueNetwork malformed;
+      std::string error;
+      expect(!malformed.load(path, &error) && error.contains(expected),
+             "malformed EPV2 artifacts fail closed with a specific reason");
+      std::filesystem::remove(path);
+    }
   }
   expect(production_search_threads() == 3,
          "every production brain process owns exactly three search threads");

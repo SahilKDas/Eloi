@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Train Eloi's EPV2 complete-move policy/value laboratory network."""
 from __future__ import annotations
-import argparse, hashlib, json, random, struct, subprocess, sys, time
+import argparse, hashlib, json, random, re, struct, subprocess, sys, time
 from pathlib import Path
 import numpy as np
 ROOT=Path(__file__).resolve().parents[1]
@@ -63,14 +63,25 @@ class Network:
   for idx,g in pgrad.items(): self.policy[idx]-=lr*g
   vloss=-float(np.sum(vt*np.log(vp+1e-9)))/len(rows); return vloss,ploss/len(rows),top/len(rows)
 
+PARTITION_RE=re.compile(r'"partition"\s*:\s*"(train|validation|test)"')
+
 def load(path):
- out={p:[] for p in ('train','validation','test')}
+ out={p:[] for p in ('train','validation')}; sealed_test_count=0
  with path.open(encoding='utf-8') as f:
   for line in f:
    if line.strip():
-    r=json.loads(line); out[r['partition']].append(r)
+    marker=PARTITION_RE.search(line)
+    if marker is None: raise ValueError('dataset row has no recognized partition marker')
+    partition=marker.group(1)
+    if partition=='test':
+     sealed_test_count+=1
+     continue
+    r=json.loads(line)
+    if r.get('partition')!=partition: raise ValueError('dataset partition marker mismatch')
+    out[partition].append(r)
  if not out['train'] or not out['validation']: raise ValueError('training and validation must be nonempty')
- return out
+ if not sealed_test_count: raise ValueError('sealed test partition must be nonempty')
+ return out,sealed_test_count
 
 def evaluate(net,rows):
  vl=pl=top=0.
@@ -94,7 +105,7 @@ def main():
  p=argparse.ArgumentParser(); p.add_argument('--dataset',type=Path,required=True); p.add_argument('--output',type=Path,required=True); p.add_argument('--epochs',type=int,default=30); p.add_argument('--batch-size',type=int,default=256); p.add_argument('--learning-rate',type=float,default=.002); p.add_argument('--seed',type=int,default=20260916); p.add_argument('--patience',type=int,default=3); p.add_argument('--min-delta',type=float,default=1e-4); p.add_argument('--tactical-check',type=Path); p.add_argument('--tactical-engine',type=Path); a=p.parse_args()
  if bool(a.tactical_check) != bool(a.tactical_engine): raise ValueError('--tactical-check and --tactical-engine must be supplied together')
  if a.output.exists(): raise FileExistsError(a.output)
- a.output.mkdir(parents=True); validation_support.resource_snapshot(a.output,projected=40000000); rows=load(a.dataset); net=Network(a.seed); before=evaluate(net,rows['validation']); best=float('inf'); best_state=net.snapshot(); best_epoch=0; stale=0; history=[]; start=time.monotonic()
+ a.output.mkdir(parents=True); validation_support.resource_snapshot(a.output,projected=40000000); rows,sealed_test_count=load(a.dataset); net=Network(a.seed); before=evaluate(net,rows['validation']); best=float('inf'); best_state=net.snapshot(); best_epoch=0; stale=0; history=[]; start=time.monotonic()
  for epoch in range(1,a.epochs+1):
   ordered=balanced(rows['train'],a.seed+epoch); tv=tp=tt=seen=0
   for i in range(0,len(ordered),a.batch_size):
@@ -110,6 +121,6 @@ def main():
   row={'epoch':epoch,'train_value_loss':tv/seen,'train_policy_loss':tp/seen,'train_policy_top1':tt/seen,'validation':val,'selection_metric':metric,'improved':accepted,'tactical_passed':tactical}; history.append(row); print(json.dumps(row),flush=True)
   if stale>=a.patience: break
  net.restore(best_state); model=a.output/'eloi-policy-value-v2.epv2'; net.save(model)
- manifest={'schema':'eloi-policy-value-training-v2','status':'complete','dataset_sha256':sha(a.dataset),'model_sha256':sha(model),'architecture':{'inputs':INPUTS,'hidden':HIDDEN,'value_outputs':['win','draw','loss'],'policy':'exact oriented from/to/promotion interaction','move_outputs':MOVES},'rows':{k:len(v) for k,v in rows.items()},'test_partition_opened':False,'seed':a.seed,'epochs_requested':a.epochs,'epochs_completed':len(history),'batch_size':a.batch_size,'learning_rate':a.learning_rate,'patience':a.patience,'min_delta':a.min_delta,'selected_epoch':best_epoch,'selection_metric':'policy_cross_entropy + 0.25 * value_cross_entropy','selected_validation':evaluate(net,rows['validation']),'validation_before':before,'history':history,'elapsed_seconds':round(time.monotonic()-start,3),'promotion_status':'laboratory_only'}
+ manifest={'schema':'eloi-policy-value-training-v2','status':'complete','dataset_sha256':sha(a.dataset),'model_sha256':sha(model),'architecture':{'inputs':INPUTS,'hidden':HIDDEN,'value_outputs':['win','draw','loss'],'policy':'exact oriented from/to/promotion interaction','move_outputs':MOVES},'rows':{'train':len(rows['train']),'validation':len(rows['validation']),'test_sealed':sealed_test_count},'test_partition_opened':False,'test_partition_handling':'partition marker counted; row skipped before JSON parsing','seed':a.seed,'epochs_requested':a.epochs,'epochs_completed':len(history),'batch_size':a.batch_size,'learning_rate':a.learning_rate,'patience':a.patience,'min_delta':a.min_delta,'selected_epoch':best_epoch,'selection_metric':'policy_cross_entropy + 0.25 * value_cross_entropy','selected_validation':evaluate(net,rows['validation']),'validation_before':before,'history':history,'elapsed_seconds':round(time.monotonic()-start,3),'promotion_status':'laboratory_only'}
  (a.output/'manifest.json').write_text(json.dumps(manifest,indent=2,sort_keys=True)+'\n',encoding='utf-8'); return 0
 if __name__=='__main__': raise SystemExit(main())
