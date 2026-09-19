@@ -54,12 +54,26 @@ int main() {
   }
   reset_game(app, Color::white);
   open_game_setup(app, 7);
+  check(app.setup.brain == App::LocalBrain::caissa,
+        "Standard setup defaults to Caissa 1.25");
+  click(layout.setup_brains[1]);
+  check(app.setup.brain == App::LocalBrain::eloi,
+        "setup selects Eloi E4-10");
+  click(layout.setup_brains[0]);
+  check(app.setup.brain == App::LocalBrain::caissa,
+        "setup reselects Caissa for Standard");
   click(layout.setup_sides[1]);
   check(app.setup.human == Color::black, "setup selects black");
   click(layout.setup_sides[0]);
   click(layout.setup_variants[2]);
   check(app.setup.variant == App::LocalVariant::horde, "setup selects Horde");
+  check(app.setup.brain == App::LocalBrain::eloi,
+        "Horde forces the Eloi E4-10 brain");
+  click(layout.setup_brains[0]);
+  check(app.setup.brain == App::LocalBrain::eloi,
+        "Caissa cannot be selected for Horde");
   click(layout.setup_variants[0]);
+  click(layout.setup_brains[0]);
   click(layout.setup_base_plus);
   click(layout.setup_increment_plus);
   click(layout.setup_start);

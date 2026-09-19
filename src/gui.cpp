@@ -1,4 +1,5 @@
 #include "eloi/chess.hpp"
+#include "eloi/brain.hpp"
 #include "eloi/version_match.hpp"
 
 #ifdef _WIN32
@@ -85,6 +86,7 @@ struct Layout {
   UiRect setup_increment_minus;
   UiRect setup_increment_plus;
   std::array<UiRect, 3> setup_variants;
+  std::array<UiRect, 2> setup_brains;
   std::array<UiRect, 2> setup_sides;
   UiRect setup_start;
   UiRect setup_cancel;
@@ -127,15 +129,20 @@ Layout make_layout(int width, int height) {
     const float left = dialog_left + 22 + i * (variant_width + variant_gap);
     layout.setup_variants[i] = {left, 382, left + variant_width, 428};
   }
+  const float brain_width = (dialog_width - 54) / 2;
+  layout.setup_brains[0] = {dialog_left + 22, 466,
+                            dialog_left + 22 + brain_width, 512};
+  layout.setup_brains[1] = {dialog_right - 22 - brain_width, 466,
+                            dialog_right - 22, 512};
   const float side_width = (dialog_width - 54) / 2;
-  layout.setup_sides[0] = {dialog_left + 22, 480,
-                           dialog_left + 22 + side_width, 530};
-  layout.setup_sides[1] = {dialog_right - 22 - side_width, 480,
-                           dialog_right - 22, 530};
-  layout.setup_cancel = {dialog_left + 22, 574,
-                         dialog_left + dialog_width * .38f, 624};
-  layout.setup_start = {dialog_left + dialog_width * .42f, 574,
-                        dialog_right - 22, 624};
+  layout.setup_sides[0] = {dialog_left + 22, 548,
+                           dialog_left + 22 + side_width, 598};
+  layout.setup_sides[1] = {dialog_right - 22 - side_width, 548,
+                           dialog_right - 22, 598};
+  layout.setup_cancel = {dialog_left + 22, 646,
+                         dialog_left + dialog_width * .38f, 696};
+  layout.setup_start = {dialog_left + dialog_width * .42f, 646,
+                        dialog_right - 22, 696};
   return layout;
 }
 
@@ -195,10 +202,11 @@ int piece_slot(std::int8_t cell) {
 
 struct App {
   enum class LocalVariant { standard, chess960, horde };
+  enum class LocalBrain { caissa, eloi };
   enum class HoverControl : std::size_t {
     depth_minus, depth_plus, new_game, undo, flip, side, version_match,
     base_minus, base_plus, increment_minus, increment_plus,
-    variant_standard, variant_chess960, variant_horde,
+    variant_standard, variant_chess960, variant_horde, brain_caissa, brain_eloi,
     side_white, side_black, setup_start, setup_cancel, count
   };
   enum class AnimationAfter { none, start_engine, finish_engine };
@@ -225,6 +233,7 @@ struct App {
     int chess960_index{518};
     Color human{Color::white};
     LocalVariant variant{LocalVariant::standard};
+    LocalBrain brain{LocalBrain::caissa};
   } setup;
   HWND window{};
   Board board{*parse_fen(initial_fen)};
@@ -234,6 +243,7 @@ struct App {
   bool version_match{false};
   int depth{7};
   LocalVariant local_variant{LocalVariant::standard};
+  LocalBrain local_brain{LocalBrain::caissa};
   int chess960_index{518};
   bool clocked_game{false};
   int increment_ms{0};
@@ -257,6 +267,7 @@ struct App {
   std::thread worker;
   std::unique_ptr<Searcher> local_searcher;
   std::optional<EngineConfig> local_searcher_config;
+  std::unique_ptr<IsolatedCaissaBrain> local_caissa;
   std::unique_ptr<UciVersionEngine> current_version_engine;
   std::unique_ptr<UciVersionEngine> previous_version_engine;
   std::filesystem::path previous_version_path;
@@ -288,6 +299,7 @@ struct App {
 };
 
 void start_engine(App& app);
+std::filesystem::path running_executable();
 
 constexpr std::size_t side_index(Color side) {
   return side == Color::white ? 0U : 1U;
@@ -299,6 +311,19 @@ std::string_view variant_name(App::LocalVariant variant) {
     case App::LocalVariant::horde: return "Horde";
     default: return "FIDE chess";
   }
+}
+
+std::string_view brain_name(App::LocalBrain brain) {
+  return brain == App::LocalBrain::caissa ? "Caissa 1.25" : "Eloi E4-10";
+}
+
+std::filesystem::path gui_caissa_network() {
+  const auto adjacent = running_executable().parent_path() /
+                        "eval-71-v1.25.pnn";
+  std::error_code error;
+  if (std::filesystem::is_regular_file(adjacent, error)) return adjacent;
+  return std::filesystem::current_path() /
+         ".deps/caissa/eval-71-v1.25.pnn";
 }
 
 Board local_start_position(App::LocalVariant variant, int chess960_index) {
@@ -368,7 +393,8 @@ hover_rects(const Layout& layout) {
           layout.setup_base_minus, layout.setup_base_plus,
           layout.setup_increment_minus, layout.setup_increment_plus,
           layout.setup_variants[0], layout.setup_variants[1],
-          layout.setup_variants[2], layout.setup_sides[0],
+          layout.setup_variants[2], layout.setup_brains[0],
+          layout.setup_brains[1], layout.setup_sides[0],
           layout.setup_sides[1], layout.setup_start, layout.setup_cancel};
 }
 
@@ -623,6 +649,9 @@ void start_engine(App& app) {
       ? std::clamp(app.depth, 1, maximum_gui_search_depth)
       : std::clamp(app.depth, 0, maximum_gui_search_depth);
   const bool version_mode = app.version_match;
+  const App::LocalBrain selected_brain =
+      app.local_variant == App::LocalVariant::standard
+          ? app.local_brain : App::LocalBrain::eloi;
   const bool current_turn = root.turn == app.current_version_side;
   const int remaining_ms = depth == 0
       ? static_cast<int>(std::min<std::int64_t>(
@@ -636,13 +665,15 @@ void start_engine(App& app) {
       ? std::format("{} is thinking · {} plies",
                     current_turn ? "Current Eloi" : "Previous Eloi", depth)
       : (depth == 0
-            ? std::format("Eloi is thinking · {}", format_clock(remaining_ms))
-            : std::format("Eloi is thinking · {} plies", depth));
+            ? std::format("{} is thinking · {}", brain_name(selected_brain),
+                          format_clock(remaining_ms))
+            : std::format("{} is thinking · {} plies",
+                          brain_name(selected_brain), depth));
   InvalidateRect(app.window, nullptr, FALSE);
 
   app.worker = std::thread(
       [&app, root, depth, remaining_ms, increment_ms, generation,
-       version_mode, current_turn] {
+       version_mode, current_turn, selected_brain] {
     if (version_mode) {
       UciVersionEngine* engine = current_turn
           ? app.current_version_engine.get()
@@ -675,11 +706,6 @@ void start_engine(App& app) {
     auto config = default_config();
     config.depth = depth;
     config.own_book = config.own_book && !root.chess960 && !root.horde;
-    if (!app.local_searcher || app.local_searcher_config != config) {
-      app.local_searcher.reset();
-      app.local_searcher = std::make_unique<Searcher>(config, app.stop);
-      app.local_searcher_config = config;
-    }
     SearchLimits limits;
     limits.depth = depth;
     if (depth == 0) {
@@ -687,11 +713,39 @@ void start_engine(App& app) {
       limits.increment_ms = increment_ms;
       limits.move_overhead_ms = config.move_overhead_ms;
     }
-    auto result = app.local_searcher->iterative(root, limits);
+    SearchResult result;
+    std::string search_error;
+    bool use_eloi = selected_brain == App::LocalBrain::eloi;
+    if (!use_eloi) {
+      if (!app.local_caissa) {
+        app.local_caissa = std::make_unique<IsolatedCaissaBrain>(
+            running_executable(), gui_caissa_network(), app.stop,
+            static_cast<std::size_t>(std::max(1, config.hash_mb)) *
+                1024u * 1024u);
+      }
+      BrainResponse response = app.local_caissa->search(root, limits);
+      if (response.status == BrainStatus::complete &&
+          response.has_legal_move(root)) {
+        result = std::move(response.search);
+      } else {
+        use_eloi = true;
+        app.local_caissa.reset();
+        search_error = std::format("Caissa unavailable; Eloi fallback: {}",
+                                   response.detail);
+      }
+    }
+    if (use_eloi) {
+      if (!app.local_searcher || app.local_searcher_config != config) {
+        app.local_searcher.reset();
+        app.local_searcher = std::make_unique<Searcher>(config, app.stop);
+        app.local_searcher_config = config;
+      }
+      result = app.local_searcher->iterative(root, limits);
+    }
     if (!app.stop.load()) {
       std::scoped_lock lock(app.result_mutex);
       app.pending_result = std::move(result);
-      app.pending_error.clear();
+      app.pending_error = std::move(search_error);
     }
     PostMessageW(app.window, engine_finished_message,
                  static_cast<WPARAM>(generation), 0);
@@ -753,6 +807,7 @@ void open_game_setup(App& app, int previous_depth) {
   app.setup.resume_clock = app.clocked_game && app.clock_running;
   app.setup.human = app.human;
   app.setup.variant = app.local_variant;
+  app.setup.brain = app.local_brain;
   app.setup.chess960_index = app.chess960_index;
   app.clock_running = false;
   app.depth = 0;
@@ -776,6 +831,14 @@ void cancel_game_setup(App& app) {
 void apply_game_setup(App& app) {
   app.setup.active = false;
   app.local_variant = app.setup.variant;
+  app.local_brain = app.local_variant == App::LocalVariant::standard
+      ? app.setup.brain : App::LocalBrain::eloi;
+  if (app.local_brain == App::LocalBrain::caissa) {
+    app.local_searcher.reset();
+    app.local_searcher_config.reset();
+  } else {
+    app.local_caissa.reset();
+  }
   app.chess960_index = app.setup.chess960_index;
   app.depth = 0;
   app.flipped = app.setup.human == Color::black;
@@ -1154,7 +1217,7 @@ void render_game_setup(App& app, SkCanvas& canvas, const Layout& layout) {
       layout.board_size + 20, layout.board_size + 20), veil);
   const float left = layout.board_left + 54;
   const float right = layout.board_left + layout.board_size - 54;
-  round_rect(canvas, {left, 146, right, 652}, 24,
+  round_rect(canvas, {left, 126, right, 724}, 24,
              SkColorSetRGB(27, 31, 48));
   text(canvas, "NEW CLOCKED GAME", left + 24, 184, 21, ink, true);
   text(canvas, "Depth 0 · Eloi manages its time like an online game",
@@ -1198,7 +1261,21 @@ void render_game_setup(App& app, SkCanvas& canvas, const Layout& layout) {
     text(canvas, std::string(variant_name(app.setup.variant)),
          left + 24, 451, 12, muted);
 
-  text(canvas, "SIDES", left + 24, 472, 11, muted, true);
+  text(canvas, "BRAIN", left + 24, 454, 11, muted, true);
+  const bool standard = app.setup.variant == App::LocalVariant::standard;
+  button(canvas, layout.setup_brains[0], "CAISSA 1.25",
+         standard && app.setup.brain == App::LocalBrain::caissa
+             ? accent : SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::brain_caissa));
+  button(canvas, layout.setup_brains[1], "ELOI E4-10",
+         app.setup.brain == App::LocalBrain::eloi
+             ? accent : SkColorSetRGB(35, 40, 57),
+         hover_value(app, App::HoverControl::brain_eloi));
+  if (!standard)
+    text(canvas, "Caissa is Standard-only; Eloi is required here",
+         left + 24, 530, 11, mint);
+
+  text(canvas, "SIDES", left + 24, 536, 11, muted, true);
   button(canvas, layout.setup_sides[0], "YOU WHITE · ELOI BLACK",
          app.setup.human == Color::white ? accent : SkColorSetRGB(35, 40, 57),
          hover_value(app, App::HoverControl::side_white));
@@ -1211,7 +1288,7 @@ void render_game_setup(App& app, SkCanvas& canvas, const Layout& layout) {
                           app.setup.increment_seconds,
                           variant_name(app.setup.variant),
                           app.setup.human == Color::white ? "White" : "Black"),
-       left + 24, 558, 13, mint, true);
+       left + 24, 630, 13, mint, true);
   button(canvas, layout.setup_cancel, "CANCEL", SkColorSetRGB(35, 40, 57),
          hover_value(app, App::HoverControl::setup_cancel));
   button(canvas, layout.setup_start, "START GAME", accent,
@@ -1523,8 +1600,15 @@ void on_click(App& app, float x, float y) {
     } else if (layout.setup_variants[1].contains(x, y)) {
       app.setup.chess960_index = random_chess960_index();
       app.setup.variant = App::LocalVariant::chess960;
+      app.setup.brain = App::LocalBrain::eloi;
     } else if (layout.setup_variants[2].contains(x, y)) {
       app.setup.variant = App::LocalVariant::horde;
+      app.setup.brain = App::LocalBrain::eloi;
+    } else if (layout.setup_brains[0].contains(x, y) &&
+               app.setup.variant == App::LocalVariant::standard) {
+      app.setup.brain = App::LocalBrain::caissa;
+    } else if (layout.setup_brains[1].contains(x, y)) {
+      app.setup.brain = App::LocalBrain::eloi;
     } else if (layout.setup_sides[0].contains(x, y)) {
       app.setup.human = Color::white;
     } else if (layout.setup_sides[1].contains(x, y)) {
@@ -1698,9 +1782,16 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
               app->status = current_moved
                   ? "Current Eloi moved" : "Previous Eloi moved";
             } else {
+              const std::string moved_brain = pending_error.empty()
+                  ? std::string(brain_name(
+                        app->local_variant == App::LocalVariant::standard
+                            ? app->local_brain : App::LocalBrain::eloi))
+                  : "Eloi E4-10 fallback";
+              app->last_engine = moved_brain;
               app->status = result->opening_family.empty()
-                  ? "Eloi moved"
-                  : std::format("Eloi · {}", result->opening_family);
+                  ? std::format("{} moved", moved_brain)
+                  : std::format("{} · {}", moved_brain,
+                                result->opening_family);
             }
             begin_animation(*app, move, moving_cell,
                             app->version_match

@@ -18,7 +18,7 @@ inline constexpr std::string_view caissa_1_25_network_sha256 =
 inline constexpr std::uintmax_t caissa_1_25_network_size = 50'367'040;
 
 enum class BrainIdentity {
-  eloi_e2,
+  eloi_e4_10,
   caissa_1_25,
   hybrid,
 };
@@ -39,8 +39,8 @@ struct BrainLine {
 };
 
 struct BrainResponse {
-  BrainIdentity requested{BrainIdentity::eloi_e2};
-  BrainIdentity selected{BrainIdentity::eloi_e2};
+  BrainIdentity requested{BrainIdentity::eloi_e4_10};
+  BrainIdentity selected{BrainIdentity::eloi_e4_10};
   BrainStatus status{BrainStatus::failed};
   SearchResult search{};
   std::vector<BrainLine> lines;

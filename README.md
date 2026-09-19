@@ -11,8 +11,9 @@ search, and reproducible Windows packaging.
 The current stable source is **Eloi 3.1.2**.
 
 Standard UCI and native Lichess use the crash-contained **Caissa 1.25** brain.
-The native GUI, Chess960, Horde, and emergency fallback use Eloi's 64-unit
-**E2-ranking** NNUE with exactly three RootSplit lanes.
+The native GUI now offers **Caissa 1.25** or Eloi's 64-unit **E4-10** brain
+for Standard games. Chess960, Horde, explicit native mode, and emergency
+fallback use E4-10 with exactly three RootSplit lanes.
 
 Official packages currently target **Windows x64**.
 
@@ -22,7 +23,7 @@ Current main contains the pinned Caissa 1.25 backend with Eloi-owned routing, le
 
 Standard UCI play uses the embedded **Caissa 1.25 search directly**. The experimental two-brain arbiter remains available for development but is not the production default.
 
-Chess960 and Horde remain on Eloi E2 until separate parity qualification.
+Chess960 and Horde use Eloi E4-10; Caissa remains Standard-only.
 
 ---
 
@@ -67,7 +68,8 @@ Chess960 and Horde remain on Eloi E2 until separate parity qualification.
 | Protocol | UCI |
 | Online client | Native Lichess Bot API |
 | Standard UCI/Lichess brain | Crash-contained Caissa 1.25 |
-| GUI/Chess960/Horde/fallback brain | E2-ranking, 64 units, three RootSplit lanes |
+| GUI Standard choice | Caissa 1.25 or Eloi E4-10 |
+| Chess960/Horde/fallback brain | E4-10, 64 units, three RootSplit lanes |
 | Variants | Standard, Chess960, Horde |
 | Source license | MIT |
 | Caissa in current main | Yes, pinned v1.25 |
@@ -89,6 +91,12 @@ is laboratory-only and does not change v3.1.2 playing behavior or packages.
 Native Lichess can now write token-free completed-game journals for the
 separate headless autopsy worker. Those reports identify the exact playing
 binary and remain production/legacy diagnostics unless EPV2 actually played.
+
+Current main selects **E4-10** as the conservative Eloi-native successor.
+Its 400-game direct comparison against E4-20 finished 205.5/400 (51.375%)
+from E4-10's perspective with zero protocol failures and complete legal
+replay. See [E4_CAMPAIGN.md](E4_CAMPAIGN.md). This does not alter already
+published v3.1.2 packages.
 
 Source version, Git tag, and packaged release are related but distinct.
 

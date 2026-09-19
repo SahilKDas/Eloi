@@ -90,7 +90,8 @@ def probe(executable: Path, crash: bool, timeout: float) -> dict:
     )
     detail_ok = expected_detail in joined if crash else (
         "Caissa failed" not in joined
-        and ("agreed" in joined or "cross-verification" in joined)
+        and ("Standard uses Caissa 1.25" in joined
+             or "agreed" in joined or "cross-verification" in joined)
     )
     return {
         "mode": "crashed-child" if crash else "normal",

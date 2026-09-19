@@ -168,7 +168,7 @@ int main() {
   CaissaBrain caissa{".deps/caissa/missing-test-network.pnn", stopped};
   HybridBrain hybrid(eloi, caissa);
 
-  expect(eloi.available(), "E2 adapter is available");
+  expect(eloi.available(), "E4-10 adapter is available");
   expect(!caissa.available(), "Caissa fails closed before backend audit");
   expect(caissa.network_path() == ".deps/caissa/missing-test-network.pnn",
          "local network path is retained without loading it");
@@ -192,7 +192,7 @@ int main() {
     limits.depth = 1;
     auto response = hybrid.search(*standard, limits);
     expect(response.requested == BrainIdentity::hybrid &&
-               response.selected == BrainIdentity::eloi_e2 &&
+               response.selected == BrainIdentity::eloi_e4_10 &&
                response.used_fallback,
            "standard hybrid records E2 fallback while Caissa is unavailable");
     expect(response.status == BrainStatus::complete &&
@@ -255,7 +255,7 @@ int main() {
     SearchLimits limits;
     limits.depth = 1;
     auto response = hybrid.search(*chess960, limits);
-    expect(response.selected == BrainIdentity::eloi_e2 &&
+    expect(response.selected == BrainIdentity::eloi_e4_10 &&
                response.used_fallback && response.has_legal_move(*chess960),
            "Chess960 bypasses Caissa and remains legal");
   }
@@ -267,7 +267,7 @@ int main() {
     SearchLimits limits;
     limits.depth = 1;
     auto response = hybrid.search(*horde, limits);
-    expect(response.selected == BrainIdentity::eloi_e2 &&
+    expect(response.selected == BrainIdentity::eloi_e4_10 &&
                response.used_fallback && response.has_legal_move(*horde),
            "Horde bypasses Caissa and remains legal");
   }
@@ -295,9 +295,9 @@ int main() {
   {
     auto board = *parse_fen(initial_fen);
     FakeBrain fake_eloi{
-        BrainIdentity::eloi_e2,
+        BrainIdentity::eloi_e4_10,
         [](const Board& position, const SearchLimits&, int) {
-          return fake_response(BrainIdentity::eloi_e2, position, "e2e4", 12);
+          return fake_response(BrainIdentity::eloi_e4_10, position, "e2e4", 12);
         }};
     FakeBrain fake_caissa{
         BrainIdentity::caissa_1_25,
@@ -318,13 +318,13 @@ int main() {
   {
     auto board = *parse_fen(initial_fen);
     FakeBrain fake_eloi{
-        BrainIdentity::eloi_e2,
+        BrainIdentity::eloi_e4_10,
         [](const Board& position, const SearchLimits&, int) {
           if (position.history.empty())
             return fake_response(
-                BrainIdentity::eloi_e2, position, "d2d4", 40);
+                BrainIdentity::eloi_e4_10, position, "d2d4", 40);
           return fake_response(
-              BrainIdentity::eloi_e2, position, "e7e5", -20);
+              BrainIdentity::eloi_e4_10, position, "e7e5", -20);
         }};
     FakeBrain fake_caissa{
         BrainIdentity::caissa_1_25,
@@ -356,9 +356,9 @@ int main() {
   {
     auto board = *parse_fen(initial_fen);
     FakeBrain fake_eloi{
-        BrainIdentity::eloi_e2,
+        BrainIdentity::eloi_e4_10,
         [](const Board& position, const SearchLimits&, int) {
-          return fake_response(BrainIdentity::eloi_e2, position, "d2d4", 10);
+          return fake_response(BrainIdentity::eloi_e4_10, position, "d2d4", 10);
         }};
     FakeBrain invalid_caissa{
         BrainIdentity::caissa_1_25,
@@ -374,7 +374,7 @@ int main() {
     limits.nodes = 1'000;
     const auto response = fallback.search(board, limits);
     expect(response.requested == BrainIdentity::hybrid &&
-               response.selected == BrainIdentity::eloi_e2 &&
+               response.selected == BrainIdentity::eloi_e4_10 &&
                response.used_fallback && response.has_legal_move(board),
            "an invalid Caissa response falls back to a legal E2 move");
   }
@@ -391,7 +391,7 @@ int main() {
             return response;
           }};
     };
-    auto failed_eloi = failing(BrainIdentity::eloi_e2);
+    auto failed_eloi = failing(BrainIdentity::eloi_e4_10);
     auto failed_caissa = failing(BrainIdentity::caissa_1_25);
     HybridBrain no_brain{failed_eloi, failed_caissa};
     SearchLimits limits;
@@ -406,10 +406,10 @@ int main() {
   {
     auto board = *parse_fen(initial_fen);
     FakeBrain fake_eloi{
-        BrainIdentity::eloi_e2,
+        BrainIdentity::eloi_e4_10,
         [](const Board& position, const SearchLimits&, int) {
           auto response = fake_response(
-              BrainIdentity::eloi_e2, position, "d2d4", 10);
+              BrainIdentity::eloi_e4_10, position, "d2d4", 10);
           const auto legal = position.legal_moves();
           const auto e4 = std::ranges::find_if(
               legal, [](const Move& move) { return move.uci() == "e2e4"; });

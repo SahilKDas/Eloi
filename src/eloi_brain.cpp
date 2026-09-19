@@ -23,7 +23,7 @@ EloiBrain::EloiBrain(EngineConfig config, std::atomic_bool& stopped,
 }
 
 BrainIdentity EloiBrain::identity() const noexcept {
-  return BrainIdentity::eloi_e2;
+  return BrainIdentity::eloi_e4_10;
 }
 
 bool EloiBrain::available() const noexcept {
@@ -34,15 +34,15 @@ BrainResponse EloiBrain::search(Board board, SearchLimits limits,
                                 const BrainInfoCallback& info) {
   const Board root = board;
   BrainResponse response;
-  response.requested = BrainIdentity::eloi_e2;
-  response.selected = BrainIdentity::eloi_e2;
+  response.requested = BrainIdentity::eloi_e4_10;
+  response.selected = BrainIdentity::eloi_e4_10;
   response.search = searcher_->iterative(
       std::move(board), limits,
       [&](const SearchResult& result) {
         if (!info) return;
         BrainResponse update;
-        update.requested = BrainIdentity::eloi_e2;
-        update.selected = BrainIdentity::eloi_e2;
+        update.requested = BrainIdentity::eloi_e4_10;
+        update.selected = BrainIdentity::eloi_e4_10;
         update.status = stopped_ ? BrainStatus::stopped : BrainStatus::complete;
         update.search = result;
         info(update);

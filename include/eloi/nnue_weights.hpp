@@ -6,14 +6,14 @@
 
 namespace eloi::nnue_weights {
 inline constexpr int feature_count = 6144;
-inline constexpr int evaluation_positions = 32145;
-inline constexpr int puzzle_positions = 12299;
-inline constexpr std::string_view source = "FIDE standard only; C-distilled offline Stockfish labels and engine-derived hard rankings";
+inline constexpr int evaluation_positions = 151636;
+inline constexpr int puzzle_positions = 12055;
+inline constexpr std::string_view source = "E4 E2-preserving corrected targets and tactical replay";
 inline constexpr std::array<std::int16_t, 64> bias{{
   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8
 }};
 inline constexpr std::array<std::int16_t, 64> output{{
-  98, 313, 303, 481, 867, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  98, 312, 302, 479, 864, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 }};
 inline constexpr std::array<std::int8_t, 393216> input{{
   8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

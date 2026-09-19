@@ -314,7 +314,7 @@ if(ELOI_BUILD_TESTS)
   endif()
   if(WIN32 AND ELOI_BUILD_APP)
     add_executable(eloi_gui_tests tests/gui_smoke.cpp src/version_match.cpp)
-    target_link_libraries(eloi_gui_tests PRIVATE eloi_core ${ELOI_GUI_LIBRARIES})
+    target_link_libraries(eloi_gui_tests PRIVATE eloi_brains ${ELOI_GUI_LIBRARIES})
     target_include_directories(eloi_gui_tests PRIVATE "${SKIA_ROOT}/include/skia")
     if(ELOI_SPLIT_PACKAGE)
       add_custom_command(TARGET eloi_gui_tests POST_BUILD

@@ -249,7 +249,7 @@ int run_hybrid_lab(int argc, char** argv) {
         const std::string donor_failure = response.detail;
         response = eloi.search(snapshot, limits);
         response.used_fallback = true;
-        response.detail = "production routing: Caissa failed; used Eloi E2";
+        response.detail = "production routing: Caissa failed; used Eloi E4-10";
         if (!donor_failure.empty())
           response.detail += " (" + donor_failure + ")";
         runtime_fallback = true;
@@ -257,8 +257,8 @@ int run_hybrid_lab(int argc, char** argv) {
       if (!active_brain && selected_brain == &eloi) {
         response.used_fallback = true;
         response.detail = snapshot.horde || snapshot.chess960
-            ? "production routing: variant uses Eloi E2"
-            : "production routing: Caissa unavailable; used Eloi E2";
+            ? "production routing: variant uses Eloi E4-10"
+            : "production routing: Caissa unavailable; used Eloi E4-10";
       } else if (!active_brain && !runtime_fallback) {
         response.detail = "production routing: Standard uses Caissa 1.25";
       }

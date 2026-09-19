@@ -1,31 +1,27 @@
 {
-  "schema": 3,
-  "mode": "strength-qualified-stable-source-promotion",
-  "release_version": "2.7.5",
-  "selected_candidate": "E2-ranking",
+  "schema": 4,
+  "mode": "e2-preserving-native-mode-promotion",
+  "release_version": "unreleased-current-main",
+  "selected_candidate": "E4-anchor-10",
   "selected_hidden": 64,
-  "selected_weights_sha256": "E3DFBE02F4DC765C45E243EFD4437E9EC3390D4F167531D6F54765CECB899C9F",
-  "checkpoint_sha256": "E3E3D98C7CDF85E0D8AE82A7F07777E81C9C0FBE6F1BB31774F2DDA2118FCD29",
-  "previous_provenance": "data/nnue_provenance_v2_5_0.json",
-  "previous_weights_sha256": "6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD",
+  "selected_weights_sha256": "4C705496950E27204C976F0D027CAA9C73B209961584F7998742AA481B524E88",
+  "checkpoint_sha256": "D613B853FE534B6AD3604080E559DB26D9CCC55E124005FE60B9ABBCD508EE99",
+  "previous_provenance": "data/nnue_provenance_e2.json",
+  "previous_weights_sha256": "E3DFBE02F4DC765C45E243EFD4437E9EC3390D4F167531D6F54765CECB899C9F",
   "counts": {
-    "base_train_evaluations": 32015,
-    "base_train_pairs": 12000,
-    "base_validation_evaluations": 4000,
-    "accepted_base_test_evaluations": 3985,
-    "hard_source_positions": 3197,
-    "hard_diagnosed_positions": 384,
-    "hard_retained_positions": 166,
-    "hard_training_positions": 130,
-    "hard_validation_positions": 36,
-    "hard_ranking_pairs": 365
+    "base_train_evaluations": 151636,
+    "preservation_pairs": 12000,
+    "regression_pairs": 55,
+    "regression_cases": 8,
+    "validation_evaluations": 19275,
+    "validation_tactical_pairs": 4000
   },
   "recipe": [
-    "Initialize from exact Eloi v2.5.0 C quantized parameters converted to float32",
-    "Blend C and Stockfish offline evaluation targets with teacher fraction 0.50",
-    "Retain legacy tactical rankings and emphasize newly mined hard rankings at weight 1.50 for three epochs",
-    "Anchor the trained delta toward C, retaining 0.70 of the candidate delta",
-    "Quantize the selected float checkpoint directly into the production 64-unit header"
+    "Initialize from exact E2-ranking quantized parameters converted to float32",
+    "Train against 80% E2 static targets and 20% bounded corrected teacher targets",
+    "Retain 12,000 preservation rankings and add 55 high-weight child-position rankings from eight regression cases",
+    "Export the learned delta at 10% strength over E2",
+    "Quantize once and copy the selected 64-unit header byte-for-byte"
   ],
   "rules": {
     "training": "FIDE standard chess only",
@@ -56,44 +52,34 @@
     "promoted_header_was_copied_byte_for_byte": true
   },
   "validation": {
-    "standard_validation_mae_cp": 178.10225,
-    "mean_absolute_drift_from_c_cp": 43.10625,
-    "held_out_hard_pair_accuracy": 0.30303,
-    "base_test_partition_used_for_selection": false,
-    "qualification_match": {
-      "opponent": "Eloi v2.5.0 / C",
-      "games": 125,
-      "wins": 45,
-      "draws": 56,
-      "losses": 24,
-      "points": 73.0,
-      "score": 0.584,
-      "evidence": "data/nnue_e2_standard_results.json"
+    "correctness_failures": 0,
+    "initial_screen_against_e2": {
+      "games": 20,
+      "wins": 7,
+      "draws": 7,
+      "losses": 6,
+      "score": 0.525
     },
-    "promotion_confirmation": {
-      "opponent": "Eloi v2.5.0 / C",
-      "games": 250,
-      "wins": 93,
-      "draws": 94,
-      "losses": 63,
-      "points": 140.0,
-      "score": 0.56,
-      "estimated_elo_difference": 41.89414020800522,
-      "descriptive_score_interval": [0.5136312953146894, 0.6063687046853107],
+    "direct_comparison_against_e4_20": {
+      "games": 400,
+      "wins": 129,
+      "draws": 153,
+      "losses": 118,
+      "points": 205.5,
+      "score": 0.51375,
       "protocol_failures": 0,
-      "independent_legal_replay": true,
-      "protocol_sha256": "298265AA5B0E5C2CD0632E170FAA834FEF1555B35AC8E0AE18A3EA314E04C722",
-      "pgn_sha256": "013EFE5F581B784E73A83C063491851F837E067C7FA3C25740E816DEE20D7304"
-    }
+      "independent_legal_replay": true
+    },
+    "selection_scope": "Eloi-native mode only; Caissa 1.25 remains default Standard brain"
   },
-  "training_protocol": "data/nnue_e2_standard_results.json",
-  "training_results": "data/nnue_e2_standard_results.json",
-  "selection_policy": "RELEASE_V2_7_5.md",
+  "training_protocol": "data/nnue_e4_results.json",
+  "training_results": "data/nnue_e4_results.json",
+  "selection_policy": "E4_CAMPAIGN.md",
   "historical_gates_reclassified": false,
   "known_limitations": [
-    "The 250-game confirmation used 10,000 nodes per move; it does not establish 250 ms or online-blitz superiority",
-    "Held-out hard-pair accuracy was 30.303% for every quantized E2 candidate",
-    "Strength intervals and Elo transforms are descriptive, not formal rating certification"
+    "The direct E4 comparison is close and does not establish a reliable Elo advantage",
+    "E4-10 has not defeated Caissa-backed production and is not the default Standard brain",
+    "Training and strength selection used FIDE Standard positions only"
   ],
   "source_license_evidence": [
     "https://database.nikonoel.fr/ identifies games as a filtered collection from Lichess",

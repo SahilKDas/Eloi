@@ -459,13 +459,13 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       last_brain_route = "caissa_1_25";
       if (response.has_legal_move(board)) return std::move(response.search);
       if (response.status == BrainStatus::stopped) return {};
-      last_brain_route = "eloi_e2_fallback";
-      std::cerr << "Caissa Lichess search failed; using Eloi E2 fallback: "
+      last_brain_route = "eloi_e4_10_fallback";
+      std::cerr << "Caissa Lichess search failed; using Eloi E4-10 fallback: "
                 << response.detail << '\n';
       search_stopped.store(false, std::memory_order_relaxed);
     }
-    last_brain_route = board.chess960 ? "eloi_e2_chess960" :
-                       board.horde ? "eloi_e2_horde" : "eloi_e2";
+    last_brain_route = board.chess960 ? "eloi_e4_10_chess960" :
+                       board.horde ? "eloi_e4_10_horde" : "eloi_e4_10";
     return persistent_searcher(engine).iterative(std::move(board), limits);
   };
   auto take_ponder = [&](std::string_view moves, bool game_running)

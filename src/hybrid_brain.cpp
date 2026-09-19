@@ -76,8 +76,8 @@ bool HybridBudget::valid() const noexcept {
 
 HybridBrain::HybridBrain(Brain& eloi, Brain& caissa, HybridBudget budget)
     : eloi_(eloi), caissa_(caissa), budget_(budget) {
-  if (eloi_.identity() != BrainIdentity::eloi_e2)
-    throw std::invalid_argument("hybrid Eloi slot must contain the E2 brain");
+  if (eloi_.identity() != BrainIdentity::eloi_e4_10)
+    throw std::invalid_argument("hybrid Eloi slot must contain the E4-10 brain");
   if (caissa_.identity() != BrainIdentity::caissa_1_25)
     throw std::invalid_argument("hybrid Caissa slot must contain Caissa 1.25");
   if (!budget_.valid())
@@ -183,7 +183,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     response.used_fallback = true;
     response.detail = caissa_move
         ? "E2 failed; hybrid used Eloi-legal Caissa fallback"
-        : "Caissa failed; hybrid used Eloi E2 fallback";
+        : "Caissa failed; hybrid used Eloi E4-10 fallback";
     if (!caissa_move && !caissa.detail.empty())
       response.detail += " (" + caissa.detail + ")";
     if (caissa_move && !eloi.detail.empty())

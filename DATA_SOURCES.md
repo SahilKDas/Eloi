@@ -13,16 +13,33 @@ Eloi adds its Italian Game/Nimzo-Indian weighting.
 `scripts/generate_openings.py` produces the tracked position graph in
 `include/eloi/opening_data.hpp`; CMake does not regenerate it.
 
-## Current NNUE: E2-ranking, 64 hidden units
+## Current native NNUE: E4-10, 64 hidden units
 
 Canonical lineage: [data/nnue_provenance.json](data/nnue_provenance.json).
 
 - Header SHA-256:
-  `E3DFBE02F4DC765C45E243EFD4437E9EC3390D4F167531D6F54765CECB899C9F`.
+  `4C705496950E27204C976F0D027CAA9C73B209961584F7998742AA481B524E88`.
 - Float checkpoint SHA-256:
-  `E3E3D98C7CDF85E0D8AE82A7F07777E81C9C0FBE6F1BB31774F2DDA2118FCD29`.
-- Warm-start C header SHA-256:
-  `6510D18A63C3AB68C337B5427A03AEF3284080BEA7A400746391688392BB16CD`.
+  `D613B853FE534B6AD3604080E559DB26D9CCC55E124005FE60B9ABBCD508EE99`.
+- Parent E2 header SHA-256:
+  `E3DFBE02F4DC765C45E243EFD4437E9EC3390D4F167531D6F54765CECB899C9F`.
+- Archived E2 provenance:
+  [data/nnue_provenance_e2.json](data/nnue_provenance_e2.json).
+
+### E4-10 correction and selection
+
+E4-10 starts from the exact E2-ranking network. Its targets blend 80% E2
+static evaluation with 20% bounded corrected teacher evaluation, retain 12,000
+E2-preservation ranking pairs, and add 55 high-weight child-position rankings
+from eight regression cases. The selected export applies 10% of the learned
+delta over E2.
+
+E4-10 passed the retained correctness suite and scored 7W/7D/6L against E2
+in its initial screen. In 400 disjoint direct games against E4-20, it scored
+129W/153D/118L, 205.5/400 (51.375%), with zero protocol failures and
+complete independent legal replay. Caissa 1.25 remains the default Standard
+brain; E4-10 is the selectable native GUI brain and the required brain for
+Chess960, Horde, explicit native mode, and emergency fallback.
 
 ### Sources and sampling
 
@@ -54,7 +71,7 @@ The canonical puzzle input SHA-256 is
 Its source and sampling hashes remain in `data/nnue_input_manifest.json`
 and `data/nnue_broader_sample_manifest.json`.
 
-### Recipe and quantization
+### E2 parent recipe and quantization
 
 1. Start from exact C, whose A→B→C recipe remains in
    [its archived provenance](data/nnue_provenance_v2_5_0.json).
