@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "campaign": "E3-controlled-64-vs-128",
+  "status": "rejected-before-gauntlet",
+  "production_changed": false,
+  "production_weights_sha256": "E3DFBE02F4DC765C45E243EFD4437E9EC3390D4F167531D6F54765CECB899C9F",
+  "dataset": {
+    "player_positions": 39704,
+    "train": 31636,
+    "validation": 4275,
+    "sealed_test": 3793,
+    "epv2_train_reused": 120000,
+    "epv2_validation_reused": 15000,
+    "sealed_tests_opened": false,
+    "protocol_sha256": "9AEFF8E971B9BF1616072E8C3C2110F7B380399C6E83E559CB850D62A6113D59",
+    "labels_sha256": "B60FB0FA72CB5F37E3E7411BB1F456A1850B90E130857976CF2C5E06F93CB7FE",
+    "training_result_sha256": "0C4C96BA70F86A08DFF7F3C7548D5FDF59EF3B8443FDF2BDC83A51E8B776ABEB"
+  },
+  "sources": [
+    {
+      "player": "Viswanathan Anand",
+      "url": "https://www.pgnmentor.com/players/Anand.zip",
+      "archive_sha256": "9F7227690C26ED05688CF1C118C46585C8D6A69A054764F5EF2649C47AEB292F",
+      "raw_redistributed": false
+    },
+    {
+      "player": "Anish Giri",
+      "url": "https://www.pgnmentor.com/players/Giri.zip",
+      "archive_sha256": "A0649419C055A45849D000BAEC27F4008DDA69194D99C3524426466DD100AA63",
+      "raw_redistributed": false
+    }
+  ],
+  "candidates": [
+    {
+      "id": "E3-64",
+      "hidden_units": 64,
+      "weights_sha256": "68EC9A6D7C9DAB3F4255C173EC6B0466E1B9AB302C55D0788E5B682345DCF3A4",
+      "checkpoint_sha256": "171C885DE63CBDD111E6A3CC700A9FAB0E665F7B0C3F841500B9CB34A5F07C71",
+      "broad_quantized_mae_cp": 435.85786666666667,
+      "player_quantized_mae_cp": 210.81192982456142,
+      "quantized_pair_accuracy": 0.578,
+      "correctness_failures": 4,
+      "test_executable_sha256": "702A16E1D47B912C1DA6DDE1C328A803CCD8B07D4A808239A8D35037326CA58F"
+    },
+    {
+      "id": "E3-128",
+      "hidden_units": 128,
+      "weights_sha256": "7A47A82F266DB2F263BA10A6587E20E440F43337E42AFD0AC5EA3EB5D72D858A",
+      "checkpoint_sha256": "121D40629E88DC2705BD587C31DDF89EB6AEC8C97B421E59088D56600C27D612",
+      "broad_quantized_mae_cp": 445.4412,
+      "player_quantized_mae_cp": 230.9345029239766,
+      "quantized_pair_accuracy": 0.57275,
+      "correctness_failures": 6,
+      "test_executable_sha256": "2E158F477AFB4AC08B867B3AFBECE0C583069E556406A5F48FCF5394213A187E"
+    }
+  ],
+  "strength_games_run": 0,
+  "decision": "Reject both candidates; retain E2. Do not open sealed tests."
+}

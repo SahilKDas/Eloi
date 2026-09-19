@@ -169,6 +169,15 @@ if(ELOI_BUILD_CAISSA_125_LAB OR ELOI_BUILD_APP)
   target_include_directories(eloi_brains PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     "${CMAKE_CURRENT_BINARY_DIR}/generated")
+  # Board embeds NnueState, whose type depends on nnue_hidden_size.  An
+  # experimental architecture override therefore has to reach every target
+  # that compiles Board, not only eloi_core; otherwise 128-unit laboratory
+  # builds silently mix incompatible 64/128 definitions across translation
+  # units and violate the ODR at link time.
+  if(ELOI_NNUE_INCLUDE_DIR)
+    target_include_directories(eloi_brains BEFORE PUBLIC
+      "${ELOI_NNUE_INCLUDE_DIR}")
+  endif()
 
   if(ELOI_BUILD_CAISSA_125_LAB)
     add_executable(EloiHybridLab src/hybrid_lab_main.cpp src/version_match.cpp)
