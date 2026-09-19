@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "campaign": "E4-E2-preservation",
+  "status": "preferred-unreleased-native-brain",
+  "production_changed": false,
+  "production_weights_sha256": "E3DFBE02F4DC765C45E243EFD4437E9EC3390D4F167531D6F54765CECB899C9F",
+  "recipe": {
+    "hidden_units": 64,
+    "e2_target_fraction": 0.8,
+    "teacher_target_fraction": 0.2,
+    "target_clamp_cp": 1500,
+    "preservation_pairs": 12000,
+    "regression_pairs": 55,
+    "regression_cases": 8,
+    "selected_delta_fraction": 0.2
+  },
+  "candidates": [
+    {"id": "E4-anchor-10", "correctness_failures": 0,
+     "screen": {"wins": 7, "draws": 7, "losses": 6, "score_percent": 52.5}},
+    {"id": "E4-anchor-20", "correctness_failures": 0,
+     "weights_sha256": "CD6C869E1BE783975E2336DBF7EB0D5BEF8637732247664A9D5E0776CD72C27D",
+     "test_executable_sha256": "1703E61B2DC204DF729FA50320B76C9166901D7FEF49C5A2E24300BEA2E7F2C7",
+     "match_executable_sha256": "8305BD792EDE6474D966A59B9FEC9FC77972ECEE7435FB442D5A565FC70B9ACA"},
+    {"id": "E4-anchor-35", "correctness_failures": 1,
+     "failure": "online-bIw09dp9-knight-hang repeated c6e5"}
+  ],
+  "baseline": {
+    "identity": "native E2",
+    "executable_sha256": "715CD9B8F1C9F5416296675ED8B4C2BCBCA0C0E52ADDFAABA2E33C2CAFDC523A"
+  },
+  "selected_result": {
+    "games": 60,
+    "wins": 21,
+    "draws": 23,
+    "losses": 16,
+    "score_points": 32.5,
+    "score_percent": 54.1666666667,
+    "protocol_failures": 0,
+    "independent_replay": true,
+    "qualification": "preliminary native-E2 evidence only; not production-qualified"
+  },
+  "evidence": {
+    "training_result_sha256": "4815A7CC8CB3BBC56B50A23F04CC41AA4CF008A90B1EF732251472C9C1F00D3C",
+    "initial_protocol_sha256": "6DACCDF06D81D8311B2725DF3D43B798D3972B608544480A759A127D7BAB3BC5",
+    "initial_results_sha256": "ED0FE9836737B680E7C2060D3311322F9FDFC294718C16A1F4D17B35856FDA10",
+    "initial_pgn_sha256": "724BAD3924F71DACB650A48055780B359D9878A3FAAD12A43BBCA1233739DC73",
+    "extension_protocol_sha256": "7AE957F491BDC408570E1EF351B9CE93C8FE68324C52CD5A1AFE84BC4C48A0D1",
+    "extension_results_sha256": "6712B554CAD505C399ADA79FCA65544511E9EAB6EDCC51F2883F689390375061",
+    "extension_pgn_sha256": "82DC52EC747C6414D42BF8752A293F87651CD9FE190FF9FADBBADD2B7F3EA04E"
+  },
+  "sealed_tests_opened": false,
+  "release_or_package_produced": false
+}
