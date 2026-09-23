@@ -741,6 +741,35 @@ int main() {
   }
 
   {
+    auto orthodox = *parse_fen("7k/8/8/8/2K5/8/8/8 w - - 0 1");
+    expect(orthodox.push_uci("c4d4") && !orthodox.variant_winner(),
+           "orthodox chess does not treat a central king as a win");
+
+    auto board = *parse_fen("7k/8/8/8/2K5/8/8/8 w - - 0 1");
+    board.king_of_the_hill = true;
+    expect(!board.variant_winner(), "KOTH starts without a king on the hill");
+    expect(board.push_uci("c4d4"), "the white king can enter the hill");
+    expect(board.king_on_hill(Color::white) &&
+               board.variant_winner() == Color::white,
+           "entering the hill immediately wins KOTH");
+    expect(board.pop() && !board.variant_winner(),
+           "undo restores the pre-win KOTH position");
+
+    auto config = default_config();
+    config.own_book = false;
+    std::atomic_bool stopped{false};
+    SearchLimits limits;
+    limits.depth = 2;
+    Searcher searcher(config, stopped);
+    const auto result = searcher.iterative(board, limits);
+    expect(!result.pv.empty() &&
+               (result.pv.front().to == *parse_square("d4") ||
+                result.pv.front().to == *parse_square("d5")) &&
+               result.score_cp > 20'000,
+           "Eloi search recognizes an immediate KOTH win");
+  }
+
+  {
     auto board = *parse_fen(initial_fen);
     constexpr std::array cycle{"g1f3", "g8f6", "f3g1", "f6g8"};
     for (int repeat = 0; repeat < 2; ++repeat)

@@ -61,7 +61,7 @@ BrainResponse EloiBrain::search(Board board, SearchLimits limits,
   }
   if (!response.search.pv.empty() && !response.has_legal_move(root)) {
     response.status = BrainStatus::invalid_move;
-    response.detail = "E2 returned a move outside Eloi's authoritative legal list";
+    response.detail = "E4-10 returned a move outside Eloi's authoritative legal list";
   }
   return response;
 }

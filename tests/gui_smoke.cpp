@@ -72,6 +72,14 @@ int main() {
   click(layout.setup_brains[0]);
   check(app.setup.brain == App::LocalBrain::eloi,
         "Caissa cannot be selected for Horde");
+  click(layout.setup_variants[3]);
+  check(app.setup.variant == App::LocalVariant::king_of_the_hill,
+        "setup selects King of the Hill");
+  check(app.setup.brain == App::LocalBrain::eloi,
+        "King of the Hill forces the Eloi E4-10 brain");
+  click(layout.setup_brains[0]);
+  check(app.setup.brain == App::LocalBrain::eloi,
+        "Caissa cannot be selected for King of the Hill");
   click(layout.setup_variants[0]);
   click(layout.setup_brains[0]);
   click(layout.setup_base_plus);

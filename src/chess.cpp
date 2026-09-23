@@ -1414,7 +1414,16 @@ bool Board::horde_eliminated() const {
   return horde && position.occupancy(Color::white) == 0;
 }
 
+bool Board::king_on_hill(Color side) const {
+  if (!king_of_the_hill) return false;
+  const int king = position.king_square(side);
+  return king == square_of(3, 3) || king == square_of(4, 3) ||
+         king == square_of(3, 4) || king == square_of(4, 4);
+}
+
 std::optional<Color> Board::variant_winner() const {
+  if (king_on_hill(opponent(turn))) return opponent(turn);
+  if (king_on_hill(turn)) return turn;
   if (horde_eliminated()) return Color::black;
   if (legal_moves().empty() && position.in_check(turn))
     return opponent(turn);
@@ -2173,7 +2182,8 @@ bool Searcher::search_draw(const Board& board, int ply) const {
   if (ply <= 0) return false;
   if (board.is_fifty_move_draw())
     return true;
-  if (!board.horde && std::popcount(board.position.occupied) <= 4 &&
+  if (!board.horde && !board.king_of_the_hill &&
+      std::popcount(board.position.occupied) <= 4 &&
       board.position.insufficient_material())
     return true;
   int repetitions = 0;
@@ -2215,7 +2225,10 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
   if (halted()) return 0;
   seldepth_ = std::max(seldepth_, ply);
   ++nodes_; ++qnodes_;
-  if (board.horde_eliminated()) return -mate_score + ply;
+  if (board.horde_eliminated() ||
+      board.king_on_hill(opponent(board.turn)))
+    return -mate_score + ply;
+  if (board.king_on_hill(board.turn)) return mate_score - ply;
   if (search_draw(board, ply)) return 0;
   const int original_alpha = alpha;
   TTEntry* found = probe(board.key);
@@ -2285,7 +2298,10 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   if (halted()) return 0;
   seldepth_ = std::max(seldepth_, ply);
   ++nodes_;
-  if (board.horde_eliminated()) return -mate_score + ply;
+  if (board.horde_eliminated() ||
+      board.king_on_hill(opponent(board.turn)))
+    return -mate_score + ply;
+  if (board.king_on_hill(board.turn)) return mate_score - ply;
   if (search_draw(board, ply)) return 0;
   alpha = std::max(alpha, -mate_score + ply);
   beta = std::min(beta, mate_score - ply - 1);
@@ -2698,6 +2714,15 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
   advance_generation();
   started_ = std::chrono::steady_clock::now();
   SearchResult last;
+  const bool variant_terminal = board.horde_eliminated() ||
+      board.king_on_hill(board.turn) ||
+      board.king_on_hill(opponent(board.turn));
+  if (variant_terminal) {
+    const Color winner = *board.variant_winner();
+    last.score_cp = winner == board.turn ? mate_score : -mate_score;
+    last.mate = winner == board.turn ? 1 : -1;
+    return last;
+  }
   if (auto book = opening_move(config_, board)) {
     last.nodes = 1;
     last.pv.push_back(book->move);

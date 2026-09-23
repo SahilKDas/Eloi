@@ -199,6 +199,7 @@ struct Board {
   std::array<bool, 2> has_castled{};
   bool chess960{false};
   bool horde{false};
+  bool king_of_the_hill{false};
   NnueState nnue{};
   std::uint64_t key{};
   std::vector<Snapshot> history;
@@ -217,6 +218,7 @@ struct Board {
   bool is_threefold_repetition() const;
   bool is_fifty_move_draw() const;
   bool horde_eliminated() const;
+  bool king_on_hill(Color side) const;
   std::optional<Color> variant_winner() const;
 };
 

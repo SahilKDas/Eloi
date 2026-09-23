@@ -260,6 +260,18 @@ int main() {
            "Chess960 bypasses Caissa and remains legal");
   }
 
+  auto koth = parse_fen("7k/8/8/8/2K5/8/8/8 w - - 0 1");
+  expect(koth.has_value(), "King of the Hill test position parses");
+  if (koth) {
+    koth->king_of_the_hill = true;
+    SearchLimits variant_limits;
+    variant_limits.depth = 1;
+    auto response = hybrid.search(*koth, variant_limits);
+    expect(response.selected == BrainIdentity::eloi_e4_10 &&
+               response.used_fallback && response.has_legal_move(*koth),
+           "King of the Hill bypasses Caissa and remains legal");
+  }
+
   auto horde = parse_fen(horde_initial_fen);
   expect(horde.has_value(), "Horde test position parses");
   if (horde) {

@@ -10,6 +10,9 @@ search, and reproducible Windows packaging.
 
 The current stable source is **Eloi 3.2.2**.
 
+Experimental fairy-chess development lives on the codex/faloi branch and is
+documented in [FALOI.md](FALOI.md); it is not part of the v3.2.2 release.
+
 Standard UCI and native Lichess use the crash-contained **Caissa 1.25** brain.
 The native GUI now offers **Caissa 1.25** or Eloi's 64-unit **E4-10** brain
 for Standard games. Chess960, Horde, explicit native mode, and emergency

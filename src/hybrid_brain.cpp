@@ -95,16 +95,15 @@ bool HybridBrain::available() const noexcept {
 BrainResponse HybridBrain::search(Board board, SearchLimits limits,
                                   const BrainInfoCallback& info) {
   const bool authoritative_draw =
-      !board.horde &&
-      (board.position.insufficient_material() ||
-       board.is_fifty_move_draw() ||
-       board.is_threefold_repetition());
+      (!board.horde && !board.king_of_the_hill &&
+       board.position.insufficient_material()) ||
+      board.is_fifty_move_draw() || board.is_threefold_repetition();
   if (board.legal_moves().empty() || authoritative_draw) {
     const bool checkmate = board.position.in_check(board.turn);
     // Eloi owns terminal semantics.  Reuse its canonical score/mate mapping
     // instead of returning a default-constructed zero score from the arbiter.
     // Positions with a claimable or automatic draw can still have legal moves,
-    // so E2 also supplies their protocol-safe move while Caissa is bypassed.
+    // so E4-10 also supplies their protocol-safe move while Caissa is bypassed.
     BrainResponse response = eloi_.search(std::move(board), limits);
     response.requested = response.selected = BrainIdentity::hybrid;
     response.status = BrainStatus::complete;
@@ -122,7 +121,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     return response;
   }
 
-  const bool unsupported_variant = board.horde || board.chess960;
+  const bool unsupported_variant = board.horde || board.chess960 || board.king_of_the_hill;
   const bool donor_unavailable = !caissa_.available();
 
   // This is a deliberate fail-closed checkpoint. Do not spend only Eloi's
@@ -133,10 +132,10 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     response.used_fallback = true;
     if (unsupported_variant) {
       response.detail =
-          "Caissa bypassed: Chess960 and Horde remain Eloi-only until parity";
+          "Caissa bypassed: this variant remains Eloi-only until donor parity";
     } else {
       response.detail =
-          "Caissa unavailable: hybrid used the complete E2 budget";
+          "Caissa unavailable: hybrid used the complete E4-10 budget";
     }
     return response;
   }
@@ -170,7 +169,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     eloi.search.elapsed =
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - started);
-    eloi.detail = "hybrid stopped during the E2 slice";
+    eloi.detail = "hybrid stopped during the E4-10 slice";
     if (info) info(eloi);
     return eloi;
   }
@@ -182,7 +181,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     response.requested = BrainIdentity::hybrid;
     response.used_fallback = true;
     response.detail = caissa_move
-        ? "E2 failed; hybrid used Eloi-legal Caissa fallback"
+        ? "E4-10 failed; hybrid used Eloi-legal Caissa fallback"
         : "Caissa failed; hybrid used Eloi E4-10 fallback";
     if (!caissa_move && !caissa.detail.empty())
       response.detail += " (" + caissa.detail + ")";
@@ -221,7 +220,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     response.search.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - started);
     response.confidence = 1.0;
-    response.detail = "E2 and Caissa agreed; verification slice was not spent";
+    response.detail = "E4-10 and Caissa agreed; verification slice was not spent";
     if (info) info(response);
     return response;
   }
@@ -341,7 +340,7 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     response = std::move(eloi);
     response.requested = BrainIdentity::hybrid;
     response.used_fallback = true;
-    response.detail = "disagreement verification failed; hybrid used E2";
+    response.detail = "disagreement verification failed; hybrid used E4-10";
     response.search.nodes = caissa.search.nodes + eloi.search.nodes;
     response.search.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - started);

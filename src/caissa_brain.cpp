@@ -136,7 +136,7 @@ BrainResponse CaissaBrain::search(Board board, SearchLimits limits,
     if (info) info(response);
     return response;
   }
-  if (board.horde || board.chess960) {
+  if (board.horde || board.chess960 || board.king_of_the_hill) {
     response.status = BrainStatus::unavailable;
     response.detail = "Caissa search is Standard-only until variant parity";
     if (info) info(response);

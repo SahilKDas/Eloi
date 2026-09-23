@@ -17,7 +17,7 @@ void initialize_caissa_backend() {
 
 CaissaPositionProbe probe_caissa_position(const Board& board) {
   CaissaPositionProbe probe;
-  if (board.horde || board.chess960) {
+  if (board.horde || board.chess960 || board.king_of_the_hill) {
     probe.detail = "Caissa position adapter is Standard-only at this stage";
     return probe;
   }
