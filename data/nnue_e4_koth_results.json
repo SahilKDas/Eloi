@@ -1,0 +1,39 @@
+{
+  "schema": "eloi-e4-koth-campaign-v1",
+  "status": "laboratory-qualified",
+  "production_changed": false,
+  "dataset": {
+    "positions": 20000,
+    "train": 17953,
+    "validation": 2047,
+    "variant": "kingofthehill"
+  },
+  "training": {
+    "validation_mae_before_cp": 74.7739534492,
+    "validation_mae_after_cp": 69.9485223905,
+    "validation_p95_before_cp": 219.3611,
+    "validation_p95_after_cp": 184.1644,
+    "parent_checkpoint_sha256": "D613B853FE534B6AD3604080E559DB26D9CCC55E124005FE60B9ABBCD508EE99",
+    "parent_header_sha256": "4C705496950E27204C976F0D027CAA9C73B209961584F7998742AA481B524E88",
+    "candidate_checkpoint_sha256": "D2DC34D6CA95AC280B6093E6EA2F6D6DA6148291152043DA2C2961B3B272361C",
+    "candidate_header_sha256": "E06F0B3A71445933BF066E8FE6B03A9271B94DB522A15180C63DA4703E5FBF8E"
+  },
+  "gauntlet": {
+    "games": 100,
+    "movetime_ms": 250,
+    "wins": 80,
+    "draws": 2,
+    "losses": 18,
+    "score_points": 81.0,
+    "score_percent": 81.0,
+    "protocol_failures": 0,
+    "replay_verified_games": 100,
+    "candidate_white": {"wins": 40, "draws": 2, "losses": 8, "points": 41.0},
+    "candidate_black": {"wins": 40, "draws": 0, "losses": 10, "points": 40.0},
+    "candidate_executable_sha256": "C4DC9BD1C8B2DBD4CEBF5BAE211CC245BE4A00F2A8B9C6197A53D3C5A69D9C65",
+    "baseline_executable_sha256": "DD7091429913FA6797C9991879C34CB4B6375ABD758FB9E8442D1BE3EA5C311E",
+    "protocol_sha256": "5425B576CDA745C374C80D9FA6C12625093832F1867C4DD152DA0A24DA9B2EFC",
+    "results_sha256": "7D157F0960267FB31AF455A386BA56E4B31841C0BFFCC786BB3746DAC4CC9EFD",
+    "pgn_sha256": "3DF82B129FDF1C201ECDD7D15F7C8351551E1882B2185390496016E26F9DEEB0"
+  }
+}

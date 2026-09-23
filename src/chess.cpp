@@ -1996,6 +1996,22 @@ int Searcher::evaluate(const Board& board) {
   if (exact == ExactEndgame::black_win)
     return board.turn == Color::black ? 1800 : -1800;
   int score = nnue_evaluate(board.nnue, board.turn) + endgame_knowledge(board);
+  if (board.king_of_the_hill && ELOI_KOTH_HILL_BONUS_CP > 0) {
+    auto hill_distance = [&](Color side) {
+      const int king = board.position.king_square(side);
+      if (king < 0) return 8;
+      int distance = 8;
+      for (int hill : {square_of(3, 3), square_of(4, 3),
+                       square_of(3, 4), square_of(4, 4)})
+        distance = std::min(distance,
+            std::abs(file_of(king) - file_of(hill)) +
+            std::abs(rank_of(king) - rank_of(hill)));
+      return distance;
+    };
+    const int white_advantage = ELOI_KOTH_HILL_BONUS_CP *
+        (hill_distance(Color::black) - hill_distance(Color::white));
+    score += board.turn == Color::white ? white_advantage : -white_advantage;
+  }
   if (opposite_colored_bishops(board.position)) score = score * 55 / 100;
   if (config_.noise_millipawns > 0) {
     std::uniform_int_distribution<int> noise(-config_.noise_millipawns, config_.noise_millipawns);

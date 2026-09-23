@@ -62,6 +62,10 @@ endif()
 target_include_directories(eloi_core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   "${CMAKE_CURRENT_BINARY_DIR}/generated")
+set(ELOI_KOTH_HILL_BONUS_CP 0 CACHE STRING
+    "King-of-the-Hill distance bonus in centipawns; zero preserves traditional E4")
+target_compile_definitions(eloi_core PUBLIC
+  ELOI_KOTH_HILL_BONUS_CP=${ELOI_KOTH_HILL_BONUS_CP})
 if(MSVC)
   target_compile_options(eloi_core PRIVATE /W4 /permissive-)
 else()
