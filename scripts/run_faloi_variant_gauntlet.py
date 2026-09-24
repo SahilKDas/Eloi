@@ -91,7 +91,7 @@ def play(candidate: Path, baseline: Path, row: dict, variant: str,
         result = "1-0" if outcome.winner else "0-1"
     game = chess.pgn.Game.from_board(board)
     game.headers.update({
-        "Event": f"Faloi {variant} 250ms gauntlet",
+        "Event": f"Faloi {variant} {movetime_ms}ms gauntlet",
         "Round": str(row["game"]),
         "White": "Faloi-tuned" if row["candidate_white"] else "E4-traditional",
         "Black": "E4-traditional" if row["candidate_white"] else "Faloi-tuned",
@@ -165,7 +165,7 @@ def main() -> int:
             "results": results, "protocol_failures": failures,
             "summary": {"completed": len(results), "wins": wins, "draws": draws,
                         "losses": losses, "score_points": wins + draws / 2,
-                        "score_percent": wins + draws / 2}}
+                        "score_percent": 100 * (wins + draws / 2) / args.games}}
         atomic_json(args.output / "results.json", evidence)
         print(json.dumps({"game": row["game"], **evidence["summary"],
                           "failures": len(failures)}), flush=True)
