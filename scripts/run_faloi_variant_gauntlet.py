@@ -35,10 +35,10 @@ def board_type(variant: str):
             else chess.variant.AntichessBoard)
 
 
-def schedule(variant: str) -> list[dict]:
+def schedule(variant: str, games: int) -> list[dict]:
     rng = random.Random(0xFA101 + (1 if variant == "atomic" else 2))
     positions, seen = [], set()
-    while len(positions) < 50:
+    while len(positions) < games // 2:
         board = board_type(variant)()
         for _ in range(4):
             board.push(rng.choice(sorted(board.legal_moves,
@@ -101,7 +101,7 @@ def play(candidate: Path, baseline: Path, row: dict, variant: str,
              "final_fen": board.fen()}, game)
 
 
-def replay(path: Path, variant: str) -> dict:
+def replay(path: Path, variant: str, expected: int) -> dict:
     verified = 0
     with path.open(encoding="utf-8") as stream:
         while game := chess.pgn.read_game(stream):
@@ -115,7 +115,8 @@ def replay(path: Path, variant: str) -> dict:
                     actual == "*" and game.headers["Result"] == "1/2-1/2"):
                 raise RuntimeError(f"result mismatch in game {verified + 1}")
             verified += 1
-    return {"verified_games": verified, "passed": verified == 100}
+    return {"verified_games": verified, "passed": verified == expected}
+
 
 
 def main() -> int:
@@ -126,15 +127,18 @@ def main() -> int:
     parser.add_argument("--baseline", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--movetime-ms", type=int, default=250)
+    parser.add_argument("--games", type=int, default=100)
     parser.add_argument("--max-plies", type=int, default=200)
     args = parser.parse_args()
+    if args.games <= 0 or args.games % 2:
+        parser.error("--games must be a positive even number")
     if args.output.exists():
         raise FileExistsError(args.output)
     args.output.mkdir(parents=True)
-    frozen = schedule(args.variant)
+    frozen = schedule(args.variant, args.games)
     protocol = {
         "schema": "faloi-variant-gauntlet-v1", "variant": args.variant,
-        "games": 100, "mirrored": True, "movetime_ms": args.movetime_ms,
+        "games": args.games, "mirrored": True, "movetime_ms": args.movetime_ms,
         "max_plies": args.max_plies, "threads_per_engine": 3, "hash_mb": 32,
         "candidate_sha256": sha(args.candidate),
         "baseline_sha256": sha(args.baseline),
@@ -157,7 +161,7 @@ def main() -> int:
         losses = sum(item["score"] == 0 for item in results)
         evidence = {
             "schema": "faloi-variant-results-v1",
-            "complete": len(results) + len(failures) == 100,
+            "complete": len(results) + len(failures) == args.games,
             "results": results, "protocol_failures": failures,
             "summary": {"completed": len(results), "wins": wins, "draws": draws,
                         "losses": losses, "score_points": wins + draws / 2,
@@ -167,8 +171,10 @@ def main() -> int:
                           "failures": len(failures)}), flush=True)
         if failures:
             return 2
-    evidence["replay_verification"] = replay(pgn, args.variant)
-    evidence["passed"] = evidence["summary"]["score_points"] > 50
+    evidence["replay_verification"] = replay(pgn, args.variant, args.games)
+    evidence["passed"] = (evidence["summary"]["score_points"] > args.games / 2 and
+                          not evidence["protocol_failures"] and
+                          evidence["replay_verification"]["passed"])
     atomic_json(args.output / "results.json", evidence)
     return 0 if evidence["passed"] else 1
 
