@@ -1,47 +1,39 @@
-# Faloi — Fairy Eloi
+# Faloi - Fairy Eloi
 
-Faloi is Eloi's experimental fairy-chess branch. It is intentionally isolated
-from released Eloi v3.2.2 while variant rules and strength are qualified.
+Faloi is Eloi''s experimental fairy-chess branch, isolated from released Eloi v3.2.2.
 
-## First playable variant: King of the Hill
+## Qualified laboratory variants
 
-The first implemented slice is King of the Hill (KOTH):
+| Variant | Candidate | Control | Result | Score |
+| --- | --- | --- | ---: | ---: |
+| King of the Hill | E4-KOTH | E4-traditional | 80W/2D/18L | 81.0% |
+| Atomic | Atomic-140 | untuned Faloi | 52W/12D/36L | 58.0% |
+| Antichess | Antichess-100 | untuned Faloi | 97W/0D/3L | 97.0% |
 
-- Standard chess legality still applies.
-- A player wins immediately when their king reaches `d4`, `e4`, `d5`, or `e5`.
-- The win condition is enforced inside board terminal detection, quiescence,
-  negamax, root search, the hybrid dispatcher, and the native GUI.
-- KOTH bypasses Standard-only Caissa 1.25 and uses Eloi E4-10 with exactly
-  three RootSplit lanes.
-- Opening-book use is disabled and search state is discarded when switching
-  variants, preventing Standard/Horde/Chess960 transposition leakage.
+These are frozen laboratory comparisons, not Elo claims or production promotions.
+
+## Rules and routing
+
+- **KOTH:** orthodox legality plus an immediate center-square king win.
+- **Atomic:** captures explode the capturing square and adjacent non-pawns; adjacent pawns survive, and exploding the opposing king wins.
+- **Antichess:** captures are compulsory, kings are non-royal, castling is disabled, king promotion is supported, and losing every piece or having no legal move wins.
+- All three bypass Standard-only Caissa 1.25 and use Eloi''s three-thread search.
+
+Atomic-140 adds a 140 cp blast-pressure heuristic; Antichess-100 adds a 100 cp material-shedding heuristic. These are compile-time variant terms, not neural-network training.
 
 ## Interfaces
 
-- Native GUI: choose **KOTH** in the clocked-game setup dialog.
-- UCI: `setoption name UCI_Variant value kingofthehill`.
-- The alias `king_of_the_hill` is accepted when setting the UCI option.
-
-## Current boundary
-
-This is a laboratory implementation, not a Faloi release. Native Lichess
-challenge/configuration support is not enabled yet. KOTH uses the Standard-only
-E4-10 evaluator plus a correct terminal search condition; it has not been
-trained or strength-qualified specifically for KOTH. Caissa remains unavailable
-for this variant.
+- Native GUI: choose **KOTH**, **Atomic**, or **Anti**. Each forces Eloi.
+- UCI: set `UCI_Variant` to `kingofthehill`, `atomic`, or `antichess`.
 
 ## Validation
 
-- Core engine suite, including immediate hill wins and orthodox isolation.
-- Caissa/hybrid suite, including mandatory Eloi-only KOTH routing.
-- GUI suite, including KOTH selection and Caissa rejection.
-- Production-dispatcher UCI smoke: KOTH advertised, E4-10 route reported, and
-  an immediate legal hill-winning move returned.
+All core, hybrid, and GUI suites pass. Legal-move parity with python-chess passed 64/64 Atomic and 64/64 Antichess positions. Each campaign used 50 mirrored openings, 250 ms/move, three threads/engine, 32 MB hash, fresh processes/game, and Idle priority; all 200 completed games replayed successfully.
 
-## Next safe slices
+The first Antichess attempt stopped in game one after `bestmove 0000` despite legal moves. Its evidence remains preserved. The legal root fallback was fixed, the exact position retested, and a fresh R2 completed 100 games without protocol failure.
 
-1. Add KOTH-specific positional evaluation and a deterministic tactical suite.
-2. Add native Lichess KOTH parsing/configuration without widening accepted
-   variants until the bridge tests pass.
-3. Run mirrored KOTH matches against a fixed external reference.
-4. Only then consider a separately branded Faloi executable/package.
+See [FALOI_FAIRY_CAMPAIGNS.md](FALOI_FAIRY_CAMPAIGNS.md) and [the result manifest](data/faloi_atomic_antichess_results.json).
+
+## Boundary
+
+This remains laboratory-only. Native Lichess support is not enabled for these variants. Standard, Chess960, Horde, packages, and production are unchanged.

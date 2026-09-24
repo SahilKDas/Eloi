@@ -66,6 +66,13 @@ set(ELOI_KOTH_HILL_BONUS_CP 0 CACHE STRING
     "King-of-the-Hill distance bonus in centipawns; zero preserves traditional E4")
 target_compile_definitions(eloi_core PUBLIC
   ELOI_KOTH_HILL_BONUS_CP=${ELOI_KOTH_HILL_BONUS_CP})
+set(ELOI_ATOMIC_BLAST_BONUS_CP 0 CACHE STRING
+    "Atomic king-blast pressure bonus; zero preserves traditional E4")
+set(ELOI_ANTICHESS_SHED_BONUS_CP 0 CACHE STRING
+    "Antichess piece-shedding bonus; zero preserves traditional E4")
+target_compile_definitions(eloi_core PUBLIC
+  ELOI_ATOMIC_BLAST_BONUS_CP=${ELOI_ATOMIC_BLAST_BONUS_CP}
+  ELOI_ANTICHESS_SHED_BONUS_CP=${ELOI_ANTICHESS_SHED_BONUS_CP})
 if(MSVC)
   target_compile_options(eloi_core PRIVATE /W4 /permissive-)
 else()

@@ -148,13 +148,13 @@ void nnue_update(NnueState& accumulator, const Position& before,
                  const Position& after);
 void nnue_update_changed(NnueState& accumulator, const Position& before,
                          const Position& after,
-                         const std::array<std::uint8_t, 4>& squares,
+                         const std::array<std::uint8_t, 16>& squares,
                          std::uint8_t count);
 void nnue_update_delta(NnueState& accumulator,
                        const std::array<std::int8_t, 2>& before_kings,
                        const Position& after,
-                       const std::array<std::uint8_t, 4>& squares,
-                       const std::array<std::int8_t, 4>& before_cells,
+                       const std::array<std::uint8_t, 16>& squares,
+                       const std::array<std::int8_t, 16>& before_cells,
                        std::uint8_t count);
 int nnue_evaluate(const NnueState& accumulator, Color side_to_move);
 std::uint64_t position_key(const Position& position, Color turn);
@@ -186,8 +186,8 @@ struct Board {
     std::array<std::int8_t, 2> king_squares{-1, -1};
     std::uint64_t key{};
     Move move{};
-    std::array<std::uint8_t, 4> squares{};
-    std::array<std::int8_t, 4> cells{};
+    std::array<std::uint8_t, 16> squares{};
+    std::array<std::int8_t, 16> cells{};
     std::uint8_t changed{};
     bool null_move{false};
   };
@@ -200,6 +200,8 @@ struct Board {
   bool chess960{false};
   bool horde{false};
   bool king_of_the_hill{false};
+  bool atomic{false};
+  bool antichess{false};
   NnueState nnue{};
   std::uint64_t key{};
   std::vector<Snapshot> history;
@@ -219,6 +221,7 @@ struct Board {
   bool is_fifty_move_draw() const;
   bool horde_eliminated() const;
   bool king_on_hill(Color side) const;
+  bool in_check() const;
   std::optional<Color> variant_winner() const;
 };
 

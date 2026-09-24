@@ -208,7 +208,7 @@ int run_hybrid_lab(int argc, char** argv) {
             << "option name Hash type spin default 32 min 32 max 32\n"
             << "option name Move Overhead type spin default 25 min 0 max 5000\n"
             << "option name UCI_Chess960 type check default false\n"
-            << "option name UCI_Variant type combo default chess var chess var horde var kingofthehill\n"
+            << "option name UCI_Variant type combo default chess var chess var horde var kingofthehill var atomic var antichess\n"
             << "info string Caissa backend "
             << (caissa.available() ? "hash-verified and available"
                                    : "unavailable; E4-10 fallback active")
@@ -232,14 +232,17 @@ int run_hybrid_lab(int argc, char** argv) {
     Board snapshot = board;
     snapshot.horde = uci_variant == "horde";
     snapshot.king_of_the_hill = uci_variant == "kingofthehill";
-    snapshot.chess960 = !snapshot.horde && !snapshot.king_of_the_hill &&
+    snapshot.atomic = uci_variant == "atomic";
+    snapshot.antichess = uci_variant == "antichess";
+    snapshot.chess960 = !snapshot.horde && !snapshot.king_of_the_hill && !snapshot.atomic &&
+                        !snapshot.antichess &&
                         (snapshot.chess960 || uci_chess960);
     worker = std::thread([&, snapshot = std::move(snapshot), limits]() mutable {
       Brain* selected_brain = active_brain;
       if (!selected_brain) {
         selected_brain = (!snapshot.horde && !snapshot.chess960 &&
-                          !snapshot.king_of_the_hill &&
-                          caissa.available())
+                          !snapshot.king_of_the_hill && !snapshot.atomic &&
+                          !snapshot.antichess && caissa.available())
                              ? static_cast<Brain*>(&caissa)
                              : static_cast<Brain*>(&eloi);
       }
@@ -259,7 +262,8 @@ int run_hybrid_lab(int argc, char** argv) {
       if (!active_brain && selected_brain == &eloi) {
         response.used_fallback = true;
         response.detail = snapshot.horde || snapshot.chess960 ||
-                          snapshot.king_of_the_hill
+                          snapshot.king_of_the_hill || snapshot.atomic ||
+                          snapshot.antichess
             ? "production routing: variant uses Eloi E4-10"
             : "production routing: Caissa unavailable; used Eloi E4-10";
       } else if (!active_brain && !runtime_fallback) {
@@ -311,11 +315,18 @@ int run_hybrid_lab(int argc, char** argv) {
       } else if (key == "UCI_Variant") {
         if (setting == "horde" || setting == "chess" ||
             setting == "standard" || setting == "kingofthehill" ||
-            setting == "king_of_the_hill") {
+            setting == "king_of_the_hill" || setting == "atomic" ||
+            setting == "antichess") {
           uci_variant = setting == "horde" ? "horde" :
                         (setting == "kingofthehill" ||
                          setting == "king_of_the_hill")
-                            ? "kingofthehill" : "chess";
+                            ? "kingofthehill" : setting == "atomic"
+                                ? "atomic" : setting == "antichess"
+                                    ? "antichess" : "chess";
+          board.horde = uci_variant == "horde";
+          board.king_of_the_hill = uci_variant == "kingofthehill";
+          board.atomic = uci_variant == "atomic";
+          board.antichess = uci_variant == "antichess";
         }
       } else if (key == "Move Overhead") {
         move_overhead_ms = std::clamp(integer(setting).value_or(25), 0, 5000);
@@ -335,7 +346,13 @@ int run_hybrid_lab(int argc, char** argv) {
           if (field) fen += ' ';
           fen += args[index + 1 + field];
         }
-        if (auto parsed = parse_fen(fen)) board = *parsed;
+        if (auto parsed = parse_fen(fen)) {
+          board = *parsed;
+          board.horde = uci_variant == "horde";
+          board.king_of_the_hill = uci_variant == "kingofthehill";
+          board.atomic = uci_variant == "atomic";
+          board.antichess = uci_variant == "antichess";
+        }
         else {
           std::scoped_lock lock(output);
           std::cout << "info string invalid FEN" << std::endl;

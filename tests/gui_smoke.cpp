@@ -80,6 +80,17 @@ int main() {
   click(layout.setup_brains[0]);
   check(app.setup.brain == App::LocalBrain::eloi,
         "Caissa cannot be selected for King of the Hill");
+  click(layout.setup_variants[4]);
+  check(app.setup.variant == App::LocalVariant::atomic,
+        "setup selects Atomic");
+  check(app.setup.brain == App::LocalBrain::eloi,
+        "Atomic forces the Eloi brain");
+  click(layout.setup_variants[5]);
+  check(app.setup.variant == App::LocalVariant::antichess,
+        "setup selects Antichess");
+  check(app.setup.brain == App::LocalBrain::eloi,
+        "Antichess forces the Eloi brain");
+
   click(layout.setup_variants[0]);
   click(layout.setup_brains[0]);
   click(layout.setup_base_plus);

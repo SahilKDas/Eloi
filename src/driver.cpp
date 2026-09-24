@@ -172,7 +172,7 @@ int run_engine(EngineConfig config, int argc, char** argv) {
             << "option name Move Overhead type spin default " << config.move_overhead_ms << " min 0 max 5000\n"
             << "option name Noise type spin default " << config.noise_millipawns << " min 0 max 10000\n"
             << "option name UCI_Chess960 type check default false\n"
-            << "option name UCI_Variant type combo default chess var chess var horde var kingofthehill\n";
+            << "option name UCI_Variant type combo default chess var chess var horde var kingofthehill var atomic var antichess\n";
   if (config.own_book) std::cout << "option name OwnBook type check default true\n";
   std::cout << "uciok" << std::endl;
 
@@ -197,11 +197,11 @@ int run_engine(EngineConfig config, int argc, char** argv) {
   auto launch = [&](SearchLimits limits) {
     stop_worker(); stopped = false; active = true;
     Board snapshot = board;
-    const bool chess960_mode = !snapshot.horde && !snapshot.king_of_the_hill &&
+    const bool chess960_mode = !snapshot.horde && !snapshot.king_of_the_hill && !snapshot.atomic && !snapshot.antichess &&
         (uci_chess960 || snapshot.chess960);
     snapshot.chess960 = chess960_mode;
     EngineConfig current = config;
-    if (chess960_mode || snapshot.horde || snapshot.king_of_the_hill)
+    if (chess960_mode || snapshot.horde || snapshot.king_of_the_hill || snapshot.atomic || snapshot.antichess)
       current.own_book = false;
     if (!persistent_searcher || !persistent_config ||
         !same_search_config(*persistent_config, current)) {
@@ -244,7 +244,10 @@ int run_engine(EngineConfig config, int argc, char** argv) {
       board = *start;
       board.horde = uci_variant == "horde";
       board.king_of_the_hill = uci_variant == "kingofthehill";
-      board.chess960 = !board.horde && !board.king_of_the_hill && uci_chess960;
+      board.atomic = uci_variant == "atomic";
+      board.antichess = uci_variant == "antichess";
+      board.chess960 = !board.horde && !board.king_of_the_hill &&
+                       !board.atomic && !board.antichess && uci_chess960;
       continue;
     }
     if (cmd == "setoption") {
@@ -268,21 +271,25 @@ int run_engine(EngineConfig config, int argc, char** argv) {
         if(key=="OwnBook") config.own_book=(val=="true"||val=="1");
         if(key=="UCI_Chess960") {
           uci_chess960=(val=="true"||val=="1");
-          board.chess960=!board.horde && !board.king_of_the_hill && uci_chess960;
+          board.chess960=!board.horde && !board.king_of_the_hill && !board.atomic && !board.antichess && uci_chess960;
         }
         if(key=="UCI_Variant") {
           std::ranges::transform(val, val.begin(), [](unsigned char character) {
             return static_cast<char>(std::tolower(character));
           });
           if (val == "chess" || val == "standard" || val == "horde" ||
-              val == "kingofthehill" || val == "king_of_the_hill") {
+              val == "kingofthehill" || val == "king_of_the_hill" ||
+              val == "atomic" || val == "antichess") {
             uci_variant = val == "horde" ? "horde" :
                           (val == "kingofthehill" || val == "king_of_the_hill")
-                              ? "kingofthehill" : "chess";
+                              ? "kingofthehill" : val == "atomic" ? "atomic" :
+                                val == "antichess" ? "antichess" : "chess";
             board.horde = uci_variant == "horde";
             board.king_of_the_hill = uci_variant == "kingofthehill";
+            board.atomic = uci_variant == "atomic";
+            board.antichess = uci_variant == "antichess";
             board.chess960 = !board.horde && !board.king_of_the_hill &&
-                             uci_chess960;
+                             !board.atomic && !board.antichess && uci_chess960;
             persistent_searcher.reset();
             persistent_config.reset();
           } else {
@@ -301,8 +308,10 @@ int run_engine(EngineConfig config, int argc, char** argv) {
         board = *start;
         board.horde = uci_variant == "horde";
         board.king_of_the_hill = uci_variant == "kingofthehill";
+        board.atomic = uci_variant == "atomic";
+        board.antichess = uci_variant == "antichess";
         board.chess960 = !board.horde && !board.king_of_the_hill &&
-                         uci_chess960;
+                         !board.atomic && !board.antichess && uci_chess960;
         ++index;
       }
       else if(index<args.size()&&args[index]=="fen"&&index+6<args.size()) {
@@ -312,7 +321,9 @@ int run_engine(EngineConfig config, int argc, char** argv) {
         board=*parsed;
         board.horde=uci_variant=="horde";
         board.king_of_the_hill=uci_variant=="kingofthehill";
-        board.chess960=!board.horde&&!board.king_of_the_hill&&
+        board.atomic=uci_variant=="atomic";
+        board.antichess=uci_variant=="antichess";
+        board.chess960=!board.horde&&!board.king_of_the_hill&&!board.atomic&&!board.antichess&&
                        (board.chess960||uci_chess960);
         index+=7;
       }
@@ -355,18 +366,48 @@ int run_engine(EngineConfig config, int argc, char** argv) {
 }
 
 int run_perft(int argc, char** argv) {
-  int depth=4; bool divide=false; bool horde=false; std::string fen(initial_fen);
+  int depth=4; bool divide=false; std::string variant{"standard"}; std::string fen(initial_fen);
   for(int i=1;i<argc;++i){std::string arg=argv[i];
     if((arg=="--depth"||arg=="-depth")&&i+1<argc)depth=integer(argv[++i]).value_or(depth);
     else if((arg=="--fen"||arg=="-fen")&&i+1<argc)fen=argv[++i];
-    else if(arg=="--variant"&&i+1<argc)horde=std::string_view(argv[++i])=="horde";
+    else if(arg=="--variant"&&i+1<argc)variant=argv[++i];
     else if(arg=="--divide"||arg=="-divide")divide=true;
-    else if(arg=="--help"||arg=="-h"){std::cout<<"usage: perft [--depth N] [--fen FEN] [--variant standard|horde] [--divide]\n";return 0;}
+    else if(arg=="--help"||arg=="-h"){std::cout<<"usage: perft [--depth N] [--fen FEN] [--variant standard|horde|kingofthehill|atomic|antichess] [--divide]\n";return 0;}
   }
   std::string error;auto board=parse_fen(fen,&error);if(!board){std::cerr<<"invalid FEN: "<<error<<'\n';return 2;}
-  board->horde=horde;
+  board->horde=variant=="horde";
+  board->king_of_the_hill=variant=="kingofthehill";
+  board->atomic=variant=="atomic";
+  board->antichess=variant=="antichess";
   for(int d=1;d<=depth;++d){auto start=std::chrono::steady_clock::now();std::vector<std::pair<Move,std::uint64_t>> rows;
-    auto nodes=perft(board->position,board->turn,d,divide&&d==depth?&rows:nullptr,horde);
+    std::function<std::uint64_t(Board&, int)> variant_perft =
+        [&](Board& current, int remaining) -> std::uint64_t {
+      if (remaining == 0) return 1;
+      std::uint64_t total = 0;
+      for (const Move& move : current.legal_moves()) {
+        Board::SearchUndo undo;
+        if (!current.make_search_move(move, undo)) continue;
+        total += variant_perft(current, remaining - 1);
+        current.unmake_search_move(undo);
+      }
+      return total;
+    };
+    std::uint64_t nodes = 0;
+    if (variant == "atomic" || variant == "antichess" ||
+        variant == "kingofthehill") {
+      if (divide && d == depth) {
+        for (const Move& move : board->legal_moves()) {
+          Board::SearchUndo undo;
+          if (!board->make_search_move(move, undo)) continue;
+          const auto child = variant_perft(*board, d - 1);
+          board->unmake_search_move(undo);
+          rows.emplace_back(move, child);
+          nodes += child;
+        }
+      } else nodes = variant_perft(*board, d);
+    } else {
+      nodes=perft(board->position,board->turn,d,divide&&d==depth?&rows:nullptr,board->horde);
+    }
     if(divide&&d==depth)for(auto&[m,n]:rows)std::cout<<uci_move(m,board->position,board->chess960)<<": "<<n<<'\n';
     auto us=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-start).count();
     std::cout<<"perft,"<<fen<<','<<d<<','<<nodes<<','<<us<<"us\n";

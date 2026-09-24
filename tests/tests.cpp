@@ -770,6 +770,43 @@ int main() {
   }
 
   {
+    auto board = *parse_fen("7k/8/8/8/3r4/2B5/8/K7 w - - 0 1");
+    board.atomic = true;
+    expect(board.push_uci("c3d4"), "Atomic accepts an explosive capture");
+    expect(board.position.empty(*parse_square("d4")),
+           "the Atomic capturing piece explodes on the capture square");
+    expect(board.pop() && board.position.piece_at(*parse_square("c3")) ==
+               Piece::bishop,
+           "Atomic explosion is exactly undoable");
+  }
+
+  {
+    auto board = *parse_fen("8/8/8/4k3/4p3/8/8/K3R3 w - - 0 1");
+    board.atomic = true;
+    expect(board.push_uci("e1e4"), "Atomic permits a king-blasting capture");
+    expect(board.variant_winner() == Color::white,
+           "exploding the opposing king immediately wins Atomic");
+  }
+
+  {
+    auto board = *parse_fen("r7/8/8/8/8/8/1p6/K6R w - - 0 1");
+    board.antichess = true;
+    const auto moves = board.legal_moves();
+    expect(moves.size() == 1 && moves.front().uci() == "a1b2",
+           "Antichess enforces compulsory capture and treats kings as non-royal");
+    expect(board.push_uci("a1b2"),
+           "Antichess allows a king to capture onto an attacked square");
+  }
+
+  {
+    auto board = *parse_fen("7k/8/8/8/8/8/8/8 w - - 0 1");
+    board.antichess = true;
+    expect(board.variant_winner() == Color::white,
+           "a side with no pieces wins Antichess");
+  }
+
+
+  {
     auto board = *parse_fen(initial_fen);
     constexpr std::array cycle{"g1f3", "g8f6", "f3g1", "f6g8"};
     for (int repeat = 0; repeat < 2; ++repeat)

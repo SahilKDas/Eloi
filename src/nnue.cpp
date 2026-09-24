@@ -177,7 +177,7 @@ void nnue_update(NnueState& state, const Position& before,
 
 void nnue_update_changed(NnueState& state, const Position& before,
                          const Position& after,
-                         const std::array<std::uint8_t, 4>& squares,
+                         const std::array<std::uint8_t, 16>& squares,
                          std::uint8_t count) {
   for (Color perspective : {Color::white, Color::black}) {
     const int index = perspective_index(perspective);
@@ -202,8 +202,8 @@ void nnue_update_changed(NnueState& state, const Position& before,
 
 void nnue_update_delta(
     NnueState& state, const std::array<std::int8_t, 2>& before_kings,
-    const Position& after, const std::array<std::uint8_t, 4>& squares,
-    const std::array<std::int8_t, 4>& before_cells, std::uint8_t count) {
+    const Position& after, const std::array<std::uint8_t, 16>& squares,
+    const std::array<std::int8_t, 16>& before_cells, std::uint8_t count) {
   for (Color perspective : {Color::white, Color::black}) {
     const int index = perspective_index(perspective);
     const int before_bucket =

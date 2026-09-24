@@ -1072,7 +1072,99 @@ MoveList Position::legal(Color side, bool horde) const {
   return result;
 }
 
-MoveList Board::legal_moves() const { return position.legal(turn, horde); }
+namespace {
+
+bool explosion_contains(int center, int square) {
+  return std::abs(file_of(center) - file_of(square)) <= 1 &&
+         std::abs(rank_of(center) - rank_of(square)) <= 1;
+}
+
+std::optional<Position> apply_unchecked_variant(const Position& source,
+                                                const Move& move,
+                                                Color side, bool atomic) {
+  if (move.from < 0 || move.from >= 64 || move.to < 0 || move.to >= 64 ||
+      source.color_at(move.from) != side || source.color_at(move.to) == side ||
+      move.is_castle())
+    return std::nullopt;
+  Position next = source;
+  const Piece moving = source.piece_at(move.from);
+  const int sign = side == Color::white ? 1 : -1;
+  next.set_cell(move.from, 0);
+  if (move.type == MoveType::en_passant) {
+    const int victim = move.to + (side == Color::white ? -8 : 8);
+    next.set_cell(victim, 0);
+  }
+  const Piece placed = move.is_promotion() ? move.promotion : moving;
+  next.set_cell(move.to, static_cast<std::int8_t>(
+      sign * static_cast<int>(placed)));
+  next.en_passant = move.type == MoveType::jump
+      ? (move.from + move.to) / 2 : -1;
+  clear_castling_rights(next, move, moving, side);
+  if (atomic && move.is_capture()) {
+    for (int square = 0; square < 64; ++square) {
+      if (!explosion_contains(move.to, square)) continue;
+      if (square != move.to && next.piece_at(square) == Piece::pawn) continue;
+      next.set_cell(square, 0);
+    }
+  }
+  return next;
+}
+
+bool atomic_threatened(const Position& position, Color side) {
+  const int king = position.king_square(side);
+  if (king < 0) return true;
+  const Color attacker = opponent(side);
+  const int attacker_king = position.king_square(attacker);
+  for (const Move& move : position.pseudo_legal(attacker)) {
+    if (!move.is_capture()) continue;
+    if (move.to != king) continue;
+    if (attacker_king >= 0 && explosion_contains(move.to, attacker_king))
+      continue;
+    return true;
+  }
+  return false;
+}
+
+std::optional<Position> apply_atomic(const Position& source,
+                                     const Move& move, Color side) {
+  if (move.is_castle()) {
+    auto next = source.apply(move);
+    if (!next || atomic_threatened(*next, side)) return std::nullopt;
+    return next;
+  }
+  auto next = apply_unchecked_variant(source, move, side, true);
+  if (!next || next->king_square(side) < 0) return std::nullopt;
+  if (next->king_square(opponent(side)) < 0) return next;
+  if (atomic_threatened(*next, side)) return std::nullopt;
+  return next;
+}
+
+}  // namespace
+
+MoveList Board::legal_moves() const {
+  if (antichess) {
+    MoveList captures;
+    MoveList quiets;
+    for (const Move& move : position.pseudo_legal(turn)) {
+      if (move.is_castle()) continue;
+      if (!apply_unchecked_variant(position, move, turn, false)) continue;
+      (move.is_capture() ? captures : quiets).push_back(move);
+      if (move.is_promotion()) {
+        Move king_promotion = move;
+        king_promotion.promotion = Piece::king;
+        (move.is_capture() ? captures : quiets).push_back(king_promotion);
+      }
+    }
+    return captures.empty() ? quiets : captures;
+  }
+  if (atomic) {
+    MoveList result;
+    for (const Move& move : position.pseudo_legal(turn))
+      if (apply_atomic(position, move, turn)) result.push_back(move);
+    return result;
+  }
+  return position.legal(turn, horde);
+}
 
 namespace {
 
@@ -1207,7 +1299,9 @@ std::uint64_t position_key(const Position& position, Color turn) {
 }
 
 bool Board::push(const Move& move) {
-  auto next = position.apply(move);
+  auto next = atomic ? apply_atomic(position, move, turn)
+      : antichess ? apply_unchecked_variant(position, move, turn, false)
+                    : position.apply(move);
   if (!next) return false;
   history.push_back({turn, halfmove, fullmove, move, has_castled,
                      position.castling,
@@ -1291,7 +1385,14 @@ bool Board::make_search_move(const Move& move, SearchUndo& undo) {
   const Color side = turn;
   const Piece moving = position.piece_at(move.from);
   const int sign = side == Color::white ? 1 : -1;
-  if (move.is_castle()) {
+  if (atomic || antichess) {
+    auto next = atomic ? apply_atomic(position, move, side)
+                       : apply_unchecked_variant(position, move, side, false);
+    if (!next) return false;
+    for (int square = 0; square < 64; ++square)
+      if (position.cells[square] != next->cells[square]) remember(square);
+    position = *next;
+  } else if (move.is_castle()) {
     const auto next = position.apply(move);
     if (!next) return false;
     for (int square = 0; square < 64; ++square)
@@ -1314,7 +1415,7 @@ bool Board::make_search_move(const Move& move, SearchUndo& undo) {
     clear_castling_rights(position, move, moving, side);
   }
 
-  if (position.in_check(side)) {
+  if (!atomic && !antichess && position.in_check(side)) {
     for (int index = 0; index < undo.changed; ++index)
       position.set_cell(undo.squares[index], undo.cells[index]);
     position.castling = undo.castling;
@@ -1336,7 +1437,7 @@ bool Board::make_search_move(const Move& move, SearchUndo& undo) {
 
 void Board::unmake_search_move(const SearchUndo& undo) {
   const auto after_kings = position.king_squares;
-  std::array<std::int8_t, 4> after_cells{};
+  std::array<std::int8_t, 16> after_cells{};
   for (int index = 0; index < undo.changed; ++index) {
     after_cells[index] = position.cells[undo.squares[index]];
     position.set_cell(undo.squares[index], undo.cells[index]);
@@ -1421,11 +1522,23 @@ bool Board::king_on_hill(Color side) const {
          king == square_of(3, 4) || king == square_of(4, 4);
 }
 
+bool Board::in_check() const {
+  if (antichess) return false;
+  if (atomic) return atomic_threatened(position, turn);
+  return position.in_check(turn);
+}
+
 std::optional<Color> Board::variant_winner() const {
+  if (atomic) {
+    if (position.king_square(Color::white) < 0) return Color::black;
+    if (position.king_square(Color::black) < 0) return Color::white;
+  }
+  if (antichess && (position.occupancy(turn) == 0 || legal_moves().empty()))
+    return turn;
   if (king_on_hill(opponent(turn))) return opponent(turn);
   if (king_on_hill(turn)) return turn;
   if (horde_eliminated()) return Color::black;
-  if (legal_moves().empty() && position.in_check(turn))
+  if (!antichess && legal_moves().empty() && in_check())
     return opponent(turn);
   return std::nullopt;
 }
@@ -1861,7 +1974,7 @@ int Searcher::parallel_root(Board& board, const MoveList& moves, int depth,
     if (speculative[first]) break;
   }
   if (first == moves.size())
-    return board.position.in_check(board.turn) ? -mate_score : 0;
+    return board.in_check() ? -mate_score : 0;
 
   Move best = moves[first];
   int best_score = *speculative[first];
@@ -1967,6 +2080,33 @@ ExactEndgame probe_exact_endgame(const Board& board) {
 }
 
 int Searcher::evaluate(const Board& board) {
+  if (board.antichess && ELOI_ANTICHESS_SHED_BONUS_CP > 0) {
+    const int ours = std::popcount(board.position.occupancy(board.turn));
+    const int theirs = std::popcount(
+        board.position.occupancy(opponent(board.turn)));
+    int score = ELOI_ANTICHESS_SHED_BONUS_CP * (theirs - ours);
+    const MoveList moves = board.legal_moves();
+    if (!moves.empty() && moves.front().is_capture())
+      score += 35;
+    return score;
+  }
+  if (board.atomic && ELOI_ATOMIC_BLAST_BONUS_CP > 0) {
+    int score = nnue_evaluate(board.nnue, board.turn);
+    auto blast_pressure = [&](Color attacker, Color defender) {
+      const int king = board.position.king_square(defender);
+      if (king < 0) return 20;
+      int pressure = 0;
+      for (const Move& move : board.position.pseudo_legal(attacker))
+        if (move.is_capture() && explosion_contains(move.to, king))
+          ++pressure;
+      return pressure;
+    };
+    score += ELOI_ATOMIC_BLAST_BONUS_CP *
+        (blast_pressure(board.turn, opponent(board.turn)) -
+         blast_pressure(opponent(board.turn), board.turn));
+    return score;
+  }
+
   if (board.horde) {
     int white = 0;
     int black = 0;
@@ -2023,7 +2163,7 @@ int Searcher::evaluate(const Board& board) {
 int Searcher::volatility(const Board& board, std::size_t legal_count,
                          int evaluation_swing) const {
   int result = std::min(30, std::abs(evaluation_swing) / 4);
-  if (board.position.in_check(board.turn)) result += 28;
+  if (board.in_check()) result += 28;
   if (legal_count == 1) result += 24;
   else if (legal_count <= 3) result += 10;
 
@@ -2241,6 +2381,9 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
   if (halted()) return 0;
   seldepth_ = std::max(seldepth_, ply);
   ++nodes_; ++qnodes_;
+  if ((board.atomic || board.antichess))
+    if (const auto winner = board.variant_winner())
+      return *winner == board.turn ? mate_score - ply : -mate_score + ply;
   if (board.horde_eliminated() ||
       board.king_on_hill(opponent(board.turn)))
     return -mate_score + ply;
@@ -2254,7 +2397,7 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
     if (found->flag < 0 && tt_score <= alpha) return tt_score;
     if (found->flag > 0 && tt_score >= beta) return tt_score;
   }
-  const bool in_check = board.position.in_check(board.turn);
+  const bool in_check = board.in_check();
   int stand = -infinity;
   if (!in_check) {
     stand = evaluate(board);
@@ -2276,7 +2419,8 @@ int Searcher::quiescence(Board& board, int alpha, int beta, int ply,
     if (!in_check && quiet) continue;
     if (!in_check && !move.is_promotion() &&
         !quiet && stand + nominal(move.capture) + 100 < alpha) continue;
-    if (!in_check && move.is_capture() && !move.is_promotion() &&
+    if (!board.atomic && !board.antichess && !in_check && move.is_capture() &&
+        !move.is_promotion() &&
         static_exchange_score(board.position, board.turn, move) < 0)
       continue;
     Board::SearchUndo undo;
@@ -2314,6 +2458,9 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   if (halted()) return 0;
   seldepth_ = std::max(seldepth_, ply);
   ++nodes_;
+  if ((board.atomic || board.antichess))
+    if (const auto winner = board.variant_winner())
+      return *winner == board.turn ? mate_score - ply : -mate_score + ply;
   if (board.horde_eliminated() ||
       board.king_on_hill(opponent(board.turn)))
     return -mate_score + ply;
@@ -2323,7 +2470,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   beta = std::min(beta, mate_score - ply - 1);
   if (alpha >= beta) return alpha;
 
-  const bool in_check = board.position.in_check(board.turn);
+  const bool in_check = board.in_check();
   if (depth <= 0) {
     return quiescence(board, alpha, beta, ply, 0);
   }
@@ -2344,7 +2491,8 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
   const int base_volatility = depth >= 3
       ? volatility(board, 4) : (in_check ? 65 : 20);
 
-  const bool full_width = limits_.profile == SearchProfile::full_width;
+  const bool full_width = limits_.profile == SearchProfile::full_width ||
+      board.atomic || board.antichess;
   const auto selective = [&](Selectivity mechanism) {
     return !full_width && (limits_.selectivity_mask &
         static_cast<std::uint32_t>(mechanism)) != 0;
@@ -2378,7 +2526,8 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       300 * minor_count + 500 * rook_count + 900 * queen_count;
   const int non_pawn_count = minor_count + rook_count + queen_count;
 
-  if (selective(Selectivity::null_move) && !board.horde && allow_null && !pv_node && !excluded && !in_check &&
+  if (selective(Selectivity::null_move) && !board.horde && !board.atomic &&
+      !board.antichess && allow_null && !pv_node && !excluded && !in_check &&
       depth >= 3 && ply > 0 && board.halfmove < 80 &&
       base_volatility < 65 &&
       (non_pawn_value >= 500 || non_pawn_count >= 2) &&
@@ -2490,7 +2639,7 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       continue;
     }
     repetition_keys_.push_back(board.key);
-    const bool gives_check = board.position.in_check(board.turn);
+    const bool gives_check = board.in_check();
     const int relative_rank = move.piece == Piece::pawn
         ? (side == Color::white ? rank_of(move.to) : 7 - rank_of(move.to))
         : 0;
@@ -2732,7 +2881,8 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
   SearchResult last;
   const bool variant_terminal = board.horde_eliminated() ||
       board.king_on_hill(board.turn) ||
-      board.king_on_hill(opponent(board.turn));
+      board.king_on_hill(opponent(board.turn)) ||
+      ((board.atomic || board.antichess) && board.variant_winner().has_value());
   if (variant_terminal) {
     const Color winner = *board.variant_winner();
     last.score_cp = winner == board.turn ? mate_score : -mate_score;
@@ -2751,7 +2901,7 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
   if (fallback_moves.empty()) {
     last.volatility = volatility(board, 0, 0);
     const bool lost = board.horde_eliminated() ||
-                      board.position.in_check(board.turn);
+                      board.in_check();
     if (lost) {
       last.score_cp = -mate_score;
       last.mate = -1;
@@ -2914,7 +3064,7 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
         last.root_tt_score_cp = score_from_tt(entry->score, 0);
       }
     }
-    last.pv = std::move(pv);
+    if (!pv.empty()) last.pv = std::move(pv);
     last.allocated_ms = adaptive_clock ? soft_budget_ms : last.allocated_ms;
     last.hard_limit_ms = adaptive_clock ? hard_budget_ms : last.hard_limit_ms;
     last.clock_reserve_ms = adaptive_clock

@@ -85,7 +85,7 @@ struct Layout {
   UiRect setup_base_plus;
   UiRect setup_increment_minus;
   UiRect setup_increment_plus;
-  std::array<UiRect, 4> setup_variants;
+  std::array<UiRect, 6> setup_variants;
   std::array<UiRect, 2> setup_brains;
   std::array<UiRect, 2> setup_sides;
   UiRect setup_start;
@@ -124,8 +124,8 @@ Layout make_layout(int width, int height) {
   layout.setup_increment_plus = {dialog_right - 70, 280,
                                  dialog_right - 22, 326};
   const float variant_gap = 10;
-  const float variant_width = (dialog_width - 44 - variant_gap * 3) / 4;
-  for (int i = 0; i < 4; ++i) {
+  const float variant_width = (dialog_width - 44 - variant_gap * 5) / 6;
+  for (int i = 0; i < 6; ++i) {
     const float left = dialog_left + 22 + i * (variant_width + variant_gap);
     layout.setup_variants[i] = {left, 382, left + variant_width, 428};
   }
@@ -201,12 +201,13 @@ int piece_slot(std::int8_t cell) {
 }
 
 struct App {
-  enum class LocalVariant { standard, chess960, horde, king_of_the_hill };
+  enum class LocalVariant { standard, chess960, horde, king_of_the_hill, atomic, antichess };
   enum class LocalBrain { caissa, eloi };
   enum class HoverControl : std::size_t {
     depth_minus, depth_plus, new_game, undo, flip, side, version_match,
     base_minus, base_plus, increment_minus, increment_plus,
     variant_standard, variant_chess960, variant_horde, variant_king_of_the_hill,
+    variant_atomic, variant_antichess,
     brain_caissa, brain_eloi,
     side_white, side_black, setup_start, setup_cancel, count
   };
@@ -311,6 +312,8 @@ std::string_view variant_name(App::LocalVariant variant) {
     case App::LocalVariant::chess960: return "Chess960";
     case App::LocalVariant::horde: return "Horde";
     case App::LocalVariant::king_of_the_hill: return "King of the Hill";
+    case App::LocalVariant::atomic: return "Atomic";
+    case App::LocalVariant::antichess: return "Antichess";
     default: return "FIDE chess";
   }
 }
@@ -338,6 +341,8 @@ Board local_start_position(App::LocalVariant variant, int chess960_index) {
     return *chess960_start(std::clamp(chess960_index, 0, 959));
   Board board = *parse_fen(initial_fen);
   board.king_of_the_hill = variant == App::LocalVariant::king_of_the_hill;
+  board.atomic = variant == App::LocalVariant::atomic;
+  board.antichess = variant == App::LocalVariant::antichess;
   return board;
 }
 
@@ -1264,15 +1269,19 @@ void render_game_setup(App& app, SkCanvas& canvas, const Layout& layout) {
        middle + 84, 312, 22, ink, true);
 
   text(canvas, "VARIANT", left + 24, 360, 11, muted, true);
-  constexpr std::array labels{"FIDE", "CHESS960", "HORDE", "KOTH"};
+  constexpr std::array labels{"FIDE", "960", "HORDE", "KOTH", "ATOMIC", "ANTI"};
   constexpr std::array variants{App::LocalVariant::standard,
                                 App::LocalVariant::chess960,
                                 App::LocalVariant::horde,
-                                App::LocalVariant::king_of_the_hill};
+                                App::LocalVariant::king_of_the_hill,
+                                App::LocalVariant::atomic,
+                                App::LocalVariant::antichess};
   constexpr std::array controls{App::HoverControl::variant_standard,
                                 App::HoverControl::variant_chess960,
                                 App::HoverControl::variant_horde,
-                                App::HoverControl::variant_king_of_the_hill};
+                                App::HoverControl::variant_king_of_the_hill,
+                                App::HoverControl::variant_atomic,
+                                App::HoverControl::variant_antichess};
   for (std::size_t i = 0; i < labels.size(); ++i)
     button(canvas, layout.setup_variants[i], labels[i],
            app.setup.variant == variants[i] ? accent : SkColorSetRGB(35, 40, 57),
@@ -1630,6 +1639,12 @@ void on_click(App& app, float x, float y) {
       app.setup.brain = App::LocalBrain::eloi;
     } else if (layout.setup_variants[3].contains(x, y)) {
       app.setup.variant = App::LocalVariant::king_of_the_hill;
+      app.setup.brain = App::LocalBrain::eloi;
+    } else if (layout.setup_variants[4].contains(x, y)) {
+      app.setup.variant = App::LocalVariant::atomic;
+      app.setup.brain = App::LocalBrain::eloi;
+    } else if (layout.setup_variants[5].contains(x, y)) {
+      app.setup.variant = App::LocalVariant::antichess;
       app.setup.brain = App::LocalBrain::eloi;
     } else if (layout.setup_brains[0].contains(x, y) &&
                app.setup.variant == App::LocalVariant::standard) {

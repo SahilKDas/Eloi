@@ -121,7 +121,8 @@ BrainResponse HybridBrain::search(Board board, SearchLimits limits,
     return response;
   }
 
-  const bool unsupported_variant = board.horde || board.chess960 || board.king_of_the_hill;
+  const bool unsupported_variant = board.horde || board.chess960 || board.king_of_the_hill ||
+      board.atomic || board.antichess;
   const bool donor_unavailable = !caissa_.available();
 
   // This is a deliberate fail-closed checkpoint. Do not spend only Eloi's

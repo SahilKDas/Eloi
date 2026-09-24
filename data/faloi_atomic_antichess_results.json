@@ -1,0 +1,35 @@
+{
+  "schema": "faloi-atomic-antichess-summary-v1",
+  "status": "laboratory_only",
+  "production_changed": false,
+  "protocol": {"games_per_variant": 100, "mirrored_openings": 50, "move_time_ms": 250, "threads_per_engine": 3, "hash_mb": 32, "fresh_process_per_game": true, "priority": "idle", "runner_sha256": "67EDE7FB8BE622D512C7DED8E33B19D866211424C6EEE085F9E6FFAB7862BA9D"},
+  "parity": {"reference": "python-chess", "atomic": {"passed": 64, "total": 64}, "antichess": {"passed": 64, "total": 64}},
+  "atomic": {
+    "candidate_bonus_cp": 140, "wins": 52, "draws": 12, "losses": 36, "score_points": 58.0,
+    "candidate_white": {"wins": 29, "draws": 6, "losses": 15, "score_points": 32.0},
+    "candidate_black": {"wins": 23, "draws": 6, "losses": 21, "score_points": 26.0},
+    "protocol_failures": 0, "replay_verified": 100, "passed": true,
+    "evidence_directory": "tmp/faloi-atomic-gauntlet100-250ms",
+    "protocol_sha256": "C1D2E6B23041F3A7D1D02E8DC361BA5CEE969AE00A771981385155F4ACDC1B4A",
+    "results_sha256": "2B5AE4A8F5FD092CD53BB0DDE0D7D0C9570179FB8CEA3A324BBAFC2E3BD6BDED",
+    "pgn_sha256": "19DB4AF1F0C9120C28845C052117E1312A7F1039FFC0D8F8BDD41F6C837EA056",
+    "candidate_exe_sha256": "BFD5FEB1487BDE843C28094206B40AEADE87EF76155DAC70AE520616FD7E0721",
+    "control_exe_sha256": "AD0FEFAE5552441EE6A871303A6900F9655306DCACF81464CA1DFB794C2178A6"
+  },
+  "antichess": {
+    "candidate_bonus_cp": 100,
+    "first_run": {"status": "stopped_on_protocol_failure", "completed_games": 0, "incident": "bestmove 0000 with legal moves at game 1 ply 8", "evidence_directory": "tmp/faloi-antichess-gauntlet100-250ms", "resolution": "preserve known-legal root fallback when reconstructed PV is empty"},
+    "clean_rerun": {
+      "wins": 97, "draws": 0, "losses": 3, "score_points": 97.0,
+      "candidate_white": {"wins": 49, "draws": 0, "losses": 1, "score_points": 49.0},
+      "candidate_black": {"wins": 48, "draws": 0, "losses": 2, "score_points": 48.0},
+      "protocol_failures": 0, "replay_verified": 100, "passed": true,
+      "evidence_directory": "tmp/faloi-antichess-gauntlet100-250ms-r2",
+      "protocol_sha256": "5AD5FD98130BB51C5BFAA5CB2B59DBCBE868ABB837BB9E0EC2AC4154568842DB",
+      "results_sha256": "BF455F9C906E21E469E3D4467CA25BB69D9C917D3A1D3A20B872052DC4444393",
+      "pgn_sha256": "B9AA08A99F4333C23BF28AC51910F7D5D26C75D9F9404E066C2DE65E3C971195",
+      "candidate_exe_sha256": "070AB2C383E35D85740192A0C767F01C26D2AB59B373BC21942A95F212CD7EBB",
+      "control_exe_sha256": "4BF277A409F74460940E3025073596044782B11D05784F0C2A5567219CD2FC9B"
+    }
+  }
+}
