@@ -8,10 +8,11 @@ Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
 a compact incrementally updated NNUE, deterministic three-lane RootSplit
 search, and reproducible Windows packaging.
 
-The current stable source is **Eloi 3.2.2**.
+The current stable source is **Eloi 3.3.2**.
 
-Experimental fairy-chess development lives on the codex/faloi branch and is
-documented in [FALOI.md](FALOI.md); it is not part of the v3.2.2 release.
+Eloi 3.3.2 adds playable King of the Hill, Atomic, and Antichess modes. Atomic
+and Antichess ship qualified scoring terms; KOTH's separately trained network
+remains laboratory-only so it cannot alter Standard or fallback behavior.
 
 Standard UCI and native Lichess use the crash-contained **Caissa 1.25** brain.
 The native GUI now offers **Caissa 1.25** or Eloi's 64-unit **E4-10** brain
@@ -59,10 +60,10 @@ Chess960 and Horde use Eloi E4-10; Caissa remains Standard-only.
 
 | Item | Current status |
 | --- | --- |
-| Source version | 3.2.2 |
-| Latest tag | v3.1.2 (published); v3.2.2 is being prepared locally |
-| Latest release | v3.1.2 (published) |
-| Release commit | v3.2.2 local release commit; publication pending |
+| Source version | 3.3.2 |
+| Latest tag | v3.2.2 (published); v3.3.2 is being prepared locally |
+| Latest release | v3.2.2 (published) |
+| Release commit | v3.3.2 local release commit; publication pending |
 | Language | C++26 |
 | Build system | CMake |
 | Primary toolchain | MSYS2 UCRT64 GCC |
@@ -72,8 +73,8 @@ Chess960 and Horde use Eloi E4-10; Caissa remains Standard-only.
 | Online client | Native Lichess Bot API |
 | Standard UCI/Lichess brain | Crash-contained Caissa 1.25 |
 | GUI Standard choice | Caissa 1.25 or Eloi E4-10 |
-| Chess960/Horde/fallback brain | E4-10, 64 units, three RootSplit lanes |
-| Variants | Standard, Chess960, Horde |
+| Chess960/Horde/fairy/fallback brain | E4-10, 64 units, three RootSplit lanes |
+| Variants | Standard, Chess960, Horde, King of the Hill, Atomic, Antichess |
 | Source license | MIT |
 | Caissa in current main | Yes, pinned v1.25 |
 | Standard search donor | Caissa 1.25 |
@@ -123,7 +124,7 @@ Experimental history remains evidence.
 
 To play locally:
 
-1. Download the v3.2.2 standalone ZIP.
+1. Download the v3.3.2 standalone ZIP.
 2. Verify its SHA-256.
 3. Extract it.
 4. Double-click Eloi.exe.
@@ -173,7 +174,7 @@ Reproducibility comes before release claims.
 
 ## What ships today
 
-Eloi 3.2.2 ships Eloi legal authority plus a crash-contained Caissa 1.25
+Eloi 3.3.2 ships Eloi legal authority plus a crash-contained Caissa 1.25
 Standard brain for UCI and native Lichess. The native GUI, Chess960, Horde,
 and emergency fallback use Eloi E4-10. Together they provide:
 
@@ -1865,6 +1866,15 @@ Do not publish without maintainer authorization.
 ---
 
 ## Release history
+
+### v3.3.2
+
+Adds playable King of the Hill, Atomic, and Antichess to UCI and the native
+GUI. Atomic-140 and Antichess-100 are promoted after screening and confirmation
+campaigns passed with zero protocol failures and complete replay verification.
+Standard UCI/Lichess remains on Caissa 1.25. The separately trained E4-KOTH
+network remains laboratory-only because global embedding would change
+unqualified Standard/fallback behavior. See RELEASE_V3_3_2.md.
 
 ### v3.2.2
 

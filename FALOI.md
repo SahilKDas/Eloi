@@ -1,6 +1,6 @@
 # Faloi - Fairy Eloi
 
-Faloi is Eloi''s experimental fairy-chess branch, isolated from released Eloi v3.2.2.
+Faloi is Eloi's fairy-chess layer. King of the Hill, Atomic, and Antichess are included in Eloi v3.3.2.
 
 ## Qualified laboratory variants
 
@@ -10,7 +10,7 @@ Faloi is Eloi''s experimental fairy-chess branch, isolated from released Eloi v3
 | Atomic | Atomic-140 | untuned Faloi | 52W/12D/36L | 58.0% |
 | Antichess | Antichess-100 | untuned Faloi | 97W/0D/3L | 97.0% |
 
-These are frozen laboratory comparisons, not Elo claims or production promotions.
+These are frozen variant comparisons, not Elo claims. Atomic-140 and Antichess-100 are promoted in v3.3.2; the separately trained E4-KOTH network remains laboratory-only.
 
 ## Rules and routing
 
@@ -36,4 +36,4 @@ See [FALOI_FAIRY_CAMPAIGNS.md](FALOI_FAIRY_CAMPAIGNS.md) and [the result manifes
 
 ## Boundary
 
-This remains laboratory-only. Native Lichess support is not enabled for these variants. Standard, Chess960, Horde, packages, and production are unchanged.
+Native Lichess support is not enabled for these variants. Standard UCI/Lichess remains on Caissa 1.25; Standard GUI, Chess960, Horde, fairy variants, and fallback remain Eloi-owned.

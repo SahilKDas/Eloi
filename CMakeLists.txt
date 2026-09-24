@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Eloi VERSION 3.2.2 LANGUAGES CXX)
+project(Eloi VERSION 3.3.2 LANGUAGES CXX)
 set(ELOI_PRERELEASE "")
 if(ELOI_PRERELEASE)
   set(ELOI_VERSION "${PROJECT_VERSION}-${ELOI_PRERELEASE}")
@@ -66,10 +66,10 @@ set(ELOI_KOTH_HILL_BONUS_CP 0 CACHE STRING
     "King-of-the-Hill distance bonus in centipawns; zero preserves traditional E4")
 target_compile_definitions(eloi_core PUBLIC
   ELOI_KOTH_HILL_BONUS_CP=${ELOI_KOTH_HILL_BONUS_CP})
-set(ELOI_ATOMIC_BLAST_BONUS_CP 0 CACHE STRING
-    "Atomic king-blast pressure bonus; zero preserves traditional E4")
-set(ELOI_ANTICHESS_SHED_BONUS_CP 0 CACHE STRING
-    "Antichess piece-shedding bonus; zero preserves traditional E4")
+set(ELOI_ATOMIC_BLAST_BONUS_CP 140 CACHE STRING
+    "Atomic king-blast pressure bonus; 140 is the qualified v3.3.2 default")
+set(ELOI_ANTICHESS_SHED_BONUS_CP 100 CACHE STRING
+    "Antichess piece-shedding bonus; 100 is the qualified v3.3.2 default")
 target_compile_definitions(eloi_core PUBLIC
   ELOI_ATOMIC_BLAST_BONUS_CP=${ELOI_ATOMIC_BLAST_BONUS_CP}
   ELOI_ANTICHESS_SHED_BONUS_CP=${ELOI_ANTICHESS_SHED_BONUS_CP})
