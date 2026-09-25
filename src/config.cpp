@@ -1,4 +1,5 @@
 #include "eloi/config.hpp"
+#include "eloi/chess.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -68,6 +69,73 @@ bool parse_int(std::string_view value, int& output) {
 
 }  // namespace
 
+RuntimeVariant runtime_variant_from_key(std::string_view key) {
+  if (key == "standard") return RuntimeVariant::standard;
+  if (key == "chess960") return RuntimeVariant::chess960;
+  if (key == "horde") return RuntimeVariant::horde;
+  if (key == "kingOfTheHill") return RuntimeVariant::king_of_the_hill;
+  if (key == "atomic") return RuntimeVariant::atomic;
+  if (key == "antichess") return RuntimeVariant::antichess;
+  return RuntimeVariant::unsupported;
+}
+
+std::string_view runtime_variant_key(RuntimeVariant variant) {
+  switch (variant) {
+    case RuntimeVariant::standard: return "standard";
+    case RuntimeVariant::chess960: return "chess960";
+    case RuntimeVariant::horde: return "horde";
+    case RuntimeVariant::king_of_the_hill: return "kingOfTheHill";
+    case RuntimeVariant::atomic: return "atomic";
+    case RuntimeVariant::antichess: return "antichess";
+    default: return "unsupported";
+  }
+}
+
+bool supported_runtime_variant(std::string_view key) {
+  return runtime_variant_from_key(key) != RuntimeVariant::unsupported;
+}
+
+bool runtime_variant_is_fairy(RuntimeVariant variant) {
+  return variant == RuntimeVariant::king_of_the_hill ||
+         variant == RuntimeVariant::atomic ||
+         variant == RuntimeVariant::antichess;
+}
+
+bool runtime_variant_uses_caissa(RuntimeVariant variant) {
+  return variant == RuntimeVariant::standard;
+}
+
+bool runtime_variant_allows_book(RuntimeVariant variant) {
+  return variant == RuntimeVariant::standard;
+}
+
+bool runtime_variant_allows_ponder(RuntimeVariant variant) {
+  return !runtime_variant_is_fairy(variant);
+}
+
+std::string_view runtime_variant_brain_route(RuntimeVariant variant) {
+  switch (variant) {
+    case RuntimeVariant::standard: return "caissa_1_25";
+    case RuntimeVariant::chess960: return "eloi_e4_10_chess960";
+    case RuntimeVariant::horde: return "eloi_e4_10_horde";
+    case RuntimeVariant::king_of_the_hill: return "eloi_e4_koth";
+    case RuntimeVariant::atomic: return "eloi_e4_10_atomic";
+    case RuntimeVariant::antichess: return "eloi_e4_10_antichess";
+    default: return "unsupported";
+  }
+}
+
+void configure_board_variant(Board& board, RuntimeVariant variant) {
+  board.chess960 = variant == RuntimeVariant::chess960;
+  board.horde = variant == RuntimeVariant::horde;
+  board.king_of_the_hill = variant == RuntimeVariant::king_of_the_hill;
+  board.atomic = variant == RuntimeVariant::atomic;
+  board.antichess = variant == RuntimeVariant::antichess;
+  board.select_nnue_model(variant == RuntimeVariant::king_of_the_hill
+                              ? NnueModel::king_of_the_hill
+                              : NnueModel::production);
+}
+
 std::optional<RuntimeConfig> load_runtime_config(
     const std::filesystem::path& path, std::string* error) {
   auto fail = [&](int line, std::string message)
@@ -100,7 +168,7 @@ std::optional<RuntimeConfig> load_runtime_config(
       if (section != "challenge")
         return fail(line_number, "list item outside challenge.variants");
       const std::string value = scalar(content.substr(2));
-      if (value != "standard" && value != "chess960" && value != "horde")
+      if (!supported_runtime_variant(value))
         return fail(line_number, "unsupported variant " + value);
       config.variants.push_back(value);
       continue;

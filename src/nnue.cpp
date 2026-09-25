@@ -1,6 +1,7 @@
 #include "eloi/chess.hpp"
 
 #include "eloi/nnue_weights.hpp"
+#include "eloi/nnue_koth_weights.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -16,6 +17,20 @@ namespace eloi {
 namespace {
 
 constexpr int quantization = 8;
+
+struct ModelWeights {
+  const std::int16_t* bias;
+  const std::int8_t* input;
+  const std::int16_t* output;
+};
+
+ModelWeights weights_for(NnueModel model) {
+  if (model == NnueModel::king_of_the_hill)
+    return {nnue_koth_weights::bias.data(), nnue_koth_weights::input.data(),
+            nnue_koth_weights::output.data()};
+  return {nnue_weights::bias.data(), nnue_weights::input.data(),
+          nnue_weights::output.data()};
+}
 
 int perspective_index(Color side) { return side == Color::white ? 0 : 1; }
 
@@ -43,20 +58,22 @@ int feature_of(std::int8_t cell, int square, int bucket,
   return (bucket * 12 + plane) * 64 + oriented_square(square, perspective);
 }
 
-void add_feature_scalar(NnueAccumulator& accumulator, int feature, int sign) {
+void add_feature_scalar(NnueAccumulator& accumulator, int feature, int sign,
+                        NnueModel model) {
   if (feature < 0) return;
   const std::size_t offset = static_cast<std::size_t>(feature) * nnue_hidden_size;
   for (int hidden = 0; hidden < nnue_hidden_size; ++hidden)
-    accumulator[hidden] += sign * nnue_weights::input[offset + hidden];
+    accumulator[hidden] += sign * weights_for(model).input[offset + hidden];
 }
 
 #if ELOI_GNU_X86_DISPATCH
 __attribute__((target("avx2")))
-void add_feature_avx2(NnueAccumulator& accumulator, int feature, int sign) {
+void add_feature_avx2(NnueAccumulator& accumulator, int feature, int sign,
+                      NnueModel model) {
   if (feature < 0) return;
   const std::size_t offset =
       static_cast<std::size_t>(feature) * nnue_hidden_size;
-  const auto* weights = nnue_weights::input.data() + offset;
+  const auto* weights = weights_for(model).input + offset;
   const __m256i zero = _mm256_setzero_si256();
   for (int hidden = 0; hidden < nnue_hidden_size; hidden += 16) {
     const __m128i bytes = _mm_loadu_si128(
@@ -89,58 +106,63 @@ bool runtime_has_avx2_impl() {
 }
 #endif
 
-void add_feature(NnueAccumulator& accumulator, int feature, int sign) {
+void add_feature(NnueAccumulator& accumulator, int feature, int sign,
+                 NnueModel model) {
 #if ELOI_GNU_X86_DISPATCH
   if (runtime_has_avx2_impl()) {
-    add_feature_avx2(accumulator, feature, sign);
+    add_feature_avx2(accumulator, feature, sign, model);
     return;
   }
 #endif
-  add_feature_scalar(accumulator, feature, sign);
+  add_feature_scalar(accumulator, feature, sign, model);
 }
 
 NnueAccumulator refresh_perspective(const Position& position,
-                                    Color perspective) {
+                                    Color perspective, NnueModel model) {
   NnueAccumulator result{};
   for (int hidden = 0; hidden < nnue_hidden_size; ++hidden)
-    result[hidden] = nnue_weights::bias[hidden];
+    result[hidden] = weights_for(model).bias[hidden];
   const int bucket = king_bucket(position, perspective);
   for (int square = 0; square < 64; ++square)
     add_feature(result,
                 feature_of(position.cells[square], square, bucket, perspective),
-                1);
+                1, model);
   return result;
 }
 
-std::int64_t activate(const NnueAccumulator& accumulator) {
+std::int64_t activate(const NnueAccumulator& accumulator, NnueModel model) {
   std::int64_t sum = 0;
   for (int hidden = 0; hidden < nnue_hidden_size; ++hidden) {
     const int value = std::clamp(accumulator[hidden], 0, 127);
-    sum += static_cast<std::int64_t>(value) * nnue_weights::output[hidden];
+    sum += static_cast<std::int64_t>(value) * weights_for(model).output[hidden];
   }
   return sum;
 }
 
 }  // namespace
 
-NnueState nnue_refresh(const Position& position) {
+NnueState nnue_refresh(const Position& position, NnueModel model) {
   NnueState state;
-  state.perspective[0] = refresh_perspective(position, Color::white);
-  state.perspective[1] = refresh_perspective(position, Color::black);
+  state.model = model;
+  state.perspective[0] = refresh_perspective(position, Color::white, model);
+  state.perspective[1] = refresh_perspective(position, Color::black, model);
   return state;
 }
 
-NnueState nnue_refresh_scalar_reference(const Position& position) {
+NnueState nnue_refresh_scalar_reference(const Position& position,
+                                        NnueModel model) {
   NnueState state;
+  state.model = model;
   for (Color perspective : {Color::white, Color::black}) {
     auto& accumulator = state.perspective[perspective_index(perspective)];
     for (int hidden = 0; hidden < nnue_hidden_size; ++hidden)
-      accumulator[hidden] = nnue_weights::bias[hidden];
+      accumulator[hidden] = weights_for(model).bias[hidden];
     const int bucket = king_bucket(position, perspective);
     for (int square = 0; square < 64; ++square)
       add_feature_scalar(
           accumulator,
-          feature_of(position.cells[square], square, bucket, perspective), 1);
+          feature_of(position.cells[square], square, bucket, perspective), 1,
+          model);
   }
   return state;
 }
@@ -160,17 +182,18 @@ void nnue_update(NnueState& state, const Position& before,
     const int before_bucket = king_bucket(before, perspective);
     const int after_bucket = king_bucket(after, perspective);
     if (before_bucket != after_bucket) {
-      state.perspective[index] = refresh_perspective(after, perspective);
+      state.perspective[index] = refresh_perspective(after, perspective,
+                                                     state.model);
       continue;
     }
     for (int square = 0; square < 64; ++square) {
       if (before.cells[square] == after.cells[square]) continue;
       add_feature(state.perspective[index],
                   feature_of(before.cells[square], square, before_bucket,
-                             perspective), -1);
+                             perspective), -1, state.model);
       add_feature(state.perspective[index],
                   feature_of(after.cells[square], square, after_bucket,
-                             perspective), 1);
+                             perspective), 1, state.model);
     }
   }
 }
@@ -184,7 +207,8 @@ void nnue_update_changed(NnueState& state, const Position& before,
     const int before_bucket = king_bucket(before, perspective);
     const int after_bucket = king_bucket(after, perspective);
     if (before_bucket != after_bucket) {
-      state.perspective[index] = refresh_perspective(after, perspective);
+      state.perspective[index] = refresh_perspective(after, perspective,
+                                                     state.model);
       continue;
     }
     for (std::uint8_t changed = 0; changed < count; ++changed) {
@@ -192,10 +216,10 @@ void nnue_update_changed(NnueState& state, const Position& before,
       if (before.cells[square] == after.cells[square]) continue;
       add_feature(state.perspective[index],
                   feature_of(before.cells[square], square, before_bucket,
-                             perspective), -1);
+                             perspective), -1, state.model);
       add_feature(state.perspective[index],
                   feature_of(after.cells[square], square, after_bucket,
-                             perspective), 1);
+                             perspective), 1, state.model);
     }
   }
 }
@@ -210,7 +234,8 @@ void nnue_update_delta(
         king_bucket_square(before_kings[index], perspective);
     const int after_bucket = king_bucket(after, perspective);
     if (before_bucket != after_bucket) {
-      state.perspective[index] = refresh_perspective(after, perspective);
+      state.perspective[index] = refresh_perspective(after, perspective,
+                                                     state.model);
       continue;
     }
     for (std::uint8_t changed = 0; changed < count; ++changed) {
@@ -220,20 +245,30 @@ void nnue_update_delta(
       if (before_cell == after_cell) continue;
       add_feature(state.perspective[index],
                   feature_of(before_cell, square, before_bucket, perspective),
-                  -1);
+                  -1, state.model);
       add_feature(state.perspective[index],
                   feature_of(after_cell, square, after_bucket, perspective),
-                  1);
+                  1, state.model);
     }
   }
 }
 
 int nnue_evaluate(const NnueState& state, Color side_to_move) {
-  const std::int64_t white_score = activate(state.perspective[0]);
-  const std::int64_t black_score = activate(state.perspective[1]);
+  const std::int64_t white_score = activate(state.perspective[0], state.model);
+  const std::int64_t black_score = activate(state.perspective[1], state.model);
   int score = static_cast<int>((white_score - black_score) / quantization);
   if (side_to_move == Color::black) score = -score;
   return score + 10;
+}
+
+std::string_view nnue_model_name(NnueModel model) {
+  return model == NnueModel::king_of_the_hill ? "e4-koth" : "e4-10";
+}
+
+std::string_view nnue_model_source_sha256(NnueModel model) {
+  return model == NnueModel::king_of_the_hill
+      ? "E06F0B3A71445933BF066E8FE6B03A9271B94DB522A15180C63DA4703E5FBF8E"
+      : "4C705496950E27204C976F0D027CAA9C73B209961584F7998742AA481B524E88";
 }
 
 }  // namespace eloi

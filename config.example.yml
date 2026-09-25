@@ -15,6 +15,9 @@ challenge:
     - standard
     - chess960
     - horde
+    - kingOfTheHill
+    - atomic
+    - antichess
 
 engine:
   depth: 0

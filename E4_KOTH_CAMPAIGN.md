@@ -4,7 +4,9 @@
 
 E4-KOTH defeated the unchanged E4-10 (“E4-traditional”) baseline by **80 wins, 2 draws, and 18 losses**, scoring **81.0/100 (81.0%)** in the frozen 100-game King of the Hill gauntlet. All games completed, no protocol failure occurred, and an independent legal replay verified all 100 PGNs.
 
-This is variant-specific laboratory evidence. It does not promote E4-KOTH into Standard chess, replace a production model, or establish strength against unrelated engines.
+This is variant-specific evidence. Eloi v3.4.3 promotes E4-KOTH only for King
+of the Hill; it does not replace the Standard model or establish strength
+against unrelated engines.
 
 ## Candidate construction
 
@@ -14,7 +16,7 @@ This is variant-specific laboratory evidence. It does not promote E4-KOTH into S
 - Position mix: equal broad-random and king-to-hill-biased generation.
 - Target: the exact E4-10 quantized evaluation plus a 120 cp target adjustment per relative Manhattan-distance step to the four hill squares.
 - Training: one deterministic epoch, with the learned delta anchored to 25% to preserve E4 behavior.
-- Candidate-only search evaluation: the same 120 cp king-distance term, compiled behind the default-off `ELOI_KOTH_HILL_BONUS_CP` setting.
+- Candidate search evaluation: the same 120 cp king-distance term, promoted as the KOTH-only v3.4.3 default.
 - No Stockfish, Caissa, network download, live game, Standard regression fixture, Chess960 position, or Horde position was used.
 
 Validation MAE improved from **74.774 cp** to **69.949 cp**; validation p95 absolute error improved from **219.361 cp** to **184.164 cp**.
@@ -57,6 +59,19 @@ Paired-opening totals were 32 sweeps (2.0 points), 2 pairs at 1.5, 14 split pair
 
 The detailed append-only artifacts remain ignored under `tmp/e4-koth/`. Their final footprint was 5,520,547 bytes; the campaign stayed far below the device’s training and total-temporary-storage limits.
 
+## v3.4.3 confirmation
+
+The production-integrated candidate completed a fresh 60-game, 30-opening
+mirrored confirmation against the exact frozen traditional baseline. It scored
+**45W/2D/13L, 46/60 (76.67%)**. All 60 games replayed legally and no protocol
+failure occurred. The candidate scored 23/30 with White and 23/30 with Black.
+
+- Protocol: `1B3BF9B2DF419E5941E877FB4ABF492E94670057ED00334B3E886476F5DC8EA6`
+- Results: `BEFB4C21B1949F69A2F1617377C96D915CDE50EF4768925DB513292614A9FC5D`
+- PGN: `1782AC0283EC9D1393CE7C8FF8204E013EA18BC6CFCE8BA5A6E7BD76E732F097`
+
 ## Recommendation
 
-Use E4-KOTH as Faloi’s KOTH-specific laboratory brain. Keep E4-traditional/E4-10 for Standard and other already-qualified Eloi-native routes. Before any packaged release, add explicit model selection/embedding, rerun packaged-binary parity, and perform variant GUI/UCI/Lichess smoke validation.
+Use E4-KOTH as Faloi's KOTH-specific production brain. Keep E4-10 for every
+other Eloi-native route. The evaluator identity is embedded in accumulator and
+transposition state so KOTH data cannot leak into Standard or another variant.

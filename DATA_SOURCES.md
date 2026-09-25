@@ -182,3 +182,22 @@ ignored laboratory artifacts under `tmp/`. Their source, runner, executable,
 network, partition, category, and output hashes are recorded by the campaign
 manifest. The sealed test partition is not opened during checkpoint selection.
 See [ELOI_NATIVE_POLICY_VALUE_V2.md](ELOI_NATIVE_POLICY_VALUE_V2.md).
+
+## E4-KOTH variant model
+
+E4-KOTH starts from the preserved E4-10 checkpoint and uses 20,000
+deterministic, unique, nonterminal King of the Hill positions: 17,953 for
+training and 2,047 for validation. Half use broad random play and half bias
+king movement toward the four hill squares. Targets are E4-10 evaluations plus
+the frozen 120 cp relative hill-distance adjustment. No Stockfish, Caissa,
+network download, live game, Standard regression fixture, Chess960 position,
+or Horde position entered this campaign.
+
+The promoted v3.4.3 source header is byte-derived from the qualified header
+whose SHA-256 is
+`E06F0B3A71445933BF066E8FE6B03A9271B94DB522A15180C63DA4703E5FBF8E`;
+only its C++ namespace changes during embedding. The selected checkpoint is
+`D2DC34D6CA95AC280B6093E6EA2F6D6DA6148291152043DA2C2961B3B272361C`.
+Its use is restricted to KOTH by model-aware accumulator and transposition
+identity. See [E4_KOTH_CAMPAIGN.md](E4_KOTH_CAMPAIGN.md) and
+[data/nnue_e4_koth_results.json](data/nnue_e4_koth_results.json).

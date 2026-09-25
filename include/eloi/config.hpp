@@ -3,9 +3,26 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace eloi {
+
+struct Board;
+
+enum class RuntimeVariant {
+  standard, chess960, horde, king_of_the_hill, atomic, antichess, unsupported
+};
+
+RuntimeVariant runtime_variant_from_key(std::string_view key);
+std::string_view runtime_variant_key(RuntimeVariant variant);
+bool supported_runtime_variant(std::string_view key);
+bool runtime_variant_is_fairy(RuntimeVariant variant);
+bool runtime_variant_uses_caissa(RuntimeVariant variant);
+bool runtime_variant_allows_book(RuntimeVariant variant);
+bool runtime_variant_allows_ponder(RuntimeVariant variant);
+std::string_view runtime_variant_brain_route(RuntimeVariant variant);
+void configure_board_variant(Board& board, RuntimeVariant variant);
 
 inline constexpr int lichess_ponder_base_limit_ms = 240'000;
 constexpr bool lichess_ponder_enabled(int initial_ms) {
@@ -19,7 +36,9 @@ struct RuntimeConfig {
   int min_base_seconds{0};
   int max_base_seconds{10'800};
   bool allow_bots{true};
-  std::vector<std::string> variants{"standard", "chess960", "horde"};
+  std::vector<std::string> variants{
+      "standard", "chess960", "horde", "kingOfTheHill", "atomic",
+      "antichess"};
   int depth{0};
   int hash_mb{32};
   int move_overhead_ms{100};

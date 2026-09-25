@@ -8,11 +8,12 @@ Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
 a compact incrementally updated NNUE, deterministic three-lane RootSplit
 search, and reproducible Windows packaging.
 
-The current stable source is **Eloi 3.3.2**.
+The current stable source is **Eloi 3.4.3**.
 
-Eloi 3.3.2 adds playable King of the Hill, Atomic, and Antichess modes. Atomic
-and Antichess ship qualified scoring terms; KOTH's separately trained network
-remains laboratory-only so it cannot alter Standard or fallback behavior.
+Eloi 3.4.3 promotes the separately trained E4-KOTH network exclusively for
+King of the Hill and opens the native Lichess client to KOTH, Atomic, and
+Antichess. Model-aware accumulator and transposition identities prevent the
+KOTH evaluator from changing Standard or fallback behavior.
 
 Standard UCI and native Lichess use the crash-contained **Caissa 1.25** brain.
 The native GUI now offers **Caissa 1.25** or Eloi's 64-unit **E4-10** brain
@@ -27,7 +28,8 @@ Current main contains the pinned Caissa 1.25 backend with Eloi-owned routing, le
 
 Standard UCI play uses the embedded **Caissa 1.25 search directly**. The experimental two-brain arbiter remains available for development but is not the production default.
 
-Chess960 and Horde use Eloi E4-10; Caissa remains Standard-only.
+Chess960, Horde, Atomic, and Antichess use Eloi E4-10. KOTH uses E4-KOTH.
+Caissa remains Standard-only.
 
 ---
 
@@ -60,10 +62,10 @@ Chess960 and Horde use Eloi E4-10; Caissa remains Standard-only.
 
 | Item | Current status |
 | --- | --- |
-| Source version | 3.3.2 |
-| Latest tag | v3.2.2 (published); v3.3.2 is being prepared locally |
-| Latest release | v3.2.2 (published) |
-| Release commit | v3.3.2 local release commit; publication pending |
+| Source version | 3.4.3 |
+| Latest tag | v3.3.2 (published); v3.4.3 is being prepared locally |
+| Latest release | v3.3.2 (published) |
+| Release commit | v3.4.3 release commit pending final package verification |
 | Language | C++26 |
 | Build system | CMake |
 | Primary toolchain | MSYS2 UCRT64 GCC |
@@ -73,7 +75,8 @@ Chess960 and Horde use Eloi E4-10; Caissa remains Standard-only.
 | Online client | Native Lichess Bot API |
 | Standard UCI/Lichess brain | Crash-contained Caissa 1.25 |
 | GUI Standard choice | Caissa 1.25 or Eloi E4-10 |
-| Chess960/Horde/fairy/fallback brain | E4-10, 64 units, three RootSplit lanes |
+| Chess960/Horde/Atomic/Antichess/fallback brain | E4-10, 64 units, three RootSplit lanes |
+| King of the Hill brain | Dedicated E4-KOTH, 64 units, three RootSplit lanes |
 | Variants | Standard, Chess960, Horde, King of the Hill, Atomic, Antichess |
 | Source license | MIT |
 | Caissa in current main | Yes, pinned v1.25 |
@@ -124,7 +127,7 @@ Experimental history remains evidence.
 
 To play locally:
 
-1. Download the v3.3.2 standalone ZIP.
+1. Download the v3.4.3 standalone ZIP.
 2. Verify its SHA-256.
 3. Extract it.
 4. Double-click Eloi.exe.
@@ -174,7 +177,7 @@ Reproducibility comes before release claims.
 
 ## What ships today
 
-Eloi 3.3.2 ships Eloi legal authority plus a crash-contained Caissa 1.25
+Eloi 3.4.3 ships Eloi legal authority plus a crash-contained Caissa 1.25
 Standard brain for UCI and native Lichess. The native GUI, Chess960, Horde,
 and emergency fallback use Eloi E4-10. Together they provide:
 
@@ -510,6 +513,9 @@ challenge:
     - standard
     - chess960
     - horde
+    - kingOfTheHill
+    - atomic
+    - antichess
 
 engine:
   depth: 0
@@ -549,6 +555,10 @@ min_base_seconds and max_base_seconds bound accepted initial clocks.
 allow_bots controls bot-opponent acceptance.
 
 variants lists accepted game variants.
+
+The native client accepts Standard, Chess960, Horde, King of the Hill,
+Atomic, and Antichess by default. Only Standard may route to Caissa. Every
+other variant remains inside Eloi's legal authority and RootSplit search.
 
 ### Engine policy
 
@@ -1866,6 +1876,14 @@ Do not publish without maintainer authorization.
 ---
 
 ## Release history
+
+### v3.4.3
+
+Promotes the hash-verified E4-KOTH model only for King of the Hill and enables
+native Lichess play for KOTH, Atomic, and Antichess. A fresh 60-game mirrored
+KOTH confirmation finished 45W/2D/13L, scoring 46/60 (76.67%), with zero
+protocol failures and 60/60 replay verification. This is variant-specific
+evidence, not a Standard-chess Elo claim.
 
 ### v3.3.2
 

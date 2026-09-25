@@ -321,6 +321,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
   if (!client.valid()) return;
   std::string initial(initial_fen);
   std::string variant_key{"standard"};
+  RuntimeVariant game_variant{RuntimeVariant::standard};
   bool chess960 = false;
   bool horde = false;
   bool ponder_enabled = false;
@@ -445,7 +446,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
 
   auto search_position = [&](Board board, const EngineConfig& engine,
                              SearchLimits limits) -> SearchResult {
-    if (!board.chess960 && !board.horde) {
+    if (runtime_variant_uses_caissa(game_variant)) {
       if (!caissa_searcher || caissa_hash_mb != engine.hash_mb) {
         const auto directory = executable_directory();
         caissa_searcher = std::make_unique<IsolatedCaissaBrain>(
@@ -464,8 +465,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
                 << response.detail << '\n';
       search_stopped.store(false, std::memory_order_relaxed);
     }
-    last_brain_route = board.chess960 ? "eloi_e4_10_chess960" :
-                       board.horde ? "eloi_e4_10_horde" : "eloi_e4_10";
+    last_brain_route = std::string(runtime_variant_brain_route(game_variant));
     return persistent_searcher(engine).iterative(std::move(board), limits);
   };
   auto take_ponder = [&](std::string_view moves, bool game_running)
@@ -508,7 +508,8 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     engine.depth = config.depth;
     engine.hash_mb = config.hash_mb;
     engine.move_overhead_ms = config.move_overhead_ms;
-    engine.own_book = config.own_book && !chess960 && !horde;
+    engine.own_book = config.own_book &&
+                      runtime_variant_allows_book(game_variant);
     ponder_thread = std::thread(
         [&, predicted = std::move(predicted), engine]() mutable {
           SearchLimits limits;
@@ -547,8 +548,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     auto board = parse_fen(initial == "startpos"
         ? (horde ? horde_initial_fen : initial_fen) : initial);
     if (!board) return;
-    board->chess960 = chess960;
-    board->horde = horde;
+    configure_board_variant(*board, game_variant);
     std::istringstream history(moves);
     for (std::string move; history >> move;)
       if (!board->push_uci(move)) return;
@@ -564,7 +564,8 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       engine.depth = config.depth;
       engine.hash_mb = config.hash_mb;
       engine.move_overhead_ms = config.move_overhead_ms;
-      engine.own_book = config.own_book && !chess960 && !horde;
+      engine.own_book = config.own_book &&
+                        runtime_variant_allows_book(game_variant);
       SearchLimits limits;
       limits.depth = config.depth;
       limits.remaining_ms = json_int(
@@ -632,12 +633,22 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       }
       if (const auto variant = json_object(line, "variant")) {
         variant_key = json_string(*variant, "key").value_or("standard");
-        chess960 = variant_key == "chess960";
-        horde = variant_key == "horde";
+        game_variant = runtime_variant_from_key(variant_key);
+        chess960 = game_variant == RuntimeVariant::chess960;
+        horde = game_variant == RuntimeVariant::horde;
+        if (game_variant == RuntimeVariant::unsupported ||
+            !variant_allowed(config, variant_key)) {
+          final_status = "unsupported_variant";
+          std::cerr << "Refusing unsupported or disabled Lichess variant "
+                    << variant_key << " in game " << game_id << '\n';
+          client.post(L"/api/bot/game/" + wide(game_id) + L"/resign");
+          return false;
+        }
       }
       if (const auto clock = json_object(line, "clock")) {
         const int initial_ms = json_int(*clock, "initial").value_or(-1);
-        ponder_enabled = lichess_ponder_enabled(initial_ms);
+        ponder_enabled = lichess_ponder_enabled(initial_ms) &&
+                         runtime_variant_allows_ponder(game_variant);
       }
       if (const auto white = json_object(line, "white")) {
         const std::string white_id = json_string(*white, "id").value_or("");
@@ -679,7 +690,14 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
             << "  \"moves\": \"" << json_escape(final_moves) << "\",\n"
             << "  \"version\": \"" << version << "\",\n"
             << "  \"executable_sha256\": \"" << sha256_file(running_executable_path()) << "\",\n"
-            << "  \"network_sha256\": \"" << caissa_1_25_network_sha256 << "\",\n"
+            << "  \"network_sha256\": \""
+            << (last_brain_route == "caissa_1_25"
+                    ? caissa_1_25_network_sha256
+                    : nnue_model_source_sha256(
+                          game_variant == RuntimeVariant::king_of_the_hill
+                              ? NnueModel::king_of_the_hill
+                              : NnueModel::production))
+            << "\",\n"
             << "  \"playing_model_role\": \"production_or_legacy\",\n"
             << "  \"searches\": [\n";
     for (std::size_t i = 0; i < journal_searches.size(); ++i)

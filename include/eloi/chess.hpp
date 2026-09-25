@@ -28,8 +28,10 @@ inline constexpr int maximum_gui_search_depth = 200;
 inline constexpr int maximum_search_depth = 17'697;
 inline constexpr int search_thread_count = 3;
 using NnueAccumulator = std::array<std::int32_t, nnue_hidden_size>;
+enum class NnueModel : std::uint8_t { production, king_of_the_hill };
 struct NnueState {
   std::array<NnueAccumulator, 2> perspective{};
+  NnueModel model{NnueModel::production};
   bool operator==(const NnueState&) const = default;
 };
 
@@ -141,8 +143,10 @@ struct Position {
   std::optional<Position> apply(const Move& move) const;
 };
 
-NnueState nnue_refresh(const Position& position);
-NnueState nnue_refresh_scalar_reference(const Position& position);
+NnueState nnue_refresh(const Position& position,
+                       NnueModel model = NnueModel::production);
+NnueState nnue_refresh_scalar_reference(
+    const Position& position, NnueModel model = NnueModel::production);
 bool nnue_runtime_has_avx2();
 void nnue_update(NnueState& accumulator, const Position& before,
                  const Position& after);
@@ -157,6 +161,8 @@ void nnue_update_delta(NnueState& accumulator,
                        const std::array<std::int8_t, 16>& before_cells,
                        std::uint8_t count);
 int nnue_evaluate(const NnueState& accumulator, Color side_to_move);
+std::string_view nnue_model_name(NnueModel model);
+std::string_view nnue_model_source_sha256(NnueModel model);
 std::uint64_t position_key(const Position& position, Color turn);
 
 struct Board {
@@ -206,6 +212,7 @@ struct Board {
   std::uint64_t key{};
   std::vector<Snapshot> history;
 
+  void select_nnue_model(NnueModel model);
   MoveList legal_moves() const;
   bool push(const Move& move);
   bool push_uci(std::string_view text);

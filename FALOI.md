@@ -1,6 +1,6 @@
 # Faloi - Fairy Eloi
 
-Faloi is Eloi's fairy-chess layer. King of the Hill, Atomic, and Antichess are included in Eloi v3.3.2.
+Faloi is Eloi's fairy-chess layer. King of the Hill, Atomic, and Antichess are included in Eloi v3.4.3 for the native GUI, UCI, and native Lichess client.
 
 ## Qualified laboratory variants
 
@@ -10,7 +10,7 @@ Faloi is Eloi's fairy-chess layer. King of the Hill, Atomic, and Antichess are i
 | Atomic | Atomic-140 | untuned Faloi | 52W/12D/36L | 58.0% |
 | Antichess | Antichess-100 | untuned Faloi | 97W/0D/3L | 97.0% |
 
-These are frozen variant comparisons, not Elo claims. Atomic-140 and Antichess-100 are promoted in v3.3.2; the separately trained E4-KOTH network remains laboratory-only.
+These are frozen variant comparisons, not Elo claims. Atomic-140 and Antichess-100 were promoted in v3.3.2. The separately trained E4-KOTH network is promoted exclusively for KOTH in v3.4.3 after a fresh 45W/2D/13L confirmation.
 
 ## Rules and routing
 
@@ -25,6 +25,7 @@ Atomic-140 adds a 140 cp blast-pressure heuristic; Antichess-100 adds a 100 cp m
 
 - Native GUI: choose **KOTH**, **Atomic**, or **Anti**. Each forces Eloi.
 - UCI: set `UCI_Variant` to `kingofthehill`, `atomic`, or `antichess`.
+- Native Lichess: use `kingOfTheHill`, `atomic`, or `antichess` in `challenge.variants`.
 
 ## Validation
 
@@ -36,4 +37,4 @@ See [FALOI_FAIRY_CAMPAIGNS.md](FALOI_FAIRY_CAMPAIGNS.md) and [the result manifes
 
 ## Boundary
 
-Native Lichess support is not enabled for these variants. Standard UCI/Lichess remains on Caissa 1.25; Standard GUI, Chess960, Horde, fairy variants, and fallback remain Eloi-owned.
+Standard UCI/Lichess remains on Caissa 1.25. KOTH uses E4-KOTH; Chess960, Horde, Atomic, Antichess, and fallback remain on E4-10. The opening book is Standard-only, and native Lichess pondering is disabled for the three Fairy modes introduced online in v3.4.3.

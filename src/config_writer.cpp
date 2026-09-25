@@ -22,10 +22,7 @@ bool save_runtime_config(const std::filesystem::path& path,
       config.depth < 0 || config.depth > 17'697 ||
       config.hash_mb < 0 || config.move_overhead_ms < 0 ||
       config.variants.empty() || !token_is_yaml_safe ||
-      !std::ranges::all_of(config.variants, [](const std::string& variant) {
-        return variant == "standard" || variant == "chess960" ||
-               variant == "horde";
-      })) {
+      !std::ranges::all_of(config.variants, supported_runtime_variant)) {
     if (error) *error = "configuration values are outside supported ranges";
     return false;
   }

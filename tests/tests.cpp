@@ -304,6 +304,45 @@ int main() {
                 "clockless games do not enable pondering");
   expect(RuntimeConfig{}.min_base_seconds == 0,
          "default challenge filter accepts sub-four-minute clocks");
+  expect(RuntimeConfig{}.variants.size() == 6,
+         "default bridge enables all six supported variants");
+  expect(runtime_variant_from_key("kingOfTheHill") ==
+             RuntimeVariant::king_of_the_hill &&
+             runtime_variant_key(RuntimeVariant::king_of_the_hill) ==
+                 "kingOfTheHill",
+         "Lichess KOTH key round-trips with exact casing");
+  expect(supported_runtime_variant("atomic") &&
+             supported_runtime_variant("antichess") &&
+             !supported_runtime_variant("crazyhouse"),
+         "runtime variant allowlist accepts only implemented Fairy modes");
+  {
+    constexpr std::array variants{
+        RuntimeVariant::standard, RuntimeVariant::chess960,
+        RuntimeVariant::horde, RuntimeVariant::king_of_the_hill,
+        RuntimeVariant::atomic, RuntimeVariant::antichess};
+    for (const RuntimeVariant variant : variants) {
+      auto board = *parse_fen(variant == RuntimeVariant::horde
+                                  ? horde_initial_fen : initial_fen);
+      configure_board_variant(board, variant);
+      expect(runtime_variant_uses_caissa(variant) ==
+                 (variant == RuntimeVariant::standard),
+             "only Standard may route to Caissa");
+      expect(runtime_variant_allows_book(variant) ==
+                 (variant == RuntimeVariant::standard),
+             "only Standard may use the opening book online");
+      expect(runtime_variant_brain_route(variant) != "unsupported",
+             "every accepted variant has an explicit brain route");
+      expect(board.nnue.model ==
+                 (variant == RuntimeVariant::king_of_the_hill
+                      ? NnueModel::king_of_the_hill
+                      : NnueModel::production),
+             "accepted variant selects its intended NNUE model");
+    }
+    expect(!runtime_variant_allows_ponder(RuntimeVariant::king_of_the_hill) &&
+               !runtime_variant_allows_ponder(RuntimeVariant::atomic) &&
+               !runtime_variant_allows_ponder(RuntimeVariant::antichess),
+           "new Fairy Lichess modes disable pondering");
+  }
   {
     const auto path = std::filesystem::current_path() / "eloi-config-test.yml";
     {
@@ -319,6 +358,9 @@ int main() {
                 "    - standard\n"
                 "    - chess960\n"
                 "    - horde\n"
+                "    - kingOfTheHill\n"
+                "    - atomic\n"
+                "    - antichess\n"
                 "engine:\n"
                 "  depth: 12\n"
                 "  hash_mb: 64\n"
@@ -333,7 +375,7 @@ int main() {
                  config->lichess_token == "lip_test_only" &&
                  config->min_base_seconds == 0 &&
                  config->max_base_seconds == 10'800 &&
-                 !config->allow_bots && config->variants.size() == 3 &&
+                 !config->allow_bots && config->variants.size() == 6 &&
                  config->depth == 12 && config->hash_mb == 64 &&
                  config->move_overhead_ms == 150 && !config->own_book,
              "config values map exactly into runtime settings");
@@ -868,6 +910,38 @@ int main() {
     }
     std::cout << "NNUE runtime path: "
               << (nnue_runtime_has_avx2() ? "AVX2" : "scalar") << '\n';
+  }
+
+  {
+    auto board = *parse_fen(initial_fen);
+    board.king_of_the_hill = true;
+    const auto production_key = board.key;
+    board.select_nnue_model(NnueModel::king_of_the_hill);
+    expect(board.nnue.model == NnueModel::king_of_the_hill,
+           "KOTH board selects the dedicated E4-KOTH evaluator");
+    expect(nnue_model_source_sha256(board.nnue.model) ==
+               "E06F0B3A71445933BF066E8FE6B03A9271B94DB522A15180C63DA4703E5FBF8E",
+           "KOTH evaluator reports its frozen source-header identity");
+    const auto scalar = nnue_refresh_scalar_reference(
+        board.position, NnueModel::king_of_the_hill);
+    expect(board.nnue == scalar,
+           "KOTH scalar and runtime-dispatched accumulators agree");
+    expect(board.key != production_key,
+           "KOTH model identity separates transposition keys");
+    expect(board.push_uci("e2e4"), "KOTH NNUE update test move is legal");
+    expect(board.nnue == nnue_refresh(
+               board.position, NnueModel::king_of_the_hill),
+           "KOTH incremental accumulator matches a full refresh");
+    expect(board.pop(), "KOTH NNUE update test move can be undone");
+    expect(board.nnue == scalar,
+           "KOTH undo restores the exact dedicated accumulator");
+    const auto production = nnue_refresh(board.position);
+    expect(production.model == NnueModel::production &&
+               production != board.nnue,
+           "production and KOTH accumulator identities cannot alias");
+    board.select_nnue_model(NnueModel::production);
+    expect(board.key == production_key,
+           "switching back restores the production transposition key");
   }
 
   {

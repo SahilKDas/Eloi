@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the frozen 100-game, 250 ms E4-KOTH versus E4-traditional gauntlet."""
+"""Run a frozen mirrored E4-KOTH versus E4-traditional gauntlet."""
 from __future__ import annotations
 
 import argparse
@@ -50,9 +50,11 @@ def openings(count: int = 50) -> list[str]:
     return result
 
 
-def schedule() -> list[dict]:
+def schedule(game_count: int = 100) -> list[dict]:
+    if game_count <= 0 or game_count % 2:
+        raise ValueError("game count must be a positive even number")
     games: list[dict] = []
-    for pair, fen in enumerate(openings(), start=1):
+    for pair, fen in enumerate(openings(game_count // 2), start=1):
         for candidate_white in (True, False):
             games.append({"game": len(games) + 1, "pair": pair,
                           "candidate_white": candidate_white, "fen": fen})
@@ -129,6 +131,16 @@ def verify_pgn(path: Path, expected: int) -> dict:
     return {"verified_games": count, "expected_games": expected, "passed": count == expected}
 
 
+def summarize(results: list[dict], total_games: int) -> dict:
+    wins = sum(result["score"] == 1 for result in results)
+    draws = sum(result["score"] == .5 for result in results)
+    losses = sum(result["score"] == 0 for result in results)
+    score_points = wins + draws / 2
+    return {"completed": len(results), "wins": wins, "draws": draws,
+            "losses": losses, "score_points": score_points,
+            "score_percent": 100.0 * score_points / total_games}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--candidate", required=True, type=Path)
@@ -136,12 +148,13 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--movetime-ms", type=int, default=250)
     parser.add_argument("--max-plies", type=int, default=200)
+    parser.add_argument("--games", type=int, default=100)
     args = parser.parse_args()
     if args.output.exists():
         raise FileExistsError(args.output)
     args.output.mkdir(parents=True)
-    frozen = schedule()
-    protocol = {"schema": "eloi-e4-koth-gauntlet-v1", "games": 100,
+    frozen = schedule(args.games)
+    protocol = {"schema": "eloi-e4-koth-gauntlet-v1", "games": args.games,
                 "variant": "kingofthehill", "mirrored": True,
                 "movetime_ms": args.movetime_ms, "max_plies": args.max_plies,
                 "threads_per_engine": 3, "hash_mb": 32,
@@ -161,21 +174,16 @@ def main() -> int:
                 print(game, file=stream, end="\n\n")
         except Exception as error:
             failures.append({**row, "error": f"{type(error).__name__}: {error}"})
-        wins = sum(result["score"] == 1 for result in results)
-        draws = sum(result["score"] == .5 for result in results)
-        losses = sum(result["score"] == 0 for result in results)
         evidence = {"schema": "eloi-e4-koth-results-v1",
-                    "complete": len(results) + len(failures) == 100,
+                    "complete": len(results) + len(failures) == args.games,
                     "results": results, "protocol_failures": failures,
-                    "summary": {"completed": len(results), "wins": wins, "draws": draws,
-                                "losses": losses, "score_points": wins + draws / 2,
-                                "score_percent": wins + draws / 2}}
+                    "summary": summarize(results, args.games)}
         write_json(args.output / "results.json", evidence)
         print(json.dumps({"game": row["game"], **evidence["summary"],
                           "failures": len(failures)}), flush=True)
         if failures:
             return 2
-    evidence["replay_verification"] = verify_pgn(pgn_path, 100)
+    evidence["replay_verification"] = verify_pgn(pgn_path, args.games)
     evidence["passed"] = evidence["summary"]["score_percent"] > 50.0
     write_json(args.output / "results.json", evidence)
     return 0 if evidence["passed"] else 1

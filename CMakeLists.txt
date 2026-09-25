@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Eloi VERSION 3.3.2 LANGUAGES CXX)
+project(Eloi VERSION 3.4.3 LANGUAGES CXX)
 set(ELOI_PRERELEASE "")
 if(ELOI_PRERELEASE)
   set(ELOI_VERSION "${PROJECT_VERSION}-${ELOI_PRERELEASE}")
@@ -62,8 +62,8 @@ endif()
 target_include_directories(eloi_core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   "${CMAKE_CURRENT_BINARY_DIR}/generated")
-set(ELOI_KOTH_HILL_BONUS_CP 0 CACHE STRING
-    "King-of-the-Hill distance bonus in centipawns; zero preserves traditional E4")
+set(ELOI_KOTH_HILL_BONUS_CP 120 CACHE STRING
+    "Qualified King-of-the-Hill distance bonus in centipawns")
 target_compile_definitions(eloi_core PUBLIC
   ELOI_KOTH_HILL_BONUS_CP=${ELOI_KOTH_HILL_BONUS_CP})
 set(ELOI_ATOMIC_BLAST_BONUS_CP 140 CACHE STRING
