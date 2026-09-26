@@ -20,6 +20,9 @@
 namespace eloi {
 namespace {
 
+constexpr auto caissa_containment_margin = std::chrono::milliseconds(150);
+constexpr auto caissa_unbounded_watchdog = std::chrono::milliseconds(2500);
+
 std::vector<std::string> split(std::string_view text, char delimiter) {
   std::vector<std::string> rows;
   std::size_t first = 0;
@@ -121,6 +124,46 @@ std::wstring quoted(const std::filesystem::path& path) {
 #endif
 
 }  // namespace
+
+CaissaWorkerTiming plan_caissa_worker_timing(
+    const Board& board, const SearchLimits& limits,
+    std::chrono::steady_clock::time_point now) {
+  CaissaWorkerTiming timing;
+  if (limits.deadline) {
+    timing.search_budget = std::max(
+        std::chrono::milliseconds(1),
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            *limits.deadline - now));
+    timing.watchdog_budget = timing.search_budget + caissa_containment_margin;
+    return timing;
+  }
+  if (limits.remaining_ms > 0) {
+    const TimeBudget budget = plan_time_budget(board, limits);
+    timing.search_budget =
+        std::chrono::milliseconds(std::max(1, budget.hard_ms));
+    timing.watchdog_budget = timing.search_budget + caissa_containment_margin;
+    return timing;
+  }
+  timing.watchdog_budget = caissa_unbounded_watchdog;
+  return timing;
+}
+
+SearchLimits refresh_fallback_limits(
+    SearchLimits limits, std::chrono::milliseconds elapsed,
+    std::chrono::steady_clock::time_point now) {
+  if (limits.deadline) {
+    limits.remaining_ms = static_cast<int>(std::clamp<std::int64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            *limits.deadline - now).count(),
+        1, std::numeric_limits<int>::max()));
+    limits.deadline.reset();
+  } else if (limits.remaining_ms > 0) {
+    limits.remaining_ms = static_cast<int>(std::clamp<std::int64_t>(
+        static_cast<std::int64_t>(limits.remaining_ms) - elapsed.count(),
+        1, std::numeric_limits<int>::max()));
+  }
+  return limits;
+}
 
 bool caissa_worker_requested(int argc, char** argv) noexcept {
   for (int index = 1; index < argc; ++index)
@@ -419,15 +462,11 @@ BrainResponse IsolatedCaissaBrain::search(
     if (info) info(response);
     return response;
   }
-  long long deadline_ms = -1;
-  std::optional<std::chrono::steady_clock::time_point> watchdog =
-      std::chrono::steady_clock::now() + std::chrono::milliseconds(2500);
-  if (limits.deadline) {
-    deadline_ms = std::max<long long>(
-        0, std::chrono::duration_cast<std::chrono::milliseconds>(
-               *limits.deadline - std::chrono::steady_clock::now()).count());
-    watchdog = *limits.deadline + std::chrono::milliseconds(100);
-  }
+  const auto timing_now = std::chrono::steady_clock::now();
+  const CaissaWorkerTiming timing =
+      plan_caissa_worker_timing(board, limits, timing_now);
+  const long long deadline_ms = timing.search_budget.count();
+  const auto watchdog = timing_now + timing.watchdog_budget;
   std::ostringstream request;
   request << "SEARCH\t" << limits.depth << '\t' << limits.nodes << '\t'
           << limits.remaining_ms << '\t' << limits.increment_ms << '\t'

@@ -456,7 +456,11 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
                 1024u * 1024u);
         caissa_hash_mb = engine.hash_mb;
       }
+      const auto caissa_started = std::chrono::steady_clock::now();
       BrainResponse response = caissa_searcher->search(board, limits);
+      const auto caissa_elapsed =
+          std::chrono::duration_cast<std::chrono::milliseconds>(
+              std::chrono::steady_clock::now() - caissa_started);
       last_brain_route = "caissa_1_25";
       if (response.has_legal_move(board)) return std::move(response.search);
       if (response.status == BrainStatus::stopped) return {};
@@ -464,6 +468,23 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       std::cerr << "Caissa Lichess search failed; using Eloi E4-10 fallback: "
                 << response.detail << '\n';
       search_stopped.store(false, std::memory_order_relaxed);
+      limits = refresh_fallback_limits(
+          std::move(limits), caissa_elapsed,
+          std::chrono::steady_clock::now());
+      SearchResult fallback =
+          persistent_searcher(engine).iterative(board, limits);
+      if (fallback.depth > 0) return fallback;
+
+      if (!is_emergency_legal_fallback(board, fallback)) {
+        std::cerr << "Refusing depth-0 Eloi fallback without a legal emergency "
+                     "move\n";
+        fallback.pv.clear();
+        return fallback;
+      }
+      last_brain_route = "eloi_emergency_legal_move";
+      std::cerr << "Submitting Eloi-verified emergency legal move after "
+                   "depth-0 fallback\n";
+      return fallback;
     }
     last_brain_route = std::string(runtime_variant_brain_route(game_variant));
     return persistent_searcher(engine).iterative(std::move(board), limits);
@@ -576,6 +597,17 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       search_stopped.store(false, std::memory_order_relaxed);
       result = search_position(*board, engine, limits);
     }
+    if (last_brain_route == "eloi_e4_10_fallback" && result.depth == 0) {
+      std::cerr << "Refusing unmarked depth-0 Eloi fallback at the Lichess "
+                   "submission boundary\n";
+      result.pv.clear();
+    }
+    if (last_brain_route == "eloi_emergency_legal_move" &&
+        !is_emergency_legal_fallback(*board, result)) {
+      std::cerr << "Refusing invalid emergency Eloi fallback at the Lichess "
+                   "submission boundary\n";
+      result.pv.clear();
+    }
     last_search = result;
     {
       std::ostringstream record;
@@ -589,7 +621,11 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
              << ",\"score_cp\":" << result.score_cp << ",\"mate\":" << result.mate
              << ",\"nodes\":" << result.nodes << ",\"brain_route\":\""
              << json_escape(last_brain_route) << "\",\"stop_reason\":\""
-             << (ponder_hit ? "ponder_hit" : "completed_budgeted_search") << "\",\"pv\":[";
+             << (ponder_hit ? "ponder_hit"
+                            : (last_brain_route == "eloi_emergency_legal_move"
+                                   ? "emergency_legal_move"
+                                   : "completed_budgeted_search"))
+             << "\",\"pv\":[";
       Board pv_board = *board;
       for (std::size_t i = 0; i < result.pv.size(); ++i) {
         if (i) record << ',';

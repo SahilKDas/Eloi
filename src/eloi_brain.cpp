@@ -13,6 +13,14 @@ bool BrainResponse::has_legal_move(const Board& board) const {
   });
 }
 
+bool is_emergency_legal_fallback(const Board& board,
+                                 const SearchResult& result) {
+  if (result.depth != 0 || result.pv.empty()) return false;
+  BrainResponse response;
+  response.search = result;
+  return response.has_legal_move(board);
+}
+
 EloiBrain::EloiBrain(EngineConfig config, std::atomic_bool& stopped,
                      SearchConcurrency concurrency,
                      Searcher::MovePrior move_prior)

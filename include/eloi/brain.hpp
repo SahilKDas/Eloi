@@ -145,6 +145,33 @@ class IsolatedCaissaBrain final : public Brain {
   std::unique_ptr<Impl> impl_;
 };
 
+struct CaissaWorkerTiming {
+  // Negative means the worker search itself has no wall-clock limit (for
+  // example, a fixed-node search). The watchdog remains bounded regardless.
+  std::chrono::milliseconds search_budget{-1};
+  std::chrono::milliseconds watchdog_budget{2500};
+};
+
+// Derive the isolated worker's containment deadline from the same effective
+// hard budget that Caissa receives. The margin covers framed IPC and orderly
+// worker shutdown; it is not additional thinking time.
+CaissaWorkerTiming plan_caissa_worker_timing(
+    const Board& board, const SearchLimits& limits,
+    std::chrono::steady_clock::time_point now);
+
+// A failed primary search may consume part or all of its original allocation.
+// Rebuild fallback limits from the clock that actually remains rather than
+// handing the fallback a stale/expired deadline.
+SearchLimits refresh_fallback_limits(
+    SearchLimits limits, std::chrono::milliseconds elapsed,
+    std::chrono::steady_clock::time_point now);
+
+// A depth-zero result is never a normal fallback. It may be submitted only as
+// an explicitly recorded emergency move after Eloi revalidates it against the
+// authoritative legal list.
+bool is_emergency_legal_fallback(const Board& board,
+                                 const SearchResult& result);
+
 bool caissa_worker_requested(int argc, char** argv) noexcept;
 int run_caissa_worker(int argc, char** argv);
 int run_hybrid_lab(int argc, char** argv);

@@ -160,6 +160,55 @@ int main() {
   expect(!HybridBudget{70, 20, 9}.valid(),
          "invalid hybrid budget is rejected");
 
+  {
+    const auto board = *parse_fen(initial_fen);
+    const auto now = std::chrono::steady_clock::time_point{} +
+                     std::chrono::seconds(10);
+    SearchLimits clocked;
+    clocked.remaining_ms = 300'000;
+    clocked.increment_ms = 5'000;
+    clocked.move_overhead_ms = 100;
+    const auto budget = plan_time_budget(board, clocked);
+    const auto timing = plan_caissa_worker_timing(board, clocked, now);
+    expect(timing.search_budget == std::chrono::milliseconds(budget.hard_ms),
+           "Caissa watchdog derives from the real clock-managed hard budget");
+    expect(timing.watchdog_budget > timing.search_budget &&
+               timing.watchdog_budget - timing.search_budget <=
+                   std::chrono::milliseconds(250),
+           "Caissa watchdog keeps only a small containment margin");
+
+    SearchLimits explicit_deadline;
+    explicit_deadline.deadline = now + std::chrono::milliseconds(700);
+    const auto explicit_timing =
+        plan_caissa_worker_timing(board, explicit_deadline, now);
+    expect(explicit_timing.search_budget == std::chrono::milliseconds(700) &&
+               explicit_timing.watchdog_budget >
+                   explicit_timing.search_budget,
+           "explicit deadlines retain their search budget plus containment");
+
+    const auto refreshed = refresh_fallback_limits(
+        clocked, std::chrono::milliseconds(2'750), now);
+    expect(!refreshed.deadline && refreshed.remaining_ms == 297'250,
+           "fallback receives the live clock after primary-search elapsed time");
+    explicit_deadline.deadline = now - std::chrono::milliseconds(50);
+    const auto expired = refresh_fallback_limits(
+        explicit_deadline, std::chrono::milliseconds(800), now);
+    expect(!expired.deadline && expired.remaining_ms == 1,
+           "expired fallback deadlines become a fresh emergency budget");
+
+    SearchResult emergency;
+    emergency.pv.push_back(board.legal_moves().front());
+    expect(is_emergency_legal_fallback(board, emergency),
+           "a depth-zero fallback is accepted only as an Eloi-legal emergency");
+    emergency.depth = 1;
+    expect(!is_emergency_legal_fallback(board, emergency),
+           "a completed depth is not mislabeled as an emergency fallback");
+    emergency.depth = 0;
+    emergency.pv.clear();
+    expect(!is_emergency_legal_fallback(board, emergency),
+           "an empty depth-zero fallback cannot be submitted");
+  }
+
   std::atomic_bool stopped{false};
   auto config = default_config();
   config.own_book = false;
