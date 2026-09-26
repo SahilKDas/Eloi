@@ -8,12 +8,13 @@ Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
 a compact incrementally updated NNUE, deterministic three-lane RootSplit
 search, and reproducible Windows packaging.
 
-The current stable source is **Eloi 3.4.3**.
+The current stable source is **Eloi 3.4.4**.
 
-Eloi 3.4.3 promotes the separately trained E4-KOTH network exclusively for
-King of the Hill and opens the native Lichess client to KOTH, Atomic, and
-Antichess. Model-aware accumulator and transposition identities prevent the
-KOTH evaluator from changing Standard or fallback behavior.
+Eloi 3.4.4 fixes native-Lichess Standard searches whose legitimate Caissa
+allocation exceeded the old fixed worker watchdog. The watchdog now follows
+the real hard search budget with a small containment margin; fallback receives
+the clock time that actually remains, and depth-zero fallback moves require
+explicit Eloi legality verification and emergency labeling.
 
 Standard UCI and native Lichess use the crash-contained **Caissa 1.25** brain.
 The native GUI now offers **Caissa 1.25** or Eloi's 64-unit **E4-10** brain
@@ -62,10 +63,10 @@ Caissa remains Standard-only.
 
 | Item | Current status |
 | --- | --- |
-| Source version | 3.4.3 |
-| Latest tag | v3.3.2 (published); v3.4.3 is being prepared locally |
-| Latest release | v3.3.2 (published) |
-| Release commit | v3.4.3 release commit pending final package verification |
+| Source version | 3.4.4 |
+| Latest tag | v3.4.4 |
+| Latest release | v3.4.3 (published); v3.4.4 hotfix packages are locally verified |
+| Release commit | v3.4.4 tagged source commit |
 | Language | C++26 |
 | Build system | CMake |
 | Primary toolchain | MSYS2 UCRT64 GCC |
@@ -1876,6 +1877,14 @@ Do not publish without maintainer authorization.
 ---
 
 ## Release history
+
+### v3.4.4
+
+Corrects native-Lichess Caissa worker timing. Clock-managed searches now use
+the same hard budget in the worker and parent watchdog, plus a 150 ms
+containment margin. If Caissa fails, E4-10 receives freshly calculated limits;
+an unsearched fallback cannot be submitted unless Eloi verifies and records it
+as an emergency legal move. This is a reliability hotfix, not a strength claim.
 
 ### v3.4.3
 
