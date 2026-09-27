@@ -8,10 +8,21 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <windowsx.h>
 #include <shellapi.h>
+
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkGraphics.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPixmap.h"
+#include "include/core/SkSurface.h"
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iomanip>
@@ -83,19 +94,27 @@ std::filesystem::path argument_config(int argc, char** argv) {
 struct Dashboard {
   BridgeController* controller{};
   HWND window{};
-  HWND state{};
-  HWND details{};
-  HWND counters{};
-  HWND events{};
-  HWND toggle{};
-  HFONT font{};
   std::filesystem::path executable;
   std::filesystem::path config;
+  BridgeSnapshot snapshot;
+  POINT mouse{-1, -1};
+  bool tracking{};
+  std::array<float, 6> hover{};
+  std::chrono::steady_clock::time_point visual_tick{std::chrono::steady_clock::now()};
 };
 
-void set_text(HWND control, const std::string& value) {
-  SetWindowTextW(control, wide(value).c_str());
-}
+struct Rect { float l{}, t{}, r{}, b{}; bool contains(float x,float y) const{return x>=l&&x<=r&&y>=t&&y<=b;} SkRect sk()const{return SkRect::MakeLTRB(l,t,r,b);} };
+constexpr SkColor ui_bg=SkColorSetRGB(16,17,31), ui_card=SkColorSetRGB(27,31,46);
+constexpr SkColor ui_ink=SkColorSetRGB(235,239,248), ui_muted=SkColorSetRGB(144,153,176);
+constexpr SkColor ui_accent=SkColorSetRGB(121,101,255), ui_mint=SkColorSetRGB(62,211,166);
+
+SkColor mix(SkColor a,SkColor b,float x){x=std::clamp(x,0.f,1.f);auto c=[x](int p,int q){return static_cast<U8CPU>(std::lround(p+(q-p)*x));};return SkColorSetARGB(c(SkColorGetA(a),SkColorGetA(b)),c(SkColorGetR(a),SkColorGetR(b)),c(SkColorGetG(a),SkColorGetG(b)),c(SkColorGetB(a),SkColorGetB(b)));}
+void sk_text(SkCanvas& c,std::string_view s,float x,float y,float size,SkColor color=ui_ink,bool bold=false){SkPaint p;p.setAntiAlias(true);p.setColor(color);SkFont f(nullptr,size);f.setEmbolden(bold);c.drawSimpleText(s.data(),s.size(),SkTextEncoding::kUTF8,x,y,f,p);}
+void card(SkCanvas& c,const Rect& r,float radius=18,SkColor color=ui_card){SkPaint p;p.setAntiAlias(true);p.setColor(color);c.drawRoundRect(r.sk(),radius,radius,p);p.setStyle(SkPaint::kStroke_Style);p.setStrokeWidth(1);p.setColor(SkColorSetARGB(75,125,130,165));c.drawRoundRect(r.sk(),radius,radius,p);}
+std::array<Rect,6> action_rects(int w,int h){const float y=static_cast<float>(h)-70.f,g=10.f;const float widths[]={150,138,110,154,112,82};float total=g*5;for(float x:widths)total+=x;float left=(w-total)/2;std::array<Rect,6> out{};for(int i=0;i<6;++i){out[i]={left,y,left+widths[i],y+43};left+=widths[i]+g;}return out;}
+void draw_button(SkCanvas& c,const Rect& base,std::string_view label,float hover,SkColor fill){const float z=hover*2.2f,lift=hover*1.5f;Rect r{base.l-z,base.t-z-lift,base.r+z,base.b+z-lift};card(c,{r.l+1,r.t+5,r.r+1,r.b+5},13,SkColorSetARGB(65+static_cast<int>(hover*35),0,0,0));card(c,r,13,mix(fill,SkColorSetRGB(73,78,105),hover*.45f));const float estimate=label.size()*7.0f;sk_text(c,label,(r.l+r.r-estimate)/2,(r.t+r.b)/2+5,14,ui_ink,true);}
+std::string shorten(std::string value,std::size_t n){if(value.size()>n&&n>3){value.resize(n-3);value+="...";}return value;}
+std::string uptime_text(const BridgeSnapshot& s){auto sec=std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-s.started_at).count();return std::format("{:02}:{:02}:{:02}",sec/3600,(sec/60)%60,sec%60);}
 
 std::string diagnostics(const BridgeSnapshot& s) {
   std::ostringstream out;
@@ -114,52 +133,20 @@ std::string diagnostics(const BridgeSnapshot& s) {
 }
 
 void refresh(Dashboard& ui) {
-  const auto s = ui.controller->snapshot();
-  const auto uptime = std::chrono::duration_cast<std::chrono::seconds>(
-      std::chrono::system_clock::now() - s.started_at).count();
-  set_text(ui.state, "State: " + std::string(bridge_state_name(s.state)) +
-      (s.account.empty() ? "" : "  |  " + s.account) +
-      (s.next_retry_seconds ? "  |  retry in " +
-          std::to_string(s.next_retry_seconds) + "s" : ""));
-  std::ostringstream detail;
-  detail << "Eloi " << s.version << "   SHA-256: " << s.executable_sha256
-         << "   Uptime: " << uptime << "s   HTTP: " << s.last_http_status
-         << "   Reconnects: " << s.reconnect_attempts
-         << "\r\nEnabled variants: " << s.enabled_variants
-         << "   Accepting: " << (s.accepting ? "yes" : "no")
-         << "\r\nGame: " << (s.active_game_id.empty() ? "none" : s.active_game_id)
-         << (s.active_game_id.empty() ? "" : "   https://lichess.org/" + s.active_game_id)
-         << "   Opponent: " << (s.opponent.empty() ? "-" : s.opponent)
-         << "   Color: " << (s.color.empty() ? "-" : s.color)
-         << "   Variant: " << (s.variant.empty() ? "-" : s.variant)
-         << "   Route: " << (s.brain_route.empty() ? "-" : s.brain_route)
-         << "\r\nPly: " << s.ply << "   Clocks: " << s.white_time_ms
-         << " / " << s.black_time_ms << " ms   Last result: "
-         << (s.last_result.empty() ? "-" : s.last_result)
-         << "\r\nLatest: " << (s.latest_move.empty() ? "-" : s.latest_move)
-         << "   Depth: " << s.depth << "   Score: " << s.score_cp
-         << " cp   Nodes: " << s.nodes << "   Time: " << s.elapsed_ms << " ms"
-         << "   Stop: " << s.stop_reason << "\r\nPV: " << s.pv
-         << "\r\nLast error: " << s.last_error;
-  set_text(ui.details, detail.str());
-  std::ostringstream counts;
-  counts << "Challenges " << s.accepted << " accepted / " << s.declined
-         << " declined   Games " << s.completed_wins << "W/"
-         << s.completed_draws << "D/" << s.completed_losses
-         << "L   Caissa failures " << s.caissa_failures
-         << "   E4 fallbacks " << s.eloi_fallbacks
-         << "   Emergency " << s.emergency_moves
-         << "   Protocol " << s.protocol_incidents;
-  set_text(ui.counters, counts.str());
-  SetWindowTextW(ui.toggle, s.accepting ? L"Stop accepting" : L"Start accepting");
-  SendMessageW(ui.events, LB_RESETCONTENT, 0, 0);
-  for (const auto& event : s.events) {
-    const std::wstring row = wide(iso_time(event.at) + "  " + event.message);
-    SendMessageW(ui.events, LB_ADDSTRING, 0,
-                 reinterpret_cast<LPARAM>(row.c_str()));
-  }
-  const auto count = SendMessageW(ui.events, LB_GETCOUNT, 0, 0);
-  if (count > 0) SendMessageW(ui.events, LB_SETTOPINDEX, count - 1, 0);
+  ui.snapshot=ui.controller->snapshot();
+  InvalidateRect(ui.window,nullptr,FALSE);
+}
+
+void draw_dashboard(Dashboard& ui,SkCanvas& c,int w,int h){const auto&s=ui.snapshot;SkPaint bg;bg.setColor(ui_bg);c.drawPaint(bg);SkPaint glow;glow.setAntiAlias(true);glow.setColor(SkColorSetARGB(30,121,101,255));c.drawCircle(w-70,30,230,glow);glow.setColor(SkColorSetARGB(15,62,211,166));c.drawCircle(10,h-20,180,glow);
+  sk_text(c,"ELOI",32,49,30,ui_ink,true);sk_text(c,"LICHESS OPERATIONS CENTER",131,45,14,ui_muted,true);sk_text(c,"v"+s.version+"  ·  "+uptime_text(s),w-190,44,13,ui_muted);
+  const bool healthy=s.state==BridgeState::connected||s.state==BridgeState::playing;SkColor state_color=healthy?ui_mint:(s.state==BridgeState::fatal?SkColorSetRGB(255,99,112):SkColorSetRGB(255,205,92));
+  card(c,{28,70,static_cast<float>(w)-28,126},17,SkColorSetRGB(31,35,52));SkPaint dot;dot.setAntiAlias(true);dot.setColor(state_color);c.drawCircle(51,98,7,dot);sk_text(c,std::string(bridge_state_name(s.state)),70,104,20,state_color,true);sk_text(c,s.account.empty()?"awaiting account":s.account,220,103,15,ui_ink,true);const bool operational=s.state!=BridgeState::fatal&&s.state!=BridgeState::stopped&&s.state!=BridgeState::stopping;sk_text(c,operational&&s.accepting?"CHALLENGES OPEN":"CHALLENGES PAUSED",w-210,102,12,operational&&s.accepting?ui_mint:ui_muted,true);
+  const float gap=16,left=28,right=w-28,mid=(left+right-gap)/2;card(c,{left,142,mid,334});card(c,{mid+gap,142,right,334});
+  sk_text(c,"ACTIVE GAME",left+20,171,12,ui_muted,true);sk_text(c,s.active_game_id.empty()?"No game in progress":s.opponent,left+20,205,22,ui_ink,true);sk_text(c,s.active_game_id.empty()?"Ready for the next challenge":std::format("{} · {} · ply {}",s.variant,s.color,s.ply),left+20,231,14,ui_muted);const auto clock_label=[](std::int64_t ms){return ms<0?std::string("—"):std::format("{} ms",ms);};sk_text(c,"WHITE  "+clock_label(s.white_time_ms),left+20,272,14,ui_ink,true);sk_text(c,"BLACK  "+clock_label(s.black_time_ms),left+210,272,14,ui_ink,true);sk_text(c,"Last result  "+(s.last_result.empty()?std::string("—"):s.last_result),left+20,309,13,ui_muted);
+  sk_text(c,"SEARCH TELEMETRY",mid+gap+20,171,12,ui_muted,true);sk_text(c,s.brain_route.empty()?"Awaiting search":s.brain_route,mid+gap+20,205,22,ui_ink,true);sk_text(c,"Network  "+(s.network_sha256.empty()?std::string("—"):s.network_sha256.substr(0,14)),mid+gap+20,231,13,ui_muted);sk_text(c,std::format("{}   d{}   {:+.2f}   {} nodes   {} ms",s.latest_move.empty()?"—":s.latest_move,s.depth,s.score_cp/100.0,s.nodes,s.elapsed_ms),mid+gap+20,270,14,ui_ink,true);sk_text(c,"PV  "+shorten(s.pv,52),mid+gap+20,302,13,ui_muted);sk_text(c,"Stop  "+(s.stop_reason.empty()?std::string("—"):s.stop_reason),mid+gap+20,321,12,ui_muted);
+  card(c,{left,350,right,420});sk_text(c,"SESSION",left+18,377,11,ui_muted,true);sk_text(c,std::format("{}W  {}D  {}L",s.completed_wins,s.completed_draws,s.completed_losses),left+18,405,20,ui_ink,true);sk_text(c,std::format("CHALLENGES  {} / {}",s.accepted,s.declined),left+200,402,13,ui_muted,true);sk_text(c,std::format("CAISSA FAILURES  {}    FALLBACKS  {}    EMERGENCY  {}    PROTOCOL  {}",s.caissa_failures,s.eloi_fallbacks,s.emergency_moves,s.protocol_incidents),left+430,402,12,(s.protocol_incidents||s.emergency_moves)?SkColorSetRGB(255,205,92):ui_muted,true);
+  card(c,{left,436,right,static_cast<float>(h)-91});sk_text(c,"LIVE EVENT TIMELINE",left+18,464,11,ui_muted,true);float y=491;const std::size_t max_rows=std::max(1,(h-600)/22+4);const std::size_t start=s.events.size()>max_rows?s.events.size()-max_rows:0;for(std::size_t i=start;i<s.events.size();++i){const auto&e=s.events[i];SkPaint d;d.setAntiAlias(true);d.setColor(e.error?SkColorSetRGB(255,99,112):ui_mint);c.drawCircle(left+22,y-5,3,d);sk_text(c,shorten(iso_time(e.at).substr(11,8)+"  "+e.message,120),left+36,y,12,e.error?SkColorSetRGB(255,145,153):ui_muted);y+=22;}
+  const auto actions=action_rects(w,h);const std::array<std::string,6> labels{s.accepting?"STOP ACCEPTING":"START ACCEPTING","RECONNECT NOW","CONFIGURE","COPY DIAGNOSTICS","OPEN LOGS","EXIT"};for(int i=0;i<6;++i)draw_button(c,actions[i],labels[i],ui.hover[i],i==0?ui_accent:(i==5?SkColorSetRGB(116,51,67):SkColorSetRGB(35,40,57)));
 }
 
 void copy_text(HWND window, const std::string& text) {
@@ -188,7 +175,13 @@ LRESULT CALLBACK dashboard_proc(HWND window, UINT message,
   }
   if (!ui) return DefWindowProcW(window, message, wparam, lparam);
   if (message == WM_TIMER) {
-    refresh(*ui);
+    const auto now=std::chrono::steady_clock::now();
+    const float dt=std::clamp(std::chrono::duration<float>(now-ui->visual_tick).count(),0.f,.1f);
+    ui->visual_tick=now;
+    RECT client{};GetClientRect(window,&client);const auto rects=action_rects(client.right,client.bottom);
+    bool changed=false;const float response=1.f-std::exp(-dt*14.f);
+    for(std::size_t i=0;i<ui->hover.size();++i){const float target=ui->tracking&&rects[i].contains(static_cast<float>(ui->mouse.x),static_cast<float>(ui->mouse.y))?1.f:0.f;const float old=ui->hover[i];ui->hover[i]+=(target-ui->hover[i])*response;changed|=std::abs(old-ui->hover[i])>.002f;}
+    static unsigned ticks=0;if((ticks++%30)==0)refresh(*ui);else if(changed)InvalidateRect(window,nullptr,FALSE);
     return 0;
   }
   if (message == show_existing_message) {
@@ -196,8 +189,9 @@ LRESULT CALLBACK dashboard_proc(HWND window, UINT message,
     SetForegroundWindow(window);
     return 0;
   }
-  if (message == WM_COMMAND) {
-    switch (LOWORD(wparam)) {
+  if(message==WM_MOUSEMOVE){ui->mouse={GET_X_LPARAM(lparam),GET_Y_LPARAM(lparam)};if(!ui->tracking){TRACKMOUSEEVENT t{sizeof(t),TME_LEAVE,window,0};TrackMouseEvent(&t);ui->tracking=true;}return 0;}
+  if(message==WM_MOUSELEAVE){ui->tracking=false;ui->mouse={-1,-1};return 0;}
+  if(message==WM_LBUTTONUP){RECT client{};GetClientRect(window,&client);const auto buttons=action_rects(client.right,client.bottom);int command=0;for(int i=0;i<6;++i)if(buttons[i].contains(static_cast<float>(GET_X_LPARAM(lparam)),static_cast<float>(GET_Y_LPARAM(lparam))))command=toggle_button+i;switch(command){
       case toggle_button: ui->controller->toggle_accepting(); break;
       case reconnect_button: ui->controller->request_reconnect(); break;
       case configure_button: {
@@ -213,9 +207,10 @@ LRESULT CALLBACK dashboard_proc(HWND window, UINT message,
                       nullptr, nullptr, SW_SHOWNORMAL);
         break;
       case exit_button: SendMessageW(window, WM_CLOSE, 0, 0); break;
-    }
-    return 0;
+    }refresh(*ui);return 0;
   }
+  if(message==WM_ERASEBKGND)return 1;
+  if(message==WM_PAINT){PAINTSTRUCT ps{};HDC dc=BeginPaint(window,&ps);RECT client{};GetClientRect(window,&client);const int w=std::max(1L,client.right),h=std::max(1L,client.bottom);auto surface=SkSurface::MakeRaster(SkImageInfo::MakeN32Premul(w,h));if(surface){draw_dashboard(*ui,*surface->getCanvas(),w,h);SkPixmap pixels;if(surface->peekPixels(&pixels)){BITMAPINFO bitmap{};bitmap.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);bitmap.bmiHeader.biWidth=w;bitmap.bmiHeader.biHeight=-h;bitmap.bmiHeader.biPlanes=1;bitmap.bmiHeader.biBitCount=32;bitmap.bmiHeader.biCompression=BI_RGB;StretchDIBits(dc,0,0,w,h,0,0,w,h,pixels.addr(),&bitmap,DIB_RGB_COLORS,SRCCOPY);}}EndPaint(window,&ps);return 0;}
   if (message == WM_CLOSE) {
     const auto s = ui->controller->snapshot();
     if (s.active_game && MessageBoxW(window,
@@ -231,17 +226,6 @@ LRESULT CALLBACK dashboard_proc(HWND window, UINT message,
     return 0;
   }
   return DefWindowProcW(window, message, wparam, lparam);
-}
-
-HWND add(HWND parent, const wchar_t* type, const wchar_t* label, DWORD style,
-         int x, int y, int width, int height, int id, HFONT font) {
-  HWND control = CreateWindowExW(
-      std::wstring_view(type) == L"EDIT" ? WS_EX_CLIENTEDGE : 0,
-      type, label, WS_CHILD | WS_VISIBLE | style, x, y, width, height,
-      parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),
-      GetModuleHandleW(nullptr), nullptr);
-  SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-  return control;
 }
 
 }  // namespace
@@ -384,6 +368,7 @@ void BridgeController::set_cancel_callback(std::function<void()> cb) { std::scop
 bool BridgeController::wait_backoff(int seconds) { std::unique_lock lock(mutex_); return !condition_.wait_for(lock,std::chrono::seconds(seconds),[&]{return snapshot_.stop_requested||reconnect_requested_;}); }
 
 int run_lichess_operations_center(int argc, char** argv) {
+  SkGraphics::Init();
   HANDLE mutex = CreateMutexW(nullptr, FALSE, L"Local\\EloiLichessOperationsCenter-v1");
   if (!mutex) return 2;
   if (GetLastError() == ERROR_ALREADY_EXISTS) {
@@ -406,26 +391,13 @@ int run_lichess_operations_center(int argc, char** argv) {
   WNDCLASSEXW wc{}; wc.cbSize=sizeof(wc); wc.lpfnWndProc=dashboard_proc;
   wc.hInstance=GetModuleHandleW(nullptr);
   wc.hCursor=LoadCursorW(nullptr, MAKEINTRESOURCEW(32512));
-  wc.hbrBackground=reinterpret_cast<HBRUSH>(COLOR_WINDOW+1); wc.lpszClassName=operations_class;
+  wc.hbrBackground=nullptr; wc.lpszClassName=operations_class;
   RegisterClassExW(&wc);
-  ui.font=CreateFontW(-17,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,
-      OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
   ui.window=CreateWindowExW(0,operations_class,L"Eloi Lichess Operations Center",
-      WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,980,780,nullptr,nullptr,
+      WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,1120,820,nullptr,nullptr,
       GetModuleHandleW(nullptr),&ui);
-  ui.state=add(ui.window,L"STATIC",L"State: starting",SS_LEFT,20,18,920,28,0,ui.font);
-  ui.details=add(ui.window,L"EDIT",L"",ES_MULTILINE|ES_READONLY|WS_VSCROLL,
-      20,54,920,190,0,ui.font);
-  ui.counters=add(ui.window,L"STATIC",L"",SS_LEFT,20,254,920,44,0,ui.font);
-  ui.events=add(ui.window,L"LISTBOX",L"",LBS_NOINTEGRALHEIGHT|WS_VSCROLL,
-      20,302,920,340,0,ui.font);
-  ui.toggle=add(ui.window,L"BUTTON",L"Stop accepting",BS_PUSHBUTTON,20,664,140,34,toggle_button,ui.font);
-  add(ui.window,L"BUTTON",L"Reconnect now",BS_PUSHBUTTON,172,664,130,34,reconnect_button,ui.font);
-  add(ui.window,L"BUTTON",L"Configure",BS_PUSHBUTTON,314,664,110,34,configure_button,ui.font);
-  add(ui.window,L"BUTTON",L"Copy diagnostics",BS_PUSHBUTTON,436,664,140,34,copy_button,ui.font);
-  add(ui.window,L"BUTTON",L"Open logs",BS_PUSHBUTTON,588,664,110,34,logs_button,ui.font);
-  add(ui.window,L"BUTTON",L"Exit",BS_PUSHBUTTON,830,664,110,34,exit_button,ui.font);
-  SetTimer(ui.window,refresh_timer,500,nullptr);
+  refresh(ui);
+  SetTimer(ui.window,refresh_timer,16,nullptr);
   ShowWindow(ui.window,SW_SHOW); UpdateWindow(ui.window);
 
   std::thread worker([&] { run_lichess(argc, argv, &controller); });
@@ -433,7 +405,6 @@ int run_lichess_operations_center(int argc, char** argv) {
   while(GetMessageW(&message,nullptr,0,0)>0){TranslateMessage(&message);DispatchMessageW(&message);}
   controller.request_stop();
   if(worker.joinable())worker.join();
-  if(ui.font)DeleteObject(ui.font);
   CloseHandle(mutex);
   return 0;
 }

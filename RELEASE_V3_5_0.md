@@ -1,5 +1,10 @@
 # Eloi v3.5.0 — Lichess Operations Center
 
+The native chess window and Lichess Operations Center now share Eloi's
+Skia-rendered visual language, including responsive cards, subtle ambient
+lighting, and smooth hover lift/zoom animations. These presentation changes do
+not alter search, timing, routing, or move selection.
+
 Status: development; not yet published.
 
 Eloi v3.5.0 replaces the fragile launch-and-watch bridge workflow with a

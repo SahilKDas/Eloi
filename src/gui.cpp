@@ -178,12 +178,25 @@ void round_rect(SkCanvas& canvas, const UiRect& rect, float radius, SkColor colo
 void button(SkCanvas& canvas, const UiRect& rect, std::string_view label,
             SkColor fill = SkColorSetRGB(35, 40, 57), float hover = 0.0f) {
   fill = blend_color(fill, SkColorSetRGB(73, 78, 105), hover * .55f);
-  round_rect(canvas, {rect.left + 2, rect.top + 4, rect.right + 2, rect.bottom + 4},
-             13 + hover * 2, SkColorSetARGB(80, 0, 0, 0));
-  round_rect(canvas, rect, 13, fill);
+  const float grow = hover * 2.4f;
+  const float lift = hover * 1.6f;
+  const UiRect animated{rect.left - grow, rect.top - grow - lift,
+                        rect.right + grow, rect.bottom + grow - lift};
+  round_rect(canvas, {animated.left + 2, animated.top + 5 + hover * 2,
+                      animated.right + 2, animated.bottom + 5 + hover * 2},
+             13 + hover * 3, SkColorSetARGB(45 + static_cast<int>(hover * 55), 0, 0, 0));
+  round_rect(canvas, animated, 13 + hover * 2, fill);
+  if (hover > .02f) {
+    SkPaint edge;
+    edge.setAntiAlias(true);
+    edge.setStyle(SkPaint::kStroke_Style);
+    edge.setStrokeWidth(1.2f);
+    edge.setColor(SkColorSetARGB(static_cast<int>(hover * 115), 148, 133, 255));
+    canvas.drawRoundRect(animated.sk(), 13 + hover * 2, 13 + hover * 2, edge);
+  }
   const float label_width = static_cast<float>(label.size()) * 7.1f;
-  text(canvas, label, (rect.left + rect.right - label_width) / 2,
-       rect.top + 30, 15, ink, true);
+  text(canvas, label, (animated.left + animated.right - label_width) / 2,
+       (animated.top + animated.bottom) / 2 + 5.5f, 15, ink, true);
 }
 
 int piece_slot(std::int8_t cell) {
@@ -1335,6 +1348,13 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
   background.setColor(SkColorSetRGB(16, 17, 31));
   canvas.drawPaint(background);
 
+  SkPaint glow;
+  glow.setAntiAlias(true);
+  glow.setColor(SkColorSetARGB(28, 121, 101, 255));
+  canvas.drawCircle(static_cast<float>(width) - 90, 40, 210, glow);
+  glow.setColor(SkColorSetARGB(16, 62, 211, 166));
+  canvas.drawCircle(20, static_cast<float>(height) - 30, 180, glow);
+
   text(canvas, "ELOI", 42, 57, 34, ink, true);
   text(canvas, "A modern chess mind", 151, 54, 17, muted);
   round_rect(canvas, {42, 75, 356, 94}, 9, SkColorSetRGB(31, 35, 52));
@@ -1345,6 +1365,14 @@ void render(App& app, SkCanvas& canvas, int width, int height) {
               layout.board_left + layout.board_size + 10,
               layout.board_top + layout.board_size + 10},
              20, SkColorSetRGB(31, 35, 50));
+  SkPaint board_edge;
+  board_edge.setAntiAlias(true);
+  board_edge.setStyle(SkPaint::kStroke_Style);
+  board_edge.setStrokeWidth(1.25f);
+  board_edge.setColor(SkColorSetARGB(105, 140, 130, 212));
+  canvas.drawRoundRect(SkRect::MakeLTRB(layout.board_left - 10,
+      layout.board_top - 10, layout.board_left + layout.board_size + 10,
+      layout.board_top + layout.board_size + 10), 20, 20, board_edge);
 
   const float white_fraction = app.displayed_eval_fraction;
   const UiRect eval_border{layout.eval_bar.left - 2, layout.eval_bar.top - 2,
