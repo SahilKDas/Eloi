@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Eloi VERSION 3.4.4 LANGUAGES CXX)
+project(Eloi VERSION 3.5.0 LANGUAGES CXX)
 set(ELOI_PRERELEASE "")
 if(ELOI_PRERELEASE)
   set(ELOI_VERSION "${PROJECT_VERSION}-${ELOI_PRERELEASE}")
@@ -50,7 +50,8 @@ if(WIN32 AND ELOI_BUILD_APP AND NOT EXISTS "${SKIA_ROOT}/lib/libskia.a")
   message(FATAL_ERROR "Skia was not found in .deps/skia108/ucrt64. See README.md.")
 endif()
 
-add_library(eloi_core STATIC src/chess.cpp src/nnue.cpp src/book.cpp src/config.cpp)
+add_library(eloi_core STATIC src/chess.cpp src/nnue.cpp src/book.cpp src/config.cpp
+  src/lichess_operations_policy.cpp)
 set(ELOI_NNUE_INCLUDE_DIR "" CACHE PATH
     "Experimental NNUE include root; empty preserves the production network")
 if(ELOI_NNUE_INCLUDE_DIR)
@@ -93,7 +94,8 @@ if(ELOI_BUILD_APP)
     target_sources(eloi_core PRIVATE src/config_writer.cpp)
     add_compile_definitions(ELOI_EXTERNAL_ASSETS ELOI_SEPARATE_LICHESS_EXE)
   else()
-    list(APPEND ELOI_APP_SOURCES src/lichess.cpp src/resources.rc)
+    list(APPEND ELOI_APP_SOURCES src/lichess.cpp src/lichess_operations.cpp
+      src/lichess_config_gui.cpp src/config_writer.cpp src/resources.rc)
   endif()
   if(WIN32)
     list(APPEND ELOI_APP_SOURCES
@@ -109,6 +111,7 @@ if(ELOI_BUILD_APP)
     add_executable(EloiLichess
       src/lichess_main.cpp
       src/lichess.cpp
+      src/lichess_operations.cpp
       src/lichess_config_gui.cpp
       src/version_match.cpp
       "${CMAKE_CURRENT_BINARY_DIR}/generated/version-lichess.rc")

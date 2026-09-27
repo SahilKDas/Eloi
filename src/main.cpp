@@ -1,6 +1,7 @@
 #include "eloi/chess.hpp"
 #include "eloi/brain.hpp"
 #include "eloi/config.hpp"
+#include "eloi/lichess_operations.hpp"
 #include "eloi/version_match.hpp"
 #include "eloi/version.hpp"
 
@@ -44,7 +45,18 @@ int main(int argc, char** argv) {
                    "Run EloiLichess.exe instead.\n";
       return 2;
 #else
-      return run_lichess(argc, argv);
+      for (int j = 1; j < argc; ++j) {
+        if (std::strcmp(argv[j], "--configure") == 0) {
+          std::filesystem::path path;
+          for (int k = 1; k + 1 < argc; ++k)
+            if (std::strcmp(argv[k], "--config") == 0) path = argv[k + 1];
+          return run_lichess_configurator(path) == 0 ? 0 : 2;
+        }
+        if (std::strcmp(argv[j], "--headless") == 0 ||
+            std::strcmp(argv[j], "--check-config") == 0)
+          return run_lichess(argc, argv);
+      }
+      return run_lichess_operations_center(argc, argv);
 #endif
     }
     if (std::strcmp(argv[i], "--perft") == 0) return run_perft(argc - i, argv + i);
@@ -57,7 +69,8 @@ int main(int argc, char** argv) {
                    "  Eloi.exe --version   print the exact build version\n"
                    "  Eloi.exe --gui       force GUI mode\n"
                    "  Eloi.exe --uci       force UCI/Lichess mode\n"
-                   "  Eloi.exe --lichess   native Lichess bot using config.yml\n"
+                   "  Eloi.exe --lichess   visible Lichess Operations Center\n"
+                   "  Eloi.exe --lichess --headless  console-only bridge\n"
                    "  Eloi.exe --perft ... run move-generation validation\n"
                    "  Eloi.exe --bench [--depth N]  run deterministic search benchmark\n"
                    "  Eloi.exe --diagnose-search --fen FEN --depth N --profile production|full-width --json PATH\n"

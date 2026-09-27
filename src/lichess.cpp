@@ -1,6 +1,7 @@
 #include "eloi/config.hpp"
 #include "eloi/chess.hpp"
 #include "eloi/brain.hpp"
+#include "eloi/lichess_operations.hpp"
 #include "eloi/version.hpp"
 #include "eloi/version_match.hpp"
 
@@ -17,10 +18,12 @@
 #include <functional>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 namespace eloi {
 namespace {
@@ -121,9 +124,11 @@ std::optional<std::string_view> json_object(
   return std::nullopt;
 }
 
-class HttpClient {
+class HttpClient final : public LichessTransport {
  public:
-  explicit HttpClient(const RuntimeConfig& config) : token_(wide(config.lichess_token)) {
+  explicit HttpClient(const RuntimeConfig& config,
+                      BridgeController* operations = nullptr)
+      : token_(wide(config.lichess_token)), operations_(operations) {
     URL_COMPONENTS parts{};
     parts.dwStructSize = sizeof(parts);
     std::wstring url = wide(config.lichess_url);
@@ -152,21 +157,51 @@ class HttpClient {
   }
 
   ~HttpClient() {
+    cancel();
     if (connection_) WinHttpCloseHandle(connection_);
     if (session_) WinHttpCloseHandle(session_);
   }
 
-  bool valid() const { return connection_ != nullptr; }
+  bool valid() const override { return connection_ != nullptr; }
+  int last_status() const override { return last_status_; }
+  int retry_after_seconds() const override { return retry_after_seconds_; }
+
+  void cancel() override {
+    std::vector<HINTERNET> requests;
+    {
+      std::scoped_lock lock(requests_mutex_);
+      requests.swap(active_requests_);
+    }
+    for (const HINTERNET request : requests) WinHttpCloseHandle(request);
+  }
 
   bool request(std::wstring_view method, std::wstring_view path,
                std::string_view body, std::string* output,
                const std::function<bool(std::string_view)>& line_handler = {}) {
     if (!connection_) return false;
+    retry_after_seconds_ = 0;
     const DWORD flags = secure_ ? WINHTTP_FLAG_SECURE : 0;
-    HINTERNET request = WinHttpOpenRequest(
-        connection_, std::wstring(method).c_str(), std::wstring(path).c_str(),
-        nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
-    if (!request) return false;
+    HINTERNET request{};
+    {
+      std::scoped_lock lock(requests_mutex_);
+      request = WinHttpOpenRequest(
+          connection_, std::wstring(method).c_str(), std::wstring(path).c_str(),
+          nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
+      if (!request) return false;
+      active_requests_.push_back(request);
+    }
+    auto close_request = [&] {
+      bool owned = false;
+      {
+        std::scoped_lock lock(requests_mutex_);
+        const auto item = std::ranges::find(active_requests_, request);
+        if (item != active_requests_.end()) {
+          active_requests_.erase(item);
+          owned = true;
+        }
+      }
+      if (owned) WinHttpCloseHandle(request);
+    };
     const std::wstring headers =
         L"Authorization: Bearer " + token_ +
         L"\r\nAccept: application/x-ndjson\r\n"
@@ -177,7 +212,9 @@ class HttpClient {
                      : const_cast<char*>(body.data()),
         static_cast<DWORD>(body.size()), static_cast<DWORD>(body.size()), 0);
     if (!sent || !WinHttpReceiveResponse(request, nullptr)) {
-      WinHttpCloseHandle(request);
+      last_status_ = 0;
+      if (operations_) operations_->set_http_status(0);
+      close_request();
       return false;
     }
     DWORD status = 0, status_size = sizeof(status);
@@ -185,29 +222,43 @@ class HttpClient {
         WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
         WINHTTP_HEADER_NAME_BY_INDEX, &status, &status_size,
         WINHTTP_NO_HEADER_INDEX);
+    last_status_ = static_cast<int>(status);
+    if (operations_) operations_->set_http_status(last_status_);
+    if (status == 429) {
+      wchar_t retry[32]{};
+      DWORD retry_size = sizeof(retry);
+      if (WinHttpQueryHeaders(request, WINHTTP_QUERY_CUSTOM,
+            L"Retry-After", retry, &retry_size, WINHTTP_NO_HEADER_INDEX)) {
+        try { retry_after_seconds_ = std::max(0, std::stoi(retry)); }
+        catch (...) { retry_after_seconds_ = 0; }
+      }
+    }
     if (status < 200 || status >= 300) {
       std::cerr << "Lichess HTTP " << status << " for "
                 << std::string(path.begin(), path.end()) << '\n';
-      WinHttpCloseHandle(request);
+      close_request();
       return false;
     }
-    if (line_handler)
+    if (line_handler) {
       std::cout << "Lichess stream connected: "
                 << std::string(path.begin(), path.end()) << '\n';
+      if (operations_) operations_->transition(
+          BridgeState::connected, "Lichess stream connected");
+    }
     std::string pending;
     char buffer[8192];
     for (;;) {
       DWORD available = 0;
       if (!WinHttpQueryDataAvailable(request, &available)) break;
       if (!available) {
-        WinHttpCloseHandle(request);
+        close_request();
         return true;
       }
       DWORD read = 0;
       const DWORD requested = std::min<DWORD>(available, sizeof(buffer));
       if (!WinHttpReadData(request, buffer, requested, &read)) break;
       if (!read) {
-        WinHttpCloseHandle(request);
+        close_request();
         return true;
       }
       if (output) output->append(buffer, read);
@@ -219,24 +270,24 @@ class HttpClient {
           std::string line = pending.substr(0, newline);
           pending.erase(0, newline + 1);
           if (!line.empty() && !line_handler(line)) {
-            WinHttpCloseHandle(request);
+            close_request();
             return true;
           }
         }
       }
     }
-    WinHttpCloseHandle(request);
+    close_request();
     return false;
   }
 
-  bool get(std::wstring_view path, std::string& output) {
+  bool get(std::wstring_view path, std::string& output) override {
     return request(L"GET", path, {}, &output);
   }
-  bool post(std::wstring_view path, std::string_view body = {}) {
+  bool post(std::wstring_view path, std::string_view body = {}) override {
     return request(L"POST", path, body, nullptr);
   }
   bool stream(std::wstring_view path,
-              const std::function<bool(std::string_view)>& handler) {
+              const std::function<bool(std::string_view)>& handler) override {
     return request(L"GET", path, {}, nullptr, handler);
   }
 
@@ -247,6 +298,11 @@ class HttpClient {
   std::wstring token_;
   INTERNET_PORT port_{};
   bool secure_{true};
+  BridgeController* operations_{};
+  std::mutex requests_mutex_;
+  std::vector<HINTERNET> active_requests_;
+  int last_status_{};
+  int retry_after_seconds_{};
 };
 
 bool variant_allowed(const RuntimeConfig& config, std::string_view variant) {
@@ -316,8 +372,9 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
                std::string_view account_id,
                std::string_view tournament_id = {},
                std::string_view swiss_id = {},
-               bool swiss_pairing = false) {
-  HttpClient client(config);
+               bool swiss_pairing = false,
+               BridgeController* operations = nullptr) {
+  HttpClient client(config, operations);
   if (!client.valid()) return;
   std::string initial(initial_fen);
   std::string variant_key{"standard"};
@@ -328,6 +385,8 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
   bool ponder_chat_sent = false;
   std::thread ponder_chat_thread;
   std::optional<Color> bot_side;
+  std::string white_player;
+  std::string black_player;
   std::optional<std::string> last_acted_moves;
   std::atomic_bool search_stopped{false};
   std::unique_ptr<Searcher> game_searcher;
@@ -346,6 +405,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
   std::vector<std::string> journal_searches;
   std::string final_moves;
   std::string final_status{"unknown"};
+  std::string final_winner;
   std::string last_brain_route{"unknown"};
   const auto journal_root = autopsy_root();
   std::error_code journal_error;
@@ -354,6 +414,13 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
   { std::ofstream lock(active_lock, std::ios::trunc);
     lock << game_id << '\n' << GetCurrentProcessId() << '\n'; }
   const std::wstring path = L"/api/bot/game/stream/" + wide(game_id);
+  if (operations) {
+    operations->begin_game(std::string(game_id), "pending");
+    operations->set_cancel_callback([&] {
+      search_stopped.store(true, std::memory_order_relaxed);
+      client.cancel();
+    });
+  }
 
   auto announce_competition = [&] {
     if (competition_announced) return;
@@ -465,6 +532,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       if (response.has_legal_move(board)) return std::move(response.search);
       if (response.status == BrainStatus::stopped) return {};
       last_brain_route = "eloi_e4_10_fallback";
+      if (operations) operations->record_caissa_failure(true, false);
       std::cerr << "Caissa Lichess search failed; using Eloi E4-10 fallback: "
                 << response.detail << '\n';
       search_stopped.store(false, std::memory_order_relaxed);
@@ -482,6 +550,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
         return fallback;
       }
       last_brain_route = "eloi_emergency_legal_move";
+      if (operations) operations->record_caissa_failure(false, true);
       std::cerr << "Submitting Eloi-verified emergency legal move after "
                    "depth-0 fallback\n";
       return fallback;
@@ -560,8 +629,16 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
     const std::string status = json_string(state, "status").value_or("started");
     const std::string moves = json_string(state, "moves").value_or("");
     final_status = status;
+    final_winner = json_string(state, "winner").value_or(final_winner);
     final_moves = moves;
     const bool game_running = status == "started" || status == "created";
+    if (operations) {
+      const auto ply_count = static_cast<int>(std::ranges::count(moves, ' ') +
+          (moves.empty() ? 0 : 1));
+      operations->update_game_clock(
+          ply_count, json_int(state, "wtime").value_or(-1),
+          json_int(state, "btime").value_or(-1));
+    }
     std::optional<SearchResult> ponder_hit = take_ponder(moves, game_running);
     if (!game_running) return;
     if (!bot_side ||
@@ -644,6 +721,28 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       last_acted_moves = moves;
       std::cout << "game " << game_id << " move " << move
                 << " depth " << result.depth << '\n';
+      if (operations) {
+        std::ostringstream pv;
+        Board pv_board = *board;
+        bool first_pv_move = true;
+        for (const auto& pv_move : result.pv) {
+          if (!first_pv_move) pv << ' ';
+          first_pv_move = false;
+          pv << uci_move(pv_move, pv_board.position, chess960);
+          if (!pv_board.push(pv_move)) break;
+        }
+        operations->record_search(
+            last_brain_route,
+            last_brain_route == "caissa_1_25"
+                ? std::string(caissa_1_25_network_sha256)
+                : std::string(nnue_model_source_sha256(
+                    game_variant == RuntimeVariant::king_of_the_hill
+                        ? NnueModel::king_of_the_hill : NnueModel::production)),
+            move, result.depth, result.score_cp, result.nodes,
+            result.elapsed.count(), pv.str(),
+            last_brain_route == "eloi_emergency_legal_move"
+                ? "emergency_legal_move" : "completed_budgeted_search");
+      }
       start_ponder(*board, moves, result);
     }
   };
@@ -678,6 +777,8 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
           std::cerr << "Refusing unsupported or disabled Lichess variant "
                     << variant_key << " in game " << game_id << '\n';
           client.post(L"/api/bot/game/" + wide(game_id) + L"/resign");
+          if (operations) operations->protocol_incident(
+              "Unsupported or disabled variant reached game stream");
           return false;
         }
       }
@@ -687,9 +788,15 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
                          runtime_variant_allows_ponder(game_variant);
       }
       if (const auto white = json_object(line, "white")) {
-        const std::string white_id = json_string(*white, "id").value_or("");
-        bot_side = white_id == account_id ? Color::white : Color::black;
+        white_player = json_string(*white, "id").value_or("");
+        bot_side = white_player == account_id ? Color::white : Color::black;
       }
+      if (const auto black = json_object(line, "black"))
+        black_player = json_string(*black, "id").value_or("");
+      if (operations && bot_side) operations->begin_game(
+          std::string(game_id), variant_key,
+          *bot_side == Color::white ? black_player : white_player,
+          *bot_side == Color::white ? "white" : "black");
       if (const auto state = json_object(line, "state")) act(*state);
     } else if (type == "gameState") {
       act(line);
@@ -746,11 +853,22 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       std::filesystem::remove(temporary, journal_error);
   }
   std::filesystem::remove(active_lock, journal_error);
+  if (operations) {
+    std::string result = "incomplete";
+    if (!final_winner.empty() && bot_side) {
+      const bool bot_won = (final_winner == "white") == (*bot_side == Color::white);
+      result = bot_won ? "win" : "loss";
+    } else if (final_status == "draw" || final_status == "stalemate" ||
+               final_status == "timeout" ||
+               final_status == "insufficientMaterial") result = "draw";
+    operations->end_game(result);
+    operations->set_cancel_callback({});
+  }
 }
 
 }  // namespace
 
-int run_lichess(int argc, char** argv) {
+int run_lichess(int argc, char** argv, BridgeController* operations) {
   std::filesystem::path path = executable_directory() / "config.yml";
   bool check_only = false;
   for (int i = 1; i < argc; ++i) {
@@ -762,40 +880,124 @@ int run_lichess(int argc, char** argv) {
   auto config = load_runtime_config(path, &error);
   if (!config) {
     std::cerr << "config error: " << error << '\n';
+    if (operations) operations->transition(BridgeState::fatal, error, true);
     return 2;
   }
   if (check_only) {
     std::cout << "config ok\n";
     return 0;
   }
+  struct MutexGuard {
+    HANDLE value{};
+    ~MutexGuard() { if (value) CloseHandle(value); }
+  } headless_mutex;
+  if (!operations) {
+    headless_mutex.value = CreateMutexW(
+        nullptr, FALSE, L"Local\\EloiLichessOperationsCenter-v1");
+    if (!headless_mutex.value) return 2;
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+      std::cerr << "Another Eloi Lichess bridge is already running\n";
+      return 2;
+    }
+  }
   if (!config->lichess_enabled) {
     std::cerr << "Lichess mode is disabled in config.yml\n";
+    if (operations) operations->transition(
+        BridgeState::fatal, "Lichess mode is disabled in config.yml", true);
     return 2;
   }
   if (config->lichess_token.empty() ||
       config->lichess_token.starts_with("lip_") == false) {
     std::cerr << "Set a valid Lichess API token in config.yml\n";
+    if (operations) operations->transition(
+        BridgeState::fatal, "Set a valid Lichess API token in config.yml", true);
     return 2;
   }
-  HttpClient client(*config);
+  if (operations) {
+    std::ostringstream variants;
+    for (std::size_t i = 0; i < config->variants.size(); ++i) {
+      if (i) variants << ", ";
+      variants << config->variants[i];
+    }
+    operations->set_configuration(variants.str());
+  }
+  if (operations) operations->transition(
+      BridgeState::connecting, "Connecting to Lichess");
+  HttpClient client(*config, operations);
+  if (operations) operations->set_cancel_callback([&] { client.cancel(); });
+  struct CancelCallbackGuard {
+    BridgeController* operations{};
+    ~CancelCallbackGuard() {
+      if (operations) operations->set_cancel_callback({});
+    }
+  } cancel_callback_guard{operations};
   if (!client.valid()) {
     std::cerr << "Could not initialize Windows HTTPS\n";
+    if (operations) operations->transition(
+        BridgeState::fatal, "Could not initialize Windows HTTPS", true);
     return 2;
   }
   std::string account;
-  if (!client.get(L"/api/account", account)) return 2;
+  int authentication_retries = 0;
+  while (!client.get(L"/api/account", account)) {
+    if (operations && operations->stop_requested()) return 0;
+    const int status = client.last_status();
+    if (bridge_http_fatal(status) ||
+        (status >= 400 && !bridge_http_retryable(status))) {
+      if (operations) operations->transition(
+          BridgeState::fatal, "Could not authenticate Lichess account (HTTP " +
+              std::to_string(status) + ")", true);
+      return 2;
+    }
+    const int delay = status == 429 && client.retry_after_seconds() > 0
+        ? client.retry_after_seconds()
+        : bridge_backoff_seconds(authentication_retries);
+    ++authentication_retries;
+    if (operations) {
+      operations->set_retry(authentication_retries, delay);
+      operations->transition(BridgeState::backing_off,
+          "Lichess account request failed; retrying in " +
+              std::to_string(delay) + " seconds", true);
+      operations->wait_backoff(delay);
+      operations->clear_reconnect();
+      if (operations->stop_requested()) return 0;
+      operations->transition(BridgeState::connecting,
+                              "Retrying Lichess authentication");
+    } else {
+      std::this_thread::sleep_for(std::chrono::seconds(delay));
+    }
+    account.clear();
+  }
+  if (operations) operations->set_retry(0, 0);
   const std::string account_id = json_string(account, "id").value_or("");
   const std::string username = json_string(account, "username").value_or(account_id);
   if (account_id.empty()) {
     std::cerr << "Lichess account response was invalid\n";
+    if (operations) operations->transition(
+        BridgeState::fatal, "Lichess account response was invalid", true);
     return 2;
   }
+  if (operations) operations->set_account(username);
   std::cout << "Welcome " << username << " — native Eloi Lichess mode\n";
 
   bool busy = false;
+  int retries = 0;
+  int protocol_corruption = 0;
   for (;;) {
+    if (operations && operations->stop_requested()) break;
+    if (operations) operations->clear_reconnect();
     client.stream(L"/api/stream/event", [&](std::string_view line) {
+      if (retries != 0) {
+        retries = 0;
+        if (operations) operations->set_retry(0, 0);
+      }
       const std::string type = json_string(line, "type").value_or("");
+      if (type.empty()) {
+        ++protocol_corruption;
+        if (operations) operations->protocol_incident(
+            "Malformed Lichess event without a type");
+        return protocol_corruption < 3;
+      }
       if (type == "challenge") {
         const auto challenge = json_object(line, "challenge");
         if (!challenge) return true;
@@ -810,15 +1012,23 @@ int run_lichess(int argc, char** argv) {
             json_string(*challenger, "title").value_or("") == "BOT";
         const bool rematch =
             json_string(*challenge, "rematchOf").has_value();
-        const bool accept = !busy && !id.empty() &&
+        const bool accept = (!operations || operations->accepting()) &&
+            !busy && !id.empty() &&
             variant_allowed(*config, variant) &&
             base >= config->min_base_seconds &&
             base <= config->max_base_seconds &&
             (config->allow_bots || !bot);
         const std::wstring action = L"/api/challenge/" + wide(id) +
             (accept ? L"/accept" : L"/decline");
-        if (client.post(action, accept ? "" : "reason=standard") && accept)
+        const bool submitted = client.post(
+            action, accept ? "" : "reason=standard");
+        if (submitted && accept)
           busy = true;
+        if (operations) {
+          if (submitted) operations->record_challenge(accept);
+          else operations->protocol_incident(
+              "Could not submit Lichess challenge decision");
+        }
         std::cout << (accept ? (rematch ? "accepted rematch " : "accepted ")
                              : "declined ")
                   << id << " " << variant << " " << base << "+x\n";
@@ -835,7 +1045,12 @@ int run_lichess(int argc, char** argv) {
           if (!id.empty()) {
             busy = true;
             play_game(*config, id, account_id, tournament_id, swiss_id,
-                      swiss_pairing);
+                      swiss_pairing, operations);
+            if (operations) operations->set_cancel_callback(
+                [&] { client.cancel(); });
+            if (operations && (operations->stop_requested() ||
+                               operations->reconnect_requested()))
+              return false;
           } else {
             std::cerr << "Lichess gameStart event did not contain a game ID\n";
           }
@@ -847,9 +1062,37 @@ int run_lichess(int argc, char** argv) {
       }
       return true;
     });
+    if (operations && operations->stop_requested()) break;
+    if (protocol_corruption >= 3) {
+      if (operations) operations->transition(
+          BridgeState::fatal,
+          "Repeated malformed Lichess events; bridge stopped", true);
+      return 2;
+    }
+    const int status = client.last_status();
+    if (bridge_http_fatal(status) || (status >= 400 &&
+        !bridge_http_retryable(status))) {
+      if (operations) operations->transition(
+          BridgeState::fatal, "Non-retryable Lichess HTTP " +
+              std::to_string(status), true);
+      return 2;
+    }
     std::cerr << "Lichess event stream disconnected; reconnecting\n";
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    int delay = status == 429 && client.retry_after_seconds() > 0
+        ? client.retry_after_seconds() : bridge_backoff_seconds(retries);
+    ++retries;
+    if (operations) {
+      operations->set_retry(retries, delay);
+      operations->transition(BridgeState::backing_off,
+          "Lichess stream disconnected; retrying in " +
+              std::to_string(delay) + " seconds", true);
+      operations->wait_backoff(delay);
+    } else {
+      std::this_thread::sleep_for(std::chrono::seconds(delay));
+    }
   }
+  if (operations) operations->transition(BridgeState::stopped, "Bridge stopped");
+  return 0;
 }
 
 }  // namespace eloi
@@ -857,7 +1100,7 @@ int run_lichess(int argc, char** argv) {
 #else
 
 namespace eloi {
-int run_lichess(int, char**) { return 2; }
+int run_lichess(int, char**, BridgeController*) { return 2; }
 }  // namespace eloi
 
 #endif

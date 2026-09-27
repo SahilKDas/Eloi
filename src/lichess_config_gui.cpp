@@ -288,9 +288,9 @@ void create_controls(ConfigWindow& ui) {
 
 }  // namespace
 
-int run_lichess_configurator() {
+int run_lichess_configurator(const std::filesystem::path& requested_path) {
   ConfigWindow ui;
-  ui.path = executable_config();
+  ui.path = requested_path.empty() ? executable_config() : requested_path;
   std::string error;
   if (auto loaded = load_runtime_config(ui.path, &error)) ui.config = *loaded;
 
@@ -334,7 +334,7 @@ int run_lichess_configurator() {
 #else
 
 namespace eloi {
-int run_lichess_configurator() { return 2; }
+int run_lichess_configurator(const std::filesystem::path&) { return 2; }
 }  // namespace eloi
 
 #endif

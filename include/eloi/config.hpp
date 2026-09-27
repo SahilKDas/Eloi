@@ -9,6 +9,7 @@
 namespace eloi {
 
 struct Board;
+class BridgeController;
 
 enum class RuntimeVariant {
   standard, chess960, horde, king_of_the_hill, atomic, antichess, unsupported
@@ -50,7 +51,8 @@ std::optional<RuntimeConfig> load_runtime_config(
 bool save_runtime_config(const std::filesystem::path& path,
                          const RuntimeConfig& config,
                          std::string* error = nullptr);
-int run_lichess(int argc, char** argv);
-int run_lichess_configurator();
+int run_lichess(int argc, char** argv, BridgeController* operations = nullptr);
+int run_lichess_configurator(
+    const std::filesystem::path& path = std::filesystem::path{});
 
 }  // namespace eloi

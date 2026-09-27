@@ -1,5 +1,6 @@
 #include "eloi/chess.hpp"
 #include "eloi/config.hpp"
+#include "eloi/lichess_operations.hpp"
 #include "tactical_data.hpp"
 
 #include <atomic>
@@ -287,6 +288,57 @@ std::vector<std::string> comparison_failures(
 }  // namespace
 
 int main() {
+  {
+    struct FakeTransport final : LichessTransport {
+      bool cancelled{};
+      bool valid() const override { return true; }
+      int last_status() const override { return 429; }
+      int retry_after_seconds() const override { return 17; }
+      void cancel() override { cancelled = true; }
+      bool get(std::wstring_view, std::string& output) override {
+        output = R"({"id":"eloi"})";
+        return true;
+      }
+      bool post(std::wstring_view, std::string_view) override { return true; }
+      bool stream(std::wstring_view,
+                  const std::function<bool(std::string_view)>& handler) override {
+        return handler(R"({"type":"challenge"})");
+      }
+    } transport;
+    LichessTransport& injected = transport;
+    std::string account;
+    expect(injected.valid() && injected.get(L"/api/account", account) &&
+               account.contains("eloi") && injected.last_status() == 429 &&
+               injected.retry_after_seconds() == 17,
+           "offline fake transport injects account and retry behavior");
+    expect(injected.stream(L"/api/stream/event", [](std::string_view event) {
+             return event.contains("challenge");
+           }),
+           "offline fake transport injects event-stream behavior");
+    injected.cancel();
+    expect(transport.cancelled,
+           "transport cancellation is injectable and observable offline");
+
+    constexpr std::array expected_backoff{2, 4, 8, 15, 30, 60};
+    for (int retry = 0; retry < static_cast<int>(expected_backoff.size()); ++retry)
+      expect(bridge_backoff_seconds(retry) == expected_backoff[retry],
+             "Lichess reconnect backoff follows the frozen bounded sequence");
+    expect(bridge_backoff_seconds(-1) == 2 &&
+               bridge_backoff_seconds(99) == 60,
+           "Lichess reconnect backoff clamps out-of-range attempts");
+    expect(bridge_http_retryable(0) && bridge_http_retryable(408) &&
+               bridge_http_retryable(429) && bridge_http_retryable(500) &&
+               bridge_http_retryable(503) && !bridge_http_retryable(400),
+           "only transient transport and HTTP classes are retried");
+    expect(bridge_http_fatal(401) && bridge_http_fatal(403) &&
+               !bridge_http_fatal(429) && !bridge_http_fatal(500),
+           "authentication failures are fatal rather than retry loops");
+    const std::string secret = "Authorization: Bearer lip_ABC-123_xyz";
+    const std::string redacted = redact_bridge_text(secret);
+    expect(!redacted.contains("lip_") &&
+               redacted.contains("[REDACTED]"),
+           "Operations Center diagnostics redact Lichess API tokens");
+  }
   static_assert(search_thread_count == 3,
                 "Eloi's search contract is fixed at exactly three threads");
   static_assert(recommended_search_depth == 40,

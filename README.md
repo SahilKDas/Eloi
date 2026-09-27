@@ -8,7 +8,9 @@ Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
 a compact incrementally updated NNUE, deterministic three-lane RootSplit
 search, and reproducible Windows packaging.
 
-The current stable source is **Eloi 3.4.4**.
+The current development source is **Eloi 3.5.0**. The latest published stable
+release remains **Eloi 3.4.4** until the Operations Center validation gates
+and reproducible package checks are complete.
 
 Eloi 3.4.4 fixes native-Lichess Standard searches whose legitimate Caissa
 allocation exceeded the old fixed worker watchdog. The watchdog now follows
@@ -63,10 +65,10 @@ Caissa remains Standard-only.
 
 | Item | Current status |
 | --- | --- |
-| Source version | 3.4.4 |
+| Source version | 3.5.0 (development) |
 | Latest tag | v3.4.4 |
-| Latest release | v3.4.3 (published); v3.4.4 hotfix packages are locally verified |
-| Release commit | v3.4.4 tagged source commit |
+| Latest release | v3.4.4 |
+| Release commit | v3.4.4 tagged source commit; v3.5.0 is not yet released |
 | Language | C++26 |
 | Build system | CMake |
 | Primary toolchain | MSYS2 UCRT64 GCC |
@@ -94,7 +96,7 @@ The current Eloi-native successor research is documented in
 [ELOI_NATIVE_POLICY_VALUE_V2.md](ELOI_NATIVE_POLICY_VALUE_V2.md). It trains a
 complete-move EPV2 policy/value prior from a frozen 150,000-position
 Standard-only teacher dataset and qualifies first against native E2. This work
-is laboratory-only and does not control v3.4.4 playing behavior or packages.
+is laboratory-only and does not control v3.4.4 or v3.5.0 playing behavior.
 
 Native Lichess can now write token-free completed-game journals for the
 separate headless autopsy worker. Those reports identify the exact playing
@@ -434,6 +436,9 @@ Disable it for controlled engine experiments.
 .\Eloi.exe --lichess
 ~~~
 
+This opens the visible Lichess Operations Center and retains console output.
+For unattended console-only operation, add `--headless`.
+
 ### Perft
 
 ~~~powershell
@@ -587,22 +592,49 @@ For standalone builds, configure a private adjacent config.yml and run:
 .\Eloi.exe --lichess
 ~~~
 
+The default command opens a supervised native Windows dashboard while leaving
+the console visible. It shows connection health, the active game, actual brain
+route and network, search telemetry, fallbacks, incidents, and session W/D/L.
+It also provides controls to pause challenge acceptance, reconnect, configure,
+copy token-free diagnostics, open logs, and exit cleanly.
+
+Only one Operations Center may run for the current Windows user. Launching a
+second copy brings the existing dashboard forward instead of creating another
+Lichess connection. Closing during an active game requires confirmation and
+then performs a controlled immediate shutdown; Eloi never hides in the tray.
+
+For console-only automation:
+
+~~~powershell
+.\Eloi.exe --lichess --headless
+~~~
+
 For Exoskeleton builds, use EloiLichess.exe.
 
 ~~~powershell
 .\EloiLichess.exe --configure
-.\EloiLichess.exe --run
+.\EloiLichess.exe
+.\EloiLichess.exe --headless
 ~~~
 
 The native client supports:
 
-- Standard;
-- Chess960;
-- Horde;
+- Standard, Chess960, Horde, King of the Hill, Atomic, and Antichess;
 - eligible rematches;
 - player chat commands;
 - adaptive clocks;
 - legal interruption fallback.
+
+Transient DNS/socket failures, stream disconnects, HTTP 408/429, and HTTP 5xx
+responses retry with bounded backoff. Authentication failures and repeated
+malformed protocol events stop in an actionable fatal state instead of
+looping. `Retry-After` is honored for HTTP 429.
+
+Token-free rotating logs are written to
+`%LOCALAPPDATA%\Eloi\logs\lichess`; at most ten files and 10 MiB are retained.
+The current token-free state is atomically published at
+`%LOCALAPPDATA%\Eloi\status\lichess.json`. Tokens, authorization headers,
+private configuration contents, and chat text are never written there.
 
 Player chat commands include:
 
@@ -1877,6 +1909,16 @@ Do not publish without maintainer authorization.
 ---
 
 ## Release history
+
+### v3.5.0 (development)
+
+Adds the native Lichess Operations Center: a visible supervised dashboard,
+single-instance enforcement, interruptible networking, bounded transient-only
+recovery, token-free rotating logs and atomic status snapshots, plus a
+console-only `--headless` mode. It intentionally leaves chess decisions,
+budgets, variant rules, routing, and the three-thread contract unchanged.
+Publication remains blocked on the full validation and reproducible-package
+gates.
 
 ### v3.4.4
 
@@ -4426,7 +4468,8 @@ Precise bug reports are how the engine survives.
 
 ## Final note
 
-Eloi 3.4.4 combines Eloi's authoritative board, legal-move validation, variants,
+Eloi 3.5.0 development combines Eloi's authoritative board, legal-move
+validation, variants,
 GUI, UCI, and bridge ownership with a crash-contained Caissa 1.25 Standard
 search brain. Standard UCI play routes directly to embedded Caissa 1.25;
 the native GUI offers Caissa or Eloi E4-10; Chess960, Horde, Atomic, and
@@ -4434,6 +4477,11 @@ Antichess use E4-10; King of the Hill uses KOTH E4. Caissa remains
 Standard-only.
 If the pinned Caissa network is unavailable or fails verification,
 Standard play fails safely to E4-10.
+
+The Lichess Operations Center supervises that unchanged chess stack with a
+visible dashboard, interruptible networking, transient-only recovery, and
+token-free diagnostics. It does not participate in move choice or time
+allocation.
 
 The bundled `eval-71-v1.25.pnn` is byte-identical to the network extracted from
 the official Caissa v1.25 release executable. Its SHA-256 is
