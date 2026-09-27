@@ -94,7 +94,7 @@ The current Eloi-native successor research is documented in
 [ELOI_NATIVE_POLICY_VALUE_V2.md](ELOI_NATIVE_POLICY_VALUE_V2.md). It trains a
 complete-move EPV2 policy/value prior from a frozen 150,000-position
 Standard-only teacher dataset and qualifies first against native E2. This work
-is laboratory-only and does not control v3.2.2 playing behavior or packages.
+is laboratory-only and does not control v3.4.4 playing behavior or packages.
 
 Native Lichess can now write token-free completed-game journals for the
 separate headless autopsy worker. Those reports identify the exact playing
@@ -229,7 +229,7 @@ The repository includes tools for:
 - toolchain verification;
 - reproducibility proof.
 
-Eloi 3.2.2 does not ship Syzygy,
+Eloi 3.4.4 does not ship Syzygy,
 Lazy SMP, variable production thread counts, Linux packages, runtime model downloads,
 Stockfish as a playing backend, Reckless source, or any AGPL component.
 
@@ -2830,8 +2830,10 @@ E2 was trained only on Standard chess.
 
 Tablebases are not shipped.
 
-Standard UCI and native Lichess use Caissa 1.25, but the native GUI still uses
-E2. Newer Caissa releases remain blocked from production without a coherent,
+Standard UCI and native Lichess use Caissa 1.25. The native GUI offers Caissa
+1.25 or Eloi E4-10; Chess960, Horde, Atomic, Antichess, and emergency fallback
+use E4-10, while King of the Hill uses its qualified KOTH E4 model. Newer
+Caissa releases remain blocked from production without a coherent,
 redistributable matching model and full qualification.
 
 The earlier mixed-generation hybrid remains rejected and contributes no
@@ -2881,7 +2883,9 @@ Automation and manifests must use the real tag.
 - Eloi retains legality, protocol, clock, variant, GUI, and crash-containment
   authority.
 - The experimental two-brain arbiter is not the production default.
-- Chess960, Horde, native GUI Standard, and fallback remain on E2.
+- The native GUI offers Caissa 1.25 or Eloi E4-10 for Standard.
+- Chess960, Horde, Atomic, Antichess, and emergency fallback use E4-10.
+- King of the Hill uses the separately qualified KOTH E4 evaluator.
 
 ### Intended result
 
@@ -2902,7 +2906,8 @@ It is not intended to copy every donor file.
 The intended ownership is:
 
 - Eloi owns the game;
-- E2 remains a complete brain;
+- E2 remains preserved historical evidence, while E4-10 is the current
+  Eloi-native general-purpose brain;
 - Caissa 1.25 becomes a complete second brain;
 - an Eloi arbiter selects candidates;
 - Eloi validates every public move.
@@ -2983,8 +2988,15 @@ explicitly and conservatively.
 
 This README is engineering documentation, not legal advice.
 
-For v3.0.0, the maintainer accepts that official v1.25 distribution as the
-redistribution basis; the Caissa MIT notice remains bundled.
+The concrete upstream evidence is the MIT `LICENSE` at the pinned Caissa 1.25
+tag and the official Caissa v1.25 release, whose release notes describe the
+expanded trained network and whose published executables contain it. Eloi's
+bundled bytes were extracted from that official executable and are hash-pinned
+below. Upstream does not provide a separate model-specific license statement;
+the maintainer interprets the tag-level MIT license as covering the official
+v1.25 distribution. The Caissa MIT notice remains bundled. This interpretation
+and its limitation are recorded explicitly rather than treated as independent
+upstream permission.
 
 ---
 
@@ -3837,8 +3849,9 @@ Verify the archive hash.
 ### Is Caissa already inside Eloi?
 
 Yes. Current main contains a coherent Caissa 1.25 Standard backend. Standard
-UCI and native Lichess use it through Eloi's isolated worker; the native GUI,
-Chess960, Horde, and emergency fallback remain on E2.
+UCI and native Lichess use it through Eloi's isolated worker. The native GUI
+offers Caissa 1.25 or Eloi E4-10; Chess960, Horde, Atomic, Antichess, and
+emergency fallback use E4-10; King of the Hill uses KOTH E4.
 
 ### Was there a Caissa experiment?
 
@@ -4413,17 +4426,24 @@ Precise bug reports are how the engine survives.
 
 ## Final note
 
-Eloi 3.2.2 combines Eloi's authoritative board, legal-move validation, variants,
+Eloi 3.4.4 combines Eloi's authoritative board, legal-move validation, variants,
 GUI, UCI, and bridge ownership with a crash-contained Caissa 1.25 Standard
 search brain. Standard UCI play routes directly to embedded Caissa 1.25;
-Chess960 and Horde use Eloi E4-10 while Caissa remains Standard-only.
+the native GUI offers Caissa or Eloi E4-10; Chess960, Horde, Atomic, and
+Antichess use E4-10; King of the Hill uses KOTH E4. Caissa remains
+Standard-only.
 If the pinned Caissa network is unavailable or fails verification,
 Standard play fails safely to E4-10.
 
 The bundled `eval-71-v1.25.pnn` is byte-identical to the network extracted from
 the official Caissa v1.25 release executable. Its SHA-256 is
 `615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B`.
-Caissa's MIT notice ships with the network and imported source.
+The upstream Caissa 1.25 tag carries the MIT license, and the official v1.25
+release distributes and describes its trained network inside the release
+executables. Upstream provides no separate model-specific license statement;
+Eloi records that limitation and the maintainer's tag-level MIT interpretation
+instead of presenting the bundled notice as independent proof. Caissa's MIT
+notice ships with the network and imported source.
 
 At 10,000 nodes per move, the selected policy scored 20W/0D/0L against v2.7.5
 and 19W/1D/0L against v2.8.0 in separate bounded 20-game screens. These are

@@ -2,7 +2,7 @@
   "schema": "eloi-caissa-upstream-releases-v1",
   "policy": {
     "production_release": "1.25",
-    "production_route": "standard=caissa-1.25;chess960=eloi-e2;horde=eloi-e2",
+    "production_route": "standard=caissa-1.25;gui-standard=caissa-1.25-or-eloi-e4-10;chess960=eloi-e4-10;horde=eloi-e4-10;kingOfTheHill=eloi-e4-koth;atomic=eloi-e4-10;antichess=eloi-e4-10;fallback=eloi-e4-10",
     "runtime_downloads_allowed": false,
     "unlicensed_models_may_be_committed_or_packaged": false,
     "mixed_evaluator_generations_allowed": false,
@@ -19,7 +19,12 @@
       "network_sha256": "615CEF8D25D8BB3ACE53FD5CC4DED7546F0D1C8FCE10676FD83C864421262B5B",
       "network_size": 50367040,
       "network_redistributable": true,
-      "network_redistribution_basis": "Frozen Eloi v3.1.1 production record; preserve the bundled Caissa MIT notice"
+      "network_redistribution_basis": "Upstream evidence: Caissa tag 1.25 at commit 0c01e79ea36ae492585e88cca9d03abae9b7a3d5 contains the MIT LICENSE; the official Caissa v1.25 GitHub release describes the expanded trained network and distributes it embedded in official executables. Eloi extracted and hash-pinned those network bytes. No separate model-specific license statement was found; the maintainer interprets the tag-level MIT license as covering the official v1.25 distribution and preserves the notice.",
+      "network_upstream_tag_license_url": "https://github.com/Witek902/Caissa/blob/1.25/LICENSE",
+      "network_upstream_release_url": "https://github.com/Witek902/Caissa/releases/tag/1.25",
+      "network_source_release_asset": "caissa-1.25-x64-avx2.exe",
+      "network_source_release_asset_sha256": "DEF18F5941C7D2D21B89C1D7A646BA9B354E533537A9CEFDDA24301F4DBEDAA8",
+      "network_model_specific_license_statement_found": false
     },
     "1.26": {
       "status": "source-only-lab",
