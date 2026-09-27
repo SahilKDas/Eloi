@@ -52,12 +52,20 @@ if ($releaseFiles.Count -ne 4 -or
 
 $standaloneName = "Eloi-v$releaseVersion-windows-x64-standalone.zip"
 $standaloneZip = Join-Path $resolvedArtifacts $standaloneName
-Compress-Archive -LiteralPath @(
-  (Join-Path $releaseRoot 'Eloi.exe'),
-  (Join-Path $releaseRoot 'config.yml'),
-  (Join-Path $releaseRoot 'eval-71-v1.25.pnn'),
-  (Join-Path $releaseRoot 'CAISSA_LICENSE.txt')
-) -DestinationPath $standaloneZip -CompressionLevel Optimal
+$standaloneProof = Join-Path $resolvedArtifacts ($standaloneName + '.proof')
+$epoch = (Get-Content -LiteralPath (Join-Path $projectRoot 'reproducibility.lock.json') -Raw |
+  ConvertFrom-Json).source_date_epoch
+& $PythonExecutable -B (Join-Path $PSScriptRoot 'deterministic_zip.py') `
+  $releaseRoot $standaloneZip ([string]$epoch)
+if ($LASTEXITCODE -ne 0) { throw 'Standalone deterministic archive A failed' }
+& $PythonExecutable -B (Join-Path $PSScriptRoot 'deterministic_zip.py') `
+  $releaseRoot $standaloneProof ([string]$epoch)
+if ($LASTEXITCODE -ne 0) { throw 'Standalone deterministic archive B failed' }
+if ((Get-FileHash -LiteralPath $standaloneZip -Algorithm SHA256).Hash -ne
+    (Get-FileHash -LiteralPath $standaloneProof -Algorithm SHA256).Hash) {
+  throw 'Standalone deterministic archive constructions differ'
+}
+Remove-Item -LiteralPath $standaloneProof -Force
 $standaloneEntries = @(tar -tf $standaloneZip)
 if ($LASTEXITCODE -ne 0 -or $standaloneEntries.Count -ne 4 -or
     @($standaloneEntries | Sort-Object) -join ',' -ne 'CAISSA_LICENSE.txt,config.yml,Eloi.exe,eval-71-v1.25.pnn') {
@@ -72,7 +80,10 @@ if (-not $SkipDefenderScan) {
   }
 }
 
-$splitArguments = @{ OutputRoot = $resolvedArtifacts }
+$splitBuildA = Join-Path $projectRoot "tmp\release-v$releaseVersion-exoskeleton-A-build"
+$splitBuildB = Join-Path $projectRoot "tmp\release-v$releaseVersion-exoskeleton-B-build"
+$splitOutputB = Join-Path $projectRoot "tmp\release-v$releaseVersion-exoskeleton-B-output"
+$splitArguments = @{ OutputRoot = $resolvedArtifacts; BuildRoot = $splitBuildA }
 if ($SkipDefenderScan) { $splitArguments.SkipDefenderScan = $true }
 & (Join-Path $PSScriptRoot 'build-windows-exoskeleton-zip.ps1') @splitArguments
 if ($LASTEXITCODE -ne 0) { throw 'Exoskeleton package build failed' }
@@ -81,6 +92,32 @@ $splitZip = Join-Path $resolvedArtifacts `
   "Eloi-v$releaseVersion-windows-x64-exoskeleton.zip"
 if (-not (Test-Path -LiteralPath $splitZip -PathType Leaf)) {
   throw "Exoskeleton ZIP was not created: $splitZip"
+}
+$splitProofArguments = @{ OutputRoot = $splitOutputB; BuildRoot = $splitBuildB }
+if ($SkipDefenderScan) { $splitProofArguments.SkipDefenderScan = $true }
+& (Join-Path $PSScriptRoot 'build-windows-exoskeleton-zip.ps1') @splitProofArguments
+if ($LASTEXITCODE -ne 0) { throw 'Independent Exoskeleton package build failed' }
+$splitProofZip = Join-Path $splitOutputB `
+  "Eloi-v$releaseVersion-windows-x64-exoskeleton.zip"
+if ((Get-FileHash -LiteralPath $splitZip -Algorithm SHA256).Hash -ne
+    (Get-FileHash -LiteralPath $splitProofZip -Algorithm SHA256).Hash) {
+  throw 'Independent Exoskeleton ZIP constructions differ'
+}
+
+# Both builders retain extracted staging for inspection. After byte equality is
+# proven, remove only these known generated directories so dist/artifacts holds
+# exactly the two golden archives promised by the release contract.
+$splitPackageA = Join-Path $resolvedArtifacts `
+  "Eloi-v$releaseVersion-windows-x64-exoskeleton"
+foreach ($generated in @($splitPackageA, $splitBuildA, $splitOutputB, $splitBuildB)) {
+  $resolvedGenerated = [IO.Path]::GetFullPath($generated)
+  if (-not $resolvedGenerated.StartsWith(
+      $resolvedRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing to remove generated path outside repository: $resolvedGenerated"
+  }
+  if (Test-Path -LiteralPath $resolvedGenerated) {
+    Remove-Item -LiteralPath $resolvedGenerated -Recurse -Force
+  }
 }
 $artifactEntries = @(Get-ChildItem -LiteralPath $resolvedArtifacts -Force)
 $expectedArtifacts = @($standaloneName, (Split-Path -Leaf $splitZip)) | Sort-Object
