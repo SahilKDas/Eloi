@@ -2,6 +2,9 @@
 
 #include "eloi/nnue_weights.hpp"
 #include "eloi/nnue_koth_weights.hpp"
+#define nnue_weights nnue_atomic_weights
+#include "eloi/nnue_atomic_weights.hpp"
+#undef nnue_weights
 
 #include <algorithm>
 #include <cstdlib>
@@ -28,6 +31,9 @@ ModelWeights weights_for(NnueModel model) {
   if (model == NnueModel::king_of_the_hill)
     return {nnue_koth_weights::bias.data(), nnue_koth_weights::input.data(),
             nnue_koth_weights::output.data()};
+  if (model == NnueModel::atomic)
+    return {nnue_atomic_weights::bias.data(), nnue_atomic_weights::input.data(),
+            nnue_atomic_weights::output.data()};
   return {nnue_weights::bias.data(), nnue_weights::input.data(),
           nnue_weights::output.data()};
 }
@@ -262,13 +268,22 @@ int nnue_evaluate(const NnueState& state, Color side_to_move) {
 }
 
 std::string_view nnue_model_name(NnueModel model) {
-  return model == NnueModel::king_of_the_hill ? "e4-koth" : "e4-10";
+  switch (model) {
+    case NnueModel::king_of_the_hill: return "e4-koth";
+    case NnueModel::atomic: return "e4-atomic";
+    default: return "e4-10";
+  }
 }
 
 std::string_view nnue_model_source_sha256(NnueModel model) {
-  return model == NnueModel::king_of_the_hill
-      ? "E06F0B3A71445933BF066E8FE6B03A9271B94DB522A15180C63DA4703E5FBF8E"
-      : "4C705496950E27204C976F0D027CAA9C73B209961584F7998742AA481B524E88";
+  switch (model) {
+    case NnueModel::king_of_the_hill:
+      return "E06F0B3A71445933BF066E8FE6B03A9271B94DB522A15180C63DA4703E5FBF8E";
+    case NnueModel::atomic:
+      return "9B47E6EAEFBB3DCAE0B5861AE90C8A647FDD3A6A31FFF93543D8DAC336D5B179";
+    default:
+      return "4C705496950E27204C976F0D027CAA9C73B209961584F7998742AA481B524E88";
+  }
 }
 
 }  // namespace eloi

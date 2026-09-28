@@ -119,10 +119,17 @@ std::string_view runtime_variant_brain_route(RuntimeVariant variant) {
     case RuntimeVariant::chess960: return "eloi_e4_10_chess960";
     case RuntimeVariant::horde: return "eloi_e4_10_horde";
     case RuntimeVariant::king_of_the_hill: return "eloi_e4_koth";
-    case RuntimeVariant::atomic: return "eloi_e4_10_atomic";
+    case RuntimeVariant::atomic: return "eloi_e4_atomic";
     case RuntimeVariant::antichess: return "eloi_e4_10_antichess";
     default: return "unsupported";
   }
+}
+
+NnueModel runtime_variant_nnue_model(RuntimeVariant variant) {
+  if (variant == RuntimeVariant::king_of_the_hill)
+    return NnueModel::king_of_the_hill;
+  if (variant == RuntimeVariant::atomic) return NnueModel::atomic;
+  return NnueModel::production;
 }
 
 void configure_board_variant(Board& board, RuntimeVariant variant) {
@@ -131,9 +138,7 @@ void configure_board_variant(Board& board, RuntimeVariant variant) {
   board.king_of_the_hill = variant == RuntimeVariant::king_of_the_hill;
   board.atomic = variant == RuntimeVariant::atomic;
   board.antichess = variant == RuntimeVariant::antichess;
-  board.select_nnue_model(variant == RuntimeVariant::king_of_the_hill
-                              ? NnueModel::king_of_the_hill
-                              : NnueModel::production);
+  board.select_nnue_model(runtime_variant_nnue_model(variant));
 }
 
 std::optional<RuntimeConfig> load_runtime_config(

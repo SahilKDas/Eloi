@@ -384,10 +384,7 @@ int main() {
              "only Standard may use the opening book online");
       expect(runtime_variant_brain_route(variant) != "unsupported",
              "every accepted variant has an explicit brain route");
-      expect(board.nnue.model ==
-                 (variant == RuntimeVariant::king_of_the_hill
-                      ? NnueModel::king_of_the_hill
-                      : NnueModel::production),
+      expect(board.nnue.model == runtime_variant_nnue_model(variant),
              "accepted variant selects its intended NNUE model");
     }
     expect(!runtime_variant_allows_ponder(RuntimeVariant::king_of_the_hill) &&
@@ -994,6 +991,34 @@ int main() {
     board.select_nnue_model(NnueModel::production);
     expect(board.key == production_key,
            "switching back restores the production transposition key");
+  }
+
+  {
+    auto board = *parse_fen(initial_fen);
+    board.atomic = true;
+    const auto production_key = board.key;
+    board.select_nnue_model(NnueModel::atomic);
+    expect(board.nnue.model == NnueModel::atomic,
+           "Atomic board selects the qualified E4-Atomic evaluator");
+    expect(nnue_model_name(board.nnue.model) == "e4-atomic" &&
+               nnue_model_source_sha256(board.nnue.model) ==
+                   "9B47E6EAEFBB3DCAE0B5861AE90C8A647FDD3A6A31FFF93543D8DAC336D5B179",
+           "Atomic evaluator reports its frozen identity");
+    const auto scalar = nnue_refresh_scalar_reference(
+        board.position, NnueModel::atomic);
+    expect(board.nnue == scalar,
+           "Atomic scalar and runtime-dispatched accumulators agree");
+    expect(board.key != production_key,
+           "Atomic model identity separates transposition keys");
+    expect(board.push_uci("e2e4"), "Atomic NNUE update test move is legal");
+    expect(board.nnue == nnue_refresh(board.position, NnueModel::atomic),
+           "Atomic incremental accumulator matches a full refresh");
+    expect(board.pop(), "Atomic NNUE update test move can be undone");
+    expect(board.nnue == scalar,
+           "Atomic undo restores the exact dedicated accumulator");
+    board.select_nnue_model(NnueModel::production);
+    expect(board.key == production_key,
+           "Atomic-to-production switch restores the transposition key");
   }
 
   {

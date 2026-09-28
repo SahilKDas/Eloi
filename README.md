@@ -8,9 +8,9 @@ Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
 a compact incrementally updated NNUE, deterministic three-lane RootSplit
 search, and reproducible Windows packaging.
 
-The current development source is **Eloi 3.5.0**. The latest published stable
-release remains **Eloi 3.4.4** until the Operations Center validation gates
-and reproducible package checks are complete.
+The current development source and latest published stable release are
+**Eloi 3.5.0**. Work after that tag remains development source until its own
+validation and reproducible package checks are complete.
 
 Eloi 3.4.4 fixes native-Lichess Standard searches whose legitimate Caissa
 allocation exceeded the old fixed worker watchdog. The watchdog now follows
@@ -20,8 +20,9 @@ explicit Eloi legality verification and emergency labeling.
 
 Standard UCI and native Lichess use the crash-contained **Caissa 1.25** brain.
 The native GUI now offers **Caissa 1.25** or Eloi's 64-unit **E4-10** brain
-for Standard games. Chess960, Horde, explicit native mode, and emergency
-fallback use E4-10 with exactly three RootSplit lanes.
+for Standard games. Atomic uses the qualified 64-unit **E4-Atomic** evaluator.
+Chess960, Horde, Antichess, explicit native mode, and emergency fallback use
+E4-10 with exactly three RootSplit lanes.
 
 Official packages currently target **Windows x64**.
 
@@ -31,8 +32,9 @@ Current main contains the pinned Caissa 1.25 backend with Eloi-owned routing, le
 
 Standard UCI play uses the embedded **Caissa 1.25 search directly**. The experimental two-brain arbiter remains available for development but is not the production default.
 
-Chess960, Horde, Atomic, and Antichess use Eloi E4-10. KOTH uses E4-KOTH.
-Caissa remains Standard-only.
+Atomic uses E4-Atomic; KOTH uses E4-KOTH. Chess960, Horde, and Antichess use
+E4-10. Caissa remains Standard-only. See
+[the variant-native campaign report](docs/VARIANT_NATIVE_BRAINS.md).
 
 ---
 
@@ -66,9 +68,9 @@ Caissa remains Standard-only.
 | Item | Current status |
 | --- | --- |
 | Source version | 3.5.0 (development) |
-| Latest tag | v3.4.4 |
-| Latest release | v3.4.4 |
-| Release commit | v3.4.4 tagged source commit; v3.5.0 is not yet released |
+| Latest tag | v3.5.0 |
+| Latest release | v3.5.0 |
+| Release commit | v3.5.0 tagged source commit; later main commits are development source |
 | Language | C++26 |
 | Build system | CMake |
 | Primary toolchain | MSYS2 UCRT64 GCC |
@@ -78,7 +80,8 @@ Caissa remains Standard-only.
 | Online client | Native Lichess Bot API |
 | Standard UCI/Lichess brain | Crash-contained Caissa 1.25 |
 | GUI Standard choice | Caissa 1.25 or Eloi E4-10 |
-| Chess960/Horde/Atomic/Antichess/fallback brain | E4-10, 64 units, three RootSplit lanes |
+| Chess960/Horde/Antichess/fallback brain | E4-10, 64 units, three RootSplit lanes |
+| Atomic brain | Dedicated E4-Atomic, 64 units, three RootSplit lanes |
 | King of the Hill brain | Dedicated E4-KOTH, 64 units, three RootSplit lanes |
 | Variants | Standard, Chess960, Horde, King of the Hill, Atomic, Antichess |
 | Source license | MIT |
@@ -178,9 +181,10 @@ Reproducibility comes before release claims.
 
 ## What ships today
 
-Eloi 3.4.3 ships Eloi legal authority plus a crash-contained Caissa 1.25
+Eloi 3.5.0 ships Eloi legal authority plus a crash-contained Caissa 1.25
 Standard brain for UCI and native Lichess. The native GUI, Chess960, Horde,
-and emergency fallback use Eloi E4-10. Together they provide:
+Antichess, and emergency fallback use Eloi E4-10; Atomic uses E4-Atomic and
+KOTH uses E4-KOTH. Together they provide:
 
 - Eloi's authoritative board;
 - Standard legality;
@@ -2871,8 +2875,8 @@ E2 was trained only on Standard chess.
 Tablebases are not shipped.
 
 Standard UCI and native Lichess use Caissa 1.25. The native GUI offers Caissa
-1.25 or Eloi E4-10; Chess960, Horde, Atomic, Antichess, and emergency fallback
-use E4-10, while King of the Hill uses its qualified KOTH E4 model. Newer
+1.25 or Eloi E4-10; Chess960, Horde, Antichess, and emergency fallback use
+E4-10, Atomic uses E4-Atomic, and King of the Hill uses its qualified KOTH E4 model. Newer
 Caissa releases remain blocked from production without a coherent,
 redistributable matching model and full qualification.
 
@@ -2924,7 +2928,8 @@ Automation and manifests must use the real tag.
   authority.
 - The experimental two-brain arbiter is not the production default.
 - The native GUI offers Caissa 1.25 or Eloi E4-10 for Standard.
-- Chess960, Horde, Atomic, Antichess, and emergency fallback use E4-10.
+- Chess960, Horde, Antichess, and emergency fallback use E4-10.
+- Atomic uses the qualified E4-Atomic evaluator.
 - King of the Hill uses the separately qualified KOTH E4 evaluator.
 
 ### Intended result
@@ -3890,8 +3895,8 @@ Verify the archive hash.
 
 Yes. Current main contains a coherent Caissa 1.25 Standard backend. Standard
 UCI and native Lichess use it through Eloi's isolated worker. The native GUI
-offers Caissa 1.25 or Eloi E4-10; Chess960, Horde, Atomic, Antichess, and
-emergency fallback use E4-10; King of the Hill uses KOTH E4.
+offers Caissa 1.25 or Eloi E4-10; Chess960, Horde, Antichess, and emergency
+fallback use E4-10; Atomic uses E4-Atomic; King of the Hill uses KOTH E4.
 
 ### Was there a Caissa experiment?
 
@@ -4471,8 +4476,8 @@ Eloi 3.5.0 development combines Eloi's authoritative board, legal-move
 validation, variants,
 GUI, UCI, and bridge ownership with a crash-contained Caissa 1.25 Standard
 search brain. Standard UCI play routes directly to embedded Caissa 1.25;
-the native GUI offers Caissa or Eloi E4-10; Chess960, Horde, Atomic, and
-Antichess use E4-10; King of the Hill uses KOTH E4. Caissa remains
+the native GUI offers Caissa or Eloi E4-10; Chess960, Horde, and Antichess use
+E4-10; Atomic uses E4-Atomic; King of the Hill uses KOTH E4. Caissa remains
 Standard-only.
 If the pinned Caissa network is unavailable or fails verification,
 Standard play fails safely to E4-10.

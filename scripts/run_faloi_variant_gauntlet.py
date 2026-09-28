@@ -44,10 +44,11 @@ def board_from_fen(variant: str, fen: str):
             else chess.variant.AntichessBoard(fen))
 
 
-def schedule(variant: str, games: int) -> list[dict]:
+def schedule(variant: str, games: int, opening_offset: int = 0) -> list[dict]:
     rng = random.Random(0xFA101 + (1 if variant == "atomic" else 2))
     positions, seen = [], set()
-    while len(positions) < games // 2:
+    required = opening_offset + games // 2
+    while len(positions) < required:
         board = new_board(variant, len(positions))
         for _ in range(4):
             board.push(rng.choice(sorted(board.legal_moves,
@@ -56,9 +57,11 @@ def schedule(variant: str, games: int) -> list[dict]:
         if key not in seen and not board.is_game_over(claim_draw=True):
             seen.add(key)
             positions.append(key)
-    return [{"game": pair * 2 + offset + 1, "pair": pair + 1, "fen": fen,
+    selected = positions[opening_offset:required]
+    return [{"game": pair * 2 + offset + 1,
+             "pair": opening_offset + pair + 1, "fen": fen,
              "candidate_white": offset == 0}
-            for pair, fen in enumerate(positions) for offset in range(2)]
+            for pair, fen in enumerate(selected) for offset in range(2)]
 
 
 def configure(engine: chess.engine.SimpleEngine) -> None:
@@ -138,16 +141,21 @@ def main() -> int:
     parser.add_argument("--movetime-ms", type=int, default=250)
     parser.add_argument("--games", type=int, default=100)
     parser.add_argument("--max-plies", type=int, default=200)
+    parser.add_argument("--opening-offset", type=int, default=0,
+                        help="number of deterministic mirrored opening pairs to skip")
     args = parser.parse_args()
     if args.games <= 0 or args.games % 2:
         parser.error("--games must be a positive even number")
     if args.output.exists():
         raise FileExistsError(args.output)
     args.output.mkdir(parents=True)
-    frozen = schedule(args.variant, args.games)
+    if args.opening_offset < 0:
+        parser.error("--opening-offset must be non-negative")
+    frozen = schedule(args.variant, args.games, args.opening_offset)
     protocol = {
         "schema": "faloi-variant-gauntlet-v1", "variant": args.variant,
         "games": args.games, "mirrored": True, "movetime_ms": args.movetime_ms,
+        "opening_offset_pairs": args.opening_offset,
         "max_plies": args.max_plies, "threads_per_engine": 3, "hash_mb": 32,
         "candidate_sha256": sha(args.candidate),
         "baseline_sha256": sha(args.baseline),

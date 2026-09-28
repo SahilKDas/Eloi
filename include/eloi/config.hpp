@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -9,6 +10,7 @@
 namespace eloi {
 
 struct Board;
+enum class NnueModel : std::uint8_t;
 class BridgeController;
 
 enum class RuntimeVariant {
@@ -23,6 +25,7 @@ bool runtime_variant_uses_caissa(RuntimeVariant variant);
 bool runtime_variant_allows_book(RuntimeVariant variant);
 bool runtime_variant_allows_ponder(RuntimeVariant variant);
 std::string_view runtime_variant_brain_route(RuntimeVariant variant);
+NnueModel runtime_variant_nnue_model(RuntimeVariant variant);
 void configure_board_variant(Board& board, RuntimeVariant variant);
 
 inline constexpr int lichess_ponder_base_limit_ms = 240'000;

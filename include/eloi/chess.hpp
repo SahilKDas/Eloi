@@ -28,7 +28,11 @@ inline constexpr int maximum_gui_search_depth = 200;
 inline constexpr int maximum_search_depth = 17'697;
 inline constexpr int search_thread_count = 3;
 using NnueAccumulator = std::array<std::int32_t, nnue_hidden_size>;
-enum class NnueModel : std::uint8_t { production, king_of_the_hill };
+enum class NnueModel : std::uint8_t {
+  production,
+  king_of_the_hill,
+  atomic,
+};
 struct NnueState {
   std::array<NnueAccumulator, 2> perspective{};
   NnueModel model{NnueModel::production};

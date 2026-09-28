@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "teacher": {
+    "name": "Fairy-Stockfish 14",
+    "role": "offline_labels_only",
+    "executable_sha256": "9ADEFF67FF3AD8A80D9706AD4416FD2D8A34AE681A14BF424B6E176C7DE916F1"
+  },
+  "dataset_per_variant": {
+    "total": 100000,
+    "train": 80000,
+    "validation": 10000,
+    "sealed_test": 10000
+  },
+  "candidates": {
+    "chess960": {
+      "header_sha256": "ECBF9469C0022A0E1625DECC49789D72C66A19AC38AFD27B648A70C7C548172F",
+      "sealed_test_mae_cp": 479.606809610939,
+      "screen": {"wins": 14, "draws": 30, "losses": 16, "points": 29.0},
+      "promoted": false
+    },
+    "atomic": {
+      "header_sha256": "9B47E6EAEFBB3DCAE0B5861AE90C8A647FDD3A6A31FFF93543D8DAC336D5B179",
+      "checkpoint_sha256": "F2109B2622DDAC57E23E0EFB9C54B85369EC57B7CC21613B0993988448EB215E",
+      "sealed_test_mae_cp": 694.0376281457901,
+      "screen": {"wins": 33, "draws": 4, "losses": 23, "points": 35.0},
+      "confirmation": {
+        "wins": 96, "draws": 16, "losses": 88, "points": 104.0,
+        "replay_verified": 200, "protocol_failures": 0,
+        "protocol_sha256": "DADAD5F48075514C881A814D14C33EB5F62A039625DED138A21D64D66C13BC85",
+        "results_sha256": "60EA94DDA6F6B4DF6521A90EDEA6035811AC4B52276050BF986002A456D9813A",
+        "pgn_sha256": "D156E6E9B4E53A4AC41DB431D52EB3140EE57091E3C19767E11BD5625BFBE7A9"
+      },
+      "promoted": true
+    },
+    "antichess": {
+      "header_sha256": "4E08270A16F517B728E06912CC553FFB0F6AE51D7C7EFD944891A0C46468E135",
+      "sealed_test_mae_cp": 735.614304400754,
+      "screen": {"wins": 31, "draws": 0, "losses": 29, "points": 31.0},
+      "confirmation": {"wins": 96, "draws": 6, "losses": 98, "points": 99.0,
+        "replay_verified": 200, "protocol_failures": 0},
+      "promoted": false
+    }
+  }
+}

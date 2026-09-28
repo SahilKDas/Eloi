@@ -28,6 +28,10 @@ class VariantCampaignTests(unittest.TestCase):
         self.assertEqual({"train": 80_000, "validation": 10_000, "test": 10_000},
                          campaign.QUOTAS)
 
+    def test_sealed_test_evidence_is_distinct_from_selection_evidence(self):
+        self.assertNotEqual("training.json", "sealed-test.json")
+        self.assertEqual(10_000, campaign.QUOTAS["test"])
+
 
 if __name__ == "__main__":
     unittest.main()

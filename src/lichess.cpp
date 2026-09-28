@@ -736,8 +736,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
             last_brain_route == "caissa_1_25"
                 ? std::string(caissa_1_25_network_sha256)
                 : std::string(nnue_model_source_sha256(
-                    game_variant == RuntimeVariant::king_of_the_hill
-                        ? NnueModel::king_of_the_hill : NnueModel::production)),
+                    runtime_variant_nnue_model(game_variant))),
             move, result.depth, result.score_cp, result.nodes,
             result.elapsed.count(), pv.str(),
             last_brain_route == "eloi_emergency_legal_move"
@@ -837,9 +836,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
             << (last_brain_route == "caissa_1_25"
                     ? caissa_1_25_network_sha256
                     : nnue_model_source_sha256(
-                          game_variant == RuntimeVariant::king_of_the_hill
-                              ? NnueModel::king_of_the_hill
-                              : NnueModel::production))
+                          runtime_variant_nnue_model(game_variant)))
             << "\",\n"
             << "  \"playing_model_role\": \"production_or_legacy\",\n"
             << "  \"searches\": [\n";

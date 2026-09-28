@@ -1300,10 +1300,19 @@ std::uint64_t position_key(const Position& position, Color turn) {
 
 void Board::select_nnue_model(NnueModel model) {
   if (nnue.model == model) return;
-  constexpr std::uint64_t model_key_index = 781;
-  key ^= zobrist_value(model_key_index);
-  for (Snapshot& snapshot : history)
-    snapshot.key ^= zobrist_value(model_key_index);
+  auto model_key = [](NnueModel selected) -> std::optional<std::uint64_t> {
+    if (selected == NnueModel::king_of_the_hill) return 781;
+    if (selected == NnueModel::atomic) return 782;
+    return std::nullopt;
+  };
+  const auto previous_key = model_key(nnue.model);
+  const auto next_key = model_key(model);
+  if (previous_key) key ^= zobrist_value(*previous_key);
+  if (next_key) key ^= zobrist_value(*next_key);
+  for (Snapshot& snapshot : history) {
+    if (previous_key) snapshot.key ^= zobrist_value(*previous_key);
+    if (next_key) snapshot.key ^= zobrist_value(*next_key);
+  }
   nnue = nnue_refresh(position, model);
 }
 
@@ -2860,7 +2869,8 @@ TimeBudget plan_time_budget(const Board& board, const SearchLimits& limits) {
 SearchResult Searcher::iterative(Board board, SearchLimits limits,
                                  const std::function<void(const SearchResult&)>& info) {
   const NnueModel required_model = board.king_of_the_hill
-      ? NnueModel::king_of_the_hill : NnueModel::production;
+      ? NnueModel::king_of_the_hill
+      : board.atomic ? NnueModel::atomic : NnueModel::production;
   board.select_nnue_model(required_model);
   // Book moves require no tree search, so there is nothing useful for helper
   // lanes to do. All calculated moves use exactly three deterministic lanes.

@@ -273,6 +273,37 @@ def train(variant: str) -> None:
     atomic_json(output / "training.json", result)
 
 
+def evaluate_test(variant: str) -> None:
+    """Open the sealed split once, after checkpoint selection is immutable."""
+    directory = WORK / variant
+    output = directory / "candidate"
+    destination = output / "sealed-test.json"
+    if destination.exists():
+        raise FileExistsError(destination)
+    training = json.loads((output / "training.json").read_text(encoding="utf-8"))
+    checkpoint = output / "float.npz"
+    if sha256(checkpoint) != training["checkpoint_sha256"]:
+        raise RuntimeError("selected checkpoint identity changed")
+    archive = np.load(checkpoint, allow_pickle=False)
+    model = (archive["weights"].astype(np.float32),
+             archive["bias"].astype(np.float32),
+             archive["output"].astype(np.float32))
+    samples = list(rows_for_partition(directory, "test"))
+    if len(samples) != QUOTAS["test"]:
+        raise RuntimeError("sealed test partition count mismatch")
+    result = {
+        "schema": 1,
+        "variant": variant,
+        "selection_frozen": True,
+        "checkpoint_sha256": training["checkpoint_sha256"],
+        "header_sha256": training["header_sha256"],
+        "partition": "test",
+        "partition_count": QUOTAS["test"],
+        "metrics": metrics(model, samples),
+    }
+    atomic_json(destination, result)
+
+
 def project_bytes(path: Path) -> int:
     return sum(item.stat().st_size for item in path.rglob("*") if item.is_file()) if path.exists() else 0
 
@@ -321,7 +352,9 @@ def coordinator(stage: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("stage", choices=("collect", "train", "collect-all", "train-all"))
+    parser.add_argument("stage", choices=("collect", "train", "evaluate-test",
+                                          "collect-all", "train-all",
+                                          "evaluate-test-all"))
     parser.add_argument("--variant", choices=VARIANTS)
     args = parser.parse_args()
     if args.stage.endswith("-all"):
@@ -330,8 +363,10 @@ def main() -> int:
         parser.error("--variant is required")
     elif args.stage == "collect":
         collect(args.variant)
-    else:
+    elif args.stage == "train":
         train(args.variant)
+    else:
+        evaluate_test(args.variant)
     return 0
 
 
