@@ -91,7 +91,8 @@ production, not regenerated or reformatted for release.
 E2-ranking's standard validation MAE was 178.10225 cp and its mean absolute
 drift from C was 43.10625 cp. Its held-out hard-pair accuracy remained only
 30.303%; offline accuracy alone is not playing strength. The maintainer's
-promotion decision is in [RELEASE_V2_7_5.md](RELEASE_V2_7_5.md).
+promotion decision is in
+[RELEASE_V2_7_5.md](docs/releases/RELEASE_V2_7_5.md).
 
 The C parent had **41 dormant channels**. E2 did not claim a separate channel
 revival result, so this lineage concern remains documented rather than silently
@@ -144,7 +145,6 @@ overlap is retained as superseded evidence and is not used for the decision.
 E2-ranking's production header is
 `E3DFBE02F4DC765C45E243EFD4437E9EC3390D4F167531D6F54765CECB899C9F`.
 Its staged evidence and limitations are in
-[E2_STANDARD_CAMPAIGN.md](E2_STANDARD_CAMPAIGN.md) and
 [data/nnue_e2_standard_results.json](data/nnue_e2_standard_results.json).
 
 ## Regression and strength data
@@ -181,7 +181,7 @@ The generated dataset, screening rows, checkpoints, and EPV2 models remain
 ignored laboratory artifacts under `tmp/`. Their source, runner, executable,
 network, partition, category, and output hashes are recorded by the campaign
 manifest. The sealed test partition is not opened during checkpoint selection.
-See [ELOI_NATIVE_POLICY_VALUE_V2.md](ELOI_NATIVE_POLICY_VALUE_V2.md).
+The completed experimental narrative remains available in Git history.
 
 ## E4-KOTH variant model
 
@@ -199,5 +199,5 @@ whose SHA-256 is
 only its C++ namespace changes during embedding. The selected checkpoint is
 `D2DC34D6CA95AC280B6093E6EA2F6D6DA6148291152043DA2C2961B3B272361C`.
 Its use is restricted to KOTH by model-aware accumulator and transposition
-identity. See [E4_KOTH_CAMPAIGN.md](E4_KOTH_CAMPAIGN.md) and
+identity. See
 [data/nnue_e4_koth_results.json](data/nnue_e4_koth_results.json).

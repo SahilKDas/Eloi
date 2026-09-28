@@ -52,8 +52,7 @@ Exact v2.7.5 baseline SHA-256:
 
 `80002F4AC83AD3D87DA0FB3A87E67A49179BEA0230A764167B58B112184E4695`
 
-Full evidence and paths are recorded in
-[V275_PLUS50_RESULTS.md](V275_PLUS50_RESULTS.md).
+The detailed evidence narrative remains available in Git history.
 
 ## Remaining publication work
 

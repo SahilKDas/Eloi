@@ -64,6 +64,6 @@ not claim that v2.7.5 Windows packages have been published. Package
 reproducibility, extracted-package smoke checks and security scans remain
 separate gates before binary publication.
 
-Full lineage and limitations are in [DATA_SOURCES.md](DATA_SOURCES.md),
-[E2_STANDARD_CAMPAIGN.md](E2_STANDARD_CAMPAIGN.md) and
-[data/nnue_e2_standard_results.json](data/nnue_e2_standard_results.json).
+Full lineage and limitations are in [DATA_SOURCES.md](../../DATA_SOURCES.md)
+and
+[data/nnue_e2_standard_results.json](../../data/nnue_e2_standard_results.json).

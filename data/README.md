@@ -22,8 +22,7 @@ ignored local artifacts.
 - `nnue_e2_standard_results.json`: compact identities, data counts,
   correctness gates, superseded-run audit and fully disjoint staged match
   results for the standard-only E2 campaign. E2-ranking is the selected
-  production network for v2.7.5. See
-  `../E2_STANDARD_CAMPAIGN.md`.
+  production network for v2.7.5.
 
 ## Future validation and live-session compatibility
 
@@ -53,5 +52,5 @@ git show 24e8a4538fd1fcf164ad1747a62e91a01acdccec:V1.9_VALIDATION_PLAN.md
 
 Cleanup does not reclassify any past failure as a pass or change release tags.
 For current instructions use [DATA_SOURCES.md](../DATA_SOURCES.md),
-[RELEASE_V2_5_0.md](../RELEASE_V2_5_0.md) and
+[RELEASE_V2_5_0.md](../docs/releases/RELEASE_V2_5_0.md) and
 [FUTURE_WORK.md](../FUTURE_WORK.md).

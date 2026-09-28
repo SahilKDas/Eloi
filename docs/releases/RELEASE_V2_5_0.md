@@ -19,8 +19,8 @@ frozen-C comparisons. Benchmark gates passed. Defender reported no threats
 in either complete extracted package or ZIP. This records local validation,
 not an assertion that an arbitrary uploaded file matches those artifacts.
 
-See [compact release evidence](data/release_v2_5_0.json) and
-[reproduction instructions](REPRODUCING.md). Verify downloaded asset hashes
+See [compact release evidence](../../data/release_v2_5_0.json) and
+[reproduction instructions](../../REPRODUCING.md). Verify downloaded asset hashes
 before relying on a release-page title. Historical campaign files removed
 from today's tree remain recoverable from the tested source commit.
 

@@ -74,7 +74,7 @@ Do not inherit obsolete beta/raw-win thresholds or change gates after play.
 A strong match result cannot waive a correctness failure.
 
 The current C acceptance decision and reviewed `compare` versus `stable`
-semantics are in [RELEASE_V2_5_0.md](RELEASE_V2_5_0.md).
+semantics are in [RELEASE_V2_5_0.md](docs/releases/RELEASE_V2_5_0.md).
 Historical failures remain failures in their archived evidence.
 
 ## Release requirements

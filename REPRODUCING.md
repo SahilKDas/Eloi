@@ -8,7 +8,7 @@ Use that exact commit in a separate clean checkout when reproducing those
 published bytes. A later documentation/tooling cleanup commit is not the same
 source identity, even when playing code and weights are unchanged.
 
-See [RELEASE_V2_5_0.md](RELEASE_V2_5_0.md) for the network, package hashes and
+See [RELEASE_V2_5_0.md](docs/releases/RELEASE_V2_5_0.md) for the network, package hashes and
 acceptance decision. Production builds leave `ELOI_NNUE_INCLUDE_DIR` empty;
 they use the tracked C header. Build tooling never retrains it implicitly.
 

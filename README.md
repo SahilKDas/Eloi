@@ -92,11 +92,9 @@ described in [CAISSA_UPSTREAM.md](CAISSA_UPSTREAM.md). Eloi does not download
 models at build time or runtime, mix evaluator generations, or promote donor
 code without a matching licensed model and complete qualification evidence.
 
-The current Eloi-native successor research is documented in
-[ELOI_NATIVE_POLICY_VALUE_V2.md](ELOI_NATIVE_POLICY_VALUE_V2.md). It trains a
-complete-move EPV2 policy/value prior from a frozen 150,000-position
-Standard-only teacher dataset and qualifies first against native E2. This work
-is laboratory-only and does not control v3.4.4 or v3.5.0 playing behavior.
+The completed Eloi-native policy/value successor experiments remain available
+in Git history. They are laboratory-only and do not control v3.4.4 or v3.5.0
+playing behavior.
 
 Native Lichess can now write token-free completed-game journals for the
 separate headless autopsy worker. Those reports identify the exact playing
@@ -105,7 +103,7 @@ binary and remain production/legacy diagnostics unless EPV2 actually played.
 Current main selects **E4-10** as the conservative Eloi-native successor.
 Its 400-game direct comparison against E4-20 finished 205.5/400 (51.375%)
 from E4-10's perspective with zero protocol failures and complete legal
-replay. See [E4_CAMPAIGN.md](E4_CAMPAIGN.md). This does not alter already
+replay. See [data/nnue_e4_results.json](data/nnue_e4_results.json). This does not alter already
 published v3.1.2 packages; it is promoted in v3.2.2.
 
 Source version, Git tag, and packaged release are related but distinct.
@@ -1475,9 +1473,9 @@ The E1 and E32 failures show that:
 
 The authoritative E2 records are:
 
-- RELEASE_V2_7_5.md;
-- E2_STANDARD_CAMPAIGN.md;
+- docs/releases/RELEASE_V2_7_5.md;
 - DATA_SOURCES.md;
+- data/nnue_e2_standard_results.json;
 - data/nnue_provenance.json;
 - data/nnue_e2_standard_results.json.
 
@@ -1943,14 +1941,16 @@ GUI. Atomic-140 and Antichess-100 are promoted after screening and confirmation
 campaigns passed with zero protocol failures and complete replay verification.
 Standard UCI/Lichess remains on Caissa 1.25. The separately trained E4-KOTH
 network remains laboratory-only because global embedding would change
-unqualified Standard/fallback behavior. See RELEASE_V3_3_2.md.
+unqualified Standard/fallback behavior. See
+[RELEASE_V3_3_2.md](docs/releases/RELEASE_V3_3_2.md).
 
 ### v3.2.2
 
 Adds a native GUI Standard-brain selector for Caissa 1.25 and Eloi E4-10,
 promotes the hash-verified E4-10 native network, and keeps Caissa 1.25 as the
 default Standard brain for UCI and Lichess. E4-10 remains the Chess960, Horde,
-and emergency-fallback brain. See RELEASE_V3_2_2.md.
+and emergency-fallback brain. See
+[RELEASE_V3_2_2.md](docs/releases/RELEASE_V3_2_2.md).
 
 ### v3.1.2
 
@@ -2098,7 +2098,8 @@ The release does not claim a completed 55% timed result.
 
 It does not claim a statistically established +50 Elo gain.
 
-Read RELEASE_V2_8_0.md and V275_PLUS50_RESULTS.md.
+Read [RELEASE_V2_8_0.md](docs/releases/RELEASE_V2_8_0.md); the detailed
+historical result narrative remains available in Git history.
 
 ---
 
@@ -2151,11 +2152,8 @@ Eloi/
 |-- REPRODUCING.md
 |-- DATA_SOURCES.md
 |-- FUTURE_WORK.md
-|-- RELEASE_V2_5_0.md
-|-- RELEASE_V2_7_5.md
-|-- RELEASE_V2_8_0.md
-|-- E2_STANDARD_CAMPAIGN.md
-|-- V275_PLUS50_RESULTS.md
+|-- docs/releases/
+|   `-- historical release notes
 |-- constraints_on_SahilKDas_device.md
 |-- reproducibility.lock.json
 |-- config.example.yml
@@ -4131,11 +4129,12 @@ REPRODUCING.md and the release-specific decision files.
 
 ### Where is E2 provenance?
 
-DATA_SOURCES.md, data/nnue_provenance.json, and E2_STANDARD_CAMPAIGN.md.
+DATA_SOURCES.md, data/nnue_provenance.json, and
+data/nnue_e2_standard_results.json.
 
 ### Where is v2.8 evidence?
 
-RELEASE_V2_8_0.md and V275_PLUS50_RESULTS.md.
+[RELEASE_V2_8_0.md](docs/releases/RELEASE_V2_8_0.md) and Git history.
 
 ---
 

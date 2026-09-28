@@ -25,7 +25,7 @@ The completed standard-only E2 campaign produced the v2.7.5 production network:
 E2-ranking scored 31W/22D/7L in confirmation and 45W/56D/24L (58.4%) in its
 fully disjoint 125-game final, then 93W/94D/63L (56.0%) in a separate
 250-game confirmation against C. See
-[E2_STANDARD_CAMPAIGN.md](E2_STANDARD_CAMPAIGN.md).
+[data/nnue_e2_standard_results.json](data/nnue_e2_standard_results.json).
 
 ## Training experiments
 

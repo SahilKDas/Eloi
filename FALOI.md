@@ -33,7 +33,7 @@ All core, hybrid, and GUI suites pass. Legal-move parity with python-chess passe
 
 The first Antichess attempt stopped in game one after `bestmove 0000` despite legal moves. Its evidence remains preserved. The legal root fallback was fixed, the exact position retested, and a fresh R2 completed 100 games without protocol failure.
 
-See [FALOI_FAIRY_CAMPAIGNS.md](FALOI_FAIRY_CAMPAIGNS.md) and [the result manifest](data/faloi_atomic_antichess_results.json).
+See [the retained result manifest](data/faloi_atomic_antichess_results.json).
 
 ## Boundary
 
