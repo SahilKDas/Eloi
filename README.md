@@ -8,9 +8,10 @@ Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
 a compact incrementally updated NNUE, deterministic three-lane RootSplit
 search, and reproducible Windows packaging.
 
-The current development source and latest published stable release are
-**Eloi 3.5.0**. Work after that tag remains development source until its own
-validation and reproducible package checks are complete.
+**Eloi 3.6.0** marks one month since this GitHub repository was created on
+August 27, 2026. This release makes the independently trained **E4-Atomic**
+evaluator Eloi's flagship variant-native brain after it qualified exactly on
+the frozen line: 104/200 points (52.0%).
 
 Eloi 3.4.4 fixes native-Lichess Standard searches whose legitimate Caissa
 allocation exceeded the old fixed worker watchdog. The watchdog now follows
@@ -67,10 +68,10 @@ E4-10. Caissa remains Standard-only. See
 
 | Item | Current status |
 | --- | --- |
-| Source version | 3.5.0 (development) |
-| Latest tag | v3.5.0 |
-| Latest release | v3.5.0 |
-| Release commit | v3.5.0 tagged source commit; later main commits are development source |
+| Source version | 3.6.0 |
+| Latest tag | v3.6.0 |
+| Latest release | v3.6.0 |
+| Release commit | v3.6.0 tagged source commit |
 | Language | C++26 |
 | Build system | CMake |
 | Primary toolchain | MSYS2 UCRT64 GCC |
@@ -96,7 +97,7 @@ models at build time or runtime, mix evaluator generations, or promote donor
 code without a matching licensed model and complete qualification evidence.
 
 The completed Eloi-native policy/value successor experiments remain available
-in Git history. They are laboratory-only and do not control v3.4.4 or v3.5.0
+in Git history. They are laboratory-only and do not control v3.6.0
 playing behavior.
 
 Native Lichess can now write token-free completed-game journals for the
@@ -181,7 +182,8 @@ Reproducibility comes before release claims.
 
 ## What ships today
 
-Eloi 3.5.0 ships Eloi legal authority plus a crash-contained Caissa 1.25
+One month after the GitHub repository was created, Eloi 3.6.0 ships Eloi legal
+authority plus a crash-contained Caissa 1.25
 Standard brain for UCI and native Lichess. The native GUI, Chess960, Horde,
 Antichess, and emergency fallback use Eloi E4-10; Atomic uses E4-Atomic and
 KOTH uses E4-KOTH. Together they provide:
@@ -1912,7 +1914,17 @@ Do not publish without maintainer authorization.
 
 ## Release history
 
-### v3.5.0 (development)
+### v3.6.0
+
+The one-month release promotes **E4-Atomic** as Eloi's flagship variant-native
+brain. It qualified at the exact frozen boundary: 96W/16D/88L, 104/200 points
+(52.0%), with zero protocol failures and 200/200 legal replay verification.
+That is a qualification result, not proof of a large Elo gain: its approximate
+unpaired 95% score interval is 45.1%–58.9%. Chess960 and Antichess candidates
+were honestly rejected and remain laboratory-only. See
+[the v3.6.0 release notes](docs/releases/RELEASE_V3_6_0.md).
+
+### v3.5.0
 
 Adds the native Lichess Operations Center: a visible supervised dashboard,
 single-instance enforcement, interruptible networking, bounded transient-only
@@ -4472,7 +4484,7 @@ Precise bug reports are how the engine survives.
 
 ## Final note
 
-Eloi 3.5.0 development combines Eloi's authoritative board, legal-move
+At one month old, Eloi 3.6.0 combines Eloi's authoritative board, legal-move
 validation, variants,
 GUI, UCI, and bridge ownership with a crash-contained Caissa 1.25 Standard
 search brain. Standard UCI play routes directly to embedded Caissa 1.25;

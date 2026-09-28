@@ -2,7 +2,8 @@
 
 ## Result
 
-The September 2026 campaign trained independent 64-unit evaluators for
+The September 2026 campaign, completed for Eloi's one-month anniversary,
+trained independent 64-unit evaluators for
 Chess960, Atomic, and Antichess from 100,000 unique variant positions apiece.
 Only **E4-Atomic** qualified for production routing. Chess960 and Antichess
 remain ignored laboratory artifacts and are not embedded or packaged.
