@@ -1,4 +1,4 @@
-# Eloi v3.6.0 — One Month Old, Atomic Goes Flagship
+# Eloi v3.6.0 — The 1-Month Milestone Release 🎂
 
 Eloi v3.6.0 arrives exactly one month after the GitHub repository was created
 on August 27, 2026. The anniversary feature is Eloi's first independently
