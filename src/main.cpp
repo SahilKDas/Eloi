@@ -1,4 +1,5 @@
 #include "eloi/chess.hpp"
+#include "eloi/analysis_studio.hpp"
 #include "eloi/brain.hpp"
 #include "eloi/config.hpp"
 #include "eloi/lichess_operations.hpp"
@@ -33,6 +34,8 @@ int main(int argc, char** argv) {
     if (std::strcmp(argv[i], "--version-match") == 0)
       return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--gui") == 0) return run_gui(argc, argv);
+    if (std::strcmp(argv[i], "--analysis-studio") == 0)
+      return run_analysis_studio(argc, argv);
     if (std::strcmp(argv[i], "--screenshot") == 0) return run_gui(argc, argv);
     if (std::strcmp(argv[i], "--screenshot-setup") == 0)
       return run_gui(argc, argv);
@@ -68,6 +71,7 @@ int main(int argc, char** argv) {
                    "  Eloi.exe             launch the Skia chess GUI\n"
                    "  Eloi.exe --version   print the exact build version\n"
                    "  Eloi.exe --gui       force GUI mode\n"
+                   "  Eloi.exe --analysis-studio  inspect and analyse completed Lichess games\n"
                    "  Eloi.exe --uci       force UCI/Lichess mode\n"
                    "  Eloi.exe --lichess   visible Lichess Operations Center\n"
                    "  Eloi.exe --lichess --headless  console-only bridge\n"

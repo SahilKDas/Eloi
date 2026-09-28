@@ -2515,6 +2515,9 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     return !full_width && (limits_.selectivity_mask &
         static_cast<std::uint32_t>(mechanism)) != 0;
   };
+  const auto safety = [&](SearchSafety mechanism) {
+    return (limits_.safety_mask & static_cast<std::uint32_t>(mechanism)) != 0;
+  };
   if (selective(Selectivity::reverse_futility) && !pv_node && !excluded && !in_check && depth <= 5 &&
       base_volatility < 50 && std::abs(beta) < mate_score - 1'000 &&
       static_score - (70 + 85 * depth) >= beta) {
@@ -2561,7 +2564,8 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
     if (halted()) return 0;
     if (null_score >= beta) {
       bool verified = true;
-      if (depth >= 8)
+      if (depth >= 8 ||
+          (safety(SearchSafety::verify_null_cutoffs) && depth >= 5))
         verified = negamax(board, std::max(1, depth - reduction),
                            beta - 1, beta, ply, false, previous,
                            extensions, 0, false) >= beta;
@@ -2704,6 +2708,14 @@ int Searcher::negamax(Board& board, int depth, int alpha, int beta, int ply,
       if (history > 4'000 || node_volatility >= 55) --reduction;
       if (history < -2'000 && node_volatility <= 22 && depth >= 5)
         ++reduction;
+      if (safety(SearchSafety::conservative_lmr)) {
+        // The challenger spends extra work where tactical volatility or a
+        // shallow tree makes a large reduction most likely to hide a defense.
+        if (node_volatility >= 40 || depth <= 5)
+          reduction = std::min(reduction, 1);
+        if (move_index < 6 || history > 0)
+          reduction = std::min(reduction, 1);
+      }
       reduction = std::clamp(reduction, 0, std::max(0, child_depth - 1));
       if (reduction > 0) {
         ++lmr_reductions_;
@@ -2784,6 +2796,21 @@ std::string_view clock_mode_name(ClockMode mode) {
     case ClockMode::pressure: return "pressure";
     case ClockMode::emergency: return "emergency";
     case ClockMode::panic: return "panic";
+    default: return "none";
+  }
+}
+
+std::string_view search_stop_reason_name(SearchStopReason reason) {
+  switch (reason) {
+    case SearchStopReason::terminal: return "terminal";
+    case SearchStopReason::opening_book: return "opening_book";
+    case SearchStopReason::forced_move: return "forced_move";
+    case SearchStopReason::depth_limit: return "depth_limit";
+    case SearchStopReason::node_limit: return "node_limit";
+    case SearchStopReason::soft_limit: return "soft_limit";
+    case SearchStopReason::hard_limit: return "hard_limit";
+    case SearchStopReason::external_stop: return "external_stop";
+    case SearchStopReason::mate: return "mate";
     default: return "none";
   }
 }
@@ -2909,12 +2936,14 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
     const Color winner = *board.variant_winner();
     last.score_cp = winner == board.turn ? mate_score : -mate_score;
     last.mate = winner == board.turn ? 1 : -1;
+    last.stop_reason = SearchStopReason::terminal;
     return last;
   }
   if (auto book = opening_move(config_, board)) {
     last.nodes = 1;
     last.pv.push_back(book->move);
     last.opening_family = std::string(book->family);
+    last.stop_reason = SearchStopReason::opening_book;
     if (info) info(last);
     return last;
   }
@@ -2928,6 +2957,7 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
       last.score_cp = -mate_score;
       last.mate = -1;
     }
+    last.stop_reason = SearchStopReason::terminal;
     return last;
   }
   last.pv.push_back(fallback_moves.front());
@@ -2938,6 +2968,7 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
     last.volatility = volatility(board, 1, 0);
     last.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - started_);
+    last.stop_reason = SearchStopReason::forced_move;
     if (info) info(last);
     return last;
   }
@@ -3104,6 +3135,18 @@ SearchResult Searcher::iterative_single(Board board, SearchLimits limits,
     if (adaptive_clock && depth >= 2 &&
         last.elapsed.count() >= soft_budget_ms) break;
   }
+  if (last.mate != 0) last.stop_reason = SearchStopReason::mate;
+  else if (limits_.depth > 0 && last.depth >= limits_.depth)
+    last.stop_reason = SearchStopReason::depth_limit;
+  else if (stopped_.load(std::memory_order_relaxed))
+    last.stop_reason = SearchStopReason::external_stop;
+  else if (limits_.nodes && nodes_ >= limits_.nodes)
+    last.stop_reason = SearchStopReason::node_limit;
+  else if (limits_.deadline &&
+           std::chrono::steady_clock::now() >= *limits_.deadline)
+    last.stop_reason = SearchStopReason::hard_limit;
+  else if (adaptive_clock && last.elapsed.count() >= soft_budget_ms)
+    last.stop_reason = SearchStopReason::soft_limit;
   return last;
 }
 

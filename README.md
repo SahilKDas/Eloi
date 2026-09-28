@@ -480,6 +480,27 @@ Diagnostic controls include:
 
 Full-width search is evidence, not proof of an optimal move.
 
+### Lichess Analysis Studio (laboratory)
+
+~~~powershell
+.\Eloi.exe --analysis-studio
+~~~
+
+The native Analysis Studio processes only completed, token-free Standard-game
+journals. It runs E4-10 and the frozen Caissa 1.25 teacher sequentially at
+Windows Idle priority, pauses while a live-game lock exists, and records the
+first major loss, tactical categories, E4/Caissa disagreements, binary/model
+identity, and stop telemetry. It never changes live play or automatically adds
+a position to training or regression tests. This source-checkout laboratory
+currently requires Python, the analysis script, and the ignored pinned Caissa
+network; it is not part of the v3.6.0 golden packages.
+
+The native-search challenger is also default-off. `--search-safety tactical`
+can be combined with `--uci --brain eloi` only in laboratory runs. Its null
+cutoff verification and conservative LMR rules do not alter production unless
+a later evidence-backed release explicitly promotes them. See
+[`docs/ELOI_NATIVE_CHALLENGER.md`](docs/ELOI_NATIVE_CHALLENGER.md).
+
 ### Screenshot modes
 
 ~~~powershell

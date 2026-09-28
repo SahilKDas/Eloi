@@ -1452,6 +1452,9 @@ int main() {
            "diagnostics include every legal root move with explicit missing scores");
     expect(actual.seldepth >= actual.depth,
            "selective depth reports the deepest visited ply");
+    expect(actual.stop_reason == SearchStopReason::depth_limit &&
+               search_stop_reason_name(actual.stop_reason) == "depth_limit",
+           "fixed-depth searches report an explicit depth-limit stop reason");
     limits.profile = SearchProfile::full_width;
     Searcher exhaustive(config, stopped);
     const auto full = exhaustive.iterative(*board, limits);
@@ -1477,6 +1480,8 @@ int main() {
       const auto result = searcher.iterative(*board, limits);
       expect(best_uci(result) == "h8h7" && result.nodes == 1,
              "forced reply returns immediately without tree search");
+      expect(result.stop_reason == SearchStopReason::forced_move,
+             "forced reply reports an explicit forced-move stop reason");
     }
   }
 

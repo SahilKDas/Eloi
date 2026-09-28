@@ -42,6 +42,9 @@ void result_json(std::ostream& out, const SearchResult& row, const Board& board)
   out << "{\"depth\":" << row.depth << ",\"seldepth\":" << row.seldepth
       << ",\"score_cp\":" << row.score_cp
       << ",\"mate\":" << row.mate << ",\"elapsed_ms\":" << row.elapsed.count()
+      << ",\"stop_reason\":";
+  string_json(out, search_stop_reason_name(row.stop_reason));
+  out
       << ",\"static_eval_cp\":" << row.static_eval_cp << ",\"selected_move\":";
   string_json(out, row.pv.empty() ? "0000" : uci_move(row.pv.front(), board.position, board.chess960));
   out << ",\"pv\":";

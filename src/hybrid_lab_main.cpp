@@ -114,6 +114,20 @@ std::uint32_t selectivity_mask(int argc, char** argv) {
   }
   return static_cast<std::uint32_t>(Selectivity::all);
 }
+std::uint32_t safety_mask(int argc, char** argv) {
+  for (int index = 1; index + 1 < argc; ++index) {
+    if (std::string_view(argv[index]) != "--search-safety") continue;
+    const std::string_view value = argv[index + 1];
+    if (value == "none") return 0;
+    if (value == "verify-null")
+      return static_cast<std::uint32_t>(SearchSafety::verify_null_cutoffs);
+    if (value == "conservative-lmr")
+      return static_cast<std::uint32_t>(SearchSafety::conservative_lmr);
+    if (value == "tactical")
+      return static_cast<std::uint32_t>(SearchSafety::tactical);
+  }
+  return 0;
+}
 void print_result(const BrainResponse& response, const Board& root,
                   bool chess960, std::mutex& output) {
   std::scoped_lock lock(output);
@@ -183,18 +197,25 @@ int run_hybrid_lab(int argc, char** argv) {
                         move_prior);
   EloiBrain eloi_policy(config, stopped,
                         SearchConcurrency::production_three_threads, move_prior);
-  IsolatedCaissaBrain caissa(std::filesystem::absolute(argv[0]),
-                             network_path(argc, argv), stopped,
-                             16u * 1024u * 1024u);
-  HybridBrain hybrid(eloi, caissa);
   const LabBrainMode mode = brain_mode(argc, argv);
+  const bool needs_caissa = mode == LabBrainMode::production ||
+      mode == LabBrainMode::hybrid || mode == LabBrainMode::caissa;
+  std::unique_ptr<IsolatedCaissaBrain> caissa;
+  std::unique_ptr<HybridBrain> hybrid;
+  if (needs_caissa) {
+    caissa = std::make_unique<IsolatedCaissaBrain>(
+        std::filesystem::absolute(argv[0]), network_path(argc, argv), stopped,
+        16u * 1024u * 1024u);
+    hybrid = std::make_unique<HybridBrain>(eloi, *caissa);
+  }
   const std::uint32_t lab_selectivity = selectivity_mask(argc, argv);
+  const std::uint32_t lab_safety = safety_mask(argc, argv);
   Brain* active_brain = nullptr;
-  if (mode == LabBrainMode::caissa) active_brain = &caissa;
+  if (mode == LabBrainMode::caissa) active_brain = caissa.get();
   else if (mode == LabBrainMode::eloi) active_brain = &eloi;
   else if (mode == LabBrainMode::eloi_single) active_brain = &eloi_single;
   else if (mode == LabBrainMode::eloi_policy) active_brain = &eloi_policy;
-  else if (mode == LabBrainMode::hybrid) active_brain = &hybrid;
+  else if (mode == LabBrainMode::hybrid) active_brain = hybrid.get();
 
   std::string first;
   if (!std::getline(std::cin, first) || first != "uci") return 2;
@@ -210,10 +231,13 @@ int run_hybrid_lab(int argc, char** argv) {
             << "option name UCI_Chess960 type check default false\n"
             << "option name UCI_Variant type combo default chess var chess var horde var kingofthehill var atomic var antichess\n"
             << "info string Caissa backend "
-            << (caissa.available() ? "hash-verified and available"
-                                   : "unavailable; E4-10 fallback active")
+            << (caissa && caissa->available()
+                    ? "hash-verified and available"
+                    : (needs_caissa ? "unavailable; E4-10 fallback active"
+                                    : "not started for Eloi-only lab mode"))
             << "\ninfo string Lab brain mode " << brain_mode_name(mode)
             << "\ninfo string Lab selectivity mask " << lab_selectivity
+            << "\ninfo string Lab search safety mask " << lab_safety
             << "\ninfo string Lab policy/value "
             << (policy_loaded ? "loaded as root-order prior" :
                 (policy_path.empty() ? "disabled" : policy_error))
@@ -229,6 +253,7 @@ int run_hybrid_lab(int argc, char** argv) {
   auto launch = [&](SearchLimits limits) {
     stop_worker();
     limits.selectivity_mask = lab_selectivity;
+    limits.safety_mask = lab_safety;
     Board snapshot = board;
     snapshot.horde = uci_variant == "horde";
     snapshot.king_of_the_hill = uci_variant == "kingofthehill";
@@ -242,13 +267,13 @@ int run_hybrid_lab(int argc, char** argv) {
       if (!selected_brain) {
         selected_brain = (!snapshot.horde && !snapshot.chess960 &&
                           !snapshot.king_of_the_hill && !snapshot.atomic &&
-                          !snapshot.antichess && caissa.available())
-                             ? static_cast<Brain*>(&caissa)
+                          !snapshot.antichess && caissa && caissa->available())
+                             ? static_cast<Brain*>(caissa.get())
                              : static_cast<Brain*>(&eloi);
       }
       BrainResponse response = selected_brain->search(snapshot, limits);
       bool runtime_fallback = false;
-      if (!active_brain && selected_brain == &caissa &&
+      if (!active_brain && caissa && selected_brain == caissa.get() &&
           response.status != BrainStatus::stopped &&
           !response.has_legal_move(snapshot)) {
         const std::string donor_failure = response.detail;

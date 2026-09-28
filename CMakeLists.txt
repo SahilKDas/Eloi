@@ -88,6 +88,7 @@ if(ELOI_BUILD_APP)
     src/driver.cpp
     src/search_diagnostic.cpp
     src/gui.cpp
+    src/analysis_studio.cpp
     src/version_match.cpp
     src/hybrid_lab_main.cpp)
   if(ELOI_SPLIT_PACKAGE)

@@ -686,6 +686,12 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
       result.pv.clear();
     }
     last_search = result;
+    const std::string recorded_stop_reason = ponder_hit ? "ponder_hit" :
+        (last_brain_route == "eloi_emergency_legal_move"
+             ? "emergency_legal_move"
+             : (result.stop_reason == SearchStopReason::none
+                    ? "completed_budgeted_search"
+                    : std::string(search_stop_reason_name(result.stop_reason))));
     {
       std::ostringstream record;
       record << "{\"moves_before\":\"" << json_escape(moves)
@@ -698,10 +704,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
              << ",\"score_cp\":" << result.score_cp << ",\"mate\":" << result.mate
              << ",\"nodes\":" << result.nodes << ",\"brain_route\":\""
              << json_escape(last_brain_route) << "\",\"stop_reason\":\""
-             << (ponder_hit ? "ponder_hit"
-                            : (last_brain_route == "eloi_emergency_legal_move"
-                                   ? "emergency_legal_move"
-                                   : "completed_budgeted_search"))
+             << recorded_stop_reason
              << "\",\"pv\":[";
       Board pv_board = *board;
       for (std::size_t i = 0; i < result.pv.size(); ++i) {
@@ -739,8 +742,7 @@ void play_game(const RuntimeConfig& config, std::string_view game_id,
                     runtime_variant_nnue_model(game_variant))),
             move, result.depth, result.score_cp, result.nodes,
             result.elapsed.count(), pv.str(),
-            last_brain_route == "eloi_emergency_legal_move"
-                ? "emergency_legal_move" : "completed_budgeted_search");
+            recorded_stop_reason);
       }
       start_ponder(*board, moves, result);
     }

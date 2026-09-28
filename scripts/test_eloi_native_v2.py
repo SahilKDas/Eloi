@@ -34,12 +34,29 @@ class CampaignV2Tests(unittest.TestCase):
   try: selected,_,short=D.choose_partition(rows,9,'seed','train'); self.assertEqual(len({x['record_id'] for x in selected}),9); self.assertEqual(short,{'mate':1,'promotion':1})
   finally: D.QUOTAS.clear(); D.QUOTAS.update(old)
  def test_variant_is_bypassed_and_notice_is_explicit(self):
-  journal={'game_id':'abc','url':'https://lichess.org/abc','version':'3.1.2','executable_sha256':'A','network_sha256':A.NETWORK_SHA,'playing_model_role':'production_or_legacy','variant':'horde','status':'mate','bot_color':'white','moves':'','searches':[]}; r=A.analyse_game(journal,None,1); self.assertEqual(r['analysis_status'],'variant_bypassed'); self.assertIn('not played by EPV2',r['explicit_notice'])
+  journal={'game_id':'abc','url':'https://lichess.org/abc','version':'3.1.2','executable_sha256':'A','network_sha256':A.NETWORK_SHA,'playing_model_role':'production_or_legacy','variant':'horde','status':'mate','bot_color':'white','moves':'','searches':[]}; r=A.analyse_game(journal,None,1); self.assertEqual(r['analysis_status'],'variant_bypassed'); self.assertIn('not played by a laboratory challenger',r['explicit_notice'])
  def test_active_game_pauses_before_engine_access(self):
   with tempfile.TemporaryDirectory() as d:
    root=pathlib.Path(d); (root/'active-game.lock').write_text('x'); self.assertEqual(A.run_once(root,root/'missing',root/'missing',1)['status'],'paused_active_game')
  def test_markdown_contains_binary_identity(self):
   r={'game_id':'g','url':'u','version':'3.1.2','executable_sha256':'HASH','explicit_notice':'legacy','analysis_status':'complete','variant':'standard','incidents':[],'suggested_regressions':[]}; self.assertIn('HASH',A.markdown(r))
+ def test_autopsy_records_e4_caissa_disagreement(self):
+  class Engine:
+   def __init__(self,move): self.move=A.chess.Move.from_uci(move)
+   def analyse(self,board,limit):
+    move=self.move if self.move in board.legal_moves else next(iter(board.legal_moves))
+    return {'pv':[move], 'score':A.chess.engine.PovScore(A.chess.engine.Cp(50),board.turn)}
+  journal={'game_id':'g','url':'u','version':'3.6.0','executable_sha256':'HASH','network_sha256':A.NETWORK_SHA,'playing_model_role':'production_or_legacy','variant':'standard','status':'mate','bot_color':'white','moves':'e2e4 e7e5','searches':[]}
+  report=A.analyse_game(journal,Engine('c2c4'),100,Engine('d2d4'))
+  self.assertEqual(report['analysis_status'],'complete')
+  self.assertEqual(report['e4_caissa_disagreements'],1)
+ def test_autopsy_cancellation_is_observed_before_search(self):
+  class Engine:
+   def analyse(self,board,limit): raise AssertionError('cancelled analysis must not search')
+  with tempfile.TemporaryDirectory() as d:
+   cancel=pathlib.Path(d)/'cancel'; cancel.write_text('cancel')
+   journal={'game_id':'g','url':'u','version':'3.6.0','executable_sha256':'HASH','network_sha256':A.NETWORK_SHA,'playing_model_role':'production_or_legacy','variant':'standard','status':'mate','bot_color':'white','moves':'e2e4','searches':[]}
+   with self.assertRaises(InterruptedError): A.analyse_game(journal,Engine(),100,Engine(),cancel)
  def test_bridge_source_never_journals_token_or_chat(self):
   source=(ROOT/'src/lichess.cpp').read_text(); block=source[source.index('eloi-lichess-game-journal-v1'):source.index('std::filesystem::remove(active_lock')]; self.assertNotIn('lichess_token',block); self.assertNotIn('chatLine',block)
 if __name__=='__main__': unittest.main()

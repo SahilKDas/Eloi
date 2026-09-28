@@ -275,6 +275,14 @@ enum class Selectivity : std::uint32_t {
   all = (1u << 8) - 1,
 };
 
+// Laboratory-only correctness reinforcements. Production keeps this disabled;
+// candidates must earn promotion through the frozen Caissa comparison gate.
+enum class SearchSafety : std::uint32_t {
+  verify_null_cutoffs = 1u << 0,
+  conservative_lmr = 1u << 1,
+  tactical = (1u << 0) | (1u << 1),
+};
+
 struct SearchLimits {
   int depth{0};
   std::uint64_t nodes{0};
@@ -287,6 +295,7 @@ struct SearchLimits {
   SearchProfile profile{SearchProfile::production};
   // Laboratory mechanism isolation. Production leaves this at all.
   std::uint32_t selectivity_mask{static_cast<std::uint32_t>(Selectivity::all)};
+  std::uint32_t safety_mask{0};
   bool collect_diagnostics{false};
 };
 
@@ -297,6 +306,21 @@ enum class ClockMode {
   emergency,
   panic,
 };
+
+enum class SearchStopReason {
+  none,
+  terminal,
+  opening_book,
+  forced_move,
+  depth_limit,
+  node_limit,
+  soft_limit,
+  hard_limit,
+  external_stop,
+  mate,
+};
+
+std::string_view search_stop_reason_name(SearchStopReason reason);
 
 struct TimeBudget {
   int base_ms{0};
@@ -360,6 +384,7 @@ struct SearchResult {
   int root_tt_depth{-1};
   int root_tt_bound{0};
   int root_tt_score_cp{0};
+  SearchStopReason stop_reason{SearchStopReason::none};
 };
 
 enum class SearchConcurrency { production_three_threads, single_thread_lab };

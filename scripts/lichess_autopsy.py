@@ -32,17 +32,23 @@ def live_game_active(root):
 
 def cp(info,turn): return info['score'].pov(turn).score(mate_score=30000)
 
-def analyse_game(journal,engine,nodes):
- report={'schema':'eloi-lichess-autopsy-v1','game_id':journal['game_id'],'url':journal['url'],'version':journal['version'],'executable_sha256':journal['executable_sha256'],'network_sha256':journal['network_sha256'],'playing_model_role':journal['playing_model_role'],'explicit_notice':'This production/legacy game was not played by EPV2 unless its exact artifact identity is recorded.','variant':journal['variant'],'status':journal['status'],'incidents':[],'suggested_regressions':[]}
+def analyse_game(journal,engine,nodes,eloi_engine=None,cancel_file=None):
+ report={'schema':'eloi-lichess-autopsy-v2','game_id':journal['game_id'],'url':journal['url'],'version':journal['version'],'executable_sha256':journal['executable_sha256'],'network_sha256':journal['network_sha256'],'playing_model_role':journal['playing_model_role'],'explicit_notice':'This production/legacy game was not played by a laboratory challenger unless its exact artifact identity is recorded.','variant':journal['variant'],'status':journal['status'],'incidents':[],'suggested_regressions':[]}
  if journal['variant']!='standard': report['analysis_status']='variant_bypassed'; return report
- board=chess.Board(); tokens=journal.get('moves','').split(); searches={x.get('moves_before',''):x for x in journal.get('searches',[])}; bot_white=journal.get('bot_color')=='white'; first=None
+ board=chess.Board(); tokens=journal.get('moves','').split(); searches={x.get('moves_before',''):x for x in journal.get('searches',[])}; bot_white=journal.get('bot_color')=='white'; first=None; disagreements=0
  for ply,text in enumerate(tokens):
   try: move=chess.Move.from_uci(text)
   except ValueError: report['analysis_status']='illegal_journal_move'; report['illegal_ply']=ply+1; return report
   if move not in board.legal_moves: report['analysis_status']='illegal_journal_move'; report['illegal_ply']=ply+1; return report
   ours=board.turn==bot_white
   if ours:
+   if cancel_file and cancel_file.exists(): raise InterruptedError('analysis cancelled')
    key=' '.join(tokens[:ply]); telemetry=searches.get(key,{})
+   eloi=None
+   if eloi_engine:
+    e4=eloi_engine.analyse(board,chess.engine.Limit(nodes=nodes)); e4_move=e4['pv'][0]; e4_cp=cp(e4,board.turn)
+    e4_child=board.copy(stack=False); e4_child.push(move); e4_played=-cp(eloi_engine.analyse(e4_child,chess.engine.Limit(nodes=nodes)),e4_child.turn)
+    eloi={'move':e4_move.uci(),'score_cp':e4_cp,'played_cp':e4_played,'loss_cp':max(0,e4_cp-e4_played)}
    best=engine.analyse(board,chess.engine.Limit(nodes=nodes)); best_move=best['pv'][0]; best_cp=cp(best,board.turn)
    child=board.copy(stack=False); child.push(move); played=-cp(engine.analyse(child,chess.engine.Limit(nodes=nodes)),child.turn); loss=max(0,best_cp-played)
    kind=[]
@@ -51,44 +57,47 @@ def analyse_game(journal,engine,nodes):
    if best_move.promotion: kind.append('missed_promotion')
    if abs(best_cp)>=29000: kind.append('mate_threat')
    if not board.is_capture(best_move) and not board.gives_check(best_move) and not best_move.promotion and loss>=150: kind.append('quiet_defense')
+   if eloi and eloi['move']!=best_move.uci(): kind.append('e4_caissa_disagreement'); disagreements+=1
    if loss>=150:
-    incident={'ply':ply+1,'fen':board.fen(),'played':text,'teacher_move':best_move.uci(),'teacher_cp':best_cp,'played_cp':played,'loss_cp':loss,'categories':kind,'telemetry':telemetry}
+    incident={'ply':ply+1,'fen':board.fen(),'played':text,'teacher_move':best_move.uci(),'teacher_cp':best_cp,'played_cp':played,'loss_cp':loss,'e4':eloi,'categories':kind,'telemetry':telemetry}
     report['incidents'].append(incident)
     if first is None: first=incident
     report['suggested_regressions'].append({'status':'quarantined_proposal','fen':board.fen(),'avoid':text,'candidate':best_move.uci(),'reason':'teacher_loss_at_least_150cp'})
    elapsed=telemetry.get('elapsed_ms')
    if elapsed is not None and loss>=150 and elapsed<100: report['incidents'].append({'ply':ply+1,'kind':'rushed_critical_move','elapsed_ms':elapsed,'loss_cp':loss})
   board.push(move)
- report['analysis_status']='complete'; report['first_significant_loss']=first; times=[x.get('elapsed_ms') for x in journal.get('searches',[]) if isinstance(x.get('elapsed_ms'),int)]; report['move_time_ms']={'median':statistics.median(times) if times else None,'maximum':max(times) if times else None}; report['fallback_count']=sum('fallback' in x.get('brain_route','') for x in journal.get('searches',[])); return report
+ report['analysis_status']='complete'; report['first_significant_loss']=first; report['e4_caissa_disagreements']=disagreements; times=[x.get('elapsed_ms') for x in journal.get('searches',[]) if isinstance(x.get('elapsed_ms'),int)]; report['move_time_ms']={'median':statistics.median(times) if times else None,'maximum':max(times) if times else None}; report['fallback_count']=sum('fallback' in x.get('brain_route','') for x in journal.get('searches',[])); return report
 
 def markdown(r):
  lines=[f"# Eloi Lichess autopsy: {r['game_id']}",'',r['explicit_notice'],'',f"- Game: {r['url']}",f"- Playing binary: Eloi {r['version']} (`{r['executable_sha256']}`)",f"- Status: {r['analysis_status']}",f"- Variant: {r['variant']}"]
  first=r.get('first_significant_loss');
  if first: lines += ['',f"First ≥150 cp loss: ply {first['ply']}, `{first['played']}` instead of `{first['teacher_move']}` ({first['loss_cp']} cp)."]
  else: lines += ['','No ≥150 cp teacher disagreement was found at the configured node budget.']
- lines += ['',f"Recorded incidents: {len(r.get('incidents',[]))}",f"Quarantined regression proposals: {len(r.get('suggested_regressions',[]))}",'']; return '\n'.join(lines)
+ lines += ['',f"E4/Caissa disagreements: {r.get('e4_caissa_disagreements',0)}",f"Recorded incidents: {len(r.get('incidents',[]))}",f"Quarantined regression proposals: {len(r.get('suggested_regressions',[]))}",'']; return '\n'.join(lines)
 
-def run_once(root,engine_path,network,nodes):
+def run_once(root,engine_path,network,nodes,cancel_file=None):
  if live_game_active(root): return {'status':'paused_active_game','processed':0}
  queue=root/'queue'; reports=root/'reports'; reports.mkdir(parents=True,exist_ok=True); files=sorted(queue.glob('*.json')) if queue.exists() else []
  if sha(network)!=NETWORK_SHA: raise RuntimeError('Caissa 1.25 network hash mismatch')
- engine=chess.engine.SimpleEngine.popen_uci([str(engine_path),'--uci','--brain','caissa','--caissa-network',str(network)],cwd=str(ROOT),creationflags=getattr(__import__('subprocess'),'IDLE_PRIORITY_CLASS',0)); engine.configure({'Threads':3,'Hash':32}); processed=0
+ flags=getattr(__import__('subprocess'),'IDLE_PRIORITY_CLASS',0)
+ engine=chess.engine.SimpleEngine.popen_uci([str(engine_path),'--uci','--brain','caissa','--caissa-network',str(network)],cwd=str(ROOT),creationflags=flags); engine.configure({'Threads':3,'Hash':32})
+ eloi_engine=chess.engine.SimpleEngine.popen_uci([str(engine_path),'--uci','--brain','eloi','--caissa-network',str(network)],cwd=str(ROOT),creationflags=flags); eloi_engine.configure({'Threads':3,'Hash':32}); processed=0
  try:
   for path in files:
    out=reports/(path.stem+'.json')
    if out.exists(): continue
-   journal=json.loads(path.read_text(encoding='utf-8')); report=analyse_game(journal,engine,nodes); atomic(out,report); (reports/(path.stem+'.md')).write_text(markdown(report),encoding='utf-8'); processed+=1
- finally: engine.quit()
+   if cancel_file and cancel_file.exists(): return {'status':'cancelled','processed':processed}
+   journal=json.loads(path.read_text(encoding='utf-8')); report=analyse_game(journal,engine,nodes,eloi_engine,cancel_file); atomic(out,report); (reports/(path.stem+'.md')).write_text(markdown(report),encoding='utf-8'); processed+=1
+ finally: eloi_engine.quit(); engine.quit()
  entries=[]
  for path in sorted(p for p in reports.glob('*.json') if p.name!='index.json'):
   r=json.loads(path.read_text()); entries.append({'game_id':r['game_id'],'status':r['analysis_status'],'incidents':len(r.get('incidents',[])),'version':r['version'],'playing_model_role':r['playing_model_role']})
- atomic(reports/'index.json',{'schema':'eloi-lichess-autopsy-index-v1','games':entries}); return {'status':'complete','processed':processed,'total_reports':len(entries)}
+ atomic(reports/'index.json',{'schema':'eloi-lichess-autopsy-index-v2','games':entries}); return {'status':'complete','processed':processed,'total_reports':len(entries)}
 
 def main():
- p=argparse.ArgumentParser(); p.add_argument('--root',type=Path,default=default_root()); p.add_argument('--engine',type=Path,required=True); p.add_argument('--network',type=Path,required=True); p.add_argument('--nodes',type=int,default=10000); p.add_argument('--watch',action='store_true'); a=p.parse_args(); idle()
+ p=argparse.ArgumentParser(); p.add_argument('--root',type=Path,default=default_root()); p.add_argument('--engine',type=Path,required=True); p.add_argument('--network',type=Path,required=True); p.add_argument('--nodes',type=int,default=10000); p.add_argument('--cancel-file',type=Path); a=p.parse_args(); idle()
  while True:
-  try: print(json.dumps(run_once(a.root.resolve(),a.engine.resolve(),a.network.resolve(),a.nodes)),flush=True)
+  try: print(json.dumps(run_once(a.root.resolve(),a.engine.resolve(),a.network.resolve(),a.nodes,a.cancel_file.resolve() if a.cancel_file else None)),flush=True)
   except Exception as e: print(json.dumps({'status':'failed','error':f'{type(e).__name__}: {e}'}),flush=True); return 2
-  if not a.watch: return 0
-  time.sleep(5)
+  return 0
 if __name__=='__main__': raise SystemExit(main())
