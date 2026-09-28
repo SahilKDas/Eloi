@@ -30,16 +30,25 @@ def atomic_json(path: Path, value) -> None:
     temporary.replace(path)
 
 
-def board_type(variant: str):
-    return (chess.variant.AtomicBoard if variant == "atomic"
-            else chess.variant.AntichessBoard)
+def new_board(variant: str, pair: int = 0):
+    if variant == "chess960":
+        return chess.Board.from_chess960_pos((pair * 37 + 11) % 960)
+    return (chess.variant.AtomicBoard() if variant == "atomic"
+            else chess.variant.AntichessBoard())
+
+
+def board_from_fen(variant: str, fen: str):
+    if variant == "chess960":
+        return chess.Board(fen, chess960=True)
+    return (chess.variant.AtomicBoard(fen) if variant == "atomic"
+            else chess.variant.AntichessBoard(fen))
 
 
 def schedule(variant: str, games: int) -> list[dict]:
     rng = random.Random(0xFA101 + (1 if variant == "atomic" else 2))
     positions, seen = [], set()
     while len(positions) < games // 2:
-        board = board_type(variant)()
+        board = new_board(variant, len(positions))
         for _ in range(4):
             board.push(rng.choice(sorted(board.legal_moves,
                                          key=lambda move: move.uci())))
@@ -65,7 +74,7 @@ def play(candidate: Path, baseline: Path, row: dict, variant: str,
     command = lambda path: [str(path), "--uci", "--brain", "eloi"]
     engines = [chess.engine.SimpleEngine.popen_uci(command(path), timeout=30,
                creationflags=flags) for path in (candidate, baseline)]
-    board = board_type(variant)(row["fen"])
+    board = board_from_fen(variant, row["fen"])
     started, played = time.monotonic(), 0
     try:
         for engine in engines:
@@ -105,7 +114,7 @@ def replay(path: Path, variant: str, expected: int) -> dict:
     verified = 0
     with path.open(encoding="utf-8") as stream:
         while game := chess.pgn.read_game(stream):
-            board = board_type(variant)(game.headers["FEN"])
+            board = board_from_fen(variant, game.headers["FEN"])
             for move in game.mainline_moves():
                 if move not in board.legal_moves:
                     raise RuntimeError(f"illegal replay move in game {verified + 1}")
@@ -122,7 +131,7 @@ def replay(path: Path, variant: str, expected: int) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--variant", required=True,
-                        choices=("atomic", "antichess"))
+                        choices=("chess960", "atomic", "antichess"))
     parser.add_argument("--candidate", required=True, type=Path)
     parser.add_argument("--baseline", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
