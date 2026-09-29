@@ -6,3 +6,8 @@ data/nnue_fresh_data_*.json text eol=lf
 include/eloi/nnue_weights.hpp text eol=lf
 data/abc60*.json text eol=lf
 data/abc60*.pgn -text whitespace=cr-at-eol,-blank-at-eof
+
+# Keep GitHub language statistics focused on Eloi-owned implementation code.
+third_party/** linguist-vendored
+include/eloi/*_weights.hpp linguist-generated
+include/eloi/opening_data.hpp linguist-generated

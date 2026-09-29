@@ -1,0 +1,30 @@
+[workspace]
+resolver = "3"
+members = [
+    "rust/eloi-core",
+    "rust/eloi-engine",
+    "rust/eloi-protocol",
+    "rust/eloi-app",
+]
+
+[workspace.package]
+version = "0.1.0-september"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+repository = "https://github.com/SahilKDas/Eloi"
+authors = ["Sahil Das and Eloi contributors"]
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+panic = "abort"
+strip = "symbols"
