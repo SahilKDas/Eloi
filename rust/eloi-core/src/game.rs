@@ -115,6 +115,18 @@ impl Game {
         ) && self.position.halfmove >= 100
             && !self.position.legal_moves().is_empty()
     }
+
+    /// Current-position draw claims or orthodox dead material, with terminal
+    /// variant wins and checkmate taking precedence.
+    #[must_use]
+    pub fn drawn(&self) -> bool {
+        self.position.winner().is_none()
+            && (self.threefold()
+                || self.fifty_move()
+                || self.position.insufficient_material()
+                || (self.position.legal_moves().is_empty()
+                    && !self.position.in_check(self.position.turn)))
+    }
 }
 
 fn repetition_state(position: &Position) -> Position {
@@ -152,6 +164,20 @@ mod tests {
         assert!(game.pop());
         assert!(game.pop());
         assert_eq!(game, original);
+    }
+
+    #[test]
+    fn terminal_win_precedes_fifty_move_claim() {
+        let mate = Game::from_fen("7k/6Q1/5K2/8/8/8/8/8 b - - 100 1", Variant::Standard).unwrap();
+        assert!(mate.position().winner().is_some());
+        assert!(!mate.drawn());
+        let hill =
+            Game::from_fen("7k/8/8/8/4K3/8/8/8 w - - 100 1", Variant::KingOfTheHill).unwrap();
+        assert!(!hill.drawn());
+        let bare = Game::from_fen("7k/8/8/8/8/8/8/K7 w - - 0 1", Variant::Standard).unwrap();
+        assert!(bare.drawn());
+        let hill = Game::from_fen("7k/8/8/8/8/8/8/K7 w - - 0 1", Variant::KingOfTheHill).unwrap();
+        assert!(!hill.drawn());
     }
 
     #[test]

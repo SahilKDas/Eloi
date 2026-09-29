@@ -142,6 +142,38 @@ impl Position {
         self.attackers(target, by) != 0
     }
 
+    /// Proven orthodox dead material. Variant-specific objectives must not use
+    /// orthodox material adjudication, and Crazyhouse pockets require separate rules.
+    #[must_use]
+    pub fn insufficient_material(&self) -> bool {
+        if !matches!(self.variant, Variant::Standard | Variant::Chess960) {
+            return false;
+        }
+        let mut knights = 0;
+        let mut bishops = 0;
+        let mut bishop_color = None;
+        let mut same_color = true;
+        for (square, piece) in self.cells.iter().enumerate() {
+            let Some(piece) = piece else {
+                continue;
+            };
+            match piece.kind {
+                PieceKind::Pawn | PieceKind::Rook | PieceKind::Queen => return false,
+                PieceKind::Knight => knights += 1,
+                PieceKind::Bishop => {
+                    bishops += 1;
+                    let color = (square % 8 + square / 8) % 2;
+                    if bishop_color.is_some_and(|previous| previous != color) {
+                        same_color = false;
+                    }
+                    bishop_color = Some(color);
+                }
+                PieceKind::King => {}
+            }
+        }
+        knights + bishops <= 1 || (knights == 0 && same_color)
+    }
+
     /// Count geometric attackers without removing blockers or testing king safety.
     #[must_use]
     pub fn attackers(&self, target: Square8, by: Player) -> u8 {
@@ -764,5 +796,34 @@ mod tests {
         assert_eq!(p.play_uci("e1e7").unwrap().winner(), Some(Player::White));
         let p = Position::from_fen("7k/8/8/8/8/4K3/8/8 w - - 0 1", Variant::KingOfTheHill).unwrap();
         assert_eq!(p.play_uci("e3e4").unwrap().winner(), Some(Player::White));
+    }
+
+    #[test]
+    fn dead_material_does_not_cross_variant_objectives() {
+        for (fen, expected) in [
+            ("7k/8/8/8/8/8/8/K7 w - - 0 1", true),
+            ("7k/8/8/8/8/8/8/KN6 w - - 0 1", true),
+            ("7k/8/8/8/8/8/8/KB6 w - - 0 1", true),
+            ("7k/8/8/8/8/8/8/KNN5 w - - 0 1", false),
+            ("7k/8/8/8/8/8/8/KBB5 w - - 0 1", false),
+            ("7k/8/8/8/8/8/8/KB1B4 w - - 0 1", true),
+            ("7k/8/8/8/8/8/P7/K7 w - - 0 1", false),
+        ] {
+            let position = Position::from_fen(fen, Variant::Standard).unwrap();
+            assert_eq!(position.insufficient_material(), expected, "{fen}");
+        }
+        for variant in [
+            Variant::KingOfTheHill,
+            Variant::Atomic,
+            Variant::Antichess,
+            Variant::Horde,
+            Variant::Crazyhouse,
+        ] {
+            assert!(
+                !Position::from_fen("7k/8/8/8/8/8/8/K7 w - - 0 1", variant)
+                    .unwrap()
+                    .insufficient_material()
+            );
+        }
     }
 }

@@ -48,6 +48,35 @@ fn invalid(message: impl Into<String>) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message.into())
 }
 
+fn bounded_line(reader: &mut impl BufRead) -> io::Result<Option<String>> {
+    const LIMIT: usize = 32_768;
+    let mut bytes = Vec::new();
+    loop {
+        let buffer = reader.fill_buf()?;
+        if buffer.is_empty() {
+            return if bytes.is_empty() {
+                Ok(None)
+            } else {
+                String::from_utf8(bytes)
+                    .map(Some)
+                    .map_err(|_| invalid("worker output is not UTF-8"))
+            };
+        }
+        let end = buffer.iter().position(|&byte| byte == b'\n');
+        let take = end.map_or(buffer.len(), |index| index + 1);
+        if bytes.len() + take > LIMIT {
+            return Err(invalid("worker protocol line exceeds limit"));
+        }
+        bytes.extend_from_slice(&buffer[..take]);
+        reader.consume(take);
+        if end.is_some() {
+            return String::from_utf8(bytes)
+                .map(Some)
+                .map_err(|_| invalid("worker output is not UTF-8"));
+        }
+    }
+}
+
 impl DonorWorker {
     /// Start an explicitly supplied source-built worker and complete readiness.
     ///
@@ -79,11 +108,9 @@ impl DonorWorker {
         let reader = thread::spawn(move || {
             let mut stdout = BufReader::new(stdout);
             loop {
-                let mut line = String::new();
-                let result = match stdout.read_line(&mut line) {
-                    Ok(0) => break,
-                    Ok(_) if line.len() <= 32_768 => Ok(line),
-                    Ok(_) => Err(invalid("worker protocol line exceeds limit")),
+                let result = match bounded_line(&mut stdout) {
+                    Ok(None) => break,
+                    Ok(Some(line)) => Ok(line),
                     Err(e) => Err(e),
                 };
                 let failed = result.is_err();
@@ -269,5 +296,26 @@ impl Drop for DonorWorker {
         if let Some(reader) = self.reader.take() {
             let _ = reader.join();
         }
+    }
+}
+
+#[cfg(test)]
+mod bounded_tests {
+    use super::bounded_line;
+    use std::io::{BufReader, Cursor};
+
+    #[test]
+    fn worker_output_is_bounded_before_allocation() {
+        let mut reader = BufReader::with_capacity(7, Cursor::new(b"readyok\nlast"));
+        assert_eq!(
+            bounded_line(&mut reader).unwrap().as_deref(),
+            Some("readyok\n")
+        );
+        assert_eq!(bounded_line(&mut reader).unwrap().as_deref(), Some("last"));
+        assert!(bounded_line(&mut reader).unwrap().is_none());
+        let mut reader = BufReader::with_capacity(8, Cursor::new(vec![b'x'; 32_769]));
+        assert!(bounded_line(&mut reader).is_err());
+        let mut reader = Cursor::new(vec![0xff, b'\n']);
+        assert!(bounded_line(&mut reader).is_err());
     }
 }

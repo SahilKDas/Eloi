@@ -275,6 +275,7 @@ impl Lane<'_> {
             >= 2
             || (!matches!(position.variant, Variant::Antichess | Variant::Crazyhouse)
                 && position.halfmove >= 100)
+            || position.insufficient_material()
         {
             return Some((0, Vec::new()));
         }

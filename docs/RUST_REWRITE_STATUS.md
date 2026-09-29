@@ -38,6 +38,13 @@ it does not declare the rewrite or a release qualified.
   are ported. UCI clock fields select the actual side-to-move, retain the hard
   deadline, and stop at soft limits only after completed iterations. Explicit
   movetime takes precedence. Infinite/ponder compatibility remains unfinished.
+- Horde retains its production material/advancement/king-pressure evaluation.
+- Orthodox dead material and current-position draw adjudication are variant-aware;
+  checkmate and hill wins precede fifty-move claims. Fairy material-draw rules
+  still require their separate parity gates.
+- Worker output is bounded before line allocation, rejects invalid UTF-8,
+  and retains owned-process teardown. The explicit donor integration test was
+  rerun successfully after this containment change.
 
 ## Still required
 
