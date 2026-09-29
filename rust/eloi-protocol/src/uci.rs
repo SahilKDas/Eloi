@@ -86,6 +86,7 @@ pub fn parse_go(command: &str, overhead_ms: u64) -> Result<SearchLimits, String>
         nodes,
         soft_time: None,
         hash_mb: 32,
+        noise_millipawns: 0,
     })
 }
 
@@ -202,6 +203,7 @@ fn unbounded_protocol_limits() -> SearchLimits {
         depth: 64,
         nodes: None,
         hash_mb: 32,
+        noise_millipawns: 0,
     }
 }
 

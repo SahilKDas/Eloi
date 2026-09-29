@@ -21,6 +21,70 @@ struct ActiveSearch {
     ponder_resume: Option<(Game, eloi_engine::search::SearchLimits)>,
 }
 
+struct UciOptions {
+    variant: Variant,
+    overhead: u64,
+    hash_mb: u16,
+    depth: u8,
+    noise_millipawns: u16,
+}
+
+impl Default for UciOptions {
+    fn default() -> Self {
+        Self {
+            variant: Variant::Standard,
+            overhead: 100,
+            hash_mb: 32,
+            depth: 0,
+            noise_millipawns: 0,
+        }
+    }
+}
+
+impl UciOptions {
+    fn set(&mut self, name: &str, value: &str) {
+        match name {
+            "Threads" if value == "3" => {}
+            "Depth" => match value.parse::<u8>() {
+                Ok(value) if value <= 64 => self.depth = value,
+                _ => emit("info string invalid depth"),
+            },
+            "Move Overhead" | "MoveOverhead" => match value.parse::<u64>() {
+                Ok(ms) if ms <= 5000 => self.overhead = ms,
+                _ => emit("info string invalid overhead"),
+            },
+            "Hash" => match value.parse::<u16>() {
+                Ok(value) if value <= 1024 => self.hash_mb = value,
+                _ => emit("info string invalid hash size"),
+            },
+            "Noise" => match value.parse::<u16>() {
+                Ok(value) if value <= 10_000 => self.noise_millipawns = value,
+                _ => emit("info string invalid noise"),
+            },
+            "UCI_Chess960" => match value {
+                "true" => self.variant = Variant::Chess960,
+                "false" => self.variant = Variant::Standard,
+                _ => emit("info string invalid Chess960 flag"),
+            },
+            "UCI_Variant" => self.set_variant(value),
+            _ => emit("info string unsupported option or value"),
+        }
+    }
+
+    fn set_variant(&mut self, value: &str) {
+        let key = match value {
+            "chess" => "standard",
+            "kingofthehill" => "kingOfTheHill",
+            other => other,
+        };
+        if let Some(selected) = eloi_protocol::variant_from_lichess(key) {
+            self.variant = selected;
+        } else {
+            emit("info string unsupported variant");
+        }
+    }
+}
+
 fn stop(active: &mut Option<ActiveSearch>) {
     if let Some(search) = active.take() {
         search.publish.store(true, Ordering::Relaxed);
@@ -120,8 +184,10 @@ fn handshake() {
     ));
     emit("id author Sahil Das and Eloi contributors");
     emit("option name Threads type spin default 3 min 3 max 3");
+    emit("option name Depth type spin default 0 min 0 max 64");
     emit("option name Hash type spin default 32 min 0 max 1024");
-    emit("option name MoveOverhead type spin default 0 min 0 max 5000");
+    emit("option name Move Overhead type spin default 100 min 0 max 5000");
+    emit("option name Noise type spin default 0 min 0 max 10000");
     emit(
         "option name UCI_Variant type combo default chess var chess var chess960 var horde var kingofthehill var atomic var antichess var crazyhouse",
     );
@@ -132,9 +198,7 @@ fn handshake() {
 pub fn run() -> io::Result<()> {
     let mut game = Game::from_fen(INITIAL_FEN, Variant::Standard).map_err(io::Error::other)?;
     let mut active = None;
-    let mut variant = Variant::Standard;
-    let mut overhead = 0;
-    let mut hash_mb = 32_u16;
+    let mut options = UciOptions::default();
     for input in io::stdin().lock().lines() {
         let line = match input {
             Ok(line) => line,
@@ -155,14 +219,14 @@ pub fn run() -> io::Result<()> {
             }
             "ucinewgame" => {
                 stop(&mut active);
-                let fen = initial_fen(variant);
-                if let Ok(new_game) = Game::from_fen(fen, variant) {
+                let fen = initial_fen(options.variant);
+                if let Ok(new_game) = Game::from_fen(fen, options.variant) {
                     game = new_game;
                 }
             }
             _ if line.starts_with("position ") => {
                 stop(&mut active);
-                if let Err(error) = apply_position(&mut game, line, variant) {
+                if let Err(error) = apply_position(&mut game, line, options.variant) {
                     emit(&format!("info string position rejected: {error}"));
                 }
             }
@@ -172,50 +236,30 @@ pub fn run() -> io::Result<()> {
                     emit("info string malformed option");
                     continue;
                 };
-                match name {
-                    "Threads" if value == "3" => {}
-                    "MoveOverhead" => match value.parse::<u64>() {
-                        Ok(ms) if ms <= 5000 => overhead = ms,
-                        _ => emit("info string invalid overhead"),
-                    },
-                    "Hash" => match value.parse::<u16>() {
-                        Ok(value) if value <= 1024 => hash_mb = value,
-                        _ => emit("info string invalid hash size"),
-                    },
-                    "UCI_Chess960" => match value {
-                        "true" => variant = Variant::Chess960,
-                        "false" => variant = Variant::Standard,
-                        _ => emit("info string invalid Chess960 flag"),
-                    },
-                    "UCI_Variant" => {
-                        let key = match value {
-                            "chess" => "standard",
-                            "kingofthehill" => "kingOfTheHill",
-                            other => other,
-                        };
-                        if let Some(selected) = eloi_protocol::variant_from_lichess(key) {
-                            variant = selected;
-                        } else {
-                            emit("info string unsupported variant");
-                        }
-                    }
-                    _ => emit("info string unsupported option or value"),
-                }
+                options.set(name, value);
             }
             _ if line.starts_with("go") => {
                 stop(&mut active);
-                let mut request = match parse_search_request(&game, line, overhead) {
+                let mut request = match parse_search_request(&game, line, options.overhead) {
                     Ok(request) => request,
                     Err(error) => {
                         emit(&format!("info string search rejected: {error}"));
                         continue;
                     }
                 };
-                request.limits.hash_mb = hash_mb;
-                if let Some(limits) = &mut request.ponder_resume {
-                    limits.hash_mb = hash_mb;
+                request.limits.hash_mb = options.hash_mb;
+                request.limits.noise_millipawns = options.noise_millipawns;
+                if options.depth != 0 {
+                    request.limits.depth = request.limits.depth.min(options.depth);
                 }
-                if game.position().variant != variant {
+                if let Some(limits) = &mut request.ponder_resume {
+                    limits.hash_mb = options.hash_mb;
+                    limits.noise_millipawns = options.noise_millipawns;
+                    if options.depth != 0 {
+                        limits.depth = limits.depth.min(options.depth);
+                    }
+                }
+                if game.position().variant != options.variant {
                     emit("info string send position after changing variant");
                     continue;
                 }

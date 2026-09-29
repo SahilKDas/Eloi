@@ -31,6 +31,8 @@ pub struct SearchLimits {
     pub nodes: Option<u64>,
     /// Total transposition-table budget shared by all three lanes.
     pub hash_mb: u16,
+    /// Root-score noise range in millipawns; zero is deterministic.
+    pub noise_millipawns: u16,
 }
 
 /// Actual reason the search returned.
@@ -158,6 +160,7 @@ fn valid_limits(limits: SearchLimits) -> bool {
         && limits.movetime <= Duration::from_hours(24)
         && (1..=64).contains(&limits.depth)
         && limits.hash_mb <= 1024
+        && limits.noise_millipawns <= 10_000
         && !limits
             .soft_time
             .is_some_and(|soft| soft.is_zero() || soft > limits.movetime)
@@ -453,8 +456,9 @@ fn root_iteration(
     history: &[u64],
     shared: &Shared<'_>,
     tables: &[Mutex<Table>],
-    depth: u8,
+    iteration: (u8, u16),
 ) -> Option<Vec<(usize, i32, Vec<Move8>)>> {
+    let (depth, noise_millipawns) = iteration;
     std::thread::scope(|scope| {
         let jobs: Vec<_> = (0..SEARCH_THREADS)
             .map(|lane| {
@@ -478,7 +482,11 @@ fn root_iteration(
                             context.negamax(child, &nnue, depth - 1, 1, -MATE, MATE)?;
                         let mut line = vec![*mv];
                         line.extend(pv);
-                        scores.push((index, -score, line));
+                        scores.push((
+                            index,
+                            -score + root_noise(position, *mv, noise_millipawns),
+                            line,
+                        ));
                     }
                     Some(scores)
                 })
@@ -489,6 +497,22 @@ fn root_iteration(
             .collect::<Option<Vec<_>>>()
             .map(|iterations| iterations.into_iter().flatten().collect())
     })
+}
+
+fn root_noise(position: &Position, mv: Move8, millipawns: u16) -> i32 {
+    if millipawns == 0 {
+        return 0;
+    }
+    let mut mixed = key(position, &position.legal_children());
+    for byte in mv.uci(position.variant == Variant::Chess960).bytes() {
+        mixed ^= u64::from(byte);
+        mixed = mixed.wrapping_mul(0x100_0000_01b3);
+    }
+    mixed ^= mixed >> 33;
+    mixed = mixed.wrapping_mul(0xff51_afd7_ed55_8ccd);
+    let range = u64::from(millipawns) * 2 + 1;
+    let milli = i32::try_from(mixed % range).unwrap_or(0) - i32::from(millipawns);
+    milli / 10
 }
 
 /// Execute iterative deepening with exactly three search lanes.
@@ -539,7 +563,13 @@ pub fn search(
     history.push(key(position, &children));
     for depth in 1..=limits.depth {
         let Some(mut scores) = root_iteration(
-            position, &children, &state, &history, &shared, &tables, depth,
+            position,
+            &children,
+            &state,
+            &history,
+            &shared,
+            &tables,
+            (depth, limits.noise_millipawns),
         ) else {
             break;
         };
@@ -635,6 +665,7 @@ mod tests {
                 depth: 2,
                 nodes: Some(20_000),
                 hash_mb: 0,
+                noise_millipawns: 0,
             },
             &AtomicBool::new(false),
             |_| {},
@@ -672,6 +703,7 @@ mod tests {
                 depth: 2,
                 nodes: Some(10_000),
                 hash_mb: 1,
+                noise_millipawns: 0,
             },
             &AtomicBool::new(false),
             |_| {},
@@ -692,6 +724,7 @@ mod tests {
                 soft_time: None,
                 nodes: None,
                 hash_mb: 1,
+                noise_millipawns: 0,
             },
             &AtomicBool::new(true),
             |_| {},
@@ -713,6 +746,7 @@ mod tests {
                 soft_time: None,
                 nodes: None,
                 hash_mb: 1,
+                noise_millipawns: 0,
             },
             &AtomicBool::new(false),
             |_| {},
