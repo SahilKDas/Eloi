@@ -295,6 +295,143 @@ impl<T: Transport> Supervisor<T> {
         Ok(())
     }
 
+    /// Read the control stream until one actionable event is available.
+    ///
+    /// # Errors
+    /// Transport, HTTP, framing, and protocol failures remain token-free.
+    pub fn next_control_action(&mut self) -> Result<Action, &'static str> {
+        let transport = Arc::clone(&self.transport);
+        let cancellation = self.controller.cancellation();
+        let mut lines = crate::lichess::StreamLines::default();
+        let mut action = None;
+        let reply = transport.stream("/api/stream/event", &cancellation, &mut |chunk| {
+            let Ok(decoded) = lines.feed(chunk) else {
+                self.controller
+                    .protocol_incident("malformed control stream");
+                return false;
+            };
+            for line in decoded {
+                match self.control(&line) {
+                    Ok(Action::Ignore) => {}
+                    Ok(next) => {
+                        action = Some(next);
+                        return false;
+                    }
+                    Err(_) => {
+                        self.controller.protocol_incident("invalid control event");
+                        return false;
+                    }
+                }
+            }
+            true
+        })?;
+        if self.controller.snapshot().state == State::Fatal {
+            return Err("fatal control protocol failure");
+        }
+        if !(200..=299).contains(&reply.status) {
+            self.controller.failure(
+                reply.status,
+                reply.retry_after_seconds,
+                "control stream failed",
+            );
+            return Err("control stream HTTP failure");
+        }
+        if action.is_none() {
+            self.controller
+                .failure(0, None, "control stream disconnected");
+        }
+        action.ok_or("control stream ended without action")
+    }
+
+    /// Own one game stream, submit only Eloi-validated legal moves, and finish
+    /// only from an explicit terminal server state.
+    ///
+    /// # Errors
+    /// Any malformed state, illegal search answer, or HTTP failure stops the game.
+    pub fn play_game(
+        &mut self,
+        id: &str,
+        mut choose: impl FnMut(
+            &crate::lichess::Session,
+        ) -> Result<eloi_core::rules::Move8, &'static str>,
+    ) -> Result<(), &'static str> {
+        identity(&serde_json::json!({"id": id}))?;
+        if self.attached_game.as_deref() != Some(id) {
+            return Err("game is not owned");
+        }
+        let transport = Arc::clone(&self.transport);
+        let cancellation = self.controller.cancellation();
+        let path = format!("/api/bot/game/stream/{id}");
+        let mut lines = crate::lichess::StreamLines::default();
+        let mut session = None;
+        let mut submitted_ply = None;
+        let mut failure = None;
+        let reply = transport.stream(&path, &cancellation, &mut |chunk| {
+            let decoded = match lines.feed(chunk) {
+                Ok(decoded) => decoded,
+                Err(error) => {
+                    failure = Some(error);
+                    return false;
+                }
+            };
+            for line in decoded {
+                let update = match session.as_mut() {
+                    None => self.game_full(&line).map(|created| session = Some(created)),
+                    Some(current) => current.update(&line),
+                };
+                if let Err(error) = update {
+                    failure = Some(error);
+                    return false;
+                }
+                let Some(current) = session.as_ref() else {
+                    failure = Some("game stream has no reconstructed session");
+                    return false;
+                };
+                if !current.state.active() {
+                    return false;
+                }
+                let ply = current.game.moves().count();
+                if current.game.position().turn == current.color && submitted_ply != Some(ply) {
+                    let mv = match choose(current) {
+                        Ok(mv) if current.game.position().legal_moves().contains(&mv) => mv,
+                        _ => {
+                            failure = Some("search returned an illegal move");
+                            return false;
+                        }
+                    };
+                    let move_path = format!("/api/bot/game/{id}/move/{}", mv.uci(false));
+                    match transport.post(&move_path, "", &cancellation) {
+                        Ok(reply) if (200..=299).contains(&reply.status) => {
+                            submitted_ply = Some(ply);
+                        }
+                        _ => {
+                            failure = Some("move submission failed");
+                            return false;
+                        }
+                    }
+                }
+            }
+            true
+        })?;
+        if let Some(error) = failure {
+            self.controller.protocol_incident(error);
+            return Err(error);
+        }
+        if !(200..=299).contains(&reply.status) {
+            self.controller.failure(
+                reply.status,
+                reply.retry_after_seconds,
+                "game stream failed",
+            );
+            return Err("game stream HTTP failure");
+        }
+        let session = session.ok_or("game stream ended before gameFull")?;
+        if session.state.active() {
+            return Err("game stream disconnected while active");
+        }
+        self.finish_session(&session)
+    }
+
     /// Stop both search signal and blocking transport, without fabricating results.
     pub fn stop(&mut self) {
         self.controller.stop();
@@ -326,6 +463,49 @@ mod tests {
         status: u16,
         posts: Mutex<Vec<String>>,
         cancelled: AtomicBool,
+    }
+
+    struct Scripted {
+        posts: Mutex<Vec<String>>,
+        game: Vec<u8>,
+    }
+
+    impl Transport for Scripted {
+        fn account(&self, _: &AtomicBool) -> Result<Reply, &'static str> {
+            Ok(Reply {
+                status: 200,
+                retry_after_seconds: None,
+                body: br#"{"id":"eloibot"}"#.to_vec(),
+            })
+        }
+        fn post(&self, path: &str, _: &str, _: &AtomicBool) -> Result<Reply, &'static str> {
+            self.posts.lock().unwrap().push(path.into());
+            Ok(Reply {
+                status: 200,
+                retry_after_seconds: None,
+                body: Vec::new(),
+            })
+        }
+        fn stream(
+            &self,
+            path: &str,
+            _: &AtomicBool,
+            consumer: &mut dyn FnMut(&[u8]) -> bool,
+        ) -> Result<Reply, &'static str> {
+            if path.starts_with("/api/bot/game/stream/") {
+                for chunk in self.game.chunks(17) {
+                    if !consumer(chunk) {
+                        break;
+                    }
+                }
+            }
+            Ok(Reply {
+                status: 200,
+                retry_after_seconds: None,
+                body: Vec::new(),
+            })
+        }
+        fn cancel(&self) {}
     }
     impl Transport for Fake {
         fn account(&self, _: &AtomicBool) -> Result<Reply, &'static str> {
@@ -435,5 +615,52 @@ mod tests {
         empty.config = RuntimeConfig::default();
         assert!(empty.connect().is_err());
         assert_eq!(empty.controller.snapshot().state, State::Stopped);
+    }
+
+    #[test]
+    fn complete_game_stream_submits_one_legal_move_and_counts_result() {
+        let full = serde_json::json!({
+            "type":"gameFull", "id":"Game1234", "variant":{"key":"standard"},
+            "initialFen":"startpos", "white":{"id":"eloibot"},
+            "black":{"id":"opponent"},
+            "state":{"moves":"", "status":"started", "wtime":300_000,
+                     "btime":300_000, "winc":2_000, "binc":2_000}
+        });
+        let finished = serde_json::json!({
+            "type":"gameState", "moves":"e2e4", "status":"resign",
+            "winner":"white", "wtime":299_000, "btime":300_000,
+            "winc":2_000, "binc":2_000
+        });
+        let transport = Arc::new(Scripted {
+            posts: Mutex::new(Vec::new()),
+            game: format!("{full}\n{finished}\n").into_bytes(),
+        });
+        let config =
+            crate::config::parse("lichess:\n  enabled: true\n  token: lip_offline_fixture\n")
+                .unwrap();
+        let mut supervisor = Supervisor::new(Arc::clone(&transport), config);
+        supervisor.connect().unwrap();
+        assert!(matches!(
+            supervisor
+                .control(r#"{"type":"gameStart","game":{"id":"Game1234"}}"#)
+                .unwrap(),
+            Action::AttachGame(_)
+        ));
+        supervisor
+            .play_game("Game1234", |session| {
+                session
+                    .game
+                    .position()
+                    .legal_moves()
+                    .into_iter()
+                    .find(|mv| mv.uci(false) == "e2e4")
+                    .ok_or("fixture move unavailable")
+            })
+            .unwrap();
+        assert_eq!(supervisor.controller.snapshot().counters.wins, 1);
+        assert_eq!(
+            transport.posts.lock().unwrap().as_slice(),
+            ["/api/bot/game/Game1234/move/e2e4"]
+        );
     }
 }

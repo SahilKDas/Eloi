@@ -18,6 +18,7 @@ challenge:
     - kingOfTheHill
     - atomic
     - antichess
+    - crazyhouse
 
 engine:
   depth: 0

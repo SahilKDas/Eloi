@@ -63,6 +63,7 @@ impl Default for RuntimeConfig {
                 Variant::KingOfTheHill,
                 Variant::Atomic,
                 Variant::Antichess,
+                Variant::Crazyhouse,
             ],
             depth: 0,
             hash_mb: 32,
@@ -136,7 +137,7 @@ pub fn parse(text: &str) -> Result<RuntimeConfig, String> {
                 return Err(fail("list outside challenge.variants"));
             }
             let variant = super::variant_from_lichess(scalar(item))
-                .filter(|variant| !matches!(variant, Variant::Crazyhouse | Variant::FourPlayer))
+                .filter(|variant| *variant != Variant::FourPlayer)
                 .ok_or_else(|| fail("unsupported runtime variant"))?;
             if config.variants.contains(&variant) {
                 return Err(fail("duplicate variant"));
@@ -197,7 +198,7 @@ mod tests {
     #[test]
     fn release_template_and_secrets_are_safe() {
         let config = parse(include_str!("../../../config.example.yml")).unwrap();
-        assert_eq!(config.variants.len(), 6);
+        assert_eq!(config.variants.len(), 7);
         assert!(config.token.expose_for_transport().is_empty());
         let config = parse("lichess:\n  token: 'lip_secret#hash' # comment\n").unwrap();
         assert_eq!(config.token.expose_for_transport(), "lip_secret#hash");
@@ -209,7 +210,7 @@ mod tests {
         for text in [
             "lichess:\n  url: https://evil.example\n",
             "engine:\n  depth: -1\n",
-            "challenge:\n  variants:\n    - crazyhouse\n",
+            "challenge:\n  variants:\n    - fourPlayer\n",
             "challenge:\n  allow_bots: true\n  - standard\n",
             "lichess:\n  token: lip_secret\n  token: duplicate\n",
             "lichess:\n  token: 'lip_secret\n",

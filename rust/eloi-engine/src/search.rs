@@ -220,6 +220,9 @@ fn evaluate(position: &Position, nnue: &NnueState) -> Option<i32> {
     if position.variant == Variant::Horde {
         return Some(horde_evaluate(position));
     }
+    if position.variant == Variant::Crazyhouse {
+        return Some(crazyhouse_evaluate(position));
+    }
     if position.variant == Variant::Antichess {
         let ours = position
             .cells
@@ -284,6 +287,55 @@ fn evaluate(position: &Position, nnue: &NnueState) -> Option<i32> {
                 - pressure(opponent(position.turn), position.turn));
     }
     Some(score)
+}
+
+fn crazyhouse_evaluate(position: &Position) -> i32 {
+    let board_value = |piece: PieceKind| match piece {
+        PieceKind::Pawn => 100,
+        PieceKind::Knight => 320,
+        PieceKind::Bishop => 330,
+        PieceKind::Rook => 500,
+        PieceKind::Queen => 900,
+        PieceKind::King => 0,
+    };
+    // Pocket material is deliberately worth more than material already on the
+    // board: a drop has no travel time and can create an immediate check.
+    let pocket_values = [115, 365, 355, 545, 980];
+    let mut white = 0;
+    let mut black = 0;
+    for piece in position.cells.iter().flatten() {
+        let value = board_value(piece.kind);
+        if piece.owner == eloi_core::Player::White {
+            white += value;
+        } else {
+            black += value;
+        }
+    }
+    for (count, value) in position.pockets[0].iter().zip(pocket_values) {
+        white += i32::from(*count) * value;
+    }
+    for (count, value) in position.pockets[1].iter().zip(pocket_values) {
+        black += i32::from(*count) * value;
+    }
+
+    // Reward legal checking drops without recursively invoking search. This is
+    // intentionally small: alpha-beta remains authoritative over tactics.
+    let checking_drops = i32::try_from(
+        position
+            .legal_children()
+            .into_iter()
+            .filter(|(mv, child)| {
+                matches!(mv.kind, MoveKind::Drop(_)) && child.in_check(child.turn)
+            })
+            .count(),
+    )
+    .unwrap_or(0);
+    let signed = white - black;
+    if position.turn == eloi_core::Player::White {
+        signed + checking_drops * 28
+    } else {
+        -signed + checking_drops * 28
+    }
 }
 
 fn horde_evaluate(position: &Position) -> i32 {
@@ -761,6 +813,20 @@ mod tests {
         let position =
             Position::from_fen("4k3/3P1P2/8/8/8/8/8/8 w - - 0 1", Variant::Horde).unwrap();
         assert_eq!(horde_evaluate(&position), 362);
+    }
+
+    #[test]
+    fn crazyhouse_values_pockets_and_immediate_checking_drops() {
+        let white_pocket =
+            Position::from_fen("4k3/8/8/8/8/8/8/4K3[Q] w - - 0 1", Variant::Crazyhouse).unwrap();
+        let black_pocket =
+            Position::from_fen("4k3/8/8/8/8/8/8/4K3[q] w - - 0 1", Variant::Crazyhouse).unwrap();
+        assert!(crazyhouse_evaluate(&white_pocket) > 980);
+        assert!(crazyhouse_evaluate(&black_pocket) < -900);
+
+        let checking_drop =
+            Position::from_fen("7k/8/8/8/8/8/8/K7[R] w - - 0 1", Variant::Crazyhouse).unwrap();
+        assert!(crazyhouse_evaluate(&checking_drop) > 545);
     }
 
     #[test]

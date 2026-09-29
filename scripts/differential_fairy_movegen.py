@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare Eloi Atomic/Antichess legal moves with python-chess."""
+"""Compare Eloi fairy-variant legal moves with python-chess."""
 from __future__ import annotations
 
 import argparse
@@ -45,7 +45,8 @@ def main() -> int:
     args = parser.parse_args()
     report = {"samples_per_variant": args.samples, "mismatches": []}
     variants = (("atomic", chess.variant.AtomicBoard, 0xA701C),
-                ("antichess", chess.variant.AntichessBoard, 0xA471))
+                ("antichess", chess.variant.AntichessBoard, 0xA471),
+                ("crazyhouse", chess.variant.CrazyhouseBoard, 0xC2A2))
     for name, board_type, seed in variants:
         for index, board in enumerate(positions(board_type, args.samples, seed)):
             expected = {move.uci() for move in board.legal_moves}

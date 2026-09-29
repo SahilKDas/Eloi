@@ -11,6 +11,7 @@ authors.workspace = true
 eloi-core = { path = "../eloi-core" }
 eloi-engine = { path = "../eloi-engine" }
 eloi-protocol = { path = "../eloi-protocol" }
+eloi-ui = { path = "../eloi-ui" }
 
 [lints]
 workspace = true

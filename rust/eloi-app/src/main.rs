@@ -2,6 +2,8 @@
 
 use std::io;
 
+mod embedded_donor;
+mod lichess_runtime;
 mod uci_runtime;
 
 use eloi_core::Variant;
@@ -14,20 +16,60 @@ fn main() -> io::Result<()> {
     match args.first().map(String::as_str) {
         Some("--version" | "-v") => println!("Eloi Rust Rewrite {VERSION}"),
         Some("--uci") => {
-            let worker = args
-                .iter()
-                .position(|arg| arg == "--donor-worker")
-                .and_then(|index| args.get(index + 1))
-                .map(std::path::PathBuf::from);
+            let worker = donor_path(&args)?;
             uci_runtime::run(worker.as_deref())?;
         }
         Some("--perft") => perft(&args)?,
         Some("--donor-probe") => donor_probe(&args)?,
         Some("--nnue") => nnue_probe(&args)?,
         Some("--check-config") => check_config(&args)?,
+        Some("--gui") => eloi_ui::run(eloi_ui::SurfaceKind::Chess)?,
+        Some("--operations-center") => {
+            let config = args
+                .iter()
+                .position(|arg| arg == "--config")
+                .and_then(|index| args.get(index + 1))
+                .map(std::path::PathBuf::from);
+            let worker = donor_path(&args)?;
+            if let Some(config) = config {
+                eloi_ui::run_supervised(move || {
+                    if let Err(error) = lichess_runtime::run(&config, worker.as_deref()) {
+                        eprintln!("Lichess supervisor stopped: {error}");
+                    }
+                })?;
+            } else {
+                eloi_ui::run(eloi_ui::SurfaceKind::Operations)?;
+            }
+        }
+        Some("--lichess") => {
+            let config = args
+                .iter()
+                .position(|arg| arg == "--config")
+                .and_then(|index| args.get(index + 1))
+                .ok_or_else(|| io::Error::other("explicit --config path required"))?;
+            let worker = donor_path(&args)?;
+            lichess_runtime::run(std::path::Path::new(config), worker.as_deref())?;
+        }
         _ => println!("Eloi Rust Rewrite {VERSION}: staged migration build"),
     }
     Ok(())
+}
+
+fn donor_path(args: &[String]) -> io::Result<Option<std::path::PathBuf>> {
+    if let Some(path) = args
+        .iter()
+        .position(|arg| arg == "--donor-worker")
+        .and_then(|index| args.get(index + 1))
+    {
+        return Ok(Some(path.into()));
+    }
+    let adjacent = std::env::current_exe()?
+        .parent()
+        .map(|parent| parent.join("eloi-viridithas-worker.exe"));
+    if adjacent.as_ref().is_some_and(|path| path.is_file()) {
+        return Ok(adjacent);
+    }
+    embedded_donor::materialize()
 }
 
 fn check_config(args: &[String]) -> io::Result<()> {

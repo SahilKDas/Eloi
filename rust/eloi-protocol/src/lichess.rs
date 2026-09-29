@@ -50,6 +50,10 @@ pub struct ServerState {
     pub white_ms: u64,
     /// Remaining Black clock in milliseconds.
     pub black_ms: u64,
+    /// White increment in milliseconds.
+    pub white_increment_ms: u64,
+    /// Black increment in milliseconds.
+    pub black_increment_ms: u64,
 }
 
 impl ServerState {
@@ -128,6 +132,8 @@ fn state(value: &Value) -> Result<ServerState, &'static str> {
             .get("btime")
             .and_then(Value::as_u64)
             .ok_or("Black clock missing")?,
+        white_increment_ms: value.get("winc").and_then(Value::as_u64).unwrap_or(0),
+        black_increment_ms: value.get("binc").and_then(Value::as_u64).unwrap_or(0),
     })
 }
 
@@ -151,10 +157,7 @@ impl Session {
             .and_then(Value::as_str)
             .ok_or("variant missing")?;
         let variant = super::variant_from_lichess(key)
-            .filter(|variant| {
-                allowed.contains(variant)
-                    && !matches!(variant, Variant::Crazyhouse | Variant::FourPlayer)
-            })
+            .filter(|variant| allowed.contains(variant) && *variant != Variant::FourPlayer)
             .ok_or("unsupported or disabled variant")?;
         let white = value
             .get("white")
@@ -256,7 +259,7 @@ mod tests {
     }
 
     #[test]
-    fn all_six_variants_reconstruct_without_cross_routing() {
+    fn all_lichess_variants_reconstruct_without_cross_routing() {
         for key in [
             "standard",
             "chess960",
@@ -264,6 +267,7 @@ mod tests {
             "kingOfTheHill",
             "atomic",
             "antichess",
+            "crazyhouse",
         ] {
             let variant = super::super::variant_from_lichess(key).unwrap();
             let session = Session::from_full(&full(key), "eloibot", &[variant]).unwrap();
@@ -271,9 +275,6 @@ mod tests {
             assert_eq!(session.color, Player::White);
             assert!(session.state.active());
         }
-        assert!(
-            Session::from_full(&full("crazyhouse"), "eloibot", &[Variant::Crazyhouse]).is_err()
-        );
         assert!(Session::from_full(&full("standard"), "stranger", &[Variant::Standard]).is_err());
     }
 
