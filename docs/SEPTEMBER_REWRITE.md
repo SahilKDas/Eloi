@@ -42,6 +42,18 @@ tablebases, datagen, tuning tools, and dependencies not needed by Eloi are
 excluded. A matching CC0 network is hash-pinned separately before any strength
 test or package build.
 
+## Donor model verification
+
+Matching network verified as `noumena-b1200.nnue.zst` (upstream model release
+`v102`), SHA-256
+`05D552B0AE659938EF0933A06156762A8C94632740FABBBE119611C6439D2319`.
+The complete compressed model occurs verbatim at byte offset 142912 in the
+official Linux x86-64-v3 release, SHA-256
+`D76F4099AA068F8841767BCC2A4CE17FF0C921C44160CB446FE07AD868CBF9C5`.
+The audit reads the release as data and never executes it. Model permission is
+affirmatively documented in the upstream network repository README:
+<https://github.com/cosmobobak/viridithas-networks>.
+
 ## Rewrite architecture
 
 - `eloi-core`: board state, legal moves, variants, repetition, FEN, clocks.

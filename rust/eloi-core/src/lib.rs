@@ -1,5 +1,6 @@
 //! Authoritative chess and variant state for the Rust Eloi rewrite.
 
+pub mod game;
 pub mod position;
 pub mod rules;
 

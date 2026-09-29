@@ -9,6 +9,7 @@ allow = [
     "Zlib",
     "CC0-1.0",
     "Unlicense",
+    "Unicode-3.0",
 ]
 
 [bans]

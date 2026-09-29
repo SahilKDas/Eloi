@@ -1,5 +1,6 @@
 [workspace]
 resolver = "3"
+exclude = ["tmp/viridithas-v19-audit"]
 members = [
     "rust/eloi-core",
     "rust/eloi-engine",
