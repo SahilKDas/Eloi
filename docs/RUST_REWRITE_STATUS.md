@@ -65,8 +65,13 @@ it does not declare the rewrite or a release qualified.
   replies, classify HTTP failures, gate challenges, reserve exactly one owned
   game, bind legal full histories and count explicit terminal results once.
   Fake-transport tests cover fatal authentication, retry reentry, duplicate games,
-  cancellation, and aborted games without fabricated draws. The actual Windows
-  network adapter and interruptible blocked-read tests remain to be implemented.
+  cancellation, and aborted games without fabricated draws.
+- Native Windows Runtime HTTP adapter compiles with the workspace unsafe-code ban
+  intact. It fixes the HTTPS origin, disables redirects/UI/cookies, bounds bodies
+  and chunks, and polls cancellable OS asynchronous operations. Offline tests
+  cover path/header injection, pre-request cancellation and cancellation of a
+  pending async fixture. Actual blocked-network cancellation and live stream
+  smoke are still unverified; no real token or connection was used.
 
 ## Still required
 

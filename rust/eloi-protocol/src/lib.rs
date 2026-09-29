@@ -6,7 +6,10 @@ pub mod bridge;
 pub mod config;
 pub mod lichess;
 pub mod transport;
+
 pub mod uci;
+#[cfg(windows)]
+pub mod windows_http;
 
 /// Parse an exact Lichess variant key.
 #[must_use]
