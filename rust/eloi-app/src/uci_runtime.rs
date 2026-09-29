@@ -2,7 +2,7 @@
 
 use std::io::{self, BufRead, Write};
 use std::sync::{
-    Arc,
+    Arc, Mutex,
     atomic::{AtomicBool, Ordering},
 };
 use std::thread::JoinHandle;
@@ -106,7 +106,11 @@ fn emit(text: &str) {
     let _ = output.flush();
 }
 
-fn dispatch(game: Game, request: SearchRequest) -> ActiveSearch {
+fn dispatch(
+    game: Game,
+    request: SearchRequest,
+    donor: Option<Arc<Mutex<eloi_engine::worker::DonorWorker>>>,
+) -> ActiveSearch {
     let cancelled = Arc::new(AtomicBool::new(false));
     let signal = Arc::clone(&cancelled);
     let publish = Arc::new(AtomicBool::new(request.ponder_resume.is_none()));
@@ -115,6 +119,39 @@ fn dispatch(game: Game, request: SearchRequest) -> ActiveSearch {
     let resume = request.ponder_resume.map(|limits| (game.clone(), limits));
     let handle = std::thread::spawn(move || {
         let chess960 = game.position().variant == Variant::Chess960;
+        if let Some(worker) = donor {
+            let result = worker
+                .lock()
+                .map_err(|_| io::Error::other("donor lock poisoned"))
+                .and_then(|mut worker| worker.search(&game, limits.movetime, &signal));
+            match result {
+                Ok(result) => {
+                    emit(&format!(
+                        "info depth {} score cp {} nodes {} time {} pv {}",
+                        result.depth,
+                        result.score_cp.unwrap_or(0),
+                        result.nodes,
+                        result.elapsed.as_millis(),
+                        result
+                            .pv
+                            .iter()
+                            .map(|mv| mv.uci(false))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    ));
+                    if publish_result.load(Ordering::Relaxed) {
+                        emit(&format!("bestmove {}", result.best_move.uci(false)));
+                    }
+                }
+                Err(error) => {
+                    emit(&format!("info string donor failure: {error}"));
+                    if publish_result.load(Ordering::Relaxed) {
+                        emit("bestmove 0000");
+                    }
+                }
+            }
+            return;
+        }
         let report = |result: &eloi_engine::search::SearchResult| {
             let pv = result
                 .pv
@@ -162,7 +199,10 @@ fn dispatch(game: Game, request: SearchRequest) -> ActiveSearch {
     }
 }
 
-fn ponderhit(active: &mut Option<ActiveSearch>) {
+fn ponderhit(
+    active: &mut Option<ActiveSearch>,
+    donor: Option<Arc<Mutex<eloi_engine::worker::DonorWorker>>>,
+) {
     let Some(mut search) = active.take() else {
         emit("info string ponderhit without active ponder");
         return;
@@ -181,6 +221,7 @@ fn ponderhit(active: &mut Option<ActiveSearch>) {
             ponder_resume: None,
             infinite: false,
         },
+        donor,
     ));
 }
 
@@ -203,7 +244,11 @@ fn handshake() {
     emit("uciok");
 }
 
-pub fn run() -> io::Result<()> {
+pub fn run(worker_path: Option<&std::path::Path>) -> io::Result<()> {
+    let donor = worker_path
+        .map(eloi_engine::worker::DonorWorker::start)
+        .transpose()?
+        .map(|worker| Arc::new(Mutex::new(worker)));
     let mut game = Game::from_fen(INITIAL_FEN, Variant::Standard).map_err(io::Error::other)?;
     let mut active = None;
     let mut options = UciOptions::default();
@@ -220,7 +265,7 @@ pub fn run() -> io::Result<()> {
             "uci" => handshake(),
             "isready" => emit("readyok"),
             "stop" => stop(&mut active),
-            "ponderhit" => ponderhit(&mut active),
+            "ponderhit" => ponderhit(&mut active, donor.clone()),
             "quit" => {
                 stop(&mut active);
                 break;
@@ -230,6 +275,11 @@ pub fn run() -> io::Result<()> {
                 let fen = initial_fen(options.variant);
                 if let Ok(new_game) = Game::from_fen(fen, options.variant) {
                     game = new_game;
+                }
+                if let Some(worker) = &donor
+                    && let Ok(mut worker) = worker.lock()
+                {
+                    let _ = worker.new_game();
                 }
             }
             _ if line.starts_with("position ") => {
@@ -280,7 +330,10 @@ pub fn run() -> io::Result<()> {
                     emit(&format!("bestmove {}", mv.uci(false)));
                     continue;
                 }
-                active = Some(dispatch(game.clone(), request));
+                let route = (options.variant == Variant::Standard)
+                    .then(|| donor.clone())
+                    .flatten();
+                active = Some(dispatch(game.clone(), request, route));
             }
             "" => {}
             _ => emit("info string unknown command"),

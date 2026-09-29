@@ -13,7 +13,14 @@ fn main() -> io::Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("--version" | "-v") => println!("Eloi Rust Rewrite {VERSION}"),
-        Some("--uci") => uci_runtime::run()?,
+        Some("--uci") => {
+            let worker = args
+                .iter()
+                .position(|arg| arg == "--donor-worker")
+                .and_then(|index| args.get(index + 1))
+                .map(std::path::PathBuf::from);
+            uci_runtime::run(worker.as_deref())?;
+        }
         Some("--perft") => perft(&args)?,
         Some("--donor-probe") => donor_probe(&args)?,
         Some("--nnue") => nnue_probe(&args)?,
