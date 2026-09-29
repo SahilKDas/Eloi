@@ -5,6 +5,7 @@ use eloi_core::Variant;
 pub mod bridge;
 pub mod config;
 pub mod lichess;
+pub mod transport;
 pub mod uci;
 
 /// Parse an exact Lichess variant key.

@@ -61,6 +61,12 @@ it does not declare the rewrite or a release qualified.
   start position through the shared UCI/Lichess selector.
 - JSON decoding pins cached `serde_json` 1.0.151; locked dependency metadata was
   audited as permissive MIT/Apache/Unlicense/Unicode. No copyleft dependency added.
+- Injectable transport seam and offline supervisor authenticate bounded account
+  replies, classify HTTP failures, gate challenges, reserve exactly one owned
+  game, bind legal full histories and count explicit terminal results once.
+  Fake-transport tests cover fatal authentication, retry reentry, duplicate games,
+  cancellation, and aborted games without fabricated draws. The actual Windows
+  network adapter and interruptible blocked-read tests remain to be implemented.
 
 ## Still required
 
