@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use eloi_core::Variant;
 use eloi_core::game::Game;
-use eloi_core::position::INITIAL_FEN;
+use eloi_core::position::{HORDE_INITIAL_FEN, INITIAL_FEN};
 use eloi_engine::search::SearchLimits;
 
 /// Apply a UCI position command without changing the game on any failure.
@@ -17,14 +17,15 @@ pub fn apply_position(game: &mut Game, command: &str, variant: Variant) -> Resul
         return Err("expected position command".into());
     }
     let (fen, tail) = match words.get(1) {
-        Some(&"startpos") => {
+        Some(&"startpos") => (
             if variant == Variant::Horde {
-                return Err(
-                    "Horde requires an explicit starting FEN in this migration stage".into(),
-                );
+                HORDE_INITIAL_FEN
+            } else {
+                INITIAL_FEN
             }
-            (INITIAL_FEN.to_owned(), 2)
-        }
+            .to_owned(),
+            2,
+        ),
         Some(&"fen") if words.len() >= 8 => (words[2..8].join(" "), 8),
         _ => return Err("expected startpos or six-field FEN".into()),
     };
@@ -127,5 +128,25 @@ mod tests {
         ] {
             assert!(parse_go(invalid, 0).is_err(), "{invalid}");
         }
+    }
+
+    #[test]
+    fn horde_startpos_has_the_production_pawn_army() {
+        let mut game = Game::from_fen(INITIAL_FEN, Variant::Standard).unwrap();
+        apply_position(&mut game, "position startpos", Variant::Horde).unwrap();
+        assert_eq!(game.position().variant, Variant::Horde);
+        assert_eq!(
+            game.position().to_fen(),
+            eloi_core::position::HORDE_INITIAL_FEN
+        );
+        assert_eq!(
+            game.position()
+                .cells
+                .iter()
+                .flatten()
+                .filter(|piece| piece.owner == eloi_core::Player::White)
+                .count(),
+            36
+        );
     }
 }

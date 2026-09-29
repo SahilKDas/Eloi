@@ -7,7 +7,11 @@ use std::sync::{
 };
 use std::thread::JoinHandle;
 
-use eloi_core::{Variant, game::Game, position::INITIAL_FEN};
+use eloi_core::{
+    Variant,
+    game::Game,
+    position::{HORDE_INITIAL_FEN, INITIAL_FEN},
+};
 use eloi_protocol::uci::{apply_position, parse_go};
 
 struct ActiveSearch {
@@ -108,7 +112,12 @@ pub fn run() -> io::Result<()> {
             }
             "ucinewgame" => {
                 stop(&mut active);
-                if let Ok(new_game) = Game::from_fen(INITIAL_FEN, variant) {
+                let fen = if variant == Variant::Horde {
+                    HORDE_INITIAL_FEN
+                } else {
+                    INITIAL_FEN
+                };
+                if let Ok(new_game) = Game::from_fen(fen, variant) {
                     game = new_game;
                 }
             }

@@ -7,6 +7,10 @@ use crate::{PieceKind, Player, Square8, Variant};
 /// Standard starting position.
 pub const INITIAL_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+/// Production Horde starting position, with Black retaining castling rights.
+pub const HORDE_INITIAL_FEN: &str =
+    "rnbqkbnr/pppppppp/8/1PP2PP1/PPPPPPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 1";
+
 /// A board piece, including Crazyhouse promotion provenance.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Piece {

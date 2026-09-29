@@ -2,6 +2,7 @@
 
 pub mod nnue;
 pub mod search;
+pub mod time;
 pub mod worker;
 
 use eloi_core::Variant;
