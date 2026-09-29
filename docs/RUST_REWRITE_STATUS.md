@@ -25,6 +25,10 @@ it does not declare the rewrite or a release qualified.
   KOTH's production namespace rename is recorded separately from the frozen
   original campaign header hash.
 - Rust scalar NNUE, incremental updates, reverse updates and model switching.
+- Runtime-dispatched AVX2 NNUE output dot product with an exact scalar fallback.
+  The sole intrinsic exception lives in the audited `eloi-simd` leaf crate;
+  every runtime/engine/protocol crate still forbids unsafe code. Randomized
+  scalar/AVX2 parity passed 4,096 vectors.
 - Independent Python/production-header arithmetic versus Rust:
   **224/224** exact scores over Standard, Chess960, Horde, KOTH, Atomic,
   Antichess and Crazyhouse sample positions.
@@ -84,4 +88,4 @@ Four-player currently has topology/action types; complete rules and its brain
 remain future work.
 
 The final accepted rewrite commit is reserved for
-`Legacy-Free, most 3.9 now` after the actual completion gates pass.
+`Legacy-Free, most 3.9 now (I think)` after the actual completion gates pass.

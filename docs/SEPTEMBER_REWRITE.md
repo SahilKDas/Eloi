@@ -5,7 +5,7 @@ v3.6.0 implementation remains the behavioral reference until Rust passes every
 gate. No release or production replacement is implied by this branch.
 
 The final accepted rewrite commit is reserved for the exact message
-`Legacy-Free, most 3.9 now`, mirroring the historical v1 milestone. It is used
+`Legacy-Free, most 3.9 now (I think)`, mirroring the historical v1 milestone. It is used
 only after the shipped runtime has no legacy C++ dependency and all gates pass.
 
 ## Language and scope

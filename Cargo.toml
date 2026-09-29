@@ -4,6 +4,7 @@ exclude = ["tmp/viridithas-v19-audit", "third_party/viridithas19"]
 members = [
     "rust/eloi-core",
     "rust/eloi-engine",
+    "rust/eloi-simd",
     "rust/eloi-protocol",
     "rust/eloi-app",
 ]

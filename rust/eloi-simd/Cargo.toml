@@ -1,5 +1,5 @@
 [package]
-name = "eloi-engine"
+name = "eloi-simd"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,9 +7,10 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 
-[dependencies]
-eloi-core = { path = "../eloi-core" }
-eloi-simd = { path = "../eloi-simd" }
+[lints.rust]
+unsafe_code = "warn"
+missing_docs = "warn"
 
-[lints]
-workspace = true
+[lints.clippy]
+all = "warn"
+pedantic = "warn"

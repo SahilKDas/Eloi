@@ -11,6 +11,7 @@ name = "eloi-engine"
 version = "0.1.0-september"
 dependencies = [
  "eloi-core",
+ "eloi-simd",
 ]
 
 [[package]]
@@ -32,6 +33,10 @@ dependencies = [
  "eloi-engine",
  "eloi-protocol",
 ]
+
+[[package]]
+name = "eloi-simd"
+version = "0.1.0-september"
 
 [[package]]
 name = "itoa"

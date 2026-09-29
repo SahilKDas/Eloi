@@ -227,13 +227,7 @@ impl NnueState {
             return Err("NNUE requires a two-player turn");
         }
         let weights = self.model.weights()?;
-        let activate = |values: &[i32; HIDDEN]| -> i64 {
-            values
-                .iter()
-                .zip(weights.output)
-                .map(|(value, weight)| i64::from((*value).clamp(0, 127)) * i64::from(weight))
-                .sum()
-        };
+        let activate = |values: &[i32; HIDDEN]| eloi_simd::clipped_dot(values, &weights.output);
         let white_score = (activate(&self.perspective[0]) - activate(&self.perspective[1])) / 8;
         let score = if turn == Player::White {
             white_score
