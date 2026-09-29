@@ -22,6 +22,8 @@ const MAX_PLY: u16 = 64;
 pub struct SearchLimits {
     /// Real wall-clock budget.
     pub movetime: Duration,
+    /// Optional completed-iteration boundary for clock-managed searches.
+    pub soft_time: Option<Duration>,
     /// Maximum completed depth.
     pub depth: u8,
     /// Optional global node limit shared by all three lanes.
@@ -31,6 +33,8 @@ pub struct SearchLimits {
 /// Actual reason the search returned.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StopReason {
+    /// Completed an iteration after the soft clock allocation.
+    SoftLimit,
     /// Reached the depth limit.
     Depth,
     /// Reached the real clock deadline.
@@ -308,6 +312,9 @@ pub fn search(
         || limits.movetime > Duration::from_secs(60)
         || limits.depth == 0
         || limits.depth > 64
+        || limits
+            .soft_time
+            .is_some_and(|soft| soft.is_zero() || soft > limits.movetime)
     {
         return Err("invalid bounded native search limits");
     }
@@ -387,22 +394,34 @@ pub fn search(
             result.emergency = false;
             report(&result);
         }
-        if stopped.load(Ordering::Relaxed) || Instant::now() >= shared.deadline {
+        if stopped.load(Ordering::Relaxed)
+            || Instant::now() >= shared.deadline
+            || limits.soft_time.is_some_and(|soft| start.elapsed() >= soft)
+        {
             break;
         }
     }
     result.nodes = shared.nodes.load(Ordering::Relaxed);
     result.elapsed = start.elapsed();
-    result.stop_reason = if stopped.load(Ordering::Relaxed) {
+    result.stop_reason = stop_reason(&result, limits, &shared);
+    Ok(result)
+}
+
+fn stop_reason(result: &SearchResult, limits: SearchLimits, shared: &Shared<'_>) -> StopReason {
+    if shared.stopped.load(Ordering::Relaxed) {
         StopReason::ExternalStop
     } else if limits.nodes.is_some_and(|limit| result.nodes >= limit) {
         StopReason::NodeLimit
     } else if result.depth == limits.depth {
         StopReason::Depth
+    } else if result.depth > 0
+        && limits.soft_time.is_some_and(|soft| result.elapsed >= soft)
+        && Instant::now() < shared.deadline
+    {
+        StopReason::SoftLimit
     } else {
         StopReason::HardLimit
-    };
-    Ok(result)
+    }
 }
 
 #[cfg(test)]
@@ -417,6 +436,7 @@ mod tests {
             &game,
             SearchLimits {
                 movetime: Duration::from_secs(1),
+                soft_time: None,
                 depth: 2,
                 nodes: Some(10_000),
             },
@@ -436,6 +456,7 @@ mod tests {
             SearchLimits {
                 movetime: Duration::from_secs(1),
                 depth: 8,
+                soft_time: None,
                 nodes: None,
             },
             &AtomicBool::new(true),
@@ -455,6 +476,7 @@ mod tests {
             SearchLimits {
                 movetime: Duration::from_millis(250),
                 depth: 3,
+                soft_time: None,
                 nodes: None,
             },
             &AtomicBool::new(false),

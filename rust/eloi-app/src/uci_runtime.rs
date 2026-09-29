@@ -12,7 +12,7 @@ use eloi_core::{
     game::Game,
     position::{HORDE_INITIAL_FEN, INITIAL_FEN},
 };
-use eloi_protocol::uci::{apply_position, parse_go};
+use eloi_protocol::uci::{apply_position, parse_go_for};
 
 struct ActiveSearch {
     cancelled: Arc<AtomicBool>,
@@ -75,6 +75,21 @@ fn dispatch(game: Game, limits: eloi_engine::search::SearchLimits) -> ActiveSear
     ActiveSearch { cancelled, handle }
 }
 
+fn handshake() {
+    emit(concat!(
+        "id name Eloi Rust Rewrite ",
+        env!("CARGO_PKG_VERSION")
+    ));
+    emit("id author Sahil Das and Eloi contributors");
+    emit("option name Threads type spin default 3 min 3 max 3");
+    emit("option name MoveOverhead type spin default 0 min 0 max 5000");
+    emit(
+        "option name UCI_Variant type combo default chess var chess var chess960 var horde var kingofthehill var atomic var antichess var crazyhouse",
+    );
+    emit("option name UCI_Chess960 type check default false");
+    emit("uciok");
+}
+
 pub fn run() -> io::Result<()> {
     let mut game = Game::from_fen(INITIAL_FEN, Variant::Standard).map_err(io::Error::other)?;
     let mut active = None;
@@ -90,20 +105,7 @@ pub fn run() -> io::Result<()> {
         };
         let line = line.trim();
         match line {
-            "uci" => {
-                emit(concat!(
-                    "id name Eloi Rust Rewrite ",
-                    env!("CARGO_PKG_VERSION")
-                ));
-                emit("id author Sahil Das and Eloi contributors");
-                emit("option name Threads type spin default 3 min 3 max 3");
-                emit("option name MoveOverhead type spin default 0 min 0 max 5000");
-                emit(
-                    "option name UCI_Variant type combo default chess var chess var chess960 var horde var kingofthehill var atomic var antichess var crazyhouse",
-                );
-                emit("option name UCI_Chess960 type check default false");
-                emit("uciok");
-            }
+            "uci" => handshake(),
             "isready" => emit("readyok"),
             "stop" => stop(&mut active),
             "quit" => {
@@ -161,7 +163,7 @@ pub fn run() -> io::Result<()> {
             }
             _ if line.starts_with("go") => {
                 stop(&mut active);
-                let limits = match parse_go(line, overhead) {
+                let limits = match parse_go_for(&game, line, overhead) {
                     Ok(limits) => limits,
                     Err(error) => {
                         emit(&format!("info string search rejected: {error}"));

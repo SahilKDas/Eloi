@@ -56,6 +56,10 @@ def main():
         reply = wait("bestmove ")
         assert chess.Move.from_uci(reply.split()[1]) in board.legal_moves
         send("position startpos")
+        send("go wtime 1000 btime 1000 winc 0 binc 0")
+        reply = wait("bestmove ", 1)
+        assert chess.Move.from_uci(reply.split()[1]) in chess.Board().legal_moves
+        send("position startpos")
         send("go movetime 10000")
         send("isready")
         wait("readyok", 1)

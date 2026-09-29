@@ -33,8 +33,11 @@ it does not declare the rewrite or a release qualified.
   legal iteration PVs and explicitly marked emergency answers.
 - Laboratory UCI runtime replaces the shell: transactional position history,
   iteration telemetry, readiness during search, external stop and clean exit.
-  Independent Python lifecycle smoke passes. Clock-managed/infinite searches
-  remain explicitly rejected pending the time-manager migration.
+  Independent Python lifecycle smoke passes, including clock-managed searches.
+- Production integer clock reserves and panic/emergency/pressure allocation
+  are ported. UCI clock fields select the actual side-to-move, retain the hard
+  deadline, and stop at soft limits only after completed iterations. Explicit
+  movetime takes precedence. Infinite/ponder compatibility remains unfinished.
 
 ## Still required
 
