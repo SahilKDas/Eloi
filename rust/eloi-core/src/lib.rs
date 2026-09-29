@@ -1,5 +1,8 @@
 //! Authoritative chess and variant state for the Rust Eloi rewrite.
 
+pub mod position;
+pub mod rules;
+
 /// Eloi's fixed production search-thread contract.
 pub const SEARCH_THREADS: usize = 3;
 
