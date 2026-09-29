@@ -139,13 +139,20 @@ impl Position {
     /// Geometric orthodox attack detection, independent of move legality.
     #[must_use]
     pub fn attacked(&self, target: Square8, by: Player) -> bool {
+        self.attackers(target, by) != 0
+    }
+
+    /// Count geometric attackers without removing blockers or testing king safety.
+    #[must_use]
+    pub fn attackers(&self, target: Square8, by: Player) -> u8 {
+        let mut count = 0;
         let pawn_direction = if by == Player::White { -1 } else { 1 };
         for df in [-1, 1] {
             if offset(target, df, pawn_direction)
                 .and_then(|s| self.at(s))
                 .is_some_and(|p| p.owner == by && p.kind == PieceKind::Pawn)
             {
-                return true;
+                count += 1;
             }
         }
         for (df, dr) in KNIGHT {
@@ -153,7 +160,7 @@ impl Position {
                 .and_then(|s| self.at(s))
                 .is_some_and(|p| p.owner == by && p.kind == PieceKind::Knight)
             {
-                return true;
+                count += 1;
             }
         }
         for (df, dr) in KING {
@@ -161,7 +168,7 @@ impl Position {
                 .and_then(|s| self.at(s))
                 .is_some_and(|p| p.owner == by && p.kind == PieceKind::King)
             {
-                return true;
+                count += 1;
             }
         }
         for (directions, kind) in [
@@ -173,7 +180,7 @@ impl Position {
                 while let Some(s) = cursor {
                     if let Some(p) = self.at(s) {
                         if p.owner == by && (p.kind == kind || p.kind == PieceKind::Queen) {
-                            return true;
+                            count += 1;
                         }
                         break;
                     }
@@ -181,7 +188,7 @@ impl Position {
                 }
             }
         }
-        false
+        count
     }
 
     /// Variant-aware king threat status.

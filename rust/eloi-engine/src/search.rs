@@ -147,6 +147,9 @@ fn priority(position: &Position, mv: Move8) -> i32 {
 }
 
 fn evaluate(position: &Position, nnue: &NnueState) -> Option<i32> {
+    if position.variant == Variant::Horde {
+        return Some(horde_evaluate(position));
+    }
     if position.variant == Variant::Antichess {
         let ours = position
             .cells
@@ -211,6 +214,41 @@ fn evaluate(position: &Position, nnue: &NnueState) -> Option<i32> {
                 - pressure(opponent(position.turn), position.turn));
     }
     Some(score)
+}
+
+fn horde_evaluate(position: &Position) -> i32 {
+    let mut score = 0;
+    for (square, piece) in position.cells.iter().enumerate() {
+        let Some(piece) = piece else {
+            continue;
+        };
+        let value = match piece.kind {
+            PieceKind::Pawn => {
+                100 + if piece.owner == eloi_core::Player::White {
+                    i32::try_from(square / 8).unwrap_or(0) * 6
+                } else {
+                    0
+                }
+            }
+            PieceKind::Bishop | PieceKind::Knight => 300,
+            PieceKind::Rook => 500,
+            PieceKind::Queen => 900,
+            PieceKind::King => 0,
+        };
+        score += if piece.owner == eloi_core::Player::White {
+            value
+        } else {
+            -value
+        };
+    }
+    if let Some(king) = position.king(eloi_core::Player::Black) {
+        score += i32::from(position.attackers(king, eloi_core::Player::White)) * 45;
+    }
+    if position.turn == eloi_core::Player::White {
+        score
+    } else {
+        -score
+    }
 }
 
 impl Lane<'_> {
@@ -427,6 +465,18 @@ fn stop_reason(result: &SearchResult, limits: SearchLimits, shared: &Shared<'_>)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn horde_keeps_handcrafted_material_without_nnue_tempo() {
+        let mut position =
+            Position::from_fen(eloi_core::position::HORDE_INITIAL_FEN, Variant::Horde).unwrap();
+        assert_eq!(horde_evaluate(&position), 84);
+        position.turn = eloi_core::Player::Black;
+        assert_eq!(horde_evaluate(&position), -84);
+        let position =
+            Position::from_fen("4k3/3P1P2/8/8/8/8/8/8 w - - 0 1", Variant::Horde).unwrap();
+        assert_eq!(horde_evaluate(&position), 362);
+    }
 
     #[test]
     fn mate_defense_and_bounded_cancellation() {
