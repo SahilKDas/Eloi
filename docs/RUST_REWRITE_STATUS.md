@@ -29,11 +29,17 @@ it does not declare the rewrite or a release qualified.
   **224/224** exact scores over Standard, Chess960, Horde, KOTH, Atomic,
   Antichess and Crazyhouse sample positions.
 - Workspace tests and strict Clippy checks pass at each committed slice.
+- Conservative three-lane native alpha-beta with bounded nodes/time, cancellation,
+  legal iteration PVs and explicitly marked emergency answers.
+- Laboratory UCI runtime replaces the shell: transactional position history,
+  iteration telemetry, readiness during search, external stop and clean exit.
+  Independent Python lifecycle smoke passes. Clock-managed/infinite searches
+  remain explicitly rejected pending the time-manager migration.
 
 ## Still required
 
 Native search migration and optimization, exhaustive board/variant parity,
-SIMD evaluator parity, public UCI lifecycle, donor fixed-node parity and
+SIMD evaluator parity, complete public UCI/time-manager compatibility, donor fixed-node parity and
 equal-resource strength qualification, Windows GUI/Operations Center, native
 Lichess transport and simulations, and reproducible packages. Crazyhouse has
 rules scaffolding and validation examples but no qualified pocket-aware brain.
