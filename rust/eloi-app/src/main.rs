@@ -30,8 +30,28 @@ fn main() -> io::Result<()> {
         Some("--uci") => uci()?,
         Some("--perft") => perft(&args)?,
         Some("--donor-probe") => donor_probe(&args)?,
+        Some("--nnue") => nnue_probe(&args)?,
         _ => println!("Eloi Rust Rewrite {VERSION}: staged migration build"),
     }
+    Ok(())
+}
+
+fn nnue_probe(args: &[String]) -> io::Result<()> {
+    let value = |key: &str| {
+        args.iter()
+            .position(|a| a == key)
+            .and_then(|i| args.get(i + 1))
+    };
+    let variant =
+        eloi_protocol::variant_from_lichess(value("--variant").map_or("standard", String::as_str))
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "unsupported variant"))?;
+    let position = Position::from_fen(value("--fen").map_or(INITIAL_FEN, String::as_str), variant)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
+    let state = eloi_engine::nnue::NnueState::refresh(&position).map_err(io::Error::other)?;
+    println!(
+        "{}",
+        state.evaluate(position.turn).map_err(io::Error::other)?
+    );
     Ok(())
 }
 
