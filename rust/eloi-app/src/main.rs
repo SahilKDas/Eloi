@@ -17,8 +17,33 @@ fn main() -> io::Result<()> {
         Some("--perft") => perft(&args)?,
         Some("--donor-probe") => donor_probe(&args)?,
         Some("--nnue") => nnue_probe(&args)?,
+        Some("--check-config") => check_config(&args)?,
         _ => println!("Eloi Rust Rewrite {VERSION}: staged migration build"),
     }
+    Ok(())
+}
+
+fn check_config(args: &[String]) -> io::Result<()> {
+    use std::io::Read;
+    let path = args
+        .iter()
+        .position(|arg| arg == "--config")
+        .and_then(|index| args.get(index + 1))
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "explicit --config path required",
+            )
+        })?;
+    let mut text = String::new();
+    std::fs::File::open(path)?
+        .take(65_537)
+        .read_to_string(&mut text)?;
+    let config = eloi_protocol::config::parse(&text).map_err(io::Error::other)?;
+    println!(
+        "config valid: {} supported variants; credentials withheld; no connection started",
+        config.variants.len()
+    );
     Ok(())
 }
 

@@ -45,6 +45,15 @@ it does not declare the rewrite or a release qualified.
 - Worker output is bounded before line allocation, rejects invalid UTF-8,
   and retains owned-process teardown. The explicit donor integration test was
   rerun successfully after this containment change.
+- Rust Operations Center reducer now covers session states, active-game reconnects,
+  HTTP retry/fatal classification, Retry-After, cancellation, one-time result
+  accounting and bounded redacted events. This is an offline controller, not
+  yet a live transport or dashboard.
+- Native public configuration template is parsed with credential-safe Debug/errors,
+  bounded input, exact HTTPS origin and the six production-supported variants.
+  `--check-config --config PATH` works offline. Unknown settings and duplicate
+  keys fail explicitly rather than being silently ignored; YAML escapes remain
+  unsupported. Private settings have not been rewritten.
 
 ## Still required
 
