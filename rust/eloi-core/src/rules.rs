@@ -499,38 +499,90 @@ impl Position {
         Some(next)
     }
 
-    /// Generate legal moves under this position's variant rules.
+    /// Generate legal moves and their validated resulting positions.
     #[must_use]
-    pub fn legal_moves(&self) -> Vec<Move8> {
+    pub fn legal_children(&self) -> Vec<(Move8, Self)> {
         if self.immediate_winner().is_some() {
             return Vec::new();
         }
         let mut legal: Vec<_> = self
             .pseudo_for(self.turn, true)
             .into_iter()
-            .filter(|&mv| {
-                self.apply_generated(mv).is_some_and(|next| {
-                    self.variant == Variant::Antichess
+            .filter_map(|mv| {
+                self.apply_generated(mv).and_then(|next| {
+                    let valid = self.variant == Variant::Antichess
                         || (self.variant == Variant::Atomic
                             && next.king(opponent(self.turn)).is_none()
                             && next.king(self.turn).is_some())
-                        || !next.in_check(self.turn)
+                        || !next.in_check(self.turn);
+                    valid.then_some((mv, next))
                 })
             })
             .collect();
-        if self.variant == Variant::Antichess && legal.iter().any(|&m| self.is_capture(m)) {
-            legal.retain(|&m| self.is_capture(m));
+        if self.variant == Variant::Antichess && legal.iter().any(|(m, _)| self.is_capture(*m)) {
+            legal.retain(|(m, _)| self.is_capture(*m));
         }
         legal
+    }
+
+    /// Generate legal moves under this position's variant rules.
+    #[must_use]
+    pub fn legal_moves(&self) -> Vec<Move8> {
+        self.legal_children()
+            .into_iter()
+            .map(|(mv, _)| mv)
+            .collect()
+    }
+
+    /// Geometric candidate moves for diagnostics and variant pressure terms.
+    #[must_use]
+    pub fn pseudo_moves(&self, player: Player) -> Vec<Move8> {
+        self.pseudo_for(player, false)
+    }
+
+    /// Rule-state identity, including only genuinely available en-passant rights.
+    #[must_use]
+    pub fn identity_key(&self, has_legal_en_passant: bool) -> u64 {
+        let mut key = 0xcbf2_9ce4_8422_2325_u64;
+        let mut add = |value: u64| {
+            key ^= value;
+            key = key.wrapping_mul(0x0000_0100_0000_01b3);
+        };
+        add(self.variant as u64);
+        add(self.turn as u64);
+        for piece in self.cells {
+            add(piece.map_or(0, |p| {
+                1 + p.kind as u64 + 8 * p.owner as u64 + 64 * u64::from(p.promoted)
+            }));
+        }
+        for right in &self.castling {
+            add(1 + right.owner as u64 * 64 + u64::from(right.rook.index()));
+        }
+        add(0xff);
+        for pocket in self.pockets {
+            for count in pocket {
+                add(u64::from(count));
+            }
+        }
+        if has_legal_en_passant {
+            add(self.en_passant.map_or(0, |s| u64::from(s.index()) + 1));
+        }
+        key
+    }
+
+    /// Immediate rule winner without generating a legal list.
+    #[must_use]
+    pub fn terminal_winner(&self) -> Option<Player> {
+        self.immediate_winner()
     }
 
     /// Apply an action only if it belongs to the authoritative legal list.
     #[must_use]
     pub fn play(&self, mv: Move8) -> Option<Self> {
-        if !self.legal_moves().contains(&mv) {
-            return None;
-        }
-        self.apply_generated(mv)
+        self.legal_children()
+            .into_iter()
+            .find(|(legal, _)| *legal == mv)
+            .map(|(_, next)| next)
     }
 
     /// Resolve and apply exact UCI move notation, including drops.

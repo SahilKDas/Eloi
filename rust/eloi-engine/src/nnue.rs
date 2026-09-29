@@ -110,6 +110,7 @@ pub struct NnueState {
     /// Selected evaluator.
     pub model: Model,
     variant: Variant,
+    source_cells: [Option<Piece>; 64],
     perspective: [[i32; HIDDEN]; 2],
 }
 
@@ -146,6 +147,7 @@ impl NnueState {
         let mut result = Self {
             model,
             variant: position.variant,
+            source_cells: position.cells,
             perspective: [weights.bias.map(i32::from); 2],
         };
         for (index, perspective) in [Player::White, Player::Black].into_iter().enumerate() {
@@ -168,7 +170,7 @@ impl NnueState {
     /// # Errors
     /// Returns a model validation error or mismatched source variant.
     pub fn update(&mut self, before: &Position, after: &Position) -> Result<(), &'static str> {
-        if before.variant != self.variant {
+        if before.variant != self.variant || before.cells != self.source_cells {
             return Err("accumulator source variant mismatch");
         }
         if after.variant != self.variant || Model::for_variant(after.variant) != self.model {
@@ -212,6 +214,7 @@ impl NnueState {
                 }
             }
         }
+        self.source_cells = after.cells;
         Ok(())
     }
 

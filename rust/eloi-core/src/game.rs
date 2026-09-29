@@ -37,6 +37,11 @@ impl Game {
             .map_or(&self.position, |(position, _)| position)
     }
 
+    /// Historical positions before the current ply, for search repetition.
+    pub fn position_history(&self) -> impl Iterator<Item = &Position> {
+        self.history.iter().map(|(position, _)| position)
+    }
+
     /// Apply a legal move and preserve the entire prior state for undo.
     pub fn push(&mut self, mv: Move8) -> bool {
         let Some(next) = self.position.play(mv) else {

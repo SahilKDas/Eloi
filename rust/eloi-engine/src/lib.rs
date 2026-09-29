@@ -1,6 +1,7 @@
 //! Search-brain boundaries for the Rust Eloi rewrite.
 
 pub mod nnue;
+pub mod search;
 pub mod worker;
 
 use eloi_core::Variant;

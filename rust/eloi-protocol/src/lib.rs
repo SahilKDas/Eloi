@@ -2,6 +2,8 @@
 
 use eloi_core::Variant;
 
+pub mod uci;
+
 /// Parse an exact Lichess variant key.
 #[must_use]
 pub fn variant_from_lichess(key: &str) -> Option<Variant> {
