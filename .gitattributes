@@ -9,5 +9,9 @@ data/abc60*.pgn -text whitespace=cr-at-eol,-blank-at-eof
 
 # Keep GitHub language statistics focused on Eloi-owned implementation code.
 third_party/** linguist-vendored
+# Preserve imported donor byte hashes across Windows checkouts.
+third_party/viridithas19/** -text whitespace=cr-at-eol
+# Upstream EPD fixtures retain their original padding and trailing blank lines.
+third_party/viridithas19/epds/** whitespace=cr-at-eol,-blank-at-eof,-blank-at-eol
 include/eloi/*_weights.hpp linguist-generated
 include/eloi/opening_data.hpp linguist-generated

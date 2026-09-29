@@ -1,0 +1,273 @@
+//! Owned Rust donor process with explicit deadlines and authoritative legality.
+
+use std::io::{self, BufRead, BufReader, Write};
+use std::path::Path;
+use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, Receiver};
+use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
+
+use eloi_core::Variant;
+use eloi_core::game::Game;
+use eloi_core::rules::Move8;
+
+/// Fixed identity of the only network accepted by this worker build.
+pub const NETWORK_SHA256: &str = "05d552b0ae659938ef0933a06156762a8c94632740fabbbe119611c6439d2319";
+
+/// Completed donor search, translated through Eloi's legal-move authority.
+#[derive(Clone, Debug)]
+pub struct SearchReport {
+    /// Legal root move.
+    pub best_move: Move8,
+    /// Last completed depth reported by the donor.
+    pub depth: u16,
+    /// Reported centipawn score, absent for mate scores.
+    pub score_cp: Option<i32>,
+    /// Reported mate distance.
+    pub mate: Option<i32>,
+    /// Reported searched nodes.
+    pub nodes: u64,
+    /// Legally replayed principal variation.
+    pub pv: Vec<Move8>,
+    /// Wall time observed by the Eloi owner.
+    pub elapsed: Duration,
+    /// Whether an external stop was requested.
+    pub externally_stopped: bool,
+}
+
+/// A single contained, persistent Standard search process.
+pub struct DonorWorker {
+    child: Child,
+    input: ChildStdin,
+    output: Option<Receiver<io::Result<String>>>,
+    reader: Option<JoinHandle<()>>,
+}
+
+fn invalid(message: impl Into<String>) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, message.into())
+}
+
+impl DonorWorker {
+    /// Start an explicitly supplied source-built worker and complete readiness.
+    ///
+    /// # Errors
+    /// Returns process, handshake, or readiness errors; owns and cleans up its child.
+    pub fn start(path: &Path) -> io::Result<Self> {
+        let mut command = Command::new(path);
+        command
+            .arg("--eloi-worker")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            // Internal worker: Idle priority, no independent console window.
+            command.creation_flags(0x0000_0040 | 0x0800_0000);
+        }
+        let mut child = command.spawn()?;
+        let input = child
+            .stdin
+            .take()
+            .ok_or_else(|| invalid("worker stdin unavailable"))?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| invalid("worker stdout unavailable"))?;
+        let (send, receive) = mpsc::sync_channel(256);
+        let reader = thread::spawn(move || {
+            let mut stdout = BufReader::new(stdout);
+            loop {
+                let mut line = String::new();
+                let result = match stdout.read_line(&mut line) {
+                    Ok(0) => break,
+                    Ok(_) if line.len() <= 32_768 => Ok(line),
+                    Ok(_) => Err(invalid("worker protocol line exceeds limit")),
+                    Err(e) => Err(e),
+                };
+                let failed = result.is_err();
+                if send.send(result).is_err() || failed {
+                    break;
+                }
+            }
+        });
+        let mut worker = Self {
+            child,
+            input,
+            output: Some(receive),
+            reader: Some(reader),
+        };
+        worker.send("uci")?;
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut threads_verified = false;
+        loop {
+            let line = worker.line(deadline)?;
+            if line.trim() == "option name Threads type spin default 3 min 3 max 3" {
+                threads_verified = true;
+            }
+            if line.trim() == "uciok" {
+                break;
+            }
+        }
+        if !threads_verified {
+            return Err(invalid("worker three-thread contract mismatch"));
+        }
+        worker.send("setoption name PrettyPrint value false")?;
+        worker.send("setoption name Hash value 32")?;
+        worker.send("isready")?;
+        while worker.line(deadline)?.trim() != "readyok" {}
+        Ok(worker)
+    }
+
+    fn send(&mut self, text: &str) -> io::Result<()> {
+        writeln!(self.input, "{text}")?;
+        self.input.flush()
+    }
+
+    fn line(&self, deadline: Instant) -> io::Result<String> {
+        let duration = deadline.saturating_duration_since(Instant::now());
+        self.output
+            .as_ref()
+            .ok_or_else(|| invalid("worker closed"))?
+            .recv_timeout(duration)
+            .map_err(|e| {
+                io::Error::new(
+                    if e == mpsc::RecvTimeoutError::Timeout {
+                        io::ErrorKind::TimedOut
+                    } else {
+                        io::ErrorKind::BrokenPipe
+                    },
+                    e,
+                )
+            })?
+    }
+
+    /// Reset search caches without replacing the process.
+    ///
+    /// # Errors
+    /// Returns protocol or readiness failure.
+    pub fn new_game(&mut self) -> io::Result<()> {
+        self.send("ucinewgame")?;
+        self.send("isready")?;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while self.line(deadline)?.trim() != "readyok" {}
+        Ok(())
+    }
+
+    /// Search Standard chess with full position history and the real time budget.
+    ///
+    /// # Errors
+    /// Rejects variants, illegal responses, crashes, late responses and invalid PVs.
+    pub fn search(
+        &mut self,
+        game: &Game,
+        budget: Duration,
+        stopped: &AtomicBool,
+    ) -> io::Result<SearchReport> {
+        if game.position().variant != Variant::Standard {
+            return Err(invalid("Standard-only donor refused variant"));
+        }
+        if budget.is_zero() || budget > Duration::from_secs(60) {
+            return Err(invalid("search budget outside bounded worker contract"));
+        }
+        if game.position().legal_moves().is_empty() {
+            return Err(invalid("no legal moves in terminal position"));
+        }
+        let mut position = format!("position fen {}", game.initial_position().to_fen());
+        let history: Vec<_> = game.moves().map(|m| m.uci(false)).collect();
+        if !history.is_empty() {
+            position.push_str(" moves ");
+            position.push_str(&history.join(" "));
+        }
+        self.send(&position)?;
+        let start = Instant::now();
+        let deadline = start + budget + Duration::from_millis(150);
+        self.send(&format!("go movetime {}", budget.as_millis().max(1)))?;
+        let mut depth = 0;
+        let mut score_cp = None;
+        let mut mate = None;
+        let mut nodes = 0;
+        let mut pv = Vec::new();
+        let mut externally_stopped = false;
+        loop {
+            if stopped.load(Ordering::Relaxed) && !externally_stopped {
+                self.send("stop")?;
+                externally_stopped = true;
+            }
+            let slice = deadline.min(Instant::now() + Duration::from_millis(10));
+            let line = match self.line(slice) {
+                Err(e) if e.kind() == io::ErrorKind::TimedOut && Instant::now() < deadline => {
+                    continue;
+                }
+                Err(e) => {
+                    let _ = self.child.kill();
+                    return Err(e);
+                }
+                Ok(line) => line,
+            };
+            let fields: Vec<_> = line.split_whitespace().collect();
+            if fields.first() == Some(&"bestmove") {
+                let best_move = fields
+                    .get(1)
+                    .and_then(|text| game.position().parse_move(text))
+                    .ok_or_else(|| invalid("donor returned illegal or absent move"))?;
+                return Ok(SearchReport {
+                    best_move,
+                    depth,
+                    score_cp,
+                    mate,
+                    nodes,
+                    pv,
+                    elapsed: start.elapsed(),
+                    externally_stopped,
+                });
+            }
+            if fields.first() != Some(&"info") {
+                continue;
+            }
+            let value = |key| {
+                fields
+                    .iter()
+                    .position(|&v| v == key)
+                    .and_then(|i| fields.get(i + 1))
+            };
+            depth = value("depth").and_then(|v| v.parse().ok()).unwrap_or(depth);
+            nodes = value("nodes").and_then(|v| v.parse().ok()).unwrap_or(nodes);
+            if let Some(value) = value("cp").and_then(|v| v.parse().ok()) {
+                score_cp = Some(value);
+                mate = None;
+            }
+            if let Some(value) = value("mate").and_then(|v| v.parse().ok()) {
+                mate = Some(value);
+                score_cp = None;
+            }
+            if let Some(index) = fields.iter().position(|&v| v == "pv") {
+                let mut board = game.position().clone();
+                let mut moves = Vec::new();
+                for text in &fields[index + 1..] {
+                    let mv = board
+                        .parse_move(text)
+                        .ok_or_else(|| invalid("illegal donor principal variation"))?;
+                    board = board
+                        .play(mv)
+                        .ok_or_else(|| invalid("PV state transition failed"))?;
+                    moves.push(mv);
+                }
+                pv = moves;
+            }
+        }
+    }
+}
+
+impl Drop for DonorWorker {
+    fn drop(&mut self) {
+        // Drop receiver first to unblock a full reader queue before joining it.
+        self.output.take();
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+        if let Some(reader) = self.reader.take() {
+            let _ = reader.join();
+        }
+    }
+}

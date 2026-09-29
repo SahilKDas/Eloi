@@ -26,5 +26,10 @@ Copyright (c) 2022-2025 Cosmo Bobak
 Viridithas 19.0.1 is an MIT-licensed Rust chess engine selected as the proposed
 Standard-search donor for the September rewrite. The exact source identity and
 network licensing are recorded in `docs/SEPTEMBER_REWRITE.md`. No Viridithas
-source or network is shipped by Eloi until the provenance and dependency audit
-for the pinned artifact is complete.
+source or network is shipped in production until qualification is complete.
+The Rust worker source is retained under `third_party/viridithas19` with its
+complete MIT notice. Its matching `noumena` network is CC0, as explicitly
+declared by <https://github.com/cosmobobak/viridithas-networks>. Benjamin Sago's
+MIT notice is preserved in the donor's `src/term.rs`. Active dependencies retain
+their MIT, Apache-2.0, Unlicense, and Unicode-3.0 notices. External C tablebases
+are excluded and their build features are refused.

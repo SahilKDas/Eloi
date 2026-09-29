@@ -1,0 +1,623 @@
+use std::fmt::Display;
+
+use crate::{
+    evaluation::{
+        MATERIAL_SCALE_BASE, SEE_BISHOP_VALUE, SEE_KNIGHT_VALUE, SEE_PAWN_VALUE, SEE_QUEEN_VALUE,
+        SEE_ROOK_VALUE,
+    },
+    search::{
+        ASPIRATION_EVAL_DIVISOR, CONT1_HISTORY_BONUS_MAX, CONT1_HISTORY_BONUS_MUL,
+        CONT1_HISTORY_BONUS_OFFSET, CONT1_HISTORY_MALUS_MAX, CONT1_HISTORY_MALUS_MUL,
+        CONT1_HISTORY_MALUS_OFFSET, CONT1_STAT_SCORE_MUL, CONT2_HISTORY_BONUS_MAX,
+        CONT2_HISTORY_BONUS_MUL, CONT2_HISTORY_BONUS_OFFSET, CONT2_HISTORY_MALUS_MAX,
+        CONT2_HISTORY_MALUS_MUL, CONT2_HISTORY_MALUS_OFFSET, CONT2_STAT_SCORE_MUL,
+        CONT4_HISTORY_BONUS_MAX, CONT4_HISTORY_BONUS_MUL, CONT4_HISTORY_BONUS_OFFSET,
+        CONT4_HISTORY_MALUS_MAX, CONT4_HISTORY_MALUS_MUL, CONT4_HISTORY_MALUS_OFFSET,
+        CONT4_STAT_SCORE_MUL, CONTINUATION_CORRHIST_WEIGHT, DELTA_BASE_MUL, DELTA_INITIAL,
+        DELTA_REDUCTION_MUL, DO_DEEPER_BASE_MARGIN, DO_DEEPER_DEPTH_MARGIN,
+        DOUBLE_EXTENSION_MARGIN, EVAL_POLICY_IMPROVEMENT_SCALE, EVAL_POLICY_OFFSET,
+        EVAL_POLICY_UPDATE_MAX, FUTILITY_COEFF_0, FUTILITY_COEFF_1, HINDSIGHT_EXT_DEPTH,
+        HINDSIGHT_RED_DEPTH, HINDSIGHT_RED_EVAL, HISTORY_LMR_DIVISOR, HISTORY_PRUNING_MARGIN,
+        LMR_BASE, LMR_BASE_OFFSET, LMR_CHECK_MUL, LMR_CORR_MUL, LMR_CUT_NODE_MUL, LMR_DIVISION,
+        LMR_NON_IMPROVING_MUL, LMR_NON_PV_MUL, LMR_REFUTATION_MUL, LMR_TT_CAPTURE_MUL,
+        LMR_TTPV_MUL, MAIN_HISTORY_BONUS_MAX, MAIN_HISTORY_BONUS_MUL, MAIN_HISTORY_BONUS_OFFSET,
+        MAIN_HISTORY_MALUS_MAX, MAIN_HISTORY_MALUS_MUL, MAIN_HISTORY_MALUS_OFFSET, MAIN_SEE_BOUND,
+        MAIN_STAT_SCORE_MUL, MAJOR_CORRHIST_WEIGHT, MINOR_CORRHIST_WEIGHT, NMP_DEPTH_MUL,
+        NMP_IMPROVING_MARGIN, NMP_REDUCTION_EVAL_DIVISOR, NONPAWN_CORRHIST_WEIGHT,
+        OPTIMISM_MATERIAL_BASE, OPTIMISM_OFFSET, PAWN_CORRHIST_WEIGHT, PAWN_HISTORY_BONUS_MAX,
+        PAWN_HISTORY_BONUS_MUL, PAWN_HISTORY_BONUS_OFFSET, PAWN_HISTORY_MALUS_MAX,
+        PAWN_HISTORY_MALUS_MUL, PAWN_HISTORY_MALUS_OFFSET, PROBCUT_ADA_DIV, PROBCUT_ADA_OFFSET,
+        PROBCUT_EVAL_DIV, PROBCUT_IMPROVING_MARGIN, PROBCUT_MARGIN, PROBCUT_SEE_SCALE, QS_FUTILITY,
+        QS_SEE_BOUND, RAZORING_COEFF_0, RAZORING_COEFF_1, RFP_IMPROVING_MARGIN, RFP_MARGIN,
+        SEE_QUIET_MARGIN, SEE_STAT_SCORE_MUL, SEE_TACTICAL_MARGIN, TACT_STAT_SCORE_MUL,
+        TACTICAL_HISTORY_BONUS_MAX, TACTICAL_HISTORY_BONUS_MUL, TACTICAL_HISTORY_BONUS_OFFSET,
+        TACTICAL_HISTORY_MALUS_MAX, TACTICAL_HISTORY_MALUS_MUL, TACTICAL_HISTORY_MALUS_OFFSET,
+        TRIPLE_EXTENSION_MARGIN,
+    },
+    timemgmt::{
+        DEFAULT_MOVES_TO_GO, FAIL_LOW_TM_BONUS, HARD_WINDOW_FRAC, INCREMENT_FRAC,
+        NODE_TM_SUBTREE_MULTIPLIER, OPTIMAL_WINDOW_FRAC, STRONG_FORCED_TM_FRAC,
+        WEAK_FORCED_TM_FRAC,
+    },
+};
+
+#[derive(Clone, Debug)]
+pub struct Config {
+    pub aspiration_eval_divisor: i32,
+    pub delta_initial: i32,
+    pub delta_base_mul: i32,
+    pub delta_reduction_mul: i32,
+    pub rfp_margin: i32,
+    pub rfp_improving_margin: i32,
+    pub nmp_improving_margin: i32,
+    pub nmp_depth_mul: i32,
+    pub nmp_reduction_eval_divisor: i32,
+    pub see_quiet_margin: i32,
+    pub see_tactical_margin: i32,
+    pub futility_coeff_0: i32,
+    pub futility_coeff_1: i32,
+    pub razoring_coeff_0: i32,
+    pub razoring_coeff_1: i32,
+    pub dext_margin: i32,
+    pub text_margin: i32,
+    pub lmr_base: f64,
+    pub lmr_division: f64,
+    pub probcut_margin: i32,
+    pub probcut_improving_margin: i32,
+    pub probcut_eval_div: i32,
+    pub probcut_ada_offset: i32,
+    pub probcut_ada_div: i32,
+    pub strong_forced_tm_frac: u32,
+    pub weak_forced_tm_frac: u32,
+    pub default_moves_to_go: u32,
+    pub hard_window_frac: u32,
+    pub optimal_window_frac: u32,
+    pub increment_frac: u32,
+    pub node_tm_subtree_multiplier: u32,
+    pub fail_low_tm_bonus: u32,
+    pub history_lmr_divisor: i32,
+    pub qs_see_bound: i32,
+    pub main_see_bound: i32,
+    pub do_deeper_base_margin: i32,
+    pub do_deeper_depth_margin: i32,
+    pub history_pruning_margin: i32,
+    pub qs_futility: i32,
+    pub see_stat_score_mul: i32,
+    pub lmr_refutation_mul: i32,
+    pub lmr_non_pv_mul: i32,
+    pub lmr_ttpv_mul: i32,
+    pub lmr_cut_node_mul: i32,
+    pub lmr_non_improving_mul: i32,
+    pub lmr_tt_capture_mul: i32,
+    pub lmr_check_mul: i32,
+    pub lmr_corr_mul: i32,
+    pub lmr_base_offset: i32,
+    pub main_history_bonus_mul: i32,
+    pub main_history_bonus_offset: i32,
+    pub main_history_bonus_max: i32,
+    pub main_history_malus_mul: i32,
+    pub main_history_malus_offset: i32,
+    pub main_history_malus_max: i32,
+    pub cont1_history_bonus_mul: i32,
+    pub cont1_history_bonus_offset: i32,
+    pub cont1_history_bonus_max: i32,
+    pub cont1_history_malus_mul: i32,
+    pub cont1_history_malus_offset: i32,
+    pub cont1_history_malus_max: i32,
+    pub cont2_history_bonus_mul: i32,
+    pub cont2_history_bonus_offset: i32,
+    pub cont2_history_bonus_max: i32,
+    pub cont2_history_malus_mul: i32,
+    pub cont2_history_malus_offset: i32,
+    pub cont2_history_malus_max: i32,
+    pub cont4_history_bonus_mul: i32,
+    pub cont4_history_bonus_offset: i32,
+    pub cont4_history_bonus_max: i32,
+    pub cont4_history_malus_mul: i32,
+    pub cont4_history_malus_offset: i32,
+    pub cont4_history_malus_max: i32,
+    pub pawn_history_bonus_mul: i32,
+    pub pawn_history_bonus_offset: i32,
+    pub pawn_history_bonus_max: i32,
+    pub pawn_history_malus_mul: i32,
+    pub pawn_history_malus_offset: i32,
+    pub pawn_history_malus_max: i32,
+    pub tactical_history_bonus_mul: i32,
+    pub tactical_history_bonus_offset: i32,
+    pub tactical_history_bonus_max: i32,
+    pub tactical_history_malus_mul: i32,
+    pub tactical_history_malus_offset: i32,
+    pub tactical_history_malus_max: i32,
+    pub main_stat_score_mul: i32,
+    pub cont1_stat_score_mul: i32,
+    pub cont2_stat_score_mul: i32,
+    pub cont4_stat_score_mul: i32,
+    pub tactical_stat_score_mul: i32,
+    pub pawn_corrhist_weight: i32,
+    pub major_corrhist_weight: i32,
+    pub minor_corrhist_weight: i32,
+    pub nonpawn_corrhist_weight: i32,
+    pub continuation_corrhist_weight: i32,
+    pub see_pawn_value: i32,
+    pub see_knight_value: i32,
+    pub see_bishop_value: i32,
+    pub see_rook_value: i32,
+    pub see_queen_value: i32,
+    pub material_scale_base: i32,
+    pub eval_policy_improvement_scale: i32,
+    pub eval_policy_offset: i32,
+    pub hindsight_ext_depth: i32,
+    pub hindsight_red_depth: i32,
+    pub hindsight_red_eval: i32,
+    pub optimism_offset: i32,
+    pub optimism_mat_base: i32,
+    pub eval_policy_update_max: i32,
+    pub probcut_see_scale: i32,
+}
+
+impl Config {
+    #[expect(clippy::too_many_lines)]
+    pub const fn default() -> Self {
+        Self {
+            aspiration_eval_divisor: ASPIRATION_EVAL_DIVISOR,
+            delta_initial: DELTA_INITIAL,
+            delta_base_mul: DELTA_BASE_MUL,
+            delta_reduction_mul: DELTA_REDUCTION_MUL,
+            rfp_margin: RFP_MARGIN,
+            rfp_improving_margin: RFP_IMPROVING_MARGIN,
+            nmp_improving_margin: NMP_IMPROVING_MARGIN,
+            nmp_depth_mul: NMP_DEPTH_MUL,
+            nmp_reduction_eval_divisor: NMP_REDUCTION_EVAL_DIVISOR,
+            see_quiet_margin: SEE_QUIET_MARGIN,
+            see_tactical_margin: SEE_TACTICAL_MARGIN,
+            futility_coeff_0: FUTILITY_COEFF_0,
+            futility_coeff_1: FUTILITY_COEFF_1,
+            razoring_coeff_0: RAZORING_COEFF_0,
+            razoring_coeff_1: RAZORING_COEFF_1,
+            dext_margin: DOUBLE_EXTENSION_MARGIN,
+            text_margin: TRIPLE_EXTENSION_MARGIN,
+            lmr_base: LMR_BASE,
+            lmr_division: LMR_DIVISION,
+            probcut_margin: PROBCUT_MARGIN,
+            probcut_improving_margin: PROBCUT_IMPROVING_MARGIN,
+            probcut_eval_div: PROBCUT_EVAL_DIV,
+            probcut_ada_offset: PROBCUT_ADA_OFFSET,
+            probcut_ada_div: PROBCUT_ADA_DIV,
+            strong_forced_tm_frac: STRONG_FORCED_TM_FRAC,
+            weak_forced_tm_frac: WEAK_FORCED_TM_FRAC,
+            default_moves_to_go: DEFAULT_MOVES_TO_GO,
+            hard_window_frac: HARD_WINDOW_FRAC,
+            optimal_window_frac: OPTIMAL_WINDOW_FRAC,
+            increment_frac: INCREMENT_FRAC,
+            node_tm_subtree_multiplier: NODE_TM_SUBTREE_MULTIPLIER,
+            fail_low_tm_bonus: FAIL_LOW_TM_BONUS,
+            history_lmr_divisor: HISTORY_LMR_DIVISOR,
+            qs_see_bound: QS_SEE_BOUND,
+            main_see_bound: MAIN_SEE_BOUND,
+            do_deeper_base_margin: DO_DEEPER_BASE_MARGIN,
+            do_deeper_depth_margin: DO_DEEPER_DEPTH_MARGIN,
+            history_pruning_margin: HISTORY_PRUNING_MARGIN,
+            qs_futility: QS_FUTILITY,
+            see_stat_score_mul: SEE_STAT_SCORE_MUL,
+            lmr_refutation_mul: LMR_REFUTATION_MUL,
+            lmr_non_pv_mul: LMR_NON_PV_MUL,
+            lmr_ttpv_mul: LMR_TTPV_MUL,
+            lmr_cut_node_mul: LMR_CUT_NODE_MUL,
+            lmr_non_improving_mul: LMR_NON_IMPROVING_MUL,
+            lmr_tt_capture_mul: LMR_TT_CAPTURE_MUL,
+            lmr_check_mul: LMR_CHECK_MUL,
+            lmr_corr_mul: LMR_CORR_MUL,
+            lmr_base_offset: LMR_BASE_OFFSET,
+            main_history_bonus_mul: MAIN_HISTORY_BONUS_MUL,
+            main_history_bonus_offset: MAIN_HISTORY_BONUS_OFFSET,
+            main_history_bonus_max: MAIN_HISTORY_BONUS_MAX,
+            main_history_malus_mul: MAIN_HISTORY_MALUS_MUL,
+            main_history_malus_offset: MAIN_HISTORY_MALUS_OFFSET,
+            main_history_malus_max: MAIN_HISTORY_MALUS_MAX,
+            cont1_history_bonus_mul: CONT1_HISTORY_BONUS_MUL,
+            cont1_history_bonus_offset: CONT1_HISTORY_BONUS_OFFSET,
+            cont1_history_bonus_max: CONT1_HISTORY_BONUS_MAX,
+            cont1_history_malus_mul: CONT1_HISTORY_MALUS_MUL,
+            cont1_history_malus_offset: CONT1_HISTORY_MALUS_OFFSET,
+            cont1_history_malus_max: CONT1_HISTORY_MALUS_MAX,
+            cont2_history_bonus_mul: CONT2_HISTORY_BONUS_MUL,
+            cont2_history_bonus_offset: CONT2_HISTORY_BONUS_OFFSET,
+            cont2_history_bonus_max: CONT2_HISTORY_BONUS_MAX,
+            cont2_history_malus_mul: CONT2_HISTORY_MALUS_MUL,
+            cont2_history_malus_offset: CONT2_HISTORY_MALUS_OFFSET,
+            cont2_history_malus_max: CONT2_HISTORY_MALUS_MAX,
+            cont4_history_bonus_mul: CONT4_HISTORY_BONUS_MUL,
+            cont4_history_bonus_offset: CONT4_HISTORY_BONUS_OFFSET,
+            cont4_history_bonus_max: CONT4_HISTORY_BONUS_MAX,
+            cont4_history_malus_mul: CONT4_HISTORY_MALUS_MUL,
+            cont4_history_malus_offset: CONT4_HISTORY_MALUS_OFFSET,
+            cont4_history_malus_max: CONT4_HISTORY_MALUS_MAX,
+            pawn_history_bonus_mul: PAWN_HISTORY_BONUS_MUL,
+            pawn_history_bonus_offset: PAWN_HISTORY_BONUS_OFFSET,
+            pawn_history_bonus_max: PAWN_HISTORY_BONUS_MAX,
+            pawn_history_malus_mul: PAWN_HISTORY_MALUS_MUL,
+            pawn_history_malus_offset: PAWN_HISTORY_MALUS_OFFSET,
+            pawn_history_malus_max: PAWN_HISTORY_MALUS_MAX,
+            tactical_history_bonus_mul: TACTICAL_HISTORY_BONUS_MUL,
+            tactical_history_bonus_offset: TACTICAL_HISTORY_BONUS_OFFSET,
+            tactical_history_bonus_max: TACTICAL_HISTORY_BONUS_MAX,
+            tactical_history_malus_mul: TACTICAL_HISTORY_MALUS_MUL,
+            tactical_history_malus_offset: TACTICAL_HISTORY_MALUS_OFFSET,
+            tactical_history_malus_max: TACTICAL_HISTORY_MALUS_MAX,
+            main_stat_score_mul: MAIN_STAT_SCORE_MUL,
+            cont1_stat_score_mul: CONT1_STAT_SCORE_MUL,
+            cont2_stat_score_mul: CONT2_STAT_SCORE_MUL,
+            cont4_stat_score_mul: CONT4_STAT_SCORE_MUL,
+            tactical_stat_score_mul: TACT_STAT_SCORE_MUL,
+            pawn_corrhist_weight: PAWN_CORRHIST_WEIGHT,
+            major_corrhist_weight: MAJOR_CORRHIST_WEIGHT,
+            minor_corrhist_weight: MINOR_CORRHIST_WEIGHT,
+            nonpawn_corrhist_weight: NONPAWN_CORRHIST_WEIGHT,
+            continuation_corrhist_weight: CONTINUATION_CORRHIST_WEIGHT,
+            see_pawn_value: SEE_PAWN_VALUE,
+            see_knight_value: SEE_KNIGHT_VALUE,
+            see_bishop_value: SEE_BISHOP_VALUE,
+            see_rook_value: SEE_ROOK_VALUE,
+            see_queen_value: SEE_QUEEN_VALUE,
+            material_scale_base: MATERIAL_SCALE_BASE,
+            eval_policy_improvement_scale: EVAL_POLICY_IMPROVEMENT_SCALE,
+            eval_policy_offset: EVAL_POLICY_OFFSET,
+            hindsight_ext_depth: HINDSIGHT_EXT_DEPTH,
+            hindsight_red_depth: HINDSIGHT_RED_DEPTH,
+            hindsight_red_eval: HINDSIGHT_RED_EVAL,
+            optimism_offset: OPTIMISM_OFFSET,
+            optimism_mat_base: OPTIMISM_MATERIAL_BASE,
+            eval_policy_update_max: EVAL_POLICY_UPDATE_MAX,
+            probcut_see_scale: PROBCUT_SEE_SCALE,
+        }
+    }
+}
+
+impl Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Search parameters:")?;
+        for (id, value) in self.ids_with_values() {
+            writeln!(f, "    {id}: {value}")?;
+        }
+        Ok(())
+    }
+}
+
+macro_rules! id_parser_gen {
+    ($($option:ident = [$($field:tt)*]),*) => {
+        vec![$(
+            (stringify!($option), Box::new(|s: &str| {
+                if let Ok(res) = s.parse() {
+                    $($field)* = res;
+                } else {
+                    return Err(format!("Invalid value for {}: {}", stringify!($option), s).into());
+                }
+                Ok(())
+            })),)
+            *
+        ]
+    }
+}
+
+macro_rules! id_value_gen {
+    ($($option:ident = [$field:expr, $min:expr, $max:expr, $step:expr]),*) => {
+        vec![$(
+            (stringify!($option), f64::from($field), f64::from($min), f64::from($max), f64::from($step)),)
+            *
+        ]
+    }
+}
+
+type LazyFieldParser<'a> = Box<dyn FnMut(&str) -> Result<(), Box<dyn std::error::Error>> + 'a>;
+
+impl Config {
+    #[expect(clippy::too_many_lines)]
+    pub fn ids_with_parsers(&mut self) -> Vec<(&str, LazyFieldParser<'_>)> {
+        id_parser_gen![
+            ASPIRATION_EVAL_DIVISOR = [self.aspiration_eval_divisor],
+            DELTA_INITIAL = [self.delta_initial],
+            DELTA_BASE_MUL = [self.delta_base_mul],
+            DELTA_REDUCTION_MUL = [self.delta_reduction_mul],
+            RFP_MARGIN = [self.rfp_margin],
+            RFP_IMPROVING_MARGIN = [self.rfp_improving_margin],
+            NMP_IMPROVING_MARGIN = [self.nmp_improving_margin],
+            NMP_DEPTH_MUL = [self.nmp_depth_mul],
+            NMP_REDUCTION_EVAL_DIVISOR = [self.nmp_reduction_eval_divisor],
+            SEE_QUIET_MARGIN = [self.see_quiet_margin],
+            SEE_TACTICAL_MARGIN = [self.see_tactical_margin],
+            FUTILITY_COEFF_0 = [self.futility_coeff_0],
+            FUTILITY_COEFF_1 = [self.futility_coeff_1],
+            RAZORING_COEFF_0 = [self.razoring_coeff_0],
+            RAZORING_COEFF_1 = [self.razoring_coeff_1],
+            DOUBLE_EXTENSION_MARGIN = [self.dext_margin],
+            TRIPLE_EXTENSION_MARGIN = [self.text_margin],
+            LMR_BASE = [self.lmr_base],
+            LMR_DIVISION = [self.lmr_division],
+            PROBCUT_MARGIN = [self.probcut_margin],
+            PROBCUT_IMPROVING_MARGIN = [self.probcut_improving_margin],
+            PROBCUT_EVAL_DIV = [self.probcut_eval_div],
+            PROBCUT_ADA_OFFSET = [self.probcut_ada_offset],
+            PROBCUT_ADA_DIV = [self.probcut_ada_div],
+            STRONG_FORCED_TM_FRAC = [self.strong_forced_tm_frac],
+            WEAK_FORCED_TM_FRAC = [self.weak_forced_tm_frac],
+            DEFAULT_MOVES_TO_GO = [self.default_moves_to_go],
+            HARD_WINDOW_FRAC = [self.hard_window_frac],
+            OPTIMAL_WINDOW_FRAC = [self.optimal_window_frac],
+            INCREMENT_FRAC = [self.increment_frac],
+            NODE_TM_SUBTREE_MULTIPLIER = [self.node_tm_subtree_multiplier],
+            FAIL_LOW_TM_BONUS = [self.fail_low_tm_bonus],
+            HISTORY_LMR_DIVISOR = [self.history_lmr_divisor],
+            QS_SEE_BOUND = [self.qs_see_bound],
+            MAIN_SEE_BOUND = [self.main_see_bound],
+            DO_DEEPER_BASE_MARGIN = [self.do_deeper_base_margin],
+            DO_DEEPER_DEPTH_MARGIN = [self.do_deeper_depth_margin],
+            HISTORY_PRUNING_MARGIN = [self.history_pruning_margin],
+            QS_FUTILITY = [self.qs_futility],
+            SEE_STAT_SCORE_MUL = [self.see_stat_score_mul],
+            LMR_REFUTATION_MUL = [self.lmr_refutation_mul],
+            LMR_NON_PV_MUL = [self.lmr_non_pv_mul],
+            LMR_TTPV_MUL = [self.lmr_ttpv_mul],
+            LMR_CUT_NODE_MUL = [self.lmr_cut_node_mul],
+            LMR_NON_IMPROVING_MUL = [self.lmr_non_improving_mul],
+            LMR_TT_CAPTURE_MUL = [self.lmr_tt_capture_mul],
+            LMR_CHECK_MUL = [self.lmr_check_mul],
+            LMR_CORR_MUL = [self.lmr_corr_mul],
+            LMR_BASE_OFFSET = [self.lmr_base_offset],
+            MAIN_HISTORY_BONUS_MUL = [self.main_history_bonus_mul],
+            MAIN_HISTORY_BONUS_OFFSET = [self.main_history_bonus_offset],
+            MAIN_HISTORY_BONUS_MAX = [self.main_history_bonus_max],
+            MAIN_HISTORY_MALUS_MUL = [self.main_history_malus_mul],
+            MAIN_HISTORY_MALUS_OFFSET = [self.main_history_malus_offset],
+            MAIN_HISTORY_MALUS_MAX = [self.main_history_malus_max],
+            CONT1_HISTORY_BONUS_MUL = [self.cont1_history_bonus_mul],
+            CONT1_HISTORY_BONUS_OFFSET = [self.cont1_history_bonus_offset],
+            CONT1_HISTORY_BONUS_MAX = [self.cont1_history_bonus_max],
+            CONT1_HISTORY_MALUS_MUL = [self.cont1_history_malus_mul],
+            CONT1_HISTORY_MALUS_OFFSET = [self.cont1_history_malus_offset],
+            CONT1_HISTORY_MALUS_MAX = [self.cont1_history_malus_max],
+            CONT2_HISTORY_BONUS_MUL = [self.cont2_history_bonus_mul],
+            CONT2_HISTORY_BONUS_OFFSET = [self.cont2_history_bonus_offset],
+            CONT2_HISTORY_BONUS_MAX = [self.cont2_history_bonus_max],
+            CONT2_HISTORY_MALUS_MUL = [self.cont2_history_malus_mul],
+            CONT2_HISTORY_MALUS_OFFSET = [self.cont2_history_malus_offset],
+            CONT2_HISTORY_MALUS_MAX = [self.cont2_history_malus_max],
+            CONT4_HISTORY_BONUS_MUL = [self.cont4_history_bonus_mul],
+            CONT4_HISTORY_BONUS_OFFSET = [self.cont4_history_bonus_offset],
+            CONT4_HISTORY_BONUS_MAX = [self.cont4_history_bonus_max],
+            CONT4_HISTORY_MALUS_MUL = [self.cont4_history_malus_mul],
+            CONT4_HISTORY_MALUS_OFFSET = [self.cont4_history_malus_offset],
+            CONT4_HISTORY_MALUS_MAX = [self.cont4_history_malus_max],
+            PAWN_HISTORY_BONUS_MUL = [self.pawn_history_bonus_mul],
+            PAWN_HISTORY_BONUS_OFFSET = [self.pawn_history_bonus_offset],
+            PAWN_HISTORY_BONUS_MAX = [self.pawn_history_bonus_max],
+            PAWN_HISTORY_MALUS_MUL = [self.pawn_history_malus_mul],
+            PAWN_HISTORY_MALUS_OFFSET = [self.pawn_history_malus_offset],
+            PAWN_HISTORY_MALUS_MAX = [self.pawn_history_malus_max],
+            TACTICAL_HISTORY_BONUS_MUL = [self.tactical_history_bonus_mul],
+            TACTICAL_HISTORY_BONUS_OFFSET = [self.tactical_history_bonus_offset],
+            TACTICAL_HISTORY_BONUS_MAX = [self.tactical_history_bonus_max],
+            TACTICAL_HISTORY_MALUS_MUL = [self.tactical_history_malus_mul],
+            TACTICAL_HISTORY_MALUS_OFFSET = [self.tactical_history_malus_offset],
+            TACTICAL_HISTORY_MALUS_MAX = [self.tactical_history_malus_max],
+            MAIN_STAT_SCORE_MUL = [self.main_stat_score_mul],
+            CONT1_STAT_SCORE_MUL = [self.cont1_stat_score_mul],
+            CONT2_STAT_SCORE_MUL = [self.cont2_stat_score_mul],
+            CONT4_STAT_SCORE_MUL = [self.cont4_stat_score_mul],
+            TACT_STAT_SCORE_MUL = [self.tactical_stat_score_mul],
+            PAWN_CORRHIST_WEIGHT = [self.pawn_corrhist_weight],
+            MAJOR_CORRHIST_WEIGHT = [self.major_corrhist_weight],
+            MINOR_CORRHIST_WEIGHT = [self.minor_corrhist_weight],
+            NONPAWN_CORRHIST_WEIGHT = [self.nonpawn_corrhist_weight],
+            CONTINUATION_CORRHIST_WEIGHT = [self.continuation_corrhist_weight],
+            SEE_PAWN_VALUE = [self.see_pawn_value],
+            SEE_KNIGHT_VALUE = [self.see_knight_value],
+            SEE_BISHOP_VALUE = [self.see_bishop_value],
+            SEE_ROOK_VALUE = [self.see_rook_value],
+            SEE_QUEEN_VALUE = [self.see_queen_value],
+            MATERIAL_SCALE_BASE = [self.material_scale_base],
+            EVAL_POLICY_IMPROVEMENT_SCALE = [self.eval_policy_improvement_scale],
+            EVAL_POLICY_OFFSET = [self.eval_policy_offset],
+            HINDSIGHT_EXT_DEPTH = [self.hindsight_ext_depth],
+            HINDSIGHT_RED_DEPTH = [self.hindsight_red_depth],
+            HINDSIGHT_RED_EVAL = [self.hindsight_red_eval],
+            OPTIMISM_OFFSET = [self.optimism_offset],
+            OPTIMISM_MATERIAL_BASE = [self.optimism_mat_base],
+            EVAL_POLICY_UPDATE_MAX = [self.eval_policy_update_max],
+            PROBCUT_SEE_SCALE = [self.probcut_see_scale]
+        ]
+    }
+
+    #[rustfmt::skip]
+    pub fn ids_with_values(&self) -> Vec<(&str, f64)> {
+        self.base_config()
+            .into_iter()
+            .map(|(id, value, _, _, _)| (id, value))
+            .collect()
+    }
+
+    #[expect(clippy::too_many_lines)]
+    pub fn base_config(&self) -> Vec<(&str, f64, f64, f64, f64)> {
+        #![allow(clippy::cast_precision_loss)]
+        id_value_gen![
+            ASPIRATION_EVAL_DIVISOR = [self.aspiration_eval_divisor, 1024, 65536, 1024],
+            DELTA_INITIAL = [self.delta_initial, 1, 64, 1],
+            DELTA_BASE_MUL = [self.delta_base_mul, 2, 256, 2],
+            DELTA_REDUCTION_MUL = [self.delta_reduction_mul, 0, 128, 2],
+            RFP_MARGIN = [self.rfp_margin, 16, 256, 10],
+            RFP_IMPROVING_MARGIN = [self.rfp_improving_margin, 16, 256, 10],
+            NMP_IMPROVING_MARGIN = [self.nmp_improving_margin, 16, 256, 10],
+            NMP_DEPTH_MUL = [self.nmp_depth_mul, -128, 128, 8],
+            NMP_REDUCTION_EVAL_DIVISOR = [self.nmp_reduction_eval_divisor, 32, 512, 20],
+            SEE_QUIET_MARGIN = [self.see_quiet_margin, -256, -4, 5],
+            SEE_TACTICAL_MARGIN = [self.see_tactical_margin, -256, -1, 3],
+            FUTILITY_COEFF_0 = [self.futility_coeff_0, 8, 256, 10],
+            FUTILITY_COEFF_1 = [self.futility_coeff_1, 8, 256, 10],
+            RAZORING_COEFF_0 = [self.razoring_coeff_0, -1024, 1024, 30],
+            RAZORING_COEFF_1 = [self.razoring_coeff_1, 0, 1024, 30],
+            DOUBLE_EXTENSION_MARGIN = [self.dext_margin, 1, 128, 1],
+            TRIPLE_EXTENSION_MARGIN = [self.text_margin, 1, 512, 12],
+            LMR_BASE = [self.lmr_base, 16, 512, 7],
+            LMR_DIVISION = [self.lmr_division, 64, 1024, 15],
+            PROBCUT_MARGIN = [self.probcut_margin, 16, 1024, 20],
+            PROBCUT_IMPROVING_MARGIN = [self.probcut_improving_margin, 8, 256, 10],
+            PROBCUT_EVAL_DIV = [self.probcut_eval_div, 1, 1024, 32],
+            PROBCUT_ADA_OFFSET = [self.probcut_ada_offset, 1, 256, 10],
+            PROBCUT_ADA_DIV = [self.probcut_ada_div, 32, 1024, 32],
+            STRONG_FORCED_TM_FRAC = [self.strong_forced_tm_frac, 1, 1024, 30],
+            WEAK_FORCED_TM_FRAC = [self.weak_forced_tm_frac, 1, 1000, 30],
+            DEFAULT_MOVES_TO_GO = [self.default_moves_to_go, 1, 100, 3],
+            HARD_WINDOW_FRAC = [self.hard_window_frac, 1, 100, 5],
+            OPTIMAL_WINDOW_FRAC = [self.optimal_window_frac, 1, 100, 5],
+            INCREMENT_FRAC = [self.increment_frac, 1, 100, 10],
+            NODE_TM_SUBTREE_MULTIPLIER = [self.node_tm_subtree_multiplier, 1, 1000, 15],
+            FAIL_LOW_TM_BONUS = [self.fail_low_tm_bonus, 1, 1000, 30],
+            HISTORY_LMR_DIVISOR = [self.history_lmr_divisor, 1, 65536, 512],
+            QS_SEE_BOUND = [self.qs_see_bound, -1024, 1024, 50],
+            MAIN_SEE_BOUND = [self.main_see_bound, -1024, 1024, 50],
+            DO_DEEPER_BASE_MARGIN = [self.do_deeper_base_margin, 1, 512, 20],
+            DO_DEEPER_DEPTH_MARGIN = [self.do_deeper_depth_margin, 1, 128, 2],
+            HISTORY_PRUNING_MARGIN = [self.history_pruning_margin, -8192, 1024, 500],
+            QS_FUTILITY = [self.qs_futility, -512, 512, 25],
+            SEE_STAT_SCORE_MUL = [self.see_stat_score_mul, 1, 128, 5],
+            LMR_REFUTATION_MUL = [self.lmr_refutation_mul, 1, 4096, 96],
+            LMR_NON_PV_MUL = [self.lmr_non_pv_mul, 1, 4096, 96],
+            LMR_TTPV_MUL = [self.lmr_ttpv_mul, 1, 4096, 96],
+            LMR_CUT_NODE_MUL = [self.lmr_cut_node_mul, 1, 4096, 96],
+            LMR_NON_IMPROVING_MUL = [self.lmr_non_improving_mul, 1, 4096, 96],
+            LMR_TT_CAPTURE_MUL = [self.lmr_tt_capture_mul, 1, 4096, 96],
+            LMR_CHECK_MUL = [self.lmr_check_mul, 1, 4096, 96],
+            LMR_CORR_MUL = [self.lmr_corr_mul, -4096, 4096, 64],
+            LMR_BASE_OFFSET = [self.lmr_base_offset, -2048, 2048, 32],
+            MAIN_HISTORY_BONUS_MUL = [self.main_history_bonus_mul, 1, 1536, 32],
+            MAIN_HISTORY_BONUS_OFFSET = [self.main_history_bonus_offset, -1024, 1024, 64],
+            MAIN_HISTORY_BONUS_MAX = [self.main_history_bonus_max, 1, 4096, 256],
+            MAIN_HISTORY_MALUS_MUL = [self.main_history_malus_mul, 1, 1536, 32],
+            MAIN_HISTORY_MALUS_OFFSET = [self.main_history_malus_offset, -1024, 1024, 64],
+            MAIN_HISTORY_MALUS_MAX = [self.main_history_malus_max, 1, 4096, 256],
+            CONT1_HISTORY_BONUS_MUL = [self.cont1_history_bonus_mul, 1, 1536, 32],
+            CONT1_HISTORY_BONUS_OFFSET = [self.cont1_history_bonus_offset, -1024, 1024, 64],
+            CONT1_HISTORY_BONUS_MAX = [self.cont1_history_bonus_max, 1, 4096, 256],
+            CONT1_HISTORY_MALUS_MUL = [self.cont1_history_malus_mul, 1, 1536, 32],
+            CONT1_HISTORY_MALUS_OFFSET = [self.cont1_history_malus_offset, -1024, 1024, 64],
+            CONT1_HISTORY_MALUS_MAX = [self.cont1_history_malus_max, 1, 4096, 256],
+            CONT2_HISTORY_BONUS_MUL = [self.cont2_history_bonus_mul, 1, 1536, 32],
+            CONT2_HISTORY_BONUS_OFFSET = [self.cont2_history_bonus_offset, -1024, 1024, 64],
+            CONT2_HISTORY_BONUS_MAX = [self.cont2_history_bonus_max, 1, 4096, 256],
+            CONT2_HISTORY_MALUS_MUL = [self.cont2_history_malus_mul, 1, 1536, 32],
+            CONT2_HISTORY_MALUS_OFFSET = [self.cont2_history_malus_offset, -1024, 1024, 64],
+            CONT2_HISTORY_MALUS_MAX = [self.cont2_history_malus_max, 1, 4096, 256],
+            CONT4_HISTORY_BONUS_MUL = [self.cont4_history_bonus_mul, 1, 1536, 32],
+            CONT4_HISTORY_BONUS_OFFSET = [self.cont4_history_bonus_offset, -1024, 1024, 64],
+            CONT4_HISTORY_BONUS_MAX = [self.cont4_history_bonus_max, 1, 4096, 256],
+            CONT4_HISTORY_MALUS_MUL = [self.cont4_history_malus_mul, 1, 1536, 32],
+            CONT4_HISTORY_MALUS_OFFSET = [self.cont4_history_malus_offset, -1024, 1024, 64],
+            CONT4_HISTORY_MALUS_MAX = [self.cont4_history_malus_max, 1, 4096, 256],
+            PAWN_HISTORY_BONUS_MUL = [self.pawn_history_bonus_mul, 1, 1536, 32],
+            PAWN_HISTORY_BONUS_OFFSET = [self.pawn_history_bonus_offset, -1024, 1024, 64],
+            PAWN_HISTORY_BONUS_MAX = [self.pawn_history_bonus_max, 1, 4096, 256],
+            PAWN_HISTORY_MALUS_MUL = [self.pawn_history_malus_mul, 1, 1536, 32],
+            PAWN_HISTORY_MALUS_OFFSET = [self.pawn_history_malus_offset, -1024, 1024, 64],
+            PAWN_HISTORY_MALUS_MAX = [self.pawn_history_malus_max, 1, 4096, 256],
+            TACTICAL_HISTORY_BONUS_MUL = [self.tactical_history_bonus_mul, 1, 1536, 32],
+            TACTICAL_HISTORY_BONUS_OFFSET = [self.tactical_history_bonus_offset, -1024, 1024, 64],
+            TACTICAL_HISTORY_BONUS_MAX = [self.tactical_history_bonus_max, 1, 4096, 256],
+            TACTICAL_HISTORY_MALUS_MUL = [self.tactical_history_malus_mul, 1, 1536, 32],
+            TACTICAL_HISTORY_MALUS_OFFSET = [self.tactical_history_malus_offset, -1024, 1024, 64],
+            TACTICAL_HISTORY_MALUS_MAX = [self.tactical_history_malus_max, 1, 4096, 256],
+            MAIN_STAT_SCORE_MUL = [self.main_stat_score_mul, 1, 128, 8],
+            CONT1_STAT_SCORE_MUL = [self.cont1_stat_score_mul, 1, 128, 8],
+            CONT2_STAT_SCORE_MUL = [self.cont2_stat_score_mul, 1, 128, 8],
+            CONT4_STAT_SCORE_MUL = [self.cont4_stat_score_mul, 1, 128, 8],
+            TACT_STAT_SCORE_MUL = [self.tactical_stat_score_mul, 1, 128, 8],
+            PAWN_CORRHIST_WEIGHT = [self.pawn_corrhist_weight, 1, 4096, 144],
+            MAJOR_CORRHIST_WEIGHT = [self.major_corrhist_weight, 1, 4096, 144],
+            MINOR_CORRHIST_WEIGHT = [self.minor_corrhist_weight, 1, 4096, 144],
+            NONPAWN_CORRHIST_WEIGHT = [self.nonpawn_corrhist_weight, 1, 4096, 144],
+            CONTINUATION_CORRHIST_WEIGHT = [self.continuation_corrhist_weight, 1, 4096, 144],
+            SEE_PAWN_VALUE = [self.see_pawn_value, 1, 4096, 16],
+            SEE_KNIGHT_VALUE = [self.see_knight_value, 1, 4096, 16],
+            SEE_BISHOP_VALUE = [self.see_bishop_value, 1, 4096, 16],
+            SEE_ROOK_VALUE = [self.see_rook_value, 1, 4096, 16],
+            SEE_QUEEN_VALUE = [self.see_queen_value, 1, 4096, 16],
+            MATERIAL_SCALE_BASE = [self.material_scale_base, 1, 4096, 32],
+            EVAL_POLICY_IMPROVEMENT_SCALE = [self.eval_policy_improvement_scale, 1, 512, 16],
+            EVAL_POLICY_OFFSET = [self.eval_policy_offset, -1536, 1536, 8],
+            HINDSIGHT_EXT_DEPTH = [self.hindsight_ext_depth, 1, 8192, 256],
+            HINDSIGHT_RED_DEPTH = [self.hindsight_red_depth, 1, 8192, 128],
+            HINDSIGHT_RED_EVAL = [self.hindsight_red_eval, -4096, 4096, 8],
+            OPTIMISM_OFFSET = [self.optimism_offset, -4096, 4096, 16],
+            OPTIMISM_MATERIAL_BASE = [self.optimism_mat_base, 1, 8192, 256],
+            EVAL_POLICY_UPDATE_MAX = [self.eval_policy_update_max, 1, 4096, 8],
+            PROBCUT_SEE_SCALE = [self.probcut_see_scale, 1, 1024, 16]
+        ]
+    }
+
+    pub fn emit_json_for_spsa(&self) -> String {
+        let mut json = String::new();
+        json.push_str("{\n");
+        let mut tunegroups = Vec::new();
+        for (id, value, min, max, step) in self.base_config() {
+            // formatted like
+            // "PROBCUT_MARGIN": {
+            //     "value": 200,
+            //     "min_value": 100,
+            //     "max_value": 400,
+            //     "step": 20
+            //   },
+            tunegroups.push(format!("  \"{id}\": {{\n    \"value\": {value},\n    \"min_value\": {min},\n    \"max_value\": {max},\n    \"step\": {step}\n  }}"));
+        }
+        // stupid json comma handling
+        json.push_str(&tunegroups.join(",\n"));
+        json.push_str("\n}\n");
+        json
+    }
+
+    pub fn emit_csv_for_spsa(&self) -> String {
+        let mut csv = String::new();
+        let mut tunegroups = Vec::new();
+        for (id, value, min, max, step) in self.base_config() {
+            tunegroups.push(format!(
+                "{id}, int, {value:.1}, {min:.1}, {max:.1}, {step:.1}, 0.002"
+            ));
+        }
+        csv.push_str(&tunegroups.join("\n"));
+        csv
+    }
+}
+
+mod tests {
+    #[test]
+    fn macro_hackery_same_length() {
+        let mut sp = super::Config::default();
+        let l1 = sp.ids_with_parsers().len();
+        let l2 = sp.ids_with_values().len();
+        assert_eq!(l1, l2);
+    }
+
+    #[test]
+    fn parser_actually_works() {
+        let mut sp = super::Config::default();
+        let rfp_margin = sp
+            .ids_with_values()
+            .iter()
+            .find(|(id, _)| *id == "RFP_MARGIN")
+            .unwrap()
+            .1;
+        assert!((rfp_margin - f64::from(crate::search::RFP_MARGIN)).abs() < f64::EPSILON);
+        // set using the parser:
+        sp.ids_with_parsers()
+            .iter_mut()
+            .find(|(id, _)| *id == "RFP_MARGIN")
+            .unwrap()
+            .1("10")
+        .unwrap();
+        // re-extract:
+        let rfp_margin = sp
+            .ids_with_values()
+            .iter()
+            .find(|(id, _)| *id == "RFP_MARGIN")
+            .unwrap()
+            .1;
+        assert!((rfp_margin - 10.0).abs() < f64::EPSILON);
+    }
+}

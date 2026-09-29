@@ -29,8 +29,44 @@ fn main() -> io::Result<()> {
         Some("--version" | "-v") => println!("Eloi Rust Rewrite {VERSION}"),
         Some("--uci") => uci()?,
         Some("--perft") => perft(&args)?,
+        Some("--donor-probe") => donor_probe(&args)?,
         _ => println!("Eloi Rust Rewrite {VERSION}: staged migration build"),
     }
+    Ok(())
+}
+
+fn donor_probe(args: &[String]) -> io::Result<()> {
+    let value = |key: &str| {
+        args.iter()
+            .position(|a| a == key)
+            .and_then(|i| args.get(i + 1))
+    };
+    let invalid = |message| io::Error::new(io::ErrorKind::InvalidInput, message);
+    let path =
+        value("--worker").ok_or_else(|| invalid("explicit source-built --worker path required"))?;
+    let budget: u64 = value("--budget")
+        .map_or("250", String::as_str)
+        .parse()
+        .map_err(|_| invalid("invalid budget"))?;
+    let fen = value("--fen").map_or(INITIAL_FEN, String::as_str);
+    let game = eloi_core::game::Game::from_fen(fen, Variant::Standard)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
+    let mut worker = eloi_engine::worker::DonorWorker::start(std::path::Path::new(path))?;
+    let result = worker.search(
+        &game,
+        std::time::Duration::from_millis(budget),
+        &std::sync::atomic::AtomicBool::new(false),
+    )?;
+    println!(
+        "donor-probe move={} depth={} cp={:?} mate={:?} nodes={} elapsed_ms={} model={}",
+        result.best_move.uci(false),
+        result.depth,
+        result.score_cp,
+        result.mate,
+        result.nodes,
+        result.elapsed.as_millis(),
+        eloi_engine::worker::NETWORK_SHA256
+    );
     Ok(())
 }
 

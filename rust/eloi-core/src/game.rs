@@ -29,6 +29,14 @@ impl Game {
         &self.position
     }
 
+    /// Initial position used to reconstruct the complete search history.
+    #[must_use]
+    pub fn initial_position(&self) -> &Position {
+        self.history
+            .first()
+            .map_or(&self.position, |(position, _)| position)
+    }
+
     /// Apply a legal move and preserve the entire prior state for undo.
     pub fn push(&mut self, mv: Move8) -> bool {
         let Some(next) = self.position.play(mv) else {
