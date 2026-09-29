@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use eloi_core::Variant;
 use eloi_core::game::Game;
-use eloi_core::position::{HORDE_INITIAL_FEN, INITIAL_FEN};
+use eloi_core::position::initial_fen;
 use eloi_engine::search::SearchLimits;
 
 /// Apply a UCI position command without changing the game on any failure.
@@ -17,15 +17,7 @@ pub fn apply_position(game: &mut Game, command: &str, variant: Variant) -> Resul
         return Err("expected position command".into());
     }
     let (fen, tail) = match words.get(1) {
-        Some(&"startpos") => (
-            if variant == Variant::Horde {
-                HORDE_INITIAL_FEN
-            } else {
-                INITIAL_FEN
-            }
-            .to_owned(),
-            2,
-        ),
+        Some(&"startpos") => (initial_fen(variant).to_owned(), 2),
         Some(&"fen") if words.len() >= 8 => (words[2..8].join(" "), 8),
         _ => return Err("expected startpos or six-field FEN".into()),
     };

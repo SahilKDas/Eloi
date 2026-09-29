@@ -54,6 +54,13 @@ it does not declare the rewrite or a release qualified.
   `--check-config --config PATH` works offline. Unknown settings and duplicate
   keys fail explicitly rather than being silently ignored; YAML escapes remain
   unsupported. Private settings have not been rewritten.
+- Bounded UTF-8 stream framing and full/cumulative Lichess game reconstruction
+  are tested offline across all six production variants. Account/variant gates,
+  idempotent snapshots, legal incremental history, terminal-status consistency
+  and transactional rejection are covered. Antichess now uses its own no-castling
+  start position through the shared UCI/Lichess selector.
+- JSON decoding pins cached `serde_json` 1.0.151; locked dependency metadata was
+  audited as permissive MIT/Apache/Unlicense/Unicode. No copyleft dependency added.
 
 ## Still required
 

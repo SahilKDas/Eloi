@@ -10,7 +10,7 @@ use std::thread::JoinHandle;
 use eloi_core::{
     Variant,
     game::Game,
-    position::{HORDE_INITIAL_FEN, INITIAL_FEN},
+    position::{INITIAL_FEN, initial_fen},
 };
 use eloi_protocol::uci::{apply_position, parse_go_for};
 
@@ -114,11 +114,7 @@ pub fn run() -> io::Result<()> {
             }
             "ucinewgame" => {
                 stop(&mut active);
-                let fen = if variant == Variant::Horde {
-                    HORDE_INITIAL_FEN
-                } else {
-                    INITIAL_FEN
-                };
+                let fen = initial_fen(variant);
                 if let Ok(new_game) = Game::from_fen(fen, variant) {
                     game = new_game;
                 }

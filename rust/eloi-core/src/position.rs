@@ -11,6 +11,16 @@ pub const INITIAL_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQk
 pub const HORDE_INITIAL_FEN: &str =
     "rnbqkbnr/pppppppp/8/1PP2PP1/PPPPPPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 1";
 
+/// Choose a legal initial position with variant-native castling metadata.
+#[must_use]
+pub const fn initial_fen(variant: Variant) -> &'static str {
+    match variant {
+        Variant::Horde => HORDE_INITIAL_FEN,
+        Variant::Antichess => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1",
+        _ => INITIAL_FEN,
+    }
+}
+
 /// A board piece, including Crazyhouse promotion provenance.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Piece {
