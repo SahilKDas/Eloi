@@ -27,6 +27,7 @@ struct UciOptions {
     hash_mb: u16,
     depth: u8,
     noise_millipawns: u16,
+    own_book: bool,
 }
 
 impl Default for UciOptions {
@@ -37,6 +38,7 @@ impl Default for UciOptions {
             hash_mb: 32,
             depth: 0,
             noise_millipawns: 0,
+            own_book: true,
         }
     }
 }
@@ -60,6 +62,11 @@ impl UciOptions {
             "Noise" => match value.parse::<u16>() {
                 Ok(value) if value <= 10_000 => self.noise_millipawns = value,
                 _ => emit("info string invalid noise"),
+            },
+            "OwnBook" => match value {
+                "true" | "1" => self.own_book = true,
+                "false" | "0" => self.own_book = false,
+                _ => emit("info string invalid OwnBook flag"),
             },
             "UCI_Chess960" => match value {
                 "true" => self.variant = Variant::Chess960,
@@ -188,6 +195,7 @@ fn handshake() {
     emit("option name Hash type spin default 32 min 0 max 1024");
     emit("option name Move Overhead type spin default 100 min 0 max 5000");
     emit("option name Noise type spin default 0 min 0 max 10000");
+    emit("option name OwnBook type check default true");
     emit(
         "option name UCI_Variant type combo default chess var chess var chess960 var horde var kingofthehill var atomic var antichess var crazyhouse",
     );
@@ -261,6 +269,15 @@ pub fn run() -> io::Result<()> {
                 }
                 if game.position().variant != options.variant {
                     emit("info string send position after changing variant");
+                    continue;
+                }
+                if options.own_book
+                    && request.ponder_resume.is_none()
+                    && !request.infinite
+                    && let Some(mv) = eloi_engine::book::opening_move(&game)
+                {
+                    emit("info string stop OpeningBook");
+                    emit(&format!("bestmove {}", mv.uci(false)));
                     continue;
                 }
                 active = Some(dispatch(game.clone(), request));

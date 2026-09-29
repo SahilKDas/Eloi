@@ -60,6 +60,11 @@ def main():
         wait("uciok")
         send("isready")
         wait("readyok")
+        send("position startpos")
+        send("go depth 1")
+        reply = wait("bestmove ")
+        assert chess.Move.from_uci(reply.split()[1]) in chess.Board().legal_moves
+        send("setoption name OwnBook value false")
         send("position startpos moves e2e4 e7e5")
         board = chess.Board()
         board.push_uci("e2e4")
