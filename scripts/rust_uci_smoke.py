@@ -42,6 +42,18 @@ def main():
                 return line
         raise AssertionError("missing " + prefix)
 
+    def reject_prefix(prefix, duration=0.15):
+        deadline = time.monotonic() + duration
+        while time.monotonic() < deadline:
+            try:
+                line = lines.get(timeout=max(0.001, deadline - time.monotonic()))
+            except queue.Empty:
+                return
+            if line is None:
+                raise AssertionError("engine exited while checking " + prefix)
+            if line.startswith(prefix):
+                raise AssertionError("unexpected " + line)
+
     try:
         send("uci")
         wait("option name Threads type spin default 3 min 3 max 3")
@@ -68,13 +80,25 @@ def main():
         reply = wait("bestmove ", 1)
         assert time.monotonic() - started < 1
         assert chess.Move.from_uci(reply.split()[1]) in chess.Board().legal_moves
+        send("position startpos")
+        send("go infinite")
+        reject_prefix("bestmove ")
+        send("stop")
+        reply = wait("bestmove ", 1)
+        assert chess.Move.from_uci(reply.split()[1]) in chess.Board().legal_moves
+        send("position startpos")
+        send("go ponder wtime 1000 btime 1000 winc 0 binc 0")
+        reject_prefix("bestmove ")
+        send("ponderhit")
+        reply = wait("bestmove ", 2)
+        assert chess.Move.from_uci(reply.split()[1]) in chess.Board().legal_moves
         send("ucinewgame")
         send("position startpos moves e2e5")
         wait("info string position rejected:")
         send("quit")
         assert process.wait(timeout=2) == 0
         assert not process.stderr.read().strip()
-        print("Rust UCI lifecycle: handshake, legal search, readiness, stop, reset, rejection, exit PASS")
+        print("Rust UCI lifecycle: handshake, legal search, infinite/stop, ponderhit, reset, rejection, exit PASS")
     finally:
         if process.poll() is None:
             process.kill()

@@ -155,7 +155,7 @@ fn tt_bound(score: i32, alpha: i32, beta: i32) -> i8 {
 
 fn valid_limits(limits: SearchLimits) -> bool {
     !limits.movetime.is_zero()
-        && limits.movetime <= Duration::from_secs(60)
+        && limits.movetime <= Duration::from_hours(24)
         && (1..=64).contains(&limits.depth)
         && limits.hash_mb <= 1024
         && !limits

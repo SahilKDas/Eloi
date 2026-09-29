@@ -12,15 +12,18 @@ use eloi_core::{
     game::Game,
     position::{INITIAL_FEN, initial_fen},
 };
-use eloi_protocol::uci::{apply_position, parse_go_for};
+use eloi_protocol::uci::{SearchRequest, apply_position, parse_search_request};
 
 struct ActiveSearch {
     cancelled: Arc<AtomicBool>,
+    publish: Arc<AtomicBool>,
     handle: JoinHandle<()>,
+    ponder_resume: Option<(Game, eloi_engine::search::SearchLimits)>,
 }
 
 fn stop(active: &mut Option<ActiveSearch>) {
     if let Some(search) = active.take() {
+        search.publish.store(true, Ordering::Relaxed);
         search.cancelled.store(true, Ordering::Relaxed);
         let _ = search.handle.join();
     }
@@ -32,9 +35,13 @@ fn emit(text: &str) {
     let _ = output.flush();
 }
 
-fn dispatch(game: Game, limits: eloi_engine::search::SearchLimits) -> ActiveSearch {
+fn dispatch(game: Game, request: SearchRequest) -> ActiveSearch {
     let cancelled = Arc::new(AtomicBool::new(false));
     let signal = Arc::clone(&cancelled);
+    let publish = Arc::new(AtomicBool::new(request.ponder_resume.is_none()));
+    let publish_result = Arc::clone(&publish);
+    let limits = request.limits;
+    let resume = request.ponder_resume.map(|limits| (game.clone(), limits));
     let handle = std::thread::spawn(move || {
         let chess960 = game.position().variant == Variant::Chess960;
         let report = |result: &eloi_engine::search::SearchResult| {
@@ -59,20 +66,51 @@ fn dispatch(game: Game, limits: eloi_engine::search::SearchLimits) -> ActiveSear
                     "info string stop {:?} emergency {}",
                     result.stop_reason, result.emergency
                 ));
-                emit(&format!(
-                    "bestmove {}",
-                    result
-                        .best_move
-                        .map_or_else(|| "0000".into(), |mv| mv.uci(chess960))
-                ));
+                if publish_result.load(Ordering::Relaxed) {
+                    emit(&format!(
+                        "bestmove {}",
+                        result
+                            .best_move
+                            .map_or_else(|| "0000".into(), |mv| mv.uci(chess960))
+                    ));
+                }
             }
             Err(error) => {
                 emit(&format!("info string search failure: {error}"));
-                emit("bestmove 0000");
+                if publish_result.load(Ordering::Relaxed) {
+                    emit("bestmove 0000");
+                }
             }
         }
     });
-    ActiveSearch { cancelled, handle }
+    ActiveSearch {
+        cancelled,
+        publish,
+        handle,
+        ponder_resume: resume,
+    }
+}
+
+fn ponderhit(active: &mut Option<ActiveSearch>) {
+    let Some(mut search) = active.take() else {
+        emit("info string ponderhit without active ponder");
+        return;
+    };
+    let Some((game, limits)) = search.ponder_resume.take() else {
+        emit("info string ponderhit without active ponder");
+        *active = Some(search);
+        return;
+    };
+    search.cancelled.store(true, Ordering::Relaxed);
+    let _ = search.handle.join();
+    *active = Some(dispatch(
+        game,
+        SearchRequest {
+            limits,
+            ponder_resume: None,
+            infinite: false,
+        },
+    ));
 }
 
 fn handshake() {
@@ -110,6 +148,7 @@ pub fn run() -> io::Result<()> {
             "uci" => handshake(),
             "isready" => emit("readyok"),
             "stop" => stop(&mut active),
+            "ponderhit" => ponderhit(&mut active),
             "quit" => {
                 stop(&mut active);
                 break;
@@ -165,19 +204,22 @@ pub fn run() -> io::Result<()> {
             }
             _ if line.starts_with("go") => {
                 stop(&mut active);
-                let mut limits = match parse_go_for(&game, line, overhead) {
-                    Ok(limits) => limits,
+                let mut request = match parse_search_request(&game, line, overhead) {
+                    Ok(request) => request,
                     Err(error) => {
                         emit(&format!("info string search rejected: {error}"));
                         continue;
                     }
                 };
-                limits.hash_mb = hash_mb;
+                request.limits.hash_mb = hash_mb;
+                if let Some(limits) = &mut request.ponder_resume {
+                    limits.hash_mb = hash_mb;
+                }
                 if game.position().variant != variant {
                     emit("info string send position after changing variant");
                     continue;
                 }
-                active = Some(dispatch(game.clone(), limits));
+                active = Some(dispatch(game.clone(), request));
             }
             "" => {}
             _ => emit("info string unknown command"),

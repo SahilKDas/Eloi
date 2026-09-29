@@ -7,6 +7,17 @@ use eloi_core::game::Game;
 use eloi_core::position::initial_fen;
 use eloi_engine::search::SearchLimits;
 
+/// Fully decoded UCI search request, including protocol search modes.
+#[derive(Clone, Copy, Debug)]
+pub struct SearchRequest {
+    /// Limits used by the initial search.
+    pub limits: SearchLimits,
+    /// Normal clock limits to begin after `ponderhit`.
+    pub ponder_resume: Option<SearchLimits>,
+    /// Whether the initial search is explicitly infinite.
+    pub infinite: bool,
+}
+
 /// Apply a UCI position command without changing the game on any failure.
 ///
 /// # Errors
@@ -139,9 +150,66 @@ pub fn parse_go_for(game: &Game, command: &str, overhead_ms: u64) -> Result<Sear
     Ok(limits)
 }
 
+/// Decode standard, infinite, and ponder UCI searches.
+///
+/// Infinite and pre-`ponderhit` work receives a day-long safety ceiling while
+/// still remaining immediately externally cancellable.
+///
+/// # Errors
+/// Rejects malformed combinations and delegates bounded-field validation.
+pub fn parse_search_request(
+    game: &Game,
+    command: &str,
+    overhead_ms: u64,
+) -> Result<SearchRequest, String> {
+    let mut words: Vec<_> = command.split_whitespace().collect();
+    if words.first() != Some(&"go") {
+        return Err("expected go command".into());
+    }
+    let ponder = words.iter().filter(|word| **word == "ponder").count();
+    let infinite = words.iter().filter(|word| **word == "infinite").count();
+    if ponder > 1 || infinite > 1 || (ponder != 0 && infinite != 0) {
+        return Err("duplicate or conflicting search mode".into());
+    }
+    words.retain(|word| !matches!(*word, "ponder" | "infinite"));
+    let normalized = words.join(" ");
+    if infinite != 0 {
+        if normalized != "go" {
+            return Err("infinite cannot be combined with limits".into());
+        }
+        return Ok(SearchRequest {
+            limits: unbounded_protocol_limits(),
+            ponder_resume: None,
+            infinite: true,
+        });
+    }
+    let normal = parse_go_for(game, &normalized, overhead_ms)?;
+    Ok(SearchRequest {
+        limits: if ponder != 0 {
+            unbounded_protocol_limits()
+        } else {
+            normal
+        },
+        ponder_resume: (ponder != 0).then_some(normal),
+        infinite: false,
+    })
+}
+
+fn unbounded_protocol_limits() -> SearchLimits {
+    SearchLimits {
+        movetime: Duration::from_hours(24),
+        soft_time: None,
+        depth: 64,
+        nodes: None,
+        hash_mb: 32,
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{apply_position, parse_go, parse_go_for};
+    use std::time::Duration;
+
+    use super::{apply_position, parse_go, parse_go_for, parse_search_request};
     use eloi_core::{Variant, game::Game, position::INITIAL_FEN};
 
     #[test]
@@ -206,6 +274,26 @@ mod tests {
         let explicit = parse_go_for(&game, "go movetime 250 btime 1000", 10).unwrap();
         assert_eq!(explicit.movetime.as_millis(), 240);
         assert!(explicit.soft_time.is_none());
+    }
+
+    #[test]
+    fn infinite_and_ponder_modes_are_explicit_and_bounded() {
+        let game = Game::from_fen(INITIAL_FEN, Variant::Standard).unwrap();
+        let infinite = parse_search_request(&game, "go infinite", 0).unwrap();
+        assert!(infinite.infinite);
+        assert_eq!(infinite.limits.movetime, Duration::from_hours(24));
+        assert!(infinite.ponder_resume.is_none());
+
+        let ponder = parse_search_request(
+            &game,
+            "go ponder wtime 60000 btime 60000 winc 100 binc 100",
+            0,
+        )
+        .unwrap();
+        assert!(!ponder.infinite);
+        assert_eq!(ponder.limits.movetime, Duration::from_hours(24));
+        assert!(ponder.ponder_resume.unwrap().movetime < Duration::from_secs(60));
+        assert!(parse_search_request(&game, "go ponder infinite", 0).is_err());
     }
 
     #[test]
