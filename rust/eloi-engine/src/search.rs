@@ -4,6 +4,7 @@
 //! model arithmetic. Selective search and endgame knowledge require subsequent
 //! parity gates before this profile is eligible to replace the legacy search.
 
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
@@ -28,6 +29,8 @@ pub struct SearchLimits {
     pub depth: u8,
     /// Optional global node limit shared by all three lanes.
     pub nodes: Option<u64>,
+    /// Total transposition-table budget shared by all three lanes.
+    pub hash_mb: u16,
 }
 
 /// Actual reason the search returned.
@@ -96,6 +99,68 @@ impl Shared<'_> {
 struct Lane<'a> {
     shared: &'a Shared<'a>,
     history: Vec<u64>,
+    table: &'a mut Table,
+}
+
+#[derive(Clone, Copy, Default)]
+struct Entry {
+    key: u64,
+    score: i32,
+    depth: u8,
+    bound: i8,
+    best: Option<Move8>,
+}
+
+struct Table(Vec<Entry>);
+
+impl Table {
+    fn new(bytes: usize) -> Self {
+        let entries = bytes / std::mem::size_of::<Entry>();
+        Self(vec![Entry::default(); entries])
+    }
+
+    fn probe(&self, key: u64) -> Option<Entry> {
+        self.index(key)
+            .map(|index| self.0[index])
+            .filter(|entry| entry.key == key)
+    }
+
+    fn index(&self, key: u64) -> Option<usize> {
+        let length = u64::try_from(self.0.len()).ok()?;
+        (length != 0)
+            .then(|| usize::try_from(key % length).ok())
+            .flatten()
+    }
+
+    fn store(&mut self, entry: Entry) {
+        if entry.score.abs() >= MATE - 1024 {
+            return;
+        }
+        let Some(index) = self.index(entry.key) else {
+            return;
+        };
+        if self.0[index].key != entry.key || self.0[index].depth <= entry.depth {
+            self.0[index] = entry;
+        }
+    }
+}
+
+fn tt_bound(score: i32, alpha: i32, beta: i32) -> i8 {
+    if score <= alpha {
+        -1
+    } else {
+        i8::from(score >= beta)
+    }
+}
+
+fn valid_limits(limits: SearchLimits) -> bool {
+    !limits.movetime.is_zero()
+        && limits.movetime <= Duration::from_secs(60)
+        && (1..=64).contains(&limits.depth)
+        && limits.hash_mb <= 1024
+        && !limits
+            .soft_time
+            .is_some_and(|soft| soft.is_zero() || soft > limits.movetime)
 }
 
 fn key(position: &Position, children: &[(Move8, Position)]) -> u64 {
@@ -252,6 +317,31 @@ fn horde_evaluate(position: &Position) -> i32 {
 }
 
 impl Lane<'_> {
+    fn tt_lookup(
+        &self,
+        key: u64,
+        depth: u8,
+        alpha: i32,
+        beta: i32,
+    ) -> (Option<Entry>, Option<(i32, Vec<Move8>)>) {
+        let entry = (depth > 0).then(|| self.table.probe(key)).flatten();
+        let cutoff = entry.filter(|hit| {
+            hit.depth >= depth
+                && (hit.bound == 0
+                    || (hit.bound < 0 && hit.score <= alpha)
+                    || (hit.bound > 0 && hit.score >= beta))
+        });
+        let result = cutoff.map(|hit| {
+            let pv = if hit.bound == 0 {
+                hit.best.into_iter().collect()
+            } else {
+                Vec::new()
+            };
+            (hit.score, pv)
+        });
+        (entry, result)
+    }
+
     fn negamax(
         &mut self,
         position: &Position,
@@ -266,11 +356,11 @@ impl Lane<'_> {
         if let Some(score) = terminal(position, &children, ply) {
             return Some((score, Vec::new()));
         }
-        let key = key(position, &children);
+        let position_key = key(position, &children);
         if self
             .history
             .iter()
-            .filter(|&&previous| previous == key)
+            .filter(|&&previous| previous == position_key)
             .count()
             >= 2
             || (!matches!(position.variant, Variant::Antichess | Variant::Crazyhouse)
@@ -283,6 +373,12 @@ impl Lane<'_> {
         if ply >= MAX_PLY {
             return Some((evaluate(position, nnue)?, Vec::new()));
         }
+        let original_alpha = alpha;
+        let (entry, cutoff) = self.tt_lookup(position_key, depth, alpha, beta);
+        if cutoff.is_some() {
+            return cutoff;
+        }
+        let tt_move = entry.and_then(|entry| entry.best);
         let compulsory_capture = position.variant == Variant::Antichess
             && children.iter().any(|(mv, _)| position.is_capture(*mv));
         if depth == 0 && !in_check && !compulsory_capture {
@@ -297,8 +393,12 @@ impl Lane<'_> {
                 children.retain(|(mv, _)| position.is_capture(*mv) || mv.promotion.is_some());
             }
         }
-        children.sort_by_key(|(mv, _)| std::cmp::Reverse(priority(position, *mv)));
-        self.history.push(key);
+        children.sort_by_key(|(mv, _)| {
+            std::cmp::Reverse(
+                priority(position, *mv) + if Some(*mv) == tt_move { 1_000_000 } else { 0 },
+            )
+        });
+        self.history.push(position_key);
         let mut best = if depth == 0 && !in_check && !compulsory_capture {
             alpha
         } else {
@@ -333,8 +433,62 @@ impl Lane<'_> {
             }
         }
         self.history.pop();
+        if depth > 0 {
+            self.table.store(Entry {
+                key: position_key,
+                score: best,
+                depth,
+                bound: tt_bound(best, original_alpha, beta),
+                best: best_pv.first().copied(),
+            });
+        }
         Some((best, best_pv))
     }
+}
+
+fn root_iteration(
+    position: &Position,
+    children: &[(Move8, Position)],
+    state: &NnueState,
+    history: &[u64],
+    shared: &Shared<'_>,
+    tables: &[Mutex<Table>],
+    depth: u8,
+) -> Option<Vec<(usize, i32, Vec<Move8>)>> {
+    std::thread::scope(|scope| {
+        let jobs: Vec<_> = (0..SEARCH_THREADS)
+            .map(|lane| {
+                let history = history.to_vec();
+                scope.spawn(move || {
+                    let mut table = tables[lane].lock().ok()?;
+                    let mut context = Lane {
+                        shared,
+                        history,
+                        table: &mut table,
+                    };
+                    let mut scores = Vec::new();
+                    for (index, (mv, child)) in children
+                        .iter()
+                        .enumerate()
+                        .filter(|(i, _)| i % SEARCH_THREADS == lane)
+                    {
+                        let mut nnue = state.clone();
+                        nnue.update(position, child).ok()?;
+                        let (score, pv) =
+                            context.negamax(child, &nnue, depth - 1, 1, -MATE, MATE)?;
+                        let mut line = vec![*mv];
+                        line.extend(pv);
+                        scores.push((index, -score, line));
+                    }
+                    Some(scores)
+                })
+            })
+            .collect();
+        jobs.into_iter()
+            .map(|job| job.join().ok().flatten())
+            .collect::<Option<Vec<_>>>()
+            .map(|iterations| iterations.into_iter().flatten().collect())
+    })
 }
 
 /// Execute iterative deepening with exactly three search lanes.
@@ -347,19 +501,12 @@ pub fn search(
     stopped: &AtomicBool,
     mut report: impl FnMut(&SearchResult),
 ) -> Result<SearchResult, &'static str> {
-    if limits.movetime.is_zero()
-        || limits.movetime > Duration::from_secs(60)
-        || limits.depth == 0
-        || limits.depth > 64
-        || limits
-            .soft_time
-            .is_some_and(|soft| soft.is_zero() || soft > limits.movetime)
-    {
+    if !valid_limits(limits) {
         return Err("invalid bounded native search limits");
     }
     let start = Instant::now();
     let position = game.position();
-    let children = position.legal_children();
+    let mut children = position.legal_children();
     let shared = Shared {
         deadline: start + limits.movetime,
         stopped,
@@ -381,47 +528,21 @@ pub fn search(
         return Ok(result);
     }
     let state = NnueState::refresh(position)?;
+    let table_bytes = usize::from(limits.hash_mb) * 1024 * 1024 / SEARCH_THREADS;
+    let tables: Vec<_> = (0..SEARCH_THREADS)
+        .map(|_| Mutex::new(Table::new(table_bytes)))
+        .collect();
     let mut history: Vec<_> = game
         .position_history()
         .map(|p| key(p, &p.legal_children()))
         .collect();
     history.push(key(position, &children));
     for depth in 1..=limits.depth {
-        let iterations = std::thread::scope(|scope| {
-            let jobs: Vec<_> = (0..SEARCH_THREADS)
-                .map(|lane| {
-                    let history = history.clone();
-                    let shared = &shared;
-                    let state = &state;
-                    let children = &children;
-                    scope.spawn(move || {
-                        let mut context = Lane { shared, history };
-                        let mut scores = Vec::new();
-                        for (index, (mv, child)) in children
-                            .iter()
-                            .enumerate()
-                            .filter(|(i, _)| i % SEARCH_THREADS == lane)
-                        {
-                            let mut nnue = state.clone();
-                            nnue.update(position, child).ok()?;
-                            let (score, pv) =
-                                context.negamax(child, &nnue, depth - 1, 1, -MATE, MATE)?;
-                            let mut line = vec![*mv];
-                            line.extend(pv);
-                            scores.push((index, -score, line));
-                        }
-                        Some(scores)
-                    })
-                })
-                .collect();
-            jobs.into_iter()
-                .map(|job| job.join().ok().flatten())
-                .collect::<Option<Vec<_>>>()
-        });
-        let Some(iterations) = iterations else {
+        let Some(mut scores) = root_iteration(
+            position, &children, &state, &history, &shared, &tables, depth,
+        ) else {
             break;
         };
-        let mut scores: Vec<_> = iterations.into_iter().flatten().collect();
         scores.sort_by_key(|(index, score, _)| (std::cmp::Reverse(*score), *index));
         if let Some((index, score, pv)) = scores.first() {
             result.best_move = Some(children[*index].0);
@@ -432,6 +553,12 @@ pub fn search(
             result.elapsed = start.elapsed();
             result.emergency = false;
             report(&result);
+            let preferred = result.best_move;
+            children.sort_by_key(|(mv, _)| {
+                std::cmp::Reverse(
+                    priority(position, *mv) + if Some(*mv) == preferred { 1_000_000 } else { 0 },
+                )
+            });
         }
         if stopped.load(Ordering::Relaxed)
             || Instant::now() >= shared.deadline
@@ -468,6 +595,60 @@ mod tests {
     use super::*;
 
     #[test]
+    fn transposition_table_honors_zero_budget_and_depth_replacement() {
+        let mut empty = Table::new(0);
+        empty.store(Entry {
+            key: 7,
+            score: 12,
+            depth: 3,
+            bound: 0,
+            best: None,
+        });
+        assert!(empty.probe(7).is_none());
+
+        let mut table = Table::new(std::mem::size_of::<Entry>());
+        table.store(Entry {
+            key: 7,
+            score: 12,
+            depth: 3,
+            bound: 0,
+            best: None,
+        });
+        table.store(Entry {
+            key: 7,
+            score: 99,
+            depth: 2,
+            bound: 0,
+            best: None,
+        });
+        assert_eq!(table.probe(7).unwrap().score, 12);
+    }
+
+    #[test]
+    fn zero_hash_search_remains_legal_and_complete() {
+        let game = Game::from_fen(eloi_core::position::INITIAL_FEN, Variant::Standard).unwrap();
+        let result = search(
+            &game,
+            SearchLimits {
+                movetime: Duration::from_secs(1),
+                soft_time: None,
+                depth: 2,
+                nodes: Some(20_000),
+                hash_mb: 0,
+            },
+            &AtomicBool::new(false),
+            |_| {},
+        )
+        .unwrap();
+        assert_eq!(result.depth, 2);
+        assert!(
+            game.position()
+                .legal_moves()
+                .contains(&result.best_move.unwrap())
+        );
+    }
+
+    #[test]
     fn horde_keeps_handcrafted_material_without_nnue_tempo() {
         let mut position =
             Position::from_fen(eloi_core::position::HORDE_INITIAL_FEN, Variant::Horde).unwrap();
@@ -490,6 +671,7 @@ mod tests {
                 soft_time: None,
                 depth: 2,
                 nodes: Some(10_000),
+                hash_mb: 1,
             },
             &AtomicBool::new(false),
             |_| {},
@@ -509,6 +691,7 @@ mod tests {
                 depth: 8,
                 soft_time: None,
                 nodes: None,
+                hash_mb: 1,
             },
             &AtomicBool::new(true),
             |_| {},
@@ -529,6 +712,7 @@ mod tests {
                 depth: 3,
                 soft_time: None,
                 nodes: None,
+                hash_mb: 1,
             },
             &AtomicBool::new(false),
             |_| {},

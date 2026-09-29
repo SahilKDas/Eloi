@@ -82,6 +82,7 @@ fn handshake() {
     ));
     emit("id author Sahil Das and Eloi contributors");
     emit("option name Threads type spin default 3 min 3 max 3");
+    emit("option name Hash type spin default 32 min 0 max 1024");
     emit("option name MoveOverhead type spin default 0 min 0 max 5000");
     emit(
         "option name UCI_Variant type combo default chess var chess var chess960 var horde var kingofthehill var atomic var antichess var crazyhouse",
@@ -95,6 +96,7 @@ pub fn run() -> io::Result<()> {
     let mut active = None;
     let mut variant = Variant::Standard;
     let mut overhead = 0;
+    let mut hash_mb = 32_u16;
     for input in io::stdin().lock().lines() {
         let line = match input {
             Ok(line) => line,
@@ -137,6 +139,10 @@ pub fn run() -> io::Result<()> {
                         Ok(ms) if ms <= 5000 => overhead = ms,
                         _ => emit("info string invalid overhead"),
                     },
+                    "Hash" => match value.parse::<u16>() {
+                        Ok(value) if value <= 1024 => hash_mb = value,
+                        _ => emit("info string invalid hash size"),
+                    },
                     "UCI_Chess960" => match value {
                         "true" => variant = Variant::Chess960,
                         "false" => variant = Variant::Standard,
@@ -159,13 +165,14 @@ pub fn run() -> io::Result<()> {
             }
             _ if line.starts_with("go") => {
                 stop(&mut active);
-                let limits = match parse_go_for(&game, line, overhead) {
+                let mut limits = match parse_go_for(&game, line, overhead) {
                     Ok(limits) => limits,
                     Err(error) => {
                         emit(&format!("info string search rejected: {error}"));
                         continue;
                     }
                 };
+                limits.hash_mb = hash_mb;
                 if game.position().variant != variant {
                     emit("info string send position after changing variant");
                     continue;

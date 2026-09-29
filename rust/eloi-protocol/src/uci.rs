@@ -74,6 +74,7 @@ pub fn parse_go(command: &str, overhead_ms: u64) -> Result<SearchLimits, String>
         depth,
         nodes,
         soft_time: None,
+        hash_mb: 32,
     })
 }
 
