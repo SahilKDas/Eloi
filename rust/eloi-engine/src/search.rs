@@ -102,6 +102,8 @@ struct Lane<'a> {
     shared: &'a Shared<'a>,
     history: Vec<u64>,
     table: &'a mut Table,
+    quiet_history: [[i32; 64]; 64],
+    killers: [[Option<Move8>; 2]; MAX_PLY as usize],
 }
 
 #[derive(Clone, Copy, Default)]
@@ -320,6 +322,39 @@ fn horde_evaluate(position: &Position) -> i32 {
 }
 
 impl Lane<'_> {
+    fn move_priority(
+        &self,
+        position: &Position,
+        mv: Move8,
+        tt_move: Option<Move8>,
+        ply: u16,
+    ) -> i32 {
+        let history = mv.from.map_or(0, |from| {
+            self.quiet_history[usize::from(from.index())][usize::from(mv.to.index())]
+        });
+        let killer = self.killers.get(usize::from(ply)).map_or(0, |moves| {
+            if moves.contains(&Some(mv)) { 80_000 } else { 0 }
+        });
+        priority(position, mv) + history + killer + if Some(mv) == tt_move { 1_000_000 } else { 0 }
+    }
+
+    fn reward_cutoff(&mut self, position: &Position, mv: Move8, depth: u8, ply: u16) {
+        if position.is_capture(mv) || mv.promotion.is_some() {
+            return;
+        }
+        if let Some(from) = mv.from {
+            let score =
+                &mut self.quiet_history[usize::from(from.index())][usize::from(mv.to.index())];
+            *score = score.saturating_add(i32::from(depth).pow(2).min(4096));
+        }
+        if let Some(killers) = self.killers.get_mut(usize::from(ply))
+            && killers[0] != Some(mv)
+        {
+            killers[1] = killers[0];
+            killers[0] = Some(mv);
+        }
+    }
+
     fn tt_lookup(
         &self,
         key: u64,
@@ -345,6 +380,9 @@ impl Lane<'_> {
         (entry, result)
     }
 
+    // Keeping the complete alpha/beta window transition in one routine makes
+    // fail-high re-search and cancellation cleanup auditable together.
+    #[allow(clippy::too_many_lines)]
     fn negamax(
         &mut self,
         position: &Position,
@@ -397,9 +435,7 @@ impl Lane<'_> {
             }
         }
         children.sort_by_key(|(mv, _)| {
-            std::cmp::Reverse(
-                priority(position, *mv) + if Some(*mv) == tt_move { 1_000_000 } else { 0 },
-            )
+            std::cmp::Reverse(self.move_priority(position, *mv, tt_move, ply))
         });
         self.history.push(position_key);
         let mut best = if depth == 0 && !in_check && !compulsory_capture {
@@ -408,17 +444,50 @@ impl Lane<'_> {
             -MATE
         };
         let mut best_pv = Vec::new();
-        for (mv, child) in children {
+        for (index, (mv, child)) in children.into_iter().enumerate() {
             let mut child_nnue = nnue.clone();
             child_nnue.update(position, &child).ok()?;
-            let result = self.negamax(
-                &child,
-                &child_nnue,
-                depth.saturating_sub(1),
-                ply + 1,
-                -beta,
-                -alpha,
-            );
+            let child_depth = depth.saturating_sub(1);
+            let reducible = index >= 4
+                && depth >= 3
+                && !in_check
+                && matches!(position.variant, Variant::Standard | Variant::Chess960)
+                && !position.is_capture(mv)
+                && mv.promotion.is_none()
+                && !child.in_check(child.turn);
+            let probe_depth = child_depth.saturating_sub(u8::from(reducible));
+            let mut result = if index == 0 {
+                self.negamax(&child, &child_nnue, child_depth, ply + 1, -beta, -alpha)
+            } else {
+                self.negamax(
+                    &child,
+                    &child_nnue,
+                    probe_depth,
+                    ply + 1,
+                    -alpha - 1,
+                    -alpha,
+                )
+            };
+            if index != 0
+                && result.as_ref().is_some_and(|(score, _)| -score > alpha)
+                && probe_depth != child_depth
+            {
+                result = self.negamax(
+                    &child,
+                    &child_nnue,
+                    child_depth,
+                    ply + 1,
+                    -alpha - 1,
+                    -alpha,
+                );
+            }
+            if index != 0
+                && result
+                    .as_ref()
+                    .is_some_and(|(score, _)| (-score > alpha) && (-score < beta))
+            {
+                result = self.negamax(&child, &child_nnue, child_depth, ply + 1, -beta, -alpha);
+            }
             let Some((score, pv)) = result else {
                 self.history.pop();
                 return None;
@@ -432,6 +501,7 @@ impl Lane<'_> {
             }
             alpha = alpha.max(score);
             if alpha >= beta {
+                self.reward_cutoff(position, mv, depth, ply);
                 break;
             }
         }
@@ -469,6 +539,8 @@ fn root_iteration(
                         shared,
                         history,
                         table: &mut table,
+                        quiet_history: [[0; 64]; 64],
+                        killers: [[None; 2]; MAX_PLY as usize],
                     };
                     let mut scores = Vec::new();
                     for (index, (mv, child)) in children
