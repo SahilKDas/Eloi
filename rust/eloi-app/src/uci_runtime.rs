@@ -106,6 +106,9 @@ fn emit(text: &str) {
     let _ = output.flush();
 }
 
+// Donor search, native fallback, ponder publication and telemetry stay together
+// so there is one auditable owner for every possible `bestmove` response.
+#[allow(clippy::too_many_lines)]
 fn dispatch(
     game: Game,
     request: SearchRequest,
@@ -120,10 +123,18 @@ fn dispatch(
     let handle = std::thread::spawn(move || {
         let chess960 = game.position().variant == Variant::Chess960;
         if let Some(worker) = donor {
+            let reserve = limits.movetime.div_f32(10.0).clamp(
+                std::time::Duration::from_millis(15),
+                std::time::Duration::from_millis(100),
+            );
+            let donor_budget = limits
+                .movetime
+                .saturating_sub(reserve)
+                .max(std::time::Duration::from_millis(1));
             let result = worker
                 .lock()
                 .map_err(|_| io::Error::other("donor lock poisoned"))
-                .and_then(|mut worker| worker.search(&game, limits.movetime, &signal));
+                .and_then(|mut worker| worker.search(&game, donor_budget, &signal));
             match result {
                 Ok(result) => {
                     emit(&format!(
@@ -145,8 +156,38 @@ fn dispatch(
                 }
                 Err(error) => {
                     emit(&format!("info string donor failure: {error}"));
-                    if publish_result.load(Ordering::Relaxed) {
-                        emit("bestmove 0000");
+                    let mut fallback_limits = limits;
+                    fallback_limits.movetime = reserve;
+                    fallback_limits.soft_time = Some(reserve.mul_f32(0.8));
+                    let fallback =
+                        eloi_engine::search::search(&game, fallback_limits, &signal, |_| {});
+                    match fallback {
+                        Ok(fallback) => {
+                            emit(&format!(
+                                "info string donor fallback depth {} emergency {}",
+                                fallback.depth, fallback.emergency
+                            ));
+                            if publish_result.load(Ordering::Relaxed) {
+                                emit(&format!(
+                                    "bestmove {}",
+                                    fallback
+                                        .best_move
+                                        .map_or_else(|| "0000".into(), |mv| mv.uci(chess960),)
+                                ));
+                            }
+                        }
+                        Err(fallback_error) => {
+                            emit(&format!("info string fallback failure: {fallback_error}"));
+                            if publish_result.load(Ordering::Relaxed) {
+                                let emergency = game
+                                    .position()
+                                    .legal_moves()
+                                    .into_iter()
+                                    .next()
+                                    .map_or_else(|| "0000".into(), |mv| mv.uci(chess960));
+                                emit(&format!("bestmove {emergency}"));
+                            }
+                        }
                     }
                 }
             }

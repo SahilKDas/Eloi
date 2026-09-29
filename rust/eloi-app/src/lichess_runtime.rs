@@ -105,8 +105,8 @@ fn choose_move(
         && let Some(donor) = donor
     {
         let reserve = hard
-            .div_f32(5.0)
-            .clamp(Duration::from_millis(25), Duration::from_millis(250));
+            .div_f32(10.0)
+            .clamp(Duration::from_millis(15), Duration::from_millis(100));
         let donor_budget = hard.saturating_sub(reserve).max(Duration::from_millis(1));
         if let Ok(report) = donor.lock().map_err(|_| "donor lock poisoned")?.search(
             &session.game,
