@@ -13,6 +13,13 @@ repository.
 
 The official executable contains Caissa 2.0's matching multilayer evaluation
 model. Eloi does not download, commit, or package a separate model from the
-Caissa-Nets repository. The binary runs only as a crash-contained child
-process; Eloi remains authoritative for protocol handling, variants, and final
-move legality.
+Caissa-Nets repository. Upstream does not publish a separate model-specific
+license statement for those bytes. The Eloi maintainer accepts the official
+tagged release asset, distributed from the MIT-licensed Caissa repository with
+its matching evaluator embedded, as the redistribution basis for Eloi packages.
+That project decision is intentionally explicit and must not be generalized to
+loose Caissa-Nets artifacts.
+
+The pinned binary is therefore packageable and eligible for production
+promotion. It runs only as a crash-contained child process; Eloi remains
+authoritative for protocol handling, variants, and final move legality.

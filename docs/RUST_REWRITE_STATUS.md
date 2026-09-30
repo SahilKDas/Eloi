@@ -17,7 +17,10 @@ it does not declare the rewrite or a release qualified.
 - Atomic position replacement, reversible game history, repetition and undo.
 - Pinned official Caissa 2.0 AVX2 donor from the MIT-licensed upstream release.
   Its matching multilayer model is embedded in that executable; Eloi does not
-  fetch or package a loose model from Caissa-Nets.
+  fetch or package a loose model from Caissa-Nets. The maintainer explicitly
+  accepts the official tagged release asset as packageable and promotable; the
+  absence of a separate model-specific license statement remains disclosed in
+  `third_party/caissa20/PROVENANCE.md`.
 - Runtime SHA-256 and UCI identity checks, exactly three search threads, 32 MB
   hash, real-budget stop, containment margin, and owned-process teardown.
 - Explicit donor integration test passed: bounded legal Standard search,
@@ -109,8 +112,10 @@ recorded protocol failures. Viridithas is rejected as the rewrite donor.
 The replacement candidate is official Caissa 2.0 AVX2, SHA-256
 `043C0925DF8C608D0D87B9E6B1C761240DDD1901EE8CBA49E346686B28816B97`.
 Upstream reports +40.41 ±4.85 Elo at LTC over 5,000 games and +29.15 ±4.59
-Elo at STC over 6,284 games against 1.26. Local equal-resource qualification
-is still required before promotion.
+Elo at STC over 6,284 games against 1.26. The maintainer waived a redundant
+local strength gate and accepts this upstream evidence for donor promotion.
+The subsequently cancelled local smoke stopped after five games at 2W/1D/2L;
+it is preserved separately and is not presented as strength evidence.
 
 The conservative selective-search candidate was compared with exact pre-change
 commit `5e463b2` in a bounded 20-game, 250 ms mirrored preliminary screen. It
@@ -120,25 +125,29 @@ qualification; a fresh-process confirmation is still required.
 
 ## Package evidence
 
-Two independent MSVC `/Brepro` builds now produce identical executable bytes
-within each package form, and deterministic archive construction matches:
+The current r4 package pass performed four clean MSVC `/Brepro` builds and
+produced identical executable bytes within each package form. PE timestamps
+were normalized to zero before deterministic archive construction. The A/B
+archives match byte-for-byte:
 
-- standalone ZIP A/B: `DBC9599D27BB301009A58950FA3A7C6D231D5156B1AF18F11D66EF3ED88356F9`;
-- Exoskeleton ZIP A/B: `982D8BA08929868705013342EF34C91C550FBFE4D6594BE2ACFE429A643CA931`.
+- standalone ZIP A/B: `06B31CB9C4F5FE12505CFC366D4687C659873F6D6E42764EB8EFC8B888E59DB9`;
+- Exoskeleton ZIP A/B: `72F1F14A9942991E4EE41D38477ED76FD931EC62D0FE29CB604C64343684037A`.
 
 Both staged executables validate the seven-variant config. The standalone
-materializes its embedded, hash-named contained donor and returned a legal move;
-the Exoskeleton finds the adjacent donor worker. Native GUI and Operations
-Center windows stayed responsive in smoke tests, and a second Operations Center
-instance exited after activating the existing instance. MSVC `/Brepro` writes a
-deterministic hash into the PE timestamp field rather than zero, so timestamp
-normalization remains a release-packaging gate.
+materializes its embedded, hash-named donor with the exact published SHA-256;
+the Exoskeleton uses the adjacent exact donor plus its MIT notice. Both fresh
+extractions selected `d2d4` with the same +91 cp score in a non-book Standard
+smoke. Native GUI and Operations Center windows stayed responsive, and a second
+Operations Center instance exited cleanly after activating the existing one.
+Evidence is preserved under `dist/rust-rewrite-validation-r4` and
+`tmp/rust-package-validation-r4`.
 
 ## Still required
 
 Further native-search optimization, exhaustive board/variant parity, donor
-fixed-node parity, a replacement equal-resource Standard qualification, real
-Lichess smoke, complete dashboard telemetry/controls, and reproducible packages.
+fixed-node parity, real Lichess smoke, and complete dashboard telemetry/controls.
+Reproducible package construction now passes; final release naming, package
+content audit, security scan, and release-source freeze remain outstanding.
 Crazyhouse is qualified against the frozen generic-Eloi baseline; broader
 external-strength claims still require a separate opponent gate.
 Four-player currently has topology/action types; complete rules and its brain
