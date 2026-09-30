@@ -2,7 +2,7 @@
 
 use std::io;
 use std::path::Path;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -11,7 +11,7 @@ use eloi_engine::search::SearchLimits;
 use eloi_protocol::bridge::State;
 use eloi_protocol::config::RuntimeConfig;
 use eloi_protocol::operations_store::OperationsStore;
-use eloi_protocol::transport::{Action, Supervisor};
+use eloi_protocol::transport::{Action, Supervisor, Transport};
 use eloi_protocol::windows_http::WindowsHttp;
 
 #[derive(Clone, Copy)]
@@ -19,6 +19,127 @@ struct EngineSettings {
     depth: u8,
     hash_mb: u16,
     overhead_ms: u32,
+}
+
+/// Authenticate and prove cancellation of a real blocked control stream
+/// without accepting challenges or issuing any mutating API request.
+///
+/// # Errors
+/// Returns a token-free configuration, authentication, transport, or deadline
+/// diagnostic. The token and raw account response are never printed.
+pub fn live_smoke(config_path: &Path, legacy_config: bool) -> io::Result<()> {
+    let text = std::fs::read_to_string(config_path)?;
+    let token = if legacy_config {
+        legacy_top_level_token(&text)?
+    } else {
+        eloi_protocol::config::parse(&text)
+            .map_err(io::Error::other)?
+            .token
+            .expose_for_transport()
+            .to_owned()
+    };
+    let transport = Arc::new(WindowsHttp::new(&token).map_err(io::Error::other)?);
+    let reply = transport
+        .account(&AtomicBool::new(false))
+        .map_err(io::Error::other)?;
+    if reply.status != 200 {
+        return Err(io::Error::other(format!(
+            "Lichess account request returned HTTP {}",
+            reply.status
+        )));
+    }
+    let value: serde_json::Value = serde_json::from_slice(&reply.body)
+        .map_err(|_| io::Error::other("malformed account response"))?;
+    let account = value
+        .get("id")
+        .and_then(serde_json::Value::as_str)
+        .filter(|id| {
+            !id.is_empty()
+                && id.len() <= 32
+                && id
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+        })
+        .ok_or_else(|| io::Error::other("authenticated account identity malformed"))?
+        .to_owned();
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let stream_cancelled = Arc::clone(&cancelled);
+    let stream_transport = Arc::clone(&transport);
+    let (send, receive) = std::sync::mpsc::sync_channel(1);
+    std::thread::Builder::new()
+        .name("eloi-live-cancellation-smoke".into())
+        .spawn(move || {
+            let result =
+                stream_transport.stream("/api/stream/event", &stream_cancelled, &mut |_| true);
+            let _ = send.send(result.map(|reply| reply.status));
+        })?;
+    std::thread::sleep(Duration::from_millis(300));
+    let started = std::time::Instant::now();
+    cancelled.store(true, Ordering::Relaxed);
+    transport.cancel();
+    let result = receive.recv_timeout(Duration::from_secs(2)).map_err(|_| {
+        io::Error::other("blocked control stream did not cancel within two seconds")
+    })?;
+    if result.is_ok() {
+        return Err(io::Error::other(
+            "control stream ended without exercising cancellation",
+        ));
+    }
+    println!(
+        "Lichess live smoke PASS: authenticated {account}; blocked stream cancelled in {} ms; no mutating request sent",
+        started.elapsed().as_millis()
+    );
+    Ok(())
+}
+
+fn legacy_top_level_token(text: &str) -> io::Result<String> {
+    if text.len() > 65_536 {
+        return Err(io::Error::other("legacy configuration exceeds 64 KiB"));
+    }
+    let mut token = None;
+    for line in text.trim_start_matches('\u{feff}').lines() {
+        if line.starts_with(char::is_whitespace) || !line.starts_with("token:") {
+            continue;
+        }
+        if token.is_some() {
+            return Err(io::Error::other("duplicate top-level token setting"));
+        }
+        let raw = &line["token:".len()..];
+        let mut quote = None;
+        let mut end = raw.len();
+        for (index, character) in raw.char_indices() {
+            match character {
+                '\'' | '"' if quote == Some(character) => quote = None,
+                '\'' | '"' if quote.is_none() => quote = Some(character),
+                '#' if quote.is_none() => {
+                    end = index;
+                    break;
+                }
+                '\\' if quote == Some('"') => {
+                    return Err(io::Error::other(
+                        "legacy token escape syntax is unsupported",
+                    ));
+                }
+                _ => {}
+            }
+        }
+        if quote.is_some() {
+            return Err(io::Error::other("unterminated legacy token quote"));
+        }
+        let value = raw[..end].trim();
+        let value = if value.len() >= 2
+            && ((value.starts_with('"') && value.ends_with('"'))
+                || (value.starts_with('\'') && value.ends_with('\'')))
+        {
+            &value[1..value.len() - 1]
+        } else {
+            value
+        };
+        token = Some(value.to_owned());
+    }
+    token
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| io::Error::other("top-level legacy token is missing"))
 }
 
 pub fn run(
@@ -241,4 +362,20 @@ fn native_move(
     .map_err(|_| "native search failed")?
     .best_move
     .ok_or("native search returned no move")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::legacy_top_level_token;
+
+    #[test]
+    fn legacy_smoke_reader_accepts_only_one_top_level_token() {
+        let token = legacy_top_level_token(
+            "token: 'lip_example' # private credential\nengine:\n  token: ignored\n",
+        )
+        .unwrap();
+        assert_eq!(token, "lip_example");
+        assert!(legacy_top_level_token("engine:\n  token: nested\n").is_err());
+        assert!(legacy_top_level_token("token: first\ntoken: second\n").is_err());
+    }
 }

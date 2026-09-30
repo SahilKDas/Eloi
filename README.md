@@ -140,6 +140,14 @@ To use Eloi in another chess GUI:
 2. Leave Threads at three.
 3. Configure Hash and variant options as needed.
 
+To verify an existing legacy Python-bridge credential without accepting a
+challenge or changing the account:
+
+`Eloi.exe --lichess-smoke --legacy-config --config C:\path\to\config.yml`
+
+The smoke authenticates, opens the control stream, proves blocked-read
+cancellation, and exits without sending a mutating API request.
+
 To develop:
 
 1. Read CONTRIBUTING.md.

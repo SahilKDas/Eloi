@@ -88,14 +88,17 @@ it does not declare the rewrite or a release qualified.
   intact. It fixes the HTTPS origin, disables redirects/UI/cookies, bounds bodies
   and chunks, and polls cancellable OS asynchronous operations. Offline tests
   cover path/header injection, pre-request cancellation and cancellation of a
-  pending async fixture. Actual blocked-network cancellation and live stream
-  smoke are still unverified; no real token or connection was used.
+  pending async fixture. A read-only live smoke then authenticated the existing
+  `eloibot` account and cancelled a genuinely blocked control-stream read in
+  **5 ms**. It accepted no challenge, submitted no move, and sent no mutating
+  request. Legacy bridge credentials are read only from one bounded top-level
+  token scalar in memory and are never copied or printed.
 - The live supervisor now consumes control/game streams, performs challenge
   actions, reconstructs legal histories, submits only validated legal moves,
   honors clock increments, and routes Standard through the contained donor.
   Donor failure reserves a fresh native fallback budget instead of reusing an
   expired deadline. The complete loop has deterministic fake-transport coverage;
-  a real account smoke remains intentionally outstanding.
+  the real account authentication/cancellation smoke passes.
 - Native Win32 chess and Operations Center windows render through `tiny-skia`.
   The chessboard accepts legal click-to-move input, pieces render from Eloi state,
   hover animation is timer-driven, and the Operations Center acquires its named
@@ -165,7 +168,7 @@ Evidence is preserved under `dist/rust-rewrite-validation-r4` and
 ## Still required
 
 Further native-search optimization, exhaustive board/variant parity, donor
-fixed-node parity, real Lichess smoke, and richer game/search telemetry in the
+fixed-node parity and richer game/search telemetry in the
 dashboard. The promised Operations Center command controls are implemented.
 Reproducible package construction now passes; final release naming, package
 content audit, security scan, and release-source freeze remain outstanding.

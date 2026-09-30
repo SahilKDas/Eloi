@@ -96,6 +96,7 @@ dependencies = [
  "eloi-engine",
  "eloi-protocol",
  "eloi-ui",
+ "serde_json",
 ]
 
 [[package]]

@@ -56,6 +56,17 @@ fn main() -> io::Result<()> {
             let worker = donor_path(&args)?;
             lichess_runtime::run(std::path::Path::new(config), worker.as_deref(), None)?;
         }
+        Some("--lichess-smoke") => {
+            let config = args
+                .iter()
+                .position(|arg| arg == "--config")
+                .and_then(|index| args.get(index + 1))
+                .ok_or_else(|| io::Error::other("explicit --config path required"))?;
+            lichess_runtime::live_smoke(
+                std::path::Path::new(config),
+                args.iter().any(|arg| arg == "--legacy-config"),
+            )?;
+        }
         _ => println!("Eloi {VERSION} — use --gui, --uci, --lichess, or --operations-center"),
     }
     Ok(())
