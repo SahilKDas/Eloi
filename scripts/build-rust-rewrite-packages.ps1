@@ -1,13 +1,13 @@
 param(
   [Parameter(Mandatory=$true)][string]$Worker,
-  [string]$Output = 'dist\rust-rewrite-validation-r3',
+  [string]$Output = 'dist\rust-rewrite-validation-r4',
   [int64]$Epoch = 1780000000
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $workerPath = (Resolve-Path $Worker).Path
 $outputRoot = Join-Path $root $Output
-$scratch = Join-Path $root 'tmp\rust-package-validation-r3'
+$scratch = Join-Path $root 'tmp\rust-package-validation-r4'
 foreach ($path in @($outputRoot, $scratch)) {
   if (Test-Path -LiteralPath $path) { throw "collision refused: $path" }
 }
@@ -21,7 +21,16 @@ function Build-App([string]$Target, [bool]$Embed) {
   $env:RUSTFLAGS = '-C link-arg=/Brepro'
   & cargo build --release -p eloi-rs --locked
   if ($LASTEXITCODE -ne 0) { throw "Rust build failed: $Target" }
-  return Join-Path $targetPath 'release\eloi-rs.exe'
+  $executable = Join-Path $targetPath 'release\eloi-rs.exe'
+  $bytes = [IO.File]::ReadAllBytes($executable)
+  if ($bytes[0] -ne 0x4d -or $bytes[1] -ne 0x5a) { throw "invalid PE image: $executable" }
+  $pe = [BitConverter]::ToInt32($bytes, 0x3c)
+  if ([Text.Encoding]::ASCII.GetString($bytes, $pe, 4) -ne "PE`0`0") {
+    throw "invalid PE signature: $executable"
+  }
+  [Array]::Clear($bytes, $pe + 8, 4)
+  [IO.File]::WriteAllBytes($executable, $bytes)
+  return $executable
 }
 
 function Stage([string]$Name, [string]$Executable, [bool]$Split) {

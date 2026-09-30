@@ -11,13 +11,14 @@
 
 use std::io;
 use std::ptr::{null, null_mut};
+use std::sync::Arc;
 
 use windows_sys::Win32::Foundation::{
     ERROR_ALREADY_EXISTS, GetLastError, HWND, LPARAM, LRESULT, WPARAM,
 };
 use windows_sys::Win32::Graphics::Gdi::{
     BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BeginPaint, DIB_RGB_COLORS, EndPaint, InvalidateRect,
-    PAINTSTRUCT, SRCCOPY, StretchDIBits, UpdateWindow,
+    PAINTSTRUCT, SRCCOPY, SetBkMode, SetTextColor, StretchDIBits, TextOutW, UpdateWindow,
 };
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Threading::CreateMutexW;
@@ -30,7 +31,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     WM_PAINT, WM_TIMER, WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
 };
 
-use crate::{Surface, SurfaceKind};
+use crate::{OperationsModel, Surface, SurfaceKind};
 use eloi_core::Square8;
 use eloi_core::Variant;
 use eloi_core::game::Game;
@@ -42,13 +43,19 @@ struct WindowState {
     hover_amount: f32,
     game: Option<Game>,
     selected: Option<Square8>,
+    operations: Option<Arc<OperationsModel>>,
+    tick: u8,
 }
 
 fn wide(value: &str) -> Vec<u16> {
     value.encode_utf16().chain(Some(0)).collect()
 }
 
-pub(super) fn run(kind: SurfaceKind, start: Option<Box<dyn FnOnce() + Send>>) -> io::Result<()> {
+pub(super) fn run(
+    kind: SurfaceKind,
+    operations: Option<Arc<OperationsModel>>,
+    start: Option<Box<dyn FnOnce() + Send>>,
+) -> io::Result<()> {
     // SAFETY: this module is the sole platform leaf; every pointer comes from
     // Win32 or a Box retained until WM_DESTROY, and all strings are NUL-terminated.
     unsafe {
@@ -89,6 +96,8 @@ pub(super) fn run(kind: SurfaceKind, start: Option<Box<dyn FnOnce() + Send>>) ->
                 .then(|| Game::from_fen(INITIAL_FEN, Variant::Standard).ok())
                 .flatten(),
             selected: None,
+            operations,
+            tick: 0,
         }));
         let window = CreateWindowExW(
             0,
@@ -159,14 +168,21 @@ unsafe extern "system" fn window_proc(
             0
         }
         WM_LBUTTONUP if !state.is_null() => {
-            unsafe { (*state).hover_target = false };
             let x = (lparam as i16) as i32;
             let y = ((lparam >> 16) as i16) as i32;
             unsafe { board_click(window, &mut *state, x, y) };
+            if unsafe { (*state).kind == SurfaceKind::Operations }
+                && unsafe { (*state).hover_target }
+                && let Some(model) = unsafe { &(*state).operations }
+            {
+                model.toggle_accepting();
+            }
+            unsafe { (*state).hover_target = false };
             unsafe { InvalidateRect(window, null(), 0) };
             0
         }
         WM_TIMER if !state.is_null() => {
+            unsafe { (*state).tick = (*state).tick.wrapping_add(1) };
             let target = if unsafe { (*state).hover_target } {
                 1.0
             } else {
@@ -178,10 +194,18 @@ unsafe extern "system" fn window_proc(
                 unsafe { (*state).hover_amount = next };
                 unsafe { InvalidateRect(window, null(), 0) };
             }
+            if unsafe { (*state).kind == SurfaceKind::Operations && (*state).tick % 15 == 0 } {
+                unsafe { InvalidateRect(window, null(), 0) };
+            }
             0
         }
         WM_ERASEBKGND => 1,
         WM_CLOSE => {
+            if !state.is_null()
+                && let Some(model) = unsafe { &(*state).operations }
+            {
+                model.request_stop();
+            }
             unsafe { DestroyWindow(window) };
             0
         }
@@ -246,7 +270,55 @@ unsafe fn paint(window: HWND, state: &WindowState) {
             )
         };
     }
+    if state.kind == SurfaceKind::Operations {
+        unsafe { draw_operations(dc, state) };
+    }
     unsafe { EndPaint(window, &paint_state) };
+}
+
+unsafe fn draw_operations(dc: windows_sys::Win32::Graphics::Gdi::HDC, state: &WindowState) {
+    let snapshot = state
+        .operations
+        .as_ref()
+        .map(|model| model.snapshot())
+        .unwrap_or_default();
+    let state_name = match snapshot.state {
+        1 => "Connecting",
+        2 => "Connected",
+        3 => "Playing",
+        4 => "Backing off",
+        5 => "Fatal",
+        6 => "Stopping",
+        _ => "Stopped",
+    };
+    let lines = [
+        "Eloi Lichess Operations Center".to_owned(),
+        format!("State: {state_name}"),
+        format!(
+            "Accepting challenges: {}",
+            if snapshot.accepting { "yes" } else { "no" }
+        ),
+        format!(
+            "W/D/L: {}/{}/{}",
+            snapshot.wins, snapshot.draws, snapshot.losses
+        ),
+        format!("Protocol incidents: {}", snapshot.incidents),
+        "Click the green control to toggle challenge acceptance.".to_owned(),
+    ];
+    unsafe { SetBkMode(dc, 1) };
+    unsafe { SetTextColor(dc, 0x00E8_E2D8) };
+    for (index, line) in lines.iter().enumerate() {
+        let text: Vec<u16> = line.encode_utf16().collect();
+        unsafe {
+            TextOutW(
+                dc,
+                54,
+                36 + i32::try_from(index).unwrap_or(0) * 24,
+                text.as_ptr(),
+                i32::try_from(text.len()).unwrap_or(0),
+            )
+        };
+    }
 }
 
 unsafe fn board_click(window: HWND, state: &mut WindowState, x: i32, y: i32) {

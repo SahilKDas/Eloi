@@ -17,7 +17,10 @@ fn main() -> io::Result<()> {
         Some("--version" | "-v") => println!("Eloi Rust Rewrite {VERSION}"),
         Some("--uci") => {
             let worker = donor_path(&args)?;
-            uci_runtime::run(worker.as_deref())?;
+            uci_runtime::run(
+                worker.as_deref(),
+                args.iter().any(|arg| arg == "--strict-donor"),
+            )?;
         }
         Some("--perft") => perft(&args)?,
         Some("--donor-probe") => donor_probe(&args)?,
@@ -32,8 +35,10 @@ fn main() -> io::Result<()> {
                 .map(std::path::PathBuf::from);
             let worker = donor_path(&args)?;
             if let Some(config) = config {
-                eloi_ui::run_supervised(move || {
-                    if let Err(error) = lichess_runtime::run(&config, worker.as_deref()) {
+                eloi_ui::run_supervised(move |dashboard| {
+                    if let Err(error) =
+                        lichess_runtime::run(&config, worker.as_deref(), Some(&dashboard))
+                    {
                         eprintln!("Lichess supervisor stopped: {error}");
                     }
                 })?;
@@ -48,7 +53,7 @@ fn main() -> io::Result<()> {
                 .and_then(|index| args.get(index + 1))
                 .ok_or_else(|| io::Error::other("explicit --config path required"))?;
             let worker = donor_path(&args)?;
-            lichess_runtime::run(std::path::Path::new(config), worker.as_deref())?;
+            lichess_runtime::run(std::path::Path::new(config), worker.as_deref(), None)?;
         }
         _ => println!("Eloi Rust Rewrite {VERSION}: staged migration build"),
     }

@@ -20,19 +20,41 @@ struct EngineSettings {
     overhead_ms: u32,
 }
 
-pub fn run(config_path: &Path, worker_path: Option<&Path>) -> io::Result<()> {
+pub fn run(
+    config_path: &Path,
+    worker_path: Option<&Path>,
+    dashboard: Option<&Arc<eloi_ui::OperationsModel>>,
+) -> io::Result<()> {
     let text = std::fs::read_to_string(config_path)?;
     let config = eloi_protocol::config::parse(&text).map_err(io::Error::other)?;
     let settings = settings(&config)?;
     let transport =
         Arc::new(WindowsHttp::new(config.token.expose_for_transport()).map_err(io::Error::other)?);
+    if let Some(model) = dashboard {
+        let model = Arc::clone(model);
+        let cancellable = Arc::clone(&transport);
+        std::thread::Builder::new()
+            .name("eloi-dashboard-cancellation".into())
+            .spawn(move || {
+                while !model.stop_requested() {
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+                eloi_protocol::transport::Transport::cancel(cancellable.as_ref());
+            })?;
+    }
     let donor = worker_path
         .map(eloi_engine::worker::DonorWorker::start)
         .transpose()?
         .map(|worker| Arc::new(Mutex::new(worker)));
     let mut supervisor = Supervisor::new(transport, config);
-    connect_with_retry(&mut supervisor)?;
+    publish(&supervisor, dashboard.map(Arc::as_ref));
+    connect_with_retry(&mut supervisor, dashboard.map(Arc::as_ref))?;
     loop {
+        if let Some(model) = dashboard.map(Arc::as_ref) {
+            supervisor
+                .controller
+                .set_accepting(model.snapshot().accepting);
+        }
         match supervisor.next_control_action() {
             Ok(action @ (Action::Accept(_) | Action::Decline(_))) => {
                 supervisor
@@ -49,13 +71,16 @@ pub fn run(config_path: &Path, worker_path: Option<&Path>) -> io::Result<()> {
             }
             Ok(Action::Ignore) => {}
             Err(error) => match supervisor.controller.snapshot().state {
-                State::BackingOff => connect_with_retry(&mut supervisor)?,
+                State::BackingOff => {
+                    connect_with_retry(&mut supervisor, dashboard.map(Arc::as_ref))?;
+                }
                 State::Fatal | State::Stopping | State::Stopped => {
                     return Err(io::Error::other(error));
                 }
                 _ => return Err(io::Error::other(error)),
             },
         }
+        publish(&supervisor, dashboard.map(Arc::as_ref));
     }
 }
 
@@ -67,17 +92,46 @@ fn settings(config: &RuntimeConfig) -> io::Result<EngineSettings> {
     })
 }
 
-fn connect_with_retry(supervisor: &mut Supervisor<WindowsHttp>) -> io::Result<()> {
+fn connect_with_retry(
+    supervisor: &mut Supervisor<WindowsHttp>,
+    dashboard: Option<&eloi_ui::OperationsModel>,
+) -> io::Result<()> {
     loop {
         match supervisor.connect() {
-            Ok(()) => return Ok(()),
+            Ok(()) => {
+                publish(supervisor, dashboard);
+                return Ok(());
+            }
             Err(_error) if supervisor.controller.snapshot().state == State::BackingOff => {
+                publish(supervisor, dashboard);
                 let seconds = supervisor.controller.snapshot().retry_seconds;
                 std::thread::sleep(Duration::from_secs(u64::from(seconds)));
             }
             Err(error) => return Err(io::Error::other(error)),
         }
     }
+}
+
+fn publish(supervisor: &Supervisor<WindowsHttp>, dashboard: Option<&eloi_ui::OperationsModel>) {
+    let Some(dashboard) = dashboard else { return };
+    let snapshot = supervisor.controller.snapshot();
+    let state = match snapshot.state {
+        State::Stopped => 0,
+        State::Connecting => 1,
+        State::Connected => 2,
+        State::Playing => 3,
+        State::BackingOff => 4,
+        State::Fatal => 5,
+        State::Stopping => 6,
+    };
+    dashboard.publish(eloi_ui::OperationsSnapshot {
+        state,
+        accepting: snapshot.accepting,
+        wins: snapshot.counters.wins,
+        draws: snapshot.counters.draws,
+        losses: snapshot.counters.losses,
+        incidents: snapshot.counters.incidents,
+    });
 }
 
 fn choose_move(

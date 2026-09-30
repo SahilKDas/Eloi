@@ -113,6 +113,7 @@ fn dispatch(
     game: Game,
     request: SearchRequest,
     donor: Option<Arc<Mutex<eloi_engine::worker::DonorWorker>>>,
+    strict_donor: bool,
 ) -> ActiveSearch {
     let cancelled = Arc::new(AtomicBool::new(false));
     let signal = Arc::clone(&cancelled);
@@ -127,10 +128,14 @@ fn dispatch(
                 std::time::Duration::from_millis(15),
                 std::time::Duration::from_millis(100),
             );
-            let donor_budget = limits
-                .movetime
-                .saturating_sub(reserve)
-                .max(std::time::Duration::from_millis(1));
+            let donor_budget = if strict_donor {
+                limits.movetime
+            } else {
+                limits
+                    .movetime
+                    .saturating_sub(reserve)
+                    .max(std::time::Duration::from_millis(1))
+            };
             let result = worker
                 .lock()
                 .map_err(|_| io::Error::other("donor lock poisoned"))
@@ -156,6 +161,12 @@ fn dispatch(
                 }
                 Err(error) => {
                     emit(&format!("info string donor failure: {error}"));
+                    if strict_donor {
+                        if publish_result.load(Ordering::Relaxed) {
+                            emit("bestmove 0000");
+                        }
+                        return;
+                    }
                     let mut fallback_limits = limits;
                     fallback_limits.movetime = reserve;
                     fallback_limits.soft_time = Some(reserve.mul_f32(0.8));
@@ -243,6 +254,7 @@ fn dispatch(
 fn ponderhit(
     active: &mut Option<ActiveSearch>,
     donor: Option<Arc<Mutex<eloi_engine::worker::DonorWorker>>>,
+    strict_donor: bool,
 ) {
     let Some(mut search) = active.take() else {
         emit("info string ponderhit without active ponder");
@@ -263,6 +275,7 @@ fn ponderhit(
             infinite: false,
         },
         donor,
+        strict_donor,
     ));
 }
 
@@ -285,7 +298,7 @@ fn handshake() {
     emit("uciok");
 }
 
-pub fn run(worker_path: Option<&std::path::Path>) -> io::Result<()> {
+pub fn run(worker_path: Option<&std::path::Path>, strict_donor: bool) -> io::Result<()> {
     let donor = worker_path
         .map(eloi_engine::worker::DonorWorker::start)
         .transpose()?
@@ -306,7 +319,7 @@ pub fn run(worker_path: Option<&std::path::Path>) -> io::Result<()> {
             "uci" => handshake(),
             "isready" => emit("readyok"),
             "stop" => stop(&mut active),
-            "ponderhit" => ponderhit(&mut active, donor.clone()),
+            "ponderhit" => ponderhit(&mut active, donor.clone(), strict_donor),
             "quit" => {
                 stop(&mut active);
                 break;
@@ -374,7 +387,7 @@ pub fn run(worker_path: Option<&std::path::Path>) -> io::Result<()> {
                 let route = (options.variant == Variant::Standard)
                     .then(|| donor.clone())
                     .flatten();
-                active = Some(dispatch(game.clone(), request, route));
+                active = Some(dispatch(game.clone(), request, route, strict_donor));
             }
             "" => {}
             _ => emit("info string unknown command"),
