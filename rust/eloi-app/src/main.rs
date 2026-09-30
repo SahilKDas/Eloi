@@ -14,7 +14,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() -> io::Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
-        Some("--version" | "-v") => println!("Eloi Rust Rewrite {VERSION}"),
+        Some("--version" | "-v") => println!("Eloi {VERSION}"),
         Some("--uci") => {
             let worker = donor_path(&args)?;
             uci_runtime::run(
@@ -56,7 +56,7 @@ fn main() -> io::Result<()> {
             let worker = donor_path(&args)?;
             lichess_runtime::run(std::path::Path::new(config), worker.as_deref(), None)?;
         }
-        _ => println!("Eloi Rust Rewrite {VERSION}: staged migration build"),
+        _ => println!("Eloi {VERSION} — use --gui, --uci, --lichess, or --operations-center"),
     }
     Ok(())
 }

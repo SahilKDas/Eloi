@@ -7,6 +7,10 @@ it does not declare the rewrite or a release qualified.
 
 ## Implemented and checked
 
+- Cargo, executable, UCI handshake, GUI titles, package staging names, README,
+  and current rewrite documentation now share the stable `3.9.0` identity.
+  The binary reports `Eloi 3.9.0`; retained C++ release history is explicitly
+  labeled historical rather than presented as current architecture.
 - Strict six-field FEN, Chess960 rook origins, Crazyhouse pockets and promoted
   provenance, legal movement and state transitions for the two-player variants.
 - Standard perft depth four: **197,281**.

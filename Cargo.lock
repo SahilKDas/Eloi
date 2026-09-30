@@ -66,11 +66,11 @@ dependencies = [
 
 [[package]]
 name = "eloi-core"
-version = "0.1.0-september"
+version = "3.9.0"
 
 [[package]]
 name = "eloi-engine"
-version = "0.1.0-september"
+version = "3.9.0"
 dependencies = [
  "eloi-core",
  "eloi-simd",
@@ -79,7 +79,7 @@ dependencies = [
 
 [[package]]
 name = "eloi-protocol"
-version = "0.1.0-september"
+version = "3.9.0"
 dependencies = [
  "eloi-core",
  "eloi-engine",
@@ -90,7 +90,7 @@ dependencies = [
 
 [[package]]
 name = "eloi-rs"
-version = "0.1.0-september"
+version = "3.9.0"
 dependencies = [
  "eloi-core",
  "eloi-engine",
@@ -100,11 +100,11 @@ dependencies = [
 
 [[package]]
 name = "eloi-simd"
-version = "0.1.0-september"
+version = "3.9.0"
 
 [[package]]
 name = "eloi-ui"
-version = "0.1.0-september"
+version = "3.9.0"
 dependencies = [
  "eloi-core",
  "tiny-skia",

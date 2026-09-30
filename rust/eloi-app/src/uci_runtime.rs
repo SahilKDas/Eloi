@@ -280,10 +280,7 @@ fn ponderhit(
 }
 
 fn handshake() {
-    emit(concat!(
-        "id name Eloi Rust Rewrite ",
-        env!("CARGO_PKG_VERSION")
-    ));
+    emit(concat!("id name Eloi ", env!("CARGO_PKG_VERSION")));
     emit("id author Sahil Das and Eloi contributors");
     emit("option name Threads type spin default 3 min 3 max 3");
     emit("option name Depth type spin default 0 min 0 max 64");

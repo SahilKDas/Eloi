@@ -24,7 +24,7 @@ License. Its complete license is retained alongside the vendored source under
 Copyright (c) 2021 Michał Witanowski
 
 The September rewrite uses the official AVX2 executable from the MIT-licensed
-Caissa 2.0 release as its proposed Standard-search donor. The executable
+Caissa 2.0 release as its promoted Standard-search donor. The executable
 contains its matching multilayer evaluator, so Eloi neither downloads nor
 redistributes a loose model from Caissa-Nets. Exact provenance and the complete
 MIT notice are retained under `third_party/caissa20`.

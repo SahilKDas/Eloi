@@ -20,7 +20,7 @@ only after the shipped runtime has no legacy C++ dependency and all gates pass.
 - Keep every dependency permissively licensed; GPL, LGPL, MPL, EPL, AGPL, and
   other copyleft dependencies are prohibited.
 
-## Proposed Standard donor: Caissa 2.0
+## Standard donor: Caissa 2.0
 
 | Identity | Frozen value |
 | --- | --- |
@@ -33,9 +33,9 @@ only after the shipped runtime has no legacy C++ dependency and all gates pass.
 | Upstream STC vs 1.26 | +29.15 ±4.59 Elo, 6,284 games |
 
 The upstream strength gain is substantial and supported by thousands of games,
-but it must still be reproduced locally under Eloi's resources. Eloi executes
-the official release asset as a crash-contained child process and checks its
-hash and UCI identity before use.
+and is accepted by the maintainer for promotion without a redundant local
+strength gauntlet. Eloi executes the official release asset as a
+crash-contained child process and checks its hash and UCI identity before use.
 
 ## Donor model verification
 
@@ -77,5 +77,5 @@ into Rust is an intermediate parity milestone, not the final outcome.
 5. Lichess routing, cancellation, fallback, and token redaction pass offline.
 6. GUI and Operations Center pass native smoke tests outside the repository.
 7. Rust packages build twice with byte-identical archives and verified hashes.
-8. Caissa 2.0 passes a fresh equal-resource strength gate against 1.26 before
-   promotion; otherwise the Rust runtime ships with no donor promotion.
+8. Caissa 2.0 retains its exact official asset identity and passes containment,
+   legality, deadline, packaging, and runtime-route gates before promotion.

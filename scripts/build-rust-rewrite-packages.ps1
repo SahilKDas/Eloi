@@ -68,8 +68,8 @@ try {
       throw "independent executable builds differ: $($pair.A)"
     }
   }
-  $standalone = Stage 'Eloi-Rust-windows-x64-standalone' $standaloneA $false
-  $split = Stage 'Eloi-Rust-windows-x64-exoskeleton' $splitA $true
+  $standalone = Stage 'Eloi-v3.9.0-windows-x64-standalone' $standaloneA $false
+  $split = Stage 'Eloi-v3.9.0-windows-x64-exoskeleton' $splitA $true
   foreach ($folder in @($standalone,$split)) {
     $name = Split-Path $folder -Leaf
     $zipA = Join-Path $outputRoot ($name + '-A.zip')
