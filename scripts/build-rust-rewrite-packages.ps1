@@ -94,6 +94,12 @@ function SmokeExtract([string]$Zip, [bool]$Split) {
   }
   & $exe --check-config --config (Join-Path $destination 'config.yml') | Out-Null
   if ($LASTEXITCODE -ne 0) { throw "config smoke failed: $name" }
+  $python = Join-Path $root '.deps\lichess-bot\.venv\Scripts\python.exe'
+  if (-not (Test-Path -LiteralPath $python)) {
+    throw 'Pinned validation Python environment is unavailable'
+  }
+  & $python (Join-Path $root 'scripts\rust_uci_smoke.py') --engine $exe
+  if ($LASTEXITCODE -ne 0) { throw "UCI lifecycle smoke failed: $name" }
   if ($Split) {
     $hash = (Get-FileHash -LiteralPath (Join-Path $destination 'eloi-caissa-2.0.exe') -Algorithm SHA256).Hash
     if ($hash -ne $expectedWorkerHash) { throw "extracted donor mismatch: $name" }
