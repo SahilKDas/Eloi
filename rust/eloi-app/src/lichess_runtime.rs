@@ -10,6 +10,7 @@ use eloi_core::Player;
 use eloi_engine::search::SearchLimits;
 use eloi_protocol::bridge::State;
 use eloi_protocol::config::RuntimeConfig;
+use eloi_protocol::operations_store::OperationsStore;
 use eloi_protocol::transport::{Action, Supervisor};
 use eloi_protocol::windows_http::WindowsHttp;
 
@@ -28,6 +29,7 @@ pub fn run(
     let text = std::fs::read_to_string(config_path)?;
     let config = eloi_protocol::config::parse(&text).map_err(io::Error::other)?;
     let settings = settings(&config)?;
+    let mut store = OperationsStore::local().ok();
     let transport =
         Arc::new(WindowsHttp::new(config.token.expose_for_transport()).map_err(io::Error::other)?);
     if let Some(model) = dashboard {
@@ -56,8 +58,8 @@ pub fn run(
         .transpose()?
         .map(|worker| Arc::new(Mutex::new(worker)));
     let mut supervisor = Supervisor::new(transport, config);
-    publish(&supervisor, dashboard.map(Arc::as_ref));
-    connect_with_retry(&mut supervisor, dashboard.map(Arc::as_ref))?;
+    publish(&supervisor, dashboard.map(Arc::as_ref), &mut store);
+    connect_with_retry(&mut supervisor, dashboard.map(Arc::as_ref), &mut store)?;
     loop {
         if let Some(model) = dashboard.map(Arc::as_ref) {
             supervisor
@@ -85,12 +87,12 @@ pub fn run(
                     .is_some_and(eloi_ui::OperationsModel::take_reconnect) =>
             {
                 if supervisor.controller.reconnect_now() {
-                    connect_with_retry(&mut supervisor, dashboard.map(Arc::as_ref))?;
+                    connect_with_retry(&mut supervisor, dashboard.map(Arc::as_ref), &mut store)?;
                 }
             }
             Err(error) => match supervisor.controller.snapshot().state {
                 State::BackingOff => {
-                    connect_with_retry(&mut supervisor, dashboard.map(Arc::as_ref))?;
+                    connect_with_retry(&mut supervisor, dashboard.map(Arc::as_ref), &mut store)?;
                 }
                 State::Fatal | State::Stopping | State::Stopped => {
                     return Err(io::Error::other(error));
@@ -98,7 +100,7 @@ pub fn run(
                 _ => return Err(io::Error::other(error)),
             },
         }
-        publish(&supervisor, dashboard.map(Arc::as_ref));
+        publish(&supervisor, dashboard.map(Arc::as_ref), &mut store);
     }
 }
 
@@ -113,15 +115,16 @@ fn settings(config: &RuntimeConfig) -> io::Result<EngineSettings> {
 fn connect_with_retry(
     supervisor: &mut Supervisor<WindowsHttp>,
     dashboard: Option<&eloi_ui::OperationsModel>,
+    store: &mut Option<OperationsStore>,
 ) -> io::Result<()> {
     loop {
         match supervisor.connect() {
             Ok(()) => {
-                publish(supervisor, dashboard);
+                publish(supervisor, dashboard, store);
                 return Ok(());
             }
             Err(_error) if supervisor.controller.snapshot().state == State::BackingOff => {
-                publish(supervisor, dashboard);
+                publish(supervisor, dashboard, store);
                 let seconds = supervisor.controller.snapshot().retry_seconds;
                 for _ in 0..seconds.saturating_mul(20) {
                     if dashboard.is_some_and(eloi_ui::OperationsModel::reconnect_requested) {
@@ -137,8 +140,11 @@ fn connect_with_retry(
     }
 }
 
-fn publish(supervisor: &Supervisor<WindowsHttp>, dashboard: Option<&eloi_ui::OperationsModel>) {
-    let Some(dashboard) = dashboard else { return };
+fn publish(
+    supervisor: &Supervisor<WindowsHttp>,
+    dashboard: Option<&eloi_ui::OperationsModel>,
+    store: &mut Option<OperationsStore>,
+) {
     let snapshot = supervisor.controller.snapshot();
     let state = match snapshot.state {
         State::Stopped => 0,
@@ -149,14 +155,21 @@ fn publish(supervisor: &Supervisor<WindowsHttp>, dashboard: Option<&eloi_ui::Ope
         State::Fatal => 5,
         State::Stopping => 6,
     };
-    dashboard.publish(eloi_ui::OperationsSnapshot {
-        state,
-        accepting: snapshot.accepting,
-        wins: snapshot.counters.wins,
-        draws: snapshot.counters.draws,
-        losses: snapshot.counters.losses,
-        incidents: snapshot.counters.incidents,
-    });
+    if let Some(dashboard) = dashboard {
+        dashboard.publish(eloi_ui::OperationsSnapshot {
+            state,
+            accepting: snapshot.accepting,
+            wins: snapshot.counters.wins,
+            draws: snapshot.counters.draws,
+            losses: snapshot.counters.losses,
+            incidents: snapshot.counters.incidents,
+        });
+    }
+    if let Some(store) = store
+        && let Err(error) = store.publish(snapshot)
+    {
+        eprintln!("Operations evidence unavailable: {error}");
+    }
 }
 
 fn choose_move(

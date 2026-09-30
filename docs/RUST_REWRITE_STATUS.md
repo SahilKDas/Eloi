@@ -97,6 +97,11 @@ it does not declare the rewrite or a release qualified.
   an attached game's identity. Dashboard diagnostics contain only the explicit
   token-free snapshot fields. The full Rust suite and strict Clippy pass, and a
   release-mode native-window smoke remained responsive.
+- Live/headless bridge state is durably mirrored to token-free, parseable JSON
+  under `%LOCALAPPDATA%\Eloi\status\lichess.json` using same-directory atomic
+  replacement. Session event logs are capped at 1 MiB, startup rotation retains
+  at most ten files and reserves the 10 MiB aggregate ceiling, and tests prove
+  credentials are redacted before either output is written.
 - Crazyhouse has a pocket-aware board/pocket/drop-pressure evaluator instead of
   applying the Standard NNUE to invisible pocket material. Its frozen 100-game,
   250 ms qualification against the pre-change generic evaluator passed at
