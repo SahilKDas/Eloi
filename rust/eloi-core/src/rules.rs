@@ -77,8 +77,6 @@ pub const fn opponent(player: Player) -> Player {
     match player {
         Player::White => Player::Black,
         Player::Black => Player::White,
-        Player::Red => Player::Blue,
-        Player::Blue => Player::Red,
     }
 }
 

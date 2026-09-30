@@ -3,6 +3,11 @@
 > A Rust chess engine, native Windows application, reproducible engineering
 > project, and home of a crash-contained Caissa 2.0 Standard brain.
 
+The `v4.0.0` branch is the four-player chess development line. It adds a
+separate 14x14 cross-board rules core, FFA and Teams state, a handcrafted
+three-thread baseline search, Kaggle-ready training scaffolding, and a native
+four-player GUI surface while preserving existing two-player routing.
+
 The `september-rewrite` line is Eloi 3.9.0: a Rust 2024 UCI engine with a
 native `tiny-skia` GUI, visible Lichess Operations Center, seven supported
 Lichess variants, three-thread Eloi-native search, and deterministic Windows
@@ -69,8 +74,8 @@ E4-10. Caissa remains Standard-only. See
 
 | Item | Current status |
 | --- | --- |
-| Source version | 3.9.0 |
-| Release status | Qualification in progress on `september-rewrite` |
+| Source version | 4.0.0 |
+| Release status | Four-player FFA/Teams development on `v4.0.0` |
 | Language | Rust 2024 |
 | Build system | Cargo |
 | Primary toolchain | Rust 1.98 / MSVC x64 |
@@ -83,7 +88,7 @@ E4-10. Caissa remains Standard-only. See
 | Atomic brain | Dedicated E4-Atomic evaluator |
 | King of the Hill brain | Dedicated E4-KOTH evaluator |
 | Crazyhouse brain | Pocket/drop-aware Eloi evaluator |
-| Variants | Standard, Chess960, Horde, KOTH, Atomic, Antichess, Crazyhouse |
+| Variants | Standard, Chess960, Horde, KOTH, Atomic, Antichess, Crazyhouse; Four-player FFA/Teams in development |
 | Source license | MIT |
 | Standard search donor | Caissa 2.0 official AVX2 asset |
 | Donor tag commit | bb725799e9b19ebdaa0d584f5433fc1c3019e349 |

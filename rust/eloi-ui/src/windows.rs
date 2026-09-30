@@ -92,6 +92,7 @@ pub(super) fn run(
         }
         let title = wide(match kind {
             SurfaceKind::Chess => "Eloi 3.9 — Native Chess",
+            SurfaceKind::FourPlayer => "Eloi 4.0 — Four-Player Chess",
             SurfaceKind::Operations => "Eloi 3.9 — Lichess Operations Center",
         });
         let state = Box::into_raw(Box::new(WindowState {

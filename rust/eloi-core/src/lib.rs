@@ -1,5 +1,6 @@
 //! Authoritative chess and variant state for the Rust Eloi rewrite.
 
+pub mod four_player;
 pub mod game;
 pub mod position;
 pub mod rules;
@@ -10,14 +11,10 @@ pub const SEARCH_THREADS: usize = 3;
 /// A participant that can own a turn or a piece.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Player {
-    /// Conventional White, or the south player in four-player chess.
+    /// Conventional White.
     White,
-    /// Conventional Black, or the north player in four-player chess.
+    /// Conventional Black.
     Black,
-    /// The west player on a four-player board.
-    Red,
-    /// The east player on a four-player board.
-    Blue,
 }
 
 /// A square on the optimized two-player 8×8 board.
@@ -184,7 +181,7 @@ impl Variant {
     #[must_use]
     pub const fn players(self) -> &'static [Player] {
         match self {
-            Self::FourPlayer => &[Player::White, Player::Red, Player::Black, Player::Blue],
+            Self::FourPlayer => &[],
             _ => &[Player::White, Player::Black],
         }
     }
@@ -245,7 +242,7 @@ mod tests {
             &[Player::White, Player::Black]
         );
         assert!(Variant::Crazyhouse.supports_drops());
-        assert_eq!(Variant::FourPlayer.players().len(), 4);
+        assert!(Variant::FourPlayer.players().is_empty());
         assert!(!Variant::FourPlayer.supports_drops());
 
         let drop = Move::Drop {

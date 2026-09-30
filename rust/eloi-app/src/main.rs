@@ -27,6 +27,7 @@ fn main() -> io::Result<()> {
         Some("--nnue") => nnue_probe(&args)?,
         Some("--check-config") => check_config(&args)?,
         Some("--gui") => eloi_ui::run(eloi_ui::SurfaceKind::Chess)?,
+        Some("--four-player-gui") => eloi_ui::run(eloi_ui::SurfaceKind::FourPlayer)?,
         Some("--operations-center") => {
             let config = args
                 .iter()
@@ -67,7 +68,9 @@ fn main() -> io::Result<()> {
                 args.iter().any(|arg| arg == "--legacy-config"),
             )?;
         }
-        _ => println!("Eloi {VERSION} — use --gui, --uci, --lichess, or --operations-center"),
+        _ => println!(
+            "Eloi {VERSION} — use --gui, --four-player-gui, --uci, --lichess, or --operations-center"
+        ),
     }
     Ok(())
 }

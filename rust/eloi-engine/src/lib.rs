@@ -1,6 +1,7 @@
 //! Search-brain boundaries for the Rust Eloi rewrite.
 
 pub mod book;
+pub mod four_player;
 pub mod nnue;
 pub mod search;
 pub mod time;

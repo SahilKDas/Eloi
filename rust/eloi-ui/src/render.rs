@@ -15,6 +15,8 @@ use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Rect, Transform};
 pub enum SurfaceKind {
     /// Interactive chessboard shell.
     Chess,
+    /// Four-player local chess shell.
+    FourPlayer,
     /// Lichess Operations Center.
     Operations,
 }
@@ -52,13 +54,13 @@ impl Surface {
         fill(&mut pixmap, 38.0, 82.0, width as f32 - 76.0, 92.0, &paint);
         match kind {
             SurfaceKind::Chess => board(&mut pixmap, width, height, position),
+            SurfaceKind::FourPlayer => four_player_board(&mut pixmap, width, height),
             SurfaceKind::Operations => cards(&mut pixmap, width, height),
         }
         let hover = hover.clamp(0.0, 1.0);
-        let controls = if kind == SurfaceKind::Operations {
-            5
-        } else {
-            1
+        let controls = match kind {
+            SurfaceKind::Operations => 5,
+            SurfaceKind::Chess | SurfaceKind::FourPlayer => 1,
         };
         for index in 0..controls {
             let active = hover_control == Some(index);
@@ -181,13 +183,71 @@ fn cards(pixmap: &mut Pixmap, width: u32, height: u32) {
     }
 }
 
+fn four_player_board(pixmap: &mut Pixmap, width: u32, height: u32) {
+    let size = (width.min(height).saturating_sub(180) as f32).max(210.0);
+    let origin_x = 44.0;
+    let origin_y = 156.0;
+    let square = size / 14.0;
+    let mut paint = Paint::default();
+    for rank in 0..14 {
+        for file in 0..14 {
+            let corner_file = !(3..11).contains(&file);
+            let corner_rank = !(3..11).contains(&rank);
+            if corner_file && corner_rank {
+                continue;
+            }
+            let light = (rank + file) % 2 == 0;
+            paint.set_color_rgba8(
+                if light { 212 } else { 110 },
+                if light { 218 } else { 137 },
+                if light { 198 } else { 145 },
+                255,
+            );
+            fill(
+                pixmap,
+                origin_x + file as f32 * square,
+                origin_y + (13 - rank) as f32 * square,
+                square,
+                square,
+                &paint,
+            );
+        }
+    }
+    let seats = [
+        (6.5, 0.8, (226, 68, 68)),
+        (0.8, 6.5, (68, 132, 226)),
+        (6.5, 12.2, (230, 206, 80)),
+        (12.2, 6.5, (65, 190, 117)),
+    ];
+    for (file, rank, (r, g, b)) in seats {
+        paint.set_color_rgba8(r, g, b, 255);
+        if let Some(path) = PathBuilder::from_circle(
+            origin_x + file as f32 * square,
+            origin_y + (13.0 - rank as f32) * square,
+            square * 0.34,
+        ) {
+            pixmap.fill_path(
+                &path,
+                &paint,
+                tiny_skia::FillRule::Winding,
+                Transform::identity(),
+                None,
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn both_surfaces_render_deterministically_and_hover_changes_pixels() {
-        for kind in [SurfaceKind::Chess, SurfaceKind::Operations] {
+        for kind in [
+            SurfaceKind::Chess,
+            SurfaceKind::FourPlayer,
+            SurfaceKind::Operations,
+        ] {
             let normal = Surface::render(960, 700, kind, 0.0, None, None).unwrap();
             let again = Surface::render(960, 700, kind, 0.0, None, None).unwrap();
             let hover = Surface::render(960, 700, kind, 1.0, Some(0), None).unwrap();
