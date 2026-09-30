@@ -5,7 +5,10 @@
 //! engine to any website-specific protocol.
 
 use eloi_core::PieceKind;
-use eloi_core::four_player::{FourMode, FourMove, FourOutcome, FourPosition, FourSeat};
+use eloi_core::four_player::{FourGame, FourMode, FourMove, FourOutcome, FourPosition, FourSeat};
+use eloi_engine::four_player::{FourSearchLimits, search_four_player};
+use std::sync::atomic::AtomicBool;
+use std::time::Duration;
 
 /// Who controls a seat in a local four-player game.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -70,6 +73,16 @@ pub struct FourPlayerSnapshot {
     pub state: String,
 }
 
+/// Local four-player session model for GUI and offline smoke tests.
+#[derive(Clone, Debug)]
+pub struct FourPlayerSession {
+    game: FourGame,
+    controllers: [SeatController; 4],
+    clocks: [SeatClock; 4],
+    route: FourBrainRoute,
+    last_move: Option<FourMove>,
+}
+
 impl FourPlayerSnapshot {
     /// Build a display/protocol snapshot from authoritative state.
     #[must_use]
@@ -95,6 +108,107 @@ impl FourPlayerSnapshot {
             outcome: position.outcome(),
             state: position.to_state(),
         }
+    }
+}
+
+impl FourPlayerSession {
+    /// Create a local session from one of the GUI presets.
+    #[must_use]
+    pub fn new(
+        mode: FourMode,
+        preset: FourPlayerPreset,
+        base_clock_ms: u64,
+        increment_ms: u32,
+    ) -> Self {
+        Self {
+            game: FourGame::new(mode),
+            controllers: preset.controllers(),
+            clocks: [SeatClock {
+                remaining_ms: base_clock_ms,
+                increment_ms,
+            }; 4],
+            route: FourBrainRoute::HandcraftedBaseline,
+            last_move: None,
+        }
+    }
+
+    /// Current authoritative position.
+    #[must_use]
+    pub const fn position(&self) -> &FourPosition {
+        self.game.position()
+    }
+
+    /// Current token-free snapshot.
+    #[must_use]
+    pub fn snapshot(&self) -> FourPlayerSnapshot {
+        let mut snapshot = FourPlayerSnapshot::from_position(
+            self.game.position(),
+            self.controllers,
+            self.clocks,
+            self.route,
+            self.last_move,
+        );
+        snapshot.outcome = self.game.outcome();
+        snapshot
+    }
+
+    /// Apply a human/local move in compact notation.
+    pub fn push_notation(&mut self, text: &str) -> bool {
+        let Some(mv) = self.game.position().parse_move(text) else {
+            return false;
+        };
+        if !self.game.push(mv) {
+            return false;
+        }
+        self.last_move = Some(mv);
+        true
+    }
+
+    /// Undo one local ply.
+    pub fn undo(&mut self) -> bool {
+        if !self.game.pop() {
+            return false;
+        }
+        self.last_move = self.game.moves().last();
+        true
+    }
+
+    /// Resign the current seat or a chosen seat.
+    pub fn resign(&mut self, seat: FourSeat) {
+        self.game.resign(seat);
+    }
+
+    /// Search and play once if the side to move is controlled by Eloi.
+    ///
+    /// # Errors
+    /// Returns the baseline search error or move rejection.
+    pub fn step_engine_once(
+        &mut self,
+        movetime: Duration,
+        depth: u8,
+        stopped: &AtomicBool,
+    ) -> Result<Option<FourMove>, &'static str> {
+        let seat = self.game.position().turn;
+        if self.controllers[seat.index()] != SeatController::Eloi || self.game.outcome().is_some() {
+            return Ok(None);
+        }
+        let result = search_four_player(
+            self.game.position(),
+            FourSearchLimits {
+                movetime,
+                depth,
+                nodes: None,
+            },
+            stopped,
+        )?;
+        let Some(best) = result.best_move else {
+            return Ok(None);
+        };
+        if !self.game.push(best) {
+            return Err("four-player engine produced rejected move");
+        }
+        self.last_move = Some(best);
+        Ok(Some(best))
     }
 }
 
@@ -197,5 +311,37 @@ mod tests {
         assert_eq!(index.from_file, mv.from.file());
         assert_eq!(index.to_rank, mv.to.rank());
         assert_eq!(index.promotion, None);
+    }
+
+    #[test]
+    fn session_steps_engine_seats_and_preserves_snapshots() {
+        let mut session =
+            FourPlayerSession::new(FourMode::Ffa, FourPlayerPreset::AllEngineDemo, 60_000, 0);
+        let before = session.snapshot();
+        let played = session
+            .step_engine_once(Duration::from_millis(100), 1, &AtomicBool::new(false))
+            .unwrap();
+        assert!(played.is_some());
+        let after = session.snapshot();
+        assert_ne!(before.state, after.state);
+        assert_eq!(after.last_move, played);
+        assert!(session.undo());
+        assert_eq!(session.snapshot().state, before.state);
+    }
+
+    #[test]
+    fn session_does_not_move_human_seat() {
+        let mut session = FourPlayerSession::new(
+            FourMode::Teams,
+            FourPlayerPreset::FourHumanPassAndPlay,
+            60_000,
+            0,
+        );
+        assert_eq!(
+            session
+                .step_engine_once(Duration::from_millis(100), 1, &AtomicBool::new(false))
+                .unwrap(),
+            None
+        );
     }
 }

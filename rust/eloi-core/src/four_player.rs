@@ -156,6 +156,114 @@ pub struct FourPosition {
     pub ply: u32,
 }
 
+/// Local four-player game with reversible history and local terminal actions.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FourGame {
+    position: FourPosition,
+    history: Vec<(FourPosition, FourMove)>,
+    resignation: Option<FourSeat>,
+    timeout: Option<FourSeat>,
+}
+
+impl FourGame {
+    /// Create a local game from the standard four-player initial setup.
+    #[must_use]
+    pub fn new(mode: FourMode) -> Self {
+        Self {
+            position: FourPosition::initial(mode),
+            history: Vec::new(),
+            resignation: None,
+            timeout: None,
+        }
+    }
+
+    /// Current authoritative four-player position.
+    #[must_use]
+    pub const fn position(&self) -> &FourPosition {
+        &self.position
+    }
+
+    /// Apply a legal move and preserve the full previous state.
+    pub fn push(&mut self, mv: FourMove) -> bool {
+        if self.outcome().is_some() {
+            return false;
+        }
+        let Some(next) = self.position.play(mv) else {
+            return false;
+        };
+        self.history
+            .push((std::mem::replace(&mut self.position, next), mv));
+        true
+    }
+
+    /// Apply exact compact four-player move notation.
+    pub fn push_notation(&mut self, text: &str) -> bool {
+        let Some(mv) = self.position.parse_move(text) else {
+            return false;
+        };
+        self.push(mv)
+    }
+
+    /// Undo one local ply. Resignation and timeout terminal actions are sticky
+    /// and are not undone by move navigation.
+    pub fn pop(&mut self) -> bool {
+        let Some((previous, _)) = self.history.pop() else {
+            return false;
+        };
+        self.position = previous;
+        true
+    }
+
+    /// Moves since the starting position.
+    pub fn moves(&self) -> impl Iterator<Item = FourMove> + '_ {
+        self.history.iter().map(|(_, mv)| *mv)
+    }
+
+    /// Mark a local resignation.
+    pub fn resign(&mut self, seat: FourSeat) {
+        self.resignation = Some(seat);
+        if self.position.mode == FourMode::Ffa {
+            self.position.active[seat.index()] = false;
+        }
+    }
+
+    /// Mark a local timeout.
+    pub fn timeout(&mut self, seat: FourSeat) {
+        self.timeout = Some(seat);
+        if self.position.mode == FourMode::Ffa {
+            self.position.active[seat.index()] = false;
+        }
+    }
+
+    /// Current terminal result, including local resignation and timeout.
+    #[must_use]
+    pub fn outcome(&self) -> Option<FourOutcome> {
+        if let Some(seat) = self.resignation.or(self.timeout) {
+            return Some(self.forfeit_outcome(seat));
+        }
+        self.position.outcome()
+    }
+
+    fn forfeit_outcome(&self, seat: FourSeat) -> FourOutcome {
+        match self.position.mode {
+            FourMode::Ffa => {
+                let mut placements: Vec<_> = FourSeat::ORDER
+                    .into_iter()
+                    .map(|candidate| {
+                        let penalty = if candidate == seat { -10_000 } else { 0 };
+                        (candidate, self.position.scores[candidate.index()] + penalty)
+                    })
+                    .collect();
+                placements.sort_by_key(|&(candidate, score)| (std::cmp::Reverse(score), candidate));
+                FourOutcome::Placements(placements)
+            }
+            FourMode::Teams => FourOutcome::TeamWin {
+                red_yellow: !matches!(seat, FourSeat::Red | FourSeat::Yellow),
+            },
+        }
+    }
+}
+
 impl FourPosition {
     /// Construct the standard 160-square initial setup.
     #[must_use]
@@ -267,6 +375,17 @@ impl FourPosition {
             !next.king_attacked(self.turn)
         });
         moves
+    }
+
+    /// Resolve exact compact move notation through the legal move list.
+    #[must_use]
+    pub fn parse_move(&self, text: &str) -> Option<FourMove> {
+        if !text.is_ascii() {
+            return None;
+        }
+        self.legal_moves()
+            .into_iter()
+            .find(|mv| mv.notation() == text)
     }
 
     /// Generate geometric legal candidates before king-safety filtering.
@@ -496,6 +615,15 @@ impl FourPosition {
             }
             FourMode::Teams => {}
         }
+    }
+
+    /// Move notation list, useful for UI/protocol previews.
+    #[must_use]
+    pub fn legal_move_notations(&self) -> Vec<String> {
+        self.legal_moves()
+            .into_iter()
+            .map(FourMove::notation)
+            .collect()
     }
 
     /// Terminal result, if any.
@@ -908,5 +1036,40 @@ mod tests {
         let next = position.play(mv).unwrap();
         assert_ne!(position.identity_key(), next.identity_key());
         assert!(next.to_state().starts_with("4pc-ffa b "));
+    }
+
+    #[test]
+    fn four_game_push_parse_and_undo_are_reversible() {
+        let mut game = FourGame::new(FourMode::Ffa);
+        let original = game.clone();
+        let notation = game
+            .position()
+            .legal_moves()
+            .into_iter()
+            .next()
+            .unwrap()
+            .notation();
+        assert!(game.push_notation(&notation));
+        assert_eq!(game.moves().count(), 1);
+        assert!(game.pop());
+        assert_eq!(game, original);
+        assert!(!game.push_notation("not-a-move"));
+    }
+
+    #[test]
+    fn resignation_and_timeout_create_local_outcomes() {
+        let mut ffa = FourGame::new(FourMode::Ffa);
+        ffa.resign(FourSeat::Blue);
+        let Some(FourOutcome::Placements(placements)) = ffa.outcome() else {
+            panic!("resignation should create FFA placements");
+        };
+        assert_eq!(placements.last().unwrap().0, FourSeat::Blue);
+
+        let mut teams = FourGame::new(FourMode::Teams);
+        teams.timeout(FourSeat::Red);
+        assert_eq!(
+            teams.outcome(),
+            Some(FourOutcome::TeamWin { red_yellow: false })
+        );
     }
 }
