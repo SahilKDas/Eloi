@@ -1,6 +1,7 @@
 //! Owned Rust donor process with explicit deadlines and authoritative legality.
 
-use std::io::{self, BufRead, BufReader, Write};
+use std::fs::File;
+use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::Path;
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -8,12 +9,14 @@ use std::sync::mpsc::{self, Receiver};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use sha2::{Digest, Sha256};
+
 use eloi_core::Variant;
 use eloi_core::game::Game;
 use eloi_core::rules::Move8;
 
-/// Fixed identity of the only network accepted by this worker build.
-pub const NETWORK_SHA256: &str = "05d552b0ae659938ef0933a06156762a8c94632740fabbbe119611c6439d2319";
+/// Published SHA-256 of the qualified official Caissa 2.0 AVX2 release asset.
+pub const DONOR_SHA256: &str = "043c0925df8c608d0d87b9e6b1c761240ddd1901ee8cba49e346686b28816b97";
 
 /// Completed donor search, translated through Eloi's legal-move authority.
 #[derive(Clone, Debug)]
@@ -129,9 +132,22 @@ impl DonorWorker {
     /// # Errors
     /// Returns process, handshake, or readiness errors; owns and cleans up its child.
     pub fn start(path: &Path) -> io::Result<Self> {
+        let mut file = File::open(path)?;
+        let mut digest = Sha256::new();
+        let mut buffer = [0_u8; 8 * 1024];
+        loop {
+            let count = file.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            digest.update(&buffer[..count]);
+        }
+        let actual = format!("{:x}", digest.finalize());
+        if actual != DONOR_SHA256 {
+            return Err(invalid("donor executable SHA-256 mismatch"));
+        }
         let mut command = Command::new(path);
         command
-            .arg("--eloi-worker")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
@@ -173,21 +189,31 @@ impl DonorWorker {
         };
         worker.send("uci")?;
         let deadline = Instant::now() + Duration::from_secs(10);
-        let mut threads_verified = false;
+        let mut identity_verified = false;
+        let mut threads_supported = false;
+        let mut pretty_print_supported = false;
         loop {
             let line = worker.line(deadline)?;
-            if line.trim() == "option name Threads type spin default 3 min 3 max 3" {
-                threads_verified = true;
-            }
-            if line.trim() == "uciok" {
+            let line = line.trim();
+            identity_verified |= line == "id name Caissa 2.0 AVX2";
+            threads_supported |= line.starts_with("option name Threads type spin ");
+            pretty_print_supported |= line.starts_with("option name PrettyPrint type ");
+            if line == "uciok" {
                 break;
             }
         }
-        if !threads_verified {
-            return Err(invalid("worker three-thread contract mismatch"));
+        if !identity_verified {
+            return Err(invalid("worker is not the pinned Caissa 2.0 AVX2 donor"));
         }
-        worker.send("setoption name PrettyPrint value false")?;
+        if !threads_supported {
+            return Err(invalid("worker cannot enforce the three-thread contract"));
+        }
+        worker.send("setoption name Threads value 3")?;
         worker.send("setoption name Hash value 32")?;
+        worker.send("setoption name MoveOverhead value 0")?;
+        if pretty_print_supported {
+            worker.send("setoption name PrettyPrint value false")?;
+        }
         worker.send("isready")?;
         while worker.line(deadline)?.trim() != "readyok" {}
         Ok(worker)

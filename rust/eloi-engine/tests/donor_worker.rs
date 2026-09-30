@@ -11,10 +11,10 @@ use eloi_core::position::INITIAL_FEN;
 use eloi_engine::worker::DonorWorker;
 
 #[test]
-#[ignore = "requires ELOI_TEST_VIRIDITHAS_WORKER pointing to the compiled donor"]
+#[ignore = "requires ELOI_TEST_CAISSA20 pointing to the verified official donor"]
 fn contained_donor_search_reset_stop_and_variant_refusal() {
     let path = PathBuf::from(
-        std::env::var_os("ELOI_TEST_VIRIDITHAS_WORKER").expect("explicit compiled worker path"),
+        std::env::var_os("ELOI_TEST_CAISSA20").expect("explicit verified donor path"),
     );
     let mut worker = DonorWorker::start(&path).expect("worker startup");
     let mut game = Game::from_fen(INITIAL_FEN, Variant::Standard).unwrap();

@@ -10,6 +10,7 @@ authors.workspace = true
 [dependencies]
 eloi-core = { path = "../eloi-core" }
 eloi-simd = { path = "../eloi-simd" }
+sha2 = "0.10.9"
 
 [lints]
 workspace = true

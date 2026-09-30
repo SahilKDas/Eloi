@@ -20,39 +20,29 @@ only after the shipped runtime has no legacy C++ dependency and all gates pass.
 - Keep every dependency permissively licensed; GPL, LGPL, MPL, EPL, AGPL, and
   other copyleft dependencies are prohibited.
 
-## Proposed Standard donor: Viridithas 19.0.1
+## Proposed Standard donor: Caissa 2.0
 
 | Identity | Frozen value |
 | --- | --- |
-| Tag | `v19.0.1` |
-| Source commit | `77F4731EA4C319A68FC4BB3317459A3115073820` |
+| Tag | `2.0` |
+| Source commit | `BB725799E9B19EBDAA0D584F5433FC1C3019E349` |
 | Source license | MIT |
-| Source `LICENSE` SHA-256 | `7EE7D175D4D12AED856DF5E2DB1569C7877C577D31A724BECD72FB02141C6DF3` |
-| Network repository license | CC0-1.0; repository states all networks are CC0 |
-| CCRL 40/2 FRC | 4040 ±9, 4,170 games |
-| Caissa 1.26 comparison | 4037 ±11, 2,780 games |
+| Official AVX2 asset | `caissa-2.0-x64-avx2.exe` |
+| Asset SHA-256 | `043C0925DF8C608D0D87B9E6B1C761240DDD1901EE8CBA49E346686B28816B97` |
+| Upstream LTC vs 1.26 | +40.41 ±4.85 Elo, 5,000 games |
+| Upstream STC vs 1.26 | +29.15 ±4.59 Elo, 6,284 games |
 
-The rating edge is narrow but supported by more games and tighter reported
-uncertainty. Strength still must be reproduced locally under Eloi's resources.
-No donor source or network enters release artifacts merely because of the
-external rating.
-
-The tag source is audited in ignored scratch before import. Optional features,
-tablebases, datagen, tuning tools, and dependencies not needed by Eloi are
-excluded. A matching CC0 network is hash-pinned separately before any strength
-test or package build.
+The upstream strength gain is substantial and supported by thousands of games,
+but it must still be reproduced locally under Eloi's resources. Eloi executes
+the official release asset as a crash-contained child process and checks its
+hash and UCI identity before use.
 
 ## Donor model verification
 
-Matching network verified as `noumena-b1200.nnue.zst` (upstream model release
-`v102`), SHA-256
-`05D552B0AE659938EF0933A06156762A8C94632740FABBBE119611C6439D2319`.
-The complete compressed model occurs verbatim at byte offset 142912 in the
-official Linux x86-64-v3 release, SHA-256
-`D76F4099AA068F8841767BCC2A4CE17FF0C921C44160CB446FE07AD868CBF9C5`.
-The audit reads the release as data and never executes it. Model permission is
-affirmatively documented in the upstream network repository README:
-<https://github.com/cosmobobak/viridithas-networks>.
+Caissa 2.0's matching `(32×768 → 1536) × 2 → 16 → 32 → 1` multilayer model is
+contained in the official executable asset published with the MIT-licensed
+Caissa 2.0 release. Eloi does not fetch, commit, or package a separate `.pnn`
+from the unlicensed Caissa-Nets repository.
 
 ## Rewrite architecture
 
@@ -68,7 +58,7 @@ and cannot be silently routed through a Standard-only donor.
 
 The long-term Eloi-owned rules layer includes Crazyhouse pockets/drops and a
 separate four-player topology with four turn owners, team/free-for-all results,
-and a 14×14 cross board. These future modes do not reuse Viridithas and do not
+and a 14×14 cross board. These future modes do not reuse Caissa and do not
 distort the optimized two-player 8×8 representation. Their brains attach
 through the same search boundary only after their own rules and evaluation
 models exist.
@@ -87,5 +77,5 @@ into Rust is an intermediate parity milestone, not the final outcome.
 5. Lichess routing, cancellation, fallback, and token redaction pass offline.
 6. GUI and Operations Center pass native smoke tests outside the repository.
 7. Rust packages build twice with byte-identical archives and verified hashes.
-8. Standard donor passes a fresh equal-resource strength gate before replacing
-   Caissa; otherwise the Rust runtime ships with no donor promotion.
+8. Caissa 2.0 passes a fresh equal-resource strength gate against 1.26 before
+   promotion; otherwise the Rust runtime ships with no donor promotion.

@@ -4,7 +4,7 @@ use std::io;
 use std::path::PathBuf;
 
 #[cfg(eloi_embedded_donor)]
-const WORKER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/eloi-viridithas-worker.exe"));
+const WORKER: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/eloi-caissa-2.0.exe"));
 
 /// Materialize an immutable hash-named worker only when the package embedded it.
 ///
@@ -17,14 +17,14 @@ pub fn materialize() -> io::Result<Option<PathBuf>> {
     }
     #[cfg(eloi_embedded_donor)]
     {
-        const IDENTITY: &str = "AFC8ADE5A0B078E79AB5DF00606C6410CD35BB13E5323D24FAD91504CFC6E46B";
+        const IDENTITY: &str = "043C0925DF8C608D0D87B9E6B1C761240DDD1901EE8CBA49E346686B28816B97";
         let root = std::env::var_os("LOCALAPPDATA")
             .map(PathBuf::from)
             .unwrap_or_else(std::env::temp_dir)
             .join("Eloi")
             .join("workers");
         std::fs::create_dir_all(&root)?;
-        let path = root.join(format!("viridithas-19.0.1-{IDENTITY}.exe"));
+        let path = root.join(format!("caissa-2.0-avx2-{IDENTITY}.exe"));
         if path.exists() {
             let existing = std::fs::read(&path)?;
             if existing != WORKER {

@@ -15,10 +15,11 @@ it does not declare the rewrite or a release qualified.
 - Independent Atomic/Antichess/Crazyhouse differential validator:
   **96/96** freshly generated positions, zero mismatches in the current pass.
 - Atomic position replacement, reversible game history, repetition and undo.
-- Pinned Viridithas 19.0.1 MIT donor and matching CC0 `noumena` model identity;
-  official release inspected as data, without execution.
-- Source-built Windows worker with three search threads, local-only model
-  hash verification, 32 MB default hash, deadline, stop and process containment.
+- Pinned official Caissa 2.0 AVX2 donor from the MIT-licensed upstream release.
+  Its matching multilayer model is embedded in that executable; Eloi does not
+  fetch or package a loose model from Caissa-Nets.
+- Runtime SHA-256 and UCI identity checks, exactly three search threads, 32 MB
+  hash, real-budget stop, containment margin, and owned-process teardown.
 - Explicit donor integration test passed: bounded legal Standard search,
   new-game reset, external stop, variant refusal and no remaining owned worker.
 - Eloi E4-10/KOTH/Atomic models exported without changing quantized values.
@@ -100,6 +101,16 @@ as frozen, when Viridithas returned `0000` at ply 43. Completed results were
 **4W/14D/9L (11.0/27, 40.7%)** with one protocol failure. This is a failed,
 incomplete qualification: Viridithas is not promoted and the evidence is not
 resumed, replaced, or pooled.
+
+Later Viridithas retries remained separate. The final r5 run was explicitly
+cancelled at the user's request after 44 games (13W/17D/14L, 21.5/44) with zero
+recorded protocol failures. Viridithas is rejected as the rewrite donor.
+
+The replacement candidate is official Caissa 2.0 AVX2, SHA-256
+`043C0925DF8C608D0D87B9E6B1C761240DDD1901EE8CBA49E346686B28816B97`.
+Upstream reports +40.41 ±4.85 Elo at LTC over 5,000 games and +29.15 ±4.59
+Elo at STC over 6,284 games against 1.26. Local equal-resource qualification
+is still required before promotion.
 
 The conservative selective-search candidate was compared with exact pre-change
 commit `5e463b2` in a bounded 20-game, 250 ms mirrored preliminary screen. It

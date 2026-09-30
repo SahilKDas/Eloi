@@ -6,6 +6,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $workerPath = (Resolve-Path $Worker).Path
+$expectedWorkerHash = '043C0925DF8C608D0D87B9E6B1C761240DDD1901EE8CBA49E346686B28816B97'
+if ((Get-FileHash -LiteralPath $workerPath -Algorithm SHA256).Hash -ne $expectedWorkerHash) {
+  throw 'Caissa 2.0 donor hash mismatch'
+}
 $outputRoot = Join-Path $root $Output
 $scratch = Join-Path $root 'tmp\rust-package-validation-r4'
 foreach ($path in @($outputRoot, $scratch)) {
@@ -42,9 +46,9 @@ function Stage([string]$Name, [string]$Executable, [bool]$Split) {
   Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $folder
   Copy-Item -LiteralPath (Join-Path $root 'THIRD_PARTY_NOTICES.md') -Destination $folder
   if ($Split) {
-    Copy-Item -LiteralPath $workerPath -Destination (Join-Path $folder 'eloi-viridithas-worker.exe')
-    Copy-Item -LiteralPath (Join-Path $root 'third_party\viridithas19\LICENSE') `
-      -Destination (Join-Path $folder 'VIRIDITHAS_LICENSE.txt')
+    Copy-Item -LiteralPath $workerPath -Destination (Join-Path $folder 'eloi-caissa-2.0.exe')
+    Copy-Item -LiteralPath (Join-Path $root 'third_party\caissa20\LICENSE') `
+      -Destination (Join-Path $folder 'CAISSA_LICENSE.txt')
   }
   return $folder
 }

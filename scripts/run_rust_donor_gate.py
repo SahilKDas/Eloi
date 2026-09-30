@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Frozen 100-game Viridithas 19.0.1 versus Caissa 1.26 qualification."""
+"""Frozen 100-game contained Caissa 2.0 versus Caissa 1.26 qualification."""
 from __future__ import annotations
 
 import argparse
@@ -132,8 +132,8 @@ def play(candidate_command: list[str], caissa_command: list[str], row: dict):
     game.headers.update({
         'Event': 'Eloi Rust donor qualification',
         'Round': str(row['game']),
-        'White': 'Viridithas-19.0.1-contained' if row['candidate_white'] else 'Caissa-1.26',
-        'Black': 'Caissa-1.26' if row['candidate_white'] else 'Viridithas-19.0.1-contained',
+        'White': 'Caissa-2.0-contained' if row['candidate_white'] else 'Caissa-1.26',
+        'Black': 'Caissa-1.26' if row['candidate_white'] else 'Caissa-2.0-contained',
         'Result': result_text, 'Pair': str(row['pair']),
         'ReserveIndex': str(row['reserve_index']),
     })
@@ -196,7 +196,7 @@ def main() -> int:
         'runner_sha256': sha256(Path(__file__)),
         'candidate_args': args.candidate_arg,
         'indices': list(PAIR_INDICES), 'schedule': frozen,
-        'qualification': 'Viridithas score_points strictly greater than 50/100 against Caissa 1.26',
+        'qualification': 'Contained Caissa 2.0 score_points strictly greater than 50/100 against Caissa 1.26',
     }
     atomic_json(args.output / 'protocol.json', protocol)
     results, failures = [], []

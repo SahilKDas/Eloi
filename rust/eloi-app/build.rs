@@ -11,7 +11,7 @@ fn main() {
     let source = PathBuf::from(source);
     println!("cargo:rerun-if-changed={}", source.display());
     let output = PathBuf::from(std::env::var_os("OUT_DIR").expect("OUT_DIR is required"))
-        .join("eloi-viridithas-worker.exe");
+        .join("eloi-caissa-2.0.exe");
     std::fs::copy(source, output).expect("could not embed the verified donor worker");
     println!("cargo:rustc-cfg=eloi_embedded_donor");
 }

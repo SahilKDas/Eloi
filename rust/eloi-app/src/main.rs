@@ -70,7 +70,7 @@ fn donor_path(args: &[String]) -> io::Result<Option<std::path::PathBuf>> {
     }
     let adjacent = std::env::current_exe()?
         .parent()
-        .map(|parent| parent.join("eloi-viridithas-worker.exe"));
+        .map(|parent| parent.join("eloi-caissa-2.0.exe"));
     if adjacent.as_ref().is_some_and(|path| path.is_file()) {
         return Ok(adjacent);
     }
@@ -143,14 +143,14 @@ fn donor_probe(args: &[String]) -> io::Result<()> {
         &std::sync::atomic::AtomicBool::new(false),
     )?;
     println!(
-        "donor-probe move={} depth={} cp={:?} mate={:?} nodes={} elapsed_ms={} model={}",
+        "donor-probe move={} depth={} cp={:?} mate={:?} nodes={} elapsed_ms={} donor={}",
         result.best_move.uci(false),
         result.depth,
         result.score_cp,
         result.mate,
         result.nodes,
         result.elapsed.as_millis(),
-        eloi_engine::worker::NETWORK_SHA256
+        eloi_engine::worker::DONOR_SHA256
     );
     Ok(())
 }
