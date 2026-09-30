@@ -49,4 +49,16 @@ fn contained_donor_search_reset_stop_and_variant_refusal() {
     timer.join().unwrap();
     assert!(result.externally_stopped);
     assert!(result.elapsed < Duration::from_millis(500));
+    let stop = Arc::new(AtomicBool::new(false));
+    let trigger = Arc::clone(&stop);
+    let timer = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(80));
+        trigger.store(true, Ordering::Relaxed);
+    });
+    let result = worker
+        .search_infinite(&game, &stop)
+        .expect("infinite search external stop");
+    timer.join().unwrap();
+    assert!(result.externally_stopped);
+    assert!(result.elapsed < Duration::from_millis(500));
 }

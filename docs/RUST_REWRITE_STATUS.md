@@ -51,6 +51,11 @@ it does not declare the rewrite or a release qualified.
   deadline, and stop at soft limits only after completed iterations. Explicit
   movetime takes precedence. Infinite, ponder, ponderhit, stop and option
   compatibility are implemented and covered by lifecycle smoke tests.
+- Packaged-donor lifecycle testing caught and fixed premature `bestmove` output
+  during `go infinite` and pre-`ponderhit`. Caissa 2.0 now receives a genuine
+  infinite command, remains silent until external stop, and must answer inside
+  the containment margin. The real-donor integration test and a clean embedded
+  donor UCI lifecycle smoke both pass.
 - Horde retains its production material/advancement/king-pressure evaluation.
 - Orthodox dead material and current-position draw adjudication are variant-aware;
   checkmate and hill wins precede fifty-move claims. Fairy material-draw rules

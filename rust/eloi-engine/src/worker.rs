@@ -355,6 +355,101 @@ impl DonorWorker {
             )?;
         }
     }
+
+    /// Search Standard chess until the caller explicitly stops the donor.
+    ///
+    /// This is the UCI `infinite`/pre-`ponderhit` path. A spontaneous
+    /// `bestmove` before the stop signal is a protocol failure.
+    ///
+    /// # Errors
+    /// Rejects variants, terminal positions, illegal output, crashes, or a
+    /// response that exceeds the containment margin after external stop.
+    pub fn search_infinite(
+        &mut self,
+        game: &Game,
+        stopped: &AtomicBool,
+    ) -> io::Result<SearchReport> {
+        if game.position().variant != Variant::Standard {
+            return Err(invalid("Standard-only donor refused variant"));
+        }
+        if game.position().legal_moves().is_empty() {
+            return Err(invalid("no legal moves in terminal position"));
+        }
+        let mut position = format!("position fen {}", game.initial_position().to_fen());
+        let history: Vec<_> = game.moves().map(|m| m.uci(false)).collect();
+        if !history.is_empty() {
+            position.push_str(" moves ");
+            position.push_str(&history.join(" "));
+        }
+        self.send(&position)?;
+        self.send("go infinite")?;
+        let start = Instant::now();
+        let mut depth = 0;
+        let mut score_cp = None;
+        let mut mate = None;
+        let mut nodes = 0;
+        let mut pv = Vec::new();
+        let mut stop_deadline = None;
+        loop {
+            if stopped.load(Ordering::Relaxed) && stop_deadline.is_none() {
+                self.send("stop")?;
+                stop_deadline = Some(Instant::now() + Duration::from_millis(150));
+            }
+            let slice = stop_deadline
+                .unwrap_or_else(|| Instant::now() + Duration::from_millis(10))
+                .min(Instant::now() + Duration::from_millis(10));
+            let line = match self.line(slice) {
+                Err(error)
+                    if error.kind() == io::ErrorKind::TimedOut && stop_deadline.is_none() =>
+                {
+                    continue;
+                }
+                Err(error)
+                    if error.kind() == io::ErrorKind::TimedOut
+                        && stop_deadline.is_some_and(|deadline| Instant::now() < deadline) =>
+                {
+                    continue;
+                }
+                Err(error) => {
+                    let _ = self.child.kill();
+                    return Err(error);
+                }
+                Ok(line) => line,
+            };
+            let fields: Vec<_> = line.split_whitespace().collect();
+            if fields.first() == Some(&"bestmove") {
+                if stop_deadline.is_none() {
+                    let _ = self.child.kill();
+                    return Err(invalid("donor ended infinite search before stop"));
+                }
+                let best_move = fields
+                    .get(1)
+                    .and_then(|text| game.position().parse_move(text))
+                    .ok_or_else(|| invalid("donor returned illegal or absent move"))?;
+                return Ok(SearchReport {
+                    best_move,
+                    depth,
+                    score_cp,
+                    mate,
+                    nodes,
+                    pv,
+                    elapsed: start.elapsed(),
+                    externally_stopped: true,
+                });
+            }
+            if fields.first() == Some(&"info") {
+                update_info(
+                    game,
+                    &fields,
+                    &mut depth,
+                    &mut score_cp,
+                    &mut mate,
+                    &mut nodes,
+                    &mut pv,
+                )?;
+            }
+        }
+    }
 }
 
 impl Drop for DonorWorker {

@@ -120,6 +120,7 @@ fn dispatch(
     let publish = Arc::new(AtomicBool::new(request.ponder_resume.is_none()));
     let publish_result = Arc::clone(&publish);
     let limits = request.limits;
+    let donor_unbounded = request.infinite || request.ponder_resume.is_some();
     let resume = request.ponder_resume.map(|limits| (game.clone(), limits));
     let handle = std::thread::spawn(move || {
         let chess960 = game.position().variant == Variant::Chess960;
@@ -139,7 +140,13 @@ fn dispatch(
             let result = worker
                 .lock()
                 .map_err(|_| io::Error::other("donor lock poisoned"))
-                .and_then(|mut worker| worker.search(&game, donor_budget, &signal));
+                .and_then(|mut worker| {
+                    if donor_unbounded {
+                        worker.search_infinite(&game, &signal)
+                    } else {
+                        worker.search(&game, donor_budget, &signal)
+                    }
+                });
             match result {
                 Ok(result) => {
                     emit(&format!(
@@ -168,8 +175,10 @@ fn dispatch(
                         return;
                     }
                     let mut fallback_limits = limits;
-                    fallback_limits.movetime = reserve;
-                    fallback_limits.soft_time = Some(reserve.mul_f32(0.8));
+                    if !donor_unbounded {
+                        fallback_limits.movetime = reserve;
+                        fallback_limits.soft_time = Some(reserve.mul_f32(0.8));
+                    }
                     let fallback =
                         eloi_engine::search::search(&game, fallback_limits, &signal, |_| {});
                     match fallback {
