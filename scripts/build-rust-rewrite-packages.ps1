@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory=$true)][string]$Worker,
-  [string]$Output = 'dist\rust-rewrite-validation-r6',
+  [ValidatePattern('^[a-z0-9-]+$')][string]$RunId = 'r7',
+  [string]$Output = '',
   [int64]$Epoch = 1780000000
 )
 $ErrorActionPreference = 'Stop'
@@ -18,9 +19,10 @@ $expectedWorkerHash = '043C0925DF8C608D0D87B9E6B1C761240DDD1901EE8CBA49E346686B2
 if ((Get-FileHash -LiteralPath $workerPath -Algorithm SHA256).Hash -ne $expectedWorkerHash) {
   throw 'Caissa 2.0 donor hash mismatch'
 }
+if (-not $Output) { $Output = "dist\rust-rewrite-validation-$RunId" }
 $outputRoot = Join-Path $root $Output
-$scratch = Join-Path $root 'tmp\rust-package-validation-r6'
-$extractRoot = Join-Path $root 'tmp\rust-package-extract-r6'
+$scratch = Join-Path $root "tmp\rust-package-validation-$RunId"
+$extractRoot = Join-Path $root "tmp\rust-package-extract-$RunId"
 foreach ($path in @($outputRoot, $scratch, $extractRoot)) {
   if (Test-Path -LiteralPath $path) { throw "collision refused: $path" }
 }
