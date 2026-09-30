@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory=$true)][string]$Worker,
-  [string]$Output = 'dist\rust-rewrite-validation-r5',
+  [string]$Output = 'dist\rust-rewrite-validation-r6',
   [int64]$Epoch = 1780000000
 )
 $ErrorActionPreference = 'Stop'
@@ -19,8 +19,8 @@ if ((Get-FileHash -LiteralPath $workerPath -Algorithm SHA256).Hash -ne $expected
   throw 'Caissa 2.0 donor hash mismatch'
 }
 $outputRoot = Join-Path $root $Output
-$scratch = Join-Path $root 'tmp\rust-package-validation-r5'
-$extractRoot = Join-Path $root 'tmp\rust-package-extract-r5'
+$scratch = Join-Path $root 'tmp\rust-package-validation-r6'
+$extractRoot = Join-Path $root 'tmp\rust-package-extract-r6'
 foreach ($path in @($outputRoot, $scratch, $extractRoot)) {
   if (Test-Path -LiteralPath $path) { throw "collision refused: $path" }
 }
@@ -31,7 +31,7 @@ function Build-App([string]$Target, [bool]$Embed) {
   if ($Embed) { $env:ELOI_DONOR_WORKER = $workerPath }
   else { Remove-Item Env:ELOI_DONOR_WORKER -ErrorAction SilentlyContinue }
   $env:CARGO_TARGET_DIR = $targetPath
-  $env:RUSTFLAGS = '-C link-arg=/Brepro'
+  $env:RUSTFLAGS = '-C target-feature=+crt-static -C link-arg=/Brepro'
   & cargo build --release -p eloi-rs --locked
   if ($LASTEXITCODE -ne 0) { throw "Rust build failed: $Target" }
   $executable = Join-Path $targetPath 'release\eloi-rs.exe'
