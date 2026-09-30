@@ -86,6 +86,16 @@ def qualification(candidate: dict, baseline: dict | None) -> dict:
             'passed': improved}
 
 
+class ProtocolFailure(RuntimeError):
+    def __init__(self, message: str, board: chess.Board,
+                 response: chess.engine.PlayResult, played_plies: int):
+        super().__init__(message)
+        self.fen = board.fen()
+        self.moves = [move.uci() for move in board.move_stack]
+        self.engine_info = {key: str(value) for key, value in response.info.items()}
+        self.played_plies = played_plies
+
+
 def play(candidate_command: list[str], caissa_command: list[str], row: dict):
     flags = subprocess.IDLE_PRIORITY_CLASS if os.name == 'nt' else 0
     candidate = chess.engine.SimpleEngine.popen_uci(candidate_command, timeout=30,
@@ -102,9 +112,11 @@ def play(candidate_command: list[str], caissa_command: list[str], row: dict):
         limit = chess.engine.Limit(time=MOVETIME_MS / 1000)
         while not board.is_game_over(claim_draw=True) and played_plies < MAX_PLIES:
             engine = candidate if board.turn == row['candidate_white'] else caissa
-            response = engine.play(board, limit)
+            response = engine.play(board, limit, info=chess.engine.INFO_ALL)
             if response.move is None or response.move not in board.legal_moves:
-                raise RuntimeError(f'illegal or missing move at ply {board.ply()}: {response.move}')
+                raise ProtocolFailure(
+                    f'illegal or missing move at ply {board.ply()}: {response.move}',
+                    board, response, played_plies)
             board.push(response.move)
             played_plies += 1
     finally:
@@ -196,7 +208,13 @@ def main() -> int:
             with pgn_path.open('a', encoding='utf-8', newline='\n') as stream:
                 print(game, file=stream, end='\n\n')
         except Exception as error:
-            failures.append({**row, 'error': f'{type(error).__name__}: {error}'})
+            failure = {**row, 'error': f'{type(error).__name__}: {error}'}
+            if isinstance(error, ProtocolFailure):
+                failure.update({'failure_fen': error.fen,
+                                'partial_moves': error.moves,
+                                'played_plies': error.played_plies,
+                                'engine_info': error.engine_info})
+            failures.append(failure)
         summary = summarize(results)
         evidence = {'schema': 'eloi-rust-donor-results-v1',
                     'stage': args.stage,

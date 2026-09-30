@@ -48,6 +48,52 @@ fn invalid(message: impl Into<String>) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message.into())
 }
 
+fn update_info(
+    game: &Game,
+    fields: &[&str],
+    depth: &mut u16,
+    score_cp: &mut Option<i32>,
+    mate: &mut Option<i32>,
+    nodes: &mut u64,
+    pv: &mut Vec<Move8>,
+) -> io::Result<()> {
+    let value = |key| {
+        fields
+            .iter()
+            .position(|&v| v == key)
+            .and_then(|i| fields.get(i + 1))
+    };
+    *depth = value("depth")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(*depth);
+    *nodes = value("nodes")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(*nodes);
+    if let Some(value) = value("cp").and_then(|v| v.parse().ok()) {
+        *score_cp = Some(value);
+        *mate = None;
+    }
+    if let Some(value) = value("mate").and_then(|v| v.parse().ok()) {
+        *mate = Some(value);
+        *score_cp = None;
+    }
+    if let Some(index) = fields.iter().position(|&v| v == "pv") {
+        let mut board = game.position().clone();
+        let mut moves = Vec::new();
+        for text in &fields[index + 1..] {
+            let mv = board
+                .parse_move(text)
+                .ok_or_else(|| invalid("illegal donor principal variation"))?;
+            board = board
+                .play(mv)
+                .ok_or_else(|| invalid("PV state transition failed"))?;
+            moves.push(mv);
+        }
+        *pv = moves;
+    }
+    Ok(())
+}
+
 fn bounded_line(reader: &mut impl BufRead) -> io::Result<Option<String>> {
     const LIMIT: usize = 32_768;
     let mut bytes = Vec::new();
@@ -209,7 +255,8 @@ impl DonorWorker {
         }
         self.send(&position)?;
         let start = Instant::now();
-        let deadline = start + budget + Duration::from_millis(150);
+        let stop_deadline = start + budget;
+        let deadline = stop_deadline + Duration::from_millis(150);
         self.send(&format!("go movetime {}", budget.as_millis().max(1)))?;
         let mut depth = 0;
         let mut score_cp = None;
@@ -217,14 +264,32 @@ impl DonorWorker {
         let mut nodes = 0;
         let mut pv = Vec::new();
         let mut externally_stopped = false;
+        let mut deadline_stop_sent = false;
         loop {
             if stopped.load(Ordering::Relaxed) && !externally_stopped {
                 self.send("stop")?;
                 externally_stopped = true;
             }
-            let slice = deadline.min(Instant::now() + Duration::from_millis(10));
+            let phase_deadline = if deadline_stop_sent || externally_stopped {
+                deadline
+            } else {
+                stop_deadline
+            };
+            let slice = phase_deadline.min(Instant::now() + Duration::from_millis(10));
             let line = match self.line(slice) {
-                Err(e) if e.kind() == io::ErrorKind::TimedOut && Instant::now() < deadline => {
+                Err(e)
+                    if e.kind() == io::ErrorKind::TimedOut
+                        && !deadline_stop_sent
+                        && !externally_stopped
+                        && Instant::now() >= stop_deadline =>
+                {
+                    self.send("stop")?;
+                    deadline_stop_sent = true;
+                    continue;
+                }
+                Err(e)
+                    if e.kind() == io::ErrorKind::TimedOut && Instant::now() < phase_deadline =>
+                {
                     continue;
                 }
                 Err(e) => {
@@ -253,36 +318,15 @@ impl DonorWorker {
             if fields.first() != Some(&"info") {
                 continue;
             }
-            let value = |key| {
-                fields
-                    .iter()
-                    .position(|&v| v == key)
-                    .and_then(|i| fields.get(i + 1))
-            };
-            depth = value("depth").and_then(|v| v.parse().ok()).unwrap_or(depth);
-            nodes = value("nodes").and_then(|v| v.parse().ok()).unwrap_or(nodes);
-            if let Some(value) = value("cp").and_then(|v| v.parse().ok()) {
-                score_cp = Some(value);
-                mate = None;
-            }
-            if let Some(value) = value("mate").and_then(|v| v.parse().ok()) {
-                mate = Some(value);
-                score_cp = None;
-            }
-            if let Some(index) = fields.iter().position(|&v| v == "pv") {
-                let mut board = game.position().clone();
-                let mut moves = Vec::new();
-                for text in &fields[index + 1..] {
-                    let mv = board
-                        .parse_move(text)
-                        .ok_or_else(|| invalid("illegal donor principal variation"))?;
-                    board = board
-                        .play(mv)
-                        .ok_or_else(|| invalid("PV state transition failed"))?;
-                    moves.push(mv);
-                }
-                pv = moves;
-            }
+            update_info(
+                game,
+                &fields,
+                &mut depth,
+                &mut score_cp,
+                &mut mate,
+                &mut nodes,
+                &mut pv,
+            )?;
         }
     }
 }
