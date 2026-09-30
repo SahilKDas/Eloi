@@ -6,7 +6,8 @@
     clippy::cast_precision_loss,
     clippy::chunks_exact_to_as_chunks,
     clippy::collapsible_if,
-    clippy::default_trait_access
+    clippy::default_trait_access,
+    clippy::too_many_lines
 )]
 
 use std::io;
@@ -312,14 +313,49 @@ unsafe fn draw_operations(
         "Eloi Lichess Operations Center".to_owned(),
         format!("State: {state_name}"),
         format!(
+            "Account: {}  HTTP: {}  reconnects: {}  next retry: {}s",
+            display_or_dash(&snapshot.account),
+            snapshot.http_status,
+            snapshot.attempts,
+            snapshot.retry_seconds
+        ),
+        format!(
             "Accepting challenges: {}",
             if snapshot.accepting { "yes" } else { "no" }
+        ),
+        format!(
+            "Challenges accepted/declined: {}/{}",
+            snapshot.accepted, snapshot.declined
         ),
         format!(
             "W/D/L: {}/{}/{}",
             snapshot.wins, snapshot.draws, snapshot.losses
         ),
         format!("Protocol incidents: {}", snapshot.incidents),
+        format!(
+            "Game: {}  variant: {}  ply: {}  clocks: {} / {} ms",
+            display_or_dash(&snapshot.game),
+            display_or_dash(&snapshot.variant),
+            snapshot.ply,
+            snapshot.white_ms,
+            snapshot.black_ms
+        ),
+        format!(
+            "Route: {}  network: {}",
+            display_or_dash(&snapshot.route),
+            clipped(&snapshot.network, 24)
+        ),
+        format!(
+            "Move: {}  depth: {}  score: {}  nodes: {}  time: {} ms",
+            display_or_dash(&snapshot.latest_move),
+            snapshot.depth,
+            snapshot.score,
+            snapshot.nodes,
+            snapshot.elapsed_ms
+        ),
+        format!("Stop: {}", display_or_dash(&snapshot.stop_reason)),
+        format!("PV: {}", clipped(&snapshot.pv, 72)),
+        format!("Latest event: {}", clipped(&snapshot.latest_event, 72)),
         "Controls remain local; diagnostics never include the token.".to_owned(),
     ];
     unsafe { SetBkMode(dc, 1) };
@@ -330,7 +366,7 @@ unsafe fn draw_operations(
             TextOutW(
                 dc,
                 54,
-                36 + i32::try_from(index).unwrap_or(0) * 24,
+                28 + i32::try_from(index).unwrap_or(0) * 23,
                 text.as_ptr(),
                 i32::try_from(text.len()).unwrap_or(0),
             )
@@ -363,6 +399,22 @@ unsafe fn draw_operations(
     }
 }
 
+fn display_or_dash(value: &str) -> &str {
+    if value.is_empty() { "—" } else { value }
+}
+
+fn clipped(value: &str, maximum: usize) -> String {
+    let mut result = value.chars().take(maximum).collect::<String>();
+    if value.chars().count() > maximum {
+        result.push('…');
+    }
+    if result.is_empty() {
+        "—".into()
+    } else {
+        result
+    }
+}
+
 unsafe fn operations_click(state: &WindowState, control: usize) {
     let Some(model) = &state.operations else {
         return;
@@ -378,13 +430,27 @@ unsafe fn operations_click(state: &WindowState, control: usize) {
         3 => {
             let snapshot = model.snapshot();
             let diagnostic = format!(
-                "Eloi Operations Center\r\nstate={}\r\naccepting={}\r\nW/D/L={}/{}/{}\r\nincidents={}\r\n",
+                "Eloi Operations Center\r\nstate={}\r\naccount={}\r\naccepting={}\r\nchallenge_accept/decline={}/{}\r\nW/D/L={}/{}/{}\r\nincidents={}\r\ngame={}\r\nvariant={}\r\nroute={}\r\nnetwork={}\r\nmove={}\r\ndepth={}\r\nscore={}\r\nnodes={}\r\nelapsed_ms={}\r\nstop={}\r\npv={}\r\n",
                 snapshot.state,
+                snapshot.account,
                 snapshot.accepting,
+                snapshot.accepted,
+                snapshot.declined,
                 snapshot.wins,
                 snapshot.draws,
                 snapshot.losses,
-                snapshot.incidents
+                snapshot.incidents,
+                snapshot.game,
+                snapshot.variant,
+                snapshot.route,
+                snapshot.network,
+                snapshot.latest_move,
+                snapshot.depth,
+                snapshot.score,
+                snapshot.nodes,
+                snapshot.elapsed_ms,
+                snapshot.stop_reason,
+                snapshot.pv
             );
             if let Ok(mut child) = Command::new("clip.exe").stdin(Stdio::piped()).spawn() {
                 if let Some(mut input) = child.stdin.take() {

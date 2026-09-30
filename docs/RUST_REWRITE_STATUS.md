@@ -15,9 +15,9 @@ it does not declare the rewrite or a release qualified.
   provenance, legal movement and state transitions for the two-player variants.
 - Standard perft depth four: **197,281**.
 - Existing independent Standard/Chess960/Horde differential validator:
-  **96/96** positions, zero mismatches.
+  **384/384** final positions, zero mismatches.
 - Independent Atomic/Antichess/Crazyhouse differential validator:
-  **96/96** freshly generated positions, zero mismatches in the current pass.
+  **384/384** final positions, zero mismatches.
 - Atomic position replacement, reversible game history, repetition and undo.
 - Pinned official Caissa 2.0 AVX2 donor from the MIT-licensed upstream release.
   Its matching multilayer model is embedded in that executable; Eloi does not
@@ -109,6 +109,11 @@ it does not declare the rewrite or a release qualified.
   an attached game's identity. Dashboard diagnostics contain only the explicit
   token-free snapshot fields. The full Rust suite and strict Clippy pass, and a
   release-mode native-window smoke remained responsive.
+- Dashboard and copied diagnostics now display the authenticated account,
+  HTTP/reconnect state, challenge totals, active game, variant, clocks, ply,
+  actual route and network hash, latest move, depth, score, nodes, elapsed time,
+  PV, stop reason, and latest redacted event. Search fields are published from
+  the actual donor/native result selected for the submitted legal move.
 - Live/headless bridge state is durably mirrored to token-free, parseable JSON
   under `%LOCALAPPDATA%\Eloi\status\lichess.json` using same-directory atomic
   replacement. Session event logs are capped at 1 MiB, startup rotation retains
@@ -165,11 +170,21 @@ Operations Center instance exited cleanly after activating the existing one.
 Evidence is preserved under `dist/rust-rewrite-validation-r4` and
 `tmp/rust-package-validation-r4`.
 
+Later package audit found and fixed two issues rather than blessing stale
+artifacts: MSVC CRT imports were removed with static CRT linkage, and packaged
+donor UCI testing exposed premature `bestmove` during infinite search. The r6
+build proved deterministic static packages, system-only Eloi imports, internal
+manifests, zero Eloi PE timestamps, fresh extraction, and Defender scans, but
+is superseded by the UCI fix. Final packages must be rebuilt from the accepted
+source commit.
+
 ## Still required
 
-Further native-search optimization, exhaustive board/variant parity, donor
-fixed-node parity and richer game/search telemetry in the
-dashboard. The promised Operations Center command controls are implemented.
+Further native-search optimization and playable four-player chess remain
+future work rather than v3.9.0 release claims. The exact official Caissa 2.0
+binary is used directly, so there is no separately ported donor search requiring
+fixed-node implementation parity; adapter legality, reset, bounded/infinite
+stop, deadline, identity, and package-route gates pass.
 Reproducible package construction now passes; final release naming, package
 content audit, security scan, and release-source freeze remain outstanding.
 Crazyhouse is qualified against the frozen generic-Eloi baseline; broader

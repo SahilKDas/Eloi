@@ -21,6 +21,18 @@ struct EngineSettings {
     overhead_ms: u32,
 }
 
+struct MoveChoice {
+    best_move: eloi_core::rules::Move8,
+    route: &'static str,
+    network: &'static str,
+    depth: u64,
+    score: i64,
+    nodes: u64,
+    elapsed_ms: u64,
+    pv: String,
+    stop_reason: String,
+}
+
 /// Authenticate and prove cancellation of a real blocked control stream
 /// without accepting challenges or issuing any mutating API request.
 ///
@@ -195,9 +207,29 @@ pub fn run(
             }
             Ok(Action::AttachGame(id)) => {
                 let donor = donor.clone();
+                let game_dashboard = dashboard.map(Arc::clone);
                 supervisor
                     .play_game(&id, |session| {
-                        choose_move(session, donor.as_ref(), settings)
+                        let choice = choose_move(session, donor.as_ref(), settings)?;
+                        if let Some(model) = game_dashboard.as_deref() {
+                            model.publish_search(eloi_ui::SearchTelemetry {
+                                variant: format!("{:?}", session.game.position().variant),
+                                route: choice.route.to_owned(),
+                                network: choice.network.to_owned(),
+                                latest_move: choice.best_move.uci(false),
+                                pv: choice.pv.clone(),
+                                stop_reason: choice.stop_reason.clone(),
+                                white_ms: session.state.white_ms,
+                                black_ms: session.state.black_ms,
+                                ply: u64::try_from(session.game.moves().count())
+                                    .unwrap_or(u64::MAX),
+                                depth: choice.depth,
+                                score: choice.score,
+                                nodes: choice.nodes,
+                                elapsed_ms: choice.elapsed_ms,
+                            });
+                        }
+                        Ok(choice.best_move)
                     })
                     .map_err(io::Error::other)?;
             }
@@ -284,6 +316,15 @@ fn publish(
             draws: snapshot.counters.draws,
             losses: snapshot.counters.losses,
             incidents: snapshot.counters.incidents,
+            accepted: snapshot.counters.accepted,
+            declined: snapshot.counters.declined,
+            attempts: u64::try_from(snapshot.attempts).unwrap_or(u64::MAX),
+            retry_seconds: u64::from(snapshot.retry_seconds),
+            http_status: u64::from(snapshot.http_status),
+            account: supervisor.account().unwrap_or_default().to_owned(),
+            game: snapshot.game.clone().unwrap_or_default(),
+            latest_event: snapshot.events.back().cloned().unwrap_or_default(),
+            ..eloi_ui::OperationsSnapshot::default()
         });
     }
     if let Some(store) = store
@@ -297,7 +338,7 @@ fn choose_move(
     session: &eloi_protocol::lichess::Session,
     donor: Option<&Arc<Mutex<eloi_engine::worker::DonorWorker>>>,
     settings: EngineSettings,
-) -> Result<eloi_core::rules::Move8, &'static str> {
+) -> Result<MoveChoice, &'static str> {
     let position = session.game.position();
     let remaining = if position.turn == Player::White {
         session.state.white_ms
@@ -326,11 +367,32 @@ fn choose_move(
             donor_budget.min(Duration::from_secs(60)),
             &stopped,
         ) {
-            return Ok(report.best_move);
+            return Ok(MoveChoice {
+                best_move: report.best_move,
+                route: "Caissa 2.0",
+                network: eloi_engine::worker::DONOR_SHA256,
+                depth: u64::from(report.depth),
+                score: i64::from(report.score_cp.unwrap_or(0)),
+                nodes: report.nodes,
+                elapsed_ms: u64::try_from(report.elapsed.as_millis()).unwrap_or(u64::MAX),
+                pv: report
+                    .pv
+                    .iter()
+                    .map(|mv| mv.uci(false))
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                stop_reason: if report.externally_stopped {
+                    "external_stop".into()
+                } else {
+                    "donor_budget".into()
+                },
+            });
         }
         // The donor's contained failure cannot reuse its expired deadline. The
         // native fallback receives its own reserved, newly-created budget.
-        return native_move(session, settings, reserve);
+        let mut fallback = native_move(session, settings, reserve)?;
+        fallback.route = "Eloi emergency fallback";
+        return Ok(fallback);
     }
     native_move(session, settings, hard)
 }
@@ -339,10 +401,10 @@ fn native_move(
     session: &eloi_protocol::lichess::Session,
     settings: EngineSettings,
     hard: Duration,
-) -> Result<eloi_core::rules::Move8, &'static str> {
+) -> Result<MoveChoice, &'static str> {
     let stopped = AtomicBool::new(false);
     let soft = hard.mul_f32(0.8).max(Duration::from_millis(1));
-    eloi_engine::search::search(
+    let result = eloi_engine::search::search(
         &session.game,
         SearchLimits {
             movetime: hard,
@@ -359,9 +421,25 @@ fn native_move(
         &stopped,
         |_| {},
     )
-    .map_err(|_| "native search failed")?
-    .best_move
-    .ok_or("native search returned no move")
+    .map_err(|_| "native search failed")?;
+    let best_move = result.best_move.ok_or("native search returned no move")?;
+    let model = eloi_engine::nnue::Model::for_variant(session.game.position().variant);
+    Ok(MoveChoice {
+        best_move,
+        route: "Eloi native",
+        network: model.source_sha256(),
+        depth: u64::from(result.depth),
+        score: i64::from(result.score),
+        nodes: result.nodes,
+        elapsed_ms: u64::try_from(result.elapsed.as_millis()).unwrap_or(u64::MAX),
+        pv: result
+            .pv
+            .iter()
+            .map(|mv| mv.uci(false))
+            .collect::<Vec<_>>()
+            .join(" "),
+        stop_reason: format!("{:?}", result.stop_reason),
+    })
 }
 
 #[cfg(test)]
