@@ -35,7 +35,8 @@ fn main() -> io::Result<()> {
                 .map(std::path::PathBuf::from);
             let worker = donor_path(&args)?;
             if let Some(config) = config {
-                eloi_ui::run_supervised(move |dashboard| {
+                let dashboard_config = config.clone();
+                eloi_ui::run_supervised(dashboard_config, move |dashboard| {
                     if let Err(error) =
                         lichess_runtime::run(&config, worker.as_deref(), Some(&dashboard))
                     {

@@ -91,6 +91,12 @@ it does not declare the rewrite or a release qualified.
   The chessboard accepts legal click-to-move input, pieces render from Eloi state,
   hover animation is timer-driven, and the Operations Center acquires its named
   mutex before starting the supervised bridge thread.
+- The Operations Center now exposes working Start/Stop accepting, Reconnect now,
+  Configure, Copy diagnostics and Open log folder controls. Manual reconnect
+  cancels a blocked `WinHTTP` operation, clears transient backoff, and preserves
+  an attached game's identity. Dashboard diagnostics contain only the explicit
+  token-free snapshot fields. The full Rust suite and strict Clippy pass, and a
+  release-mode native-window smoke remained responsive.
 - Crazyhouse has a pocket-aware board/pocket/drop-pressure evaluator instead of
   applying the Standard NNUE to invisible pocket material. Its frozen 100-game,
   250 ms qualification against the pre-change generic evaluator passed at
@@ -145,7 +151,8 @@ Evidence is preserved under `dist/rust-rewrite-validation-r4` and
 ## Still required
 
 Further native-search optimization, exhaustive board/variant parity, donor
-fixed-node parity, real Lichess smoke, and complete dashboard telemetry/controls.
+fixed-node parity, real Lichess smoke, and richer game/search telemetry in the
+dashboard. The promised Operations Center command controls are implemented.
 Reproducible package construction now passes; final release naming, package
 content audit, security scan, and release-source freeze remain outstanding.
 Crazyhouse is qualified against the frozen generic-Eloi baseline; broader

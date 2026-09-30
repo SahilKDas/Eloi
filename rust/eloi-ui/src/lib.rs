@@ -3,6 +3,8 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 
+const RECONNECT: u8 = 1;
+
 mod render;
 
 #[cfg(windows)]
@@ -20,6 +22,7 @@ pub struct OperationsModel {
     losses: AtomicU64,
     incidents: AtomicU64,
     stop_requested: AtomicBool,
+    commands: AtomicU8,
 }
 
 /// Session-local dashboard values safe to display or copy.
@@ -73,6 +76,23 @@ impl OperationsModel {
         self.stop_requested.store(true, Ordering::Relaxed);
     }
 
+    /// Request cancellation and immediate reconstruction of the live streams.
+    pub fn request_reconnect(&self) {
+        self.commands.fetch_or(RECONNECT, Ordering::Release);
+    }
+
+    /// Consume one pending reconnect request in the supervisor thread.
+    #[must_use]
+    pub fn take_reconnect(&self) -> bool {
+        self.commands.fetch_and(!RECONNECT, Ordering::AcqRel) & RECONNECT != 0
+    }
+
+    /// Peek without consuming so a cancellation watcher can interrupt `WinHTTP`.
+    #[must_use]
+    pub fn reconnect_requested(&self) -> bool {
+        self.commands.load(Ordering::Acquire) & RECONNECT != 0
+    }
+
     /// Whether the visible owner requested controlled shutdown.
     #[must_use]
     pub fn stop_requested(&self) -> bool {
@@ -86,7 +106,7 @@ impl OperationsModel {
 /// Returns an OS initialization or rendering failure.
 #[cfg(windows)]
 pub fn run(kind: SurfaceKind) -> std::io::Result<()> {
-    windows::run(kind, None, None)
+    windows::run(kind, None, None, None)
 }
 
 /// Open the single-instance Operations Center and start its supervised worker
@@ -96,12 +116,14 @@ pub fn run(kind: SurfaceKind) -> std::io::Result<()> {
 /// Returns an OS initialization or rendering failure.
 #[cfg(windows)]
 pub fn run_supervised(
+    config_path: std::path::PathBuf,
     start: impl FnOnce(Arc<OperationsModel>) + Send + 'static,
 ) -> std::io::Result<()> {
     let model = Arc::new(OperationsModel::default());
     windows::run(
         SurfaceKind::Operations,
         Some(Arc::clone(&model)),
+        Some(config_path),
         Some(Box::new(move || start(model))),
     )
 }
@@ -133,12 +155,17 @@ mod tests {
         assert!(!model.snapshot().accepting);
         model.request_stop();
         assert!(model.stop_requested());
+        model.request_reconnect();
+        assert!(model.reconnect_requested());
+        assert!(model.take_reconnect());
+        assert!(!model.take_reconnect());
     }
 }
 
 /// Supervised bridge UI is unavailable away from Windows.
 #[cfg(not(windows))]
 pub fn run_supervised(
+    _: std::path::PathBuf,
     _: impl FnOnce(Arc<OperationsModel>) + Send + 'static,
 ) -> std::io::Result<()> {
     Err(std::io::Error::other("native Eloi UI requires Windows"))

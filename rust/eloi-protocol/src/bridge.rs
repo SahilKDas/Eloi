@@ -259,6 +259,22 @@ impl Controller {
         self.snapshot.accepting = accepting;
     }
 
+    /// User-requested reconnect clears transient backoff without reviving a
+    /// stopped/fatal controller or discarding the active game identity.
+    pub fn reconnect_now(&mut self) -> bool {
+        if matches!(
+            self.snapshot.state,
+            State::Stopping | State::Stopped | State::Fatal
+        ) {
+            return false;
+        }
+        self.snapshot.state = State::Connecting;
+        self.snapshot.attempts = 0;
+        self.snapshot.retry_seconds = 0;
+        self.event("manual reconnect");
+        true
+    }
+
     /// Count the observed challenge decision without changing connection state.
     pub fn record_challenge(&mut self, accepted: bool) {
         if accepted {
@@ -346,6 +362,21 @@ mod tests {
         assert_eq!(classify_http(408), HttpDisposition::Retry);
         assert_eq!(classify_http(600), HttpDisposition::Fatal);
         assert!(!redact("Authorization: Bearer secret").contains("secret"));
+    }
+
+    #[test]
+    fn manual_reconnect_clears_backoff_and_preserves_active_game() {
+        let mut controller = Controller::default();
+        assert!(controller.start());
+        assert!(controller.connected());
+        assert!(controller.begin_game("Game1234"));
+        controller.failure(503, None, "server unavailable");
+        assert!(controller.reconnect_now());
+        assert_eq!(controller.snapshot().state, State::Connecting);
+        assert_eq!(controller.snapshot().game.as_deref(), Some("Game1234"));
+        assert_eq!(controller.snapshot().retry_seconds, 0);
+        assert!(controller.connected());
+        assert_eq!(controller.snapshot().state, State::Playing);
     }
 
     #[test]

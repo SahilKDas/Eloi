@@ -32,6 +32,7 @@ impl Surface {
         height: u32,
         kind: SurfaceKind,
         hover: f32,
+        hover_control: Option<usize>,
         position: Option<&Position>,
     ) -> Option<Self> {
         let mut pixmap = Pixmap::new(width.max(1), height.max(1))?;
@@ -54,17 +55,26 @@ impl Surface {
             SurfaceKind::Operations => cards(&mut pixmap, width, height),
         }
         let hover = hover.clamp(0.0, 1.0);
-        paint.set_color_rgba8((35.0 + hover * 20.0) as u8, 196, 145, 255);
-        let scale = 1.0 + hover * 0.03;
-        let button_width = 176.0 * scale;
-        fill(
-            &mut pixmap,
-            width as f32 - button_width - 42.0,
-            108.0 - (scale - 1.0) * 24.0,
-            button_width,
-            46.0 * scale,
-            &paint,
-        );
+        let controls = if kind == SurfaceKind::Operations {
+            5
+        } else {
+            1
+        };
+        for index in 0..controls {
+            let active = hover_control == Some(index);
+            let amount = if active { hover } else { 0.0 };
+            paint.set_color_rgba8((35.0 + amount * 20.0) as u8, 196, 145, 255);
+            let scale = 1.0 + amount * 0.03;
+            let button_width = 176.0 * scale;
+            fill(
+                &mut pixmap,
+                width as f32 - button_width - 42.0,
+                108.0 + index as f32 * 58.0 - (scale - 1.0) * 24.0,
+                button_width,
+                46.0 * scale,
+                &paint,
+            );
+        }
         Some(Self { pixmap })
     }
 
@@ -178,9 +188,9 @@ mod tests {
     #[test]
     fn both_surfaces_render_deterministically_and_hover_changes_pixels() {
         for kind in [SurfaceKind::Chess, SurfaceKind::Operations] {
-            let normal = Surface::render(960, 700, kind, 0.0, None).unwrap();
-            let again = Surface::render(960, 700, kind, 0.0, None).unwrap();
-            let hover = Surface::render(960, 700, kind, 1.0, None).unwrap();
+            let normal = Surface::render(960, 700, kind, 0.0, None, None).unwrap();
+            let again = Surface::render(960, 700, kind, 0.0, None, None).unwrap();
+            let hover = Surface::render(960, 700, kind, 1.0, Some(0), None).unwrap();
             assert_eq!(normal.rgba(), again.rgba());
             assert_ne!(normal.rgba(), hover.rgba());
         }

@@ -36,10 +36,19 @@ pub fn run(
         std::thread::Builder::new()
             .name("eloi-dashboard-cancellation".into())
             .spawn(move || {
-                while !model.stop_requested() {
+                loop {
+                    if model.stop_requested() {
+                        eloi_protocol::transport::Transport::cancel(cancellable.as_ref());
+                        break;
+                    }
+                    if model.reconnect_requested() {
+                        eloi_protocol::transport::Transport::cancel(cancellable.as_ref());
+                        while model.reconnect_requested() && !model.stop_requested() {
+                            std::thread::sleep(Duration::from_millis(10));
+                        }
+                    }
                     std::thread::sleep(Duration::from_millis(20));
                 }
-                eloi_protocol::transport::Transport::cancel(cancellable.as_ref());
             })?;
     }
     let donor = worker_path
@@ -70,6 +79,15 @@ pub fn run(
                     .map_err(io::Error::other)?;
             }
             Ok(Action::Ignore) => {}
+            Err(_error)
+                if dashboard
+                    .map(Arc::as_ref)
+                    .is_some_and(eloi_ui::OperationsModel::take_reconnect) =>
+            {
+                if supervisor.controller.reconnect_now() {
+                    connect_with_retry(&mut supervisor, dashboard.map(Arc::as_ref))?;
+                }
+            }
             Err(error) => match supervisor.controller.snapshot().state {
                 State::BackingOff => {
                     connect_with_retry(&mut supervisor, dashboard.map(Arc::as_ref))?;
@@ -105,7 +123,14 @@ fn connect_with_retry(
             Err(_error) if supervisor.controller.snapshot().state == State::BackingOff => {
                 publish(supervisor, dashboard);
                 let seconds = supervisor.controller.snapshot().retry_seconds;
-                std::thread::sleep(Duration::from_secs(u64::from(seconds)));
+                for _ in 0..seconds.saturating_mul(20) {
+                    if dashboard.is_some_and(eloi_ui::OperationsModel::reconnect_requested) {
+                        let _ = dashboard.map(eloi_ui::OperationsModel::take_reconnect);
+                        let _ = supervisor.controller.reconnect_now();
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(50));
+                }
             }
             Err(error) => return Err(io::Error::other(error)),
         }

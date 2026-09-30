@@ -10,6 +10,9 @@
 )]
 
 use std::io;
+use std::io::Write;
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use std::ptr::{null, null_mut};
 use std::sync::Arc;
 
@@ -39,11 +42,12 @@ use eloi_core::position::INITIAL_FEN;
 
 struct WindowState {
     kind: SurfaceKind,
-    hover_target: bool,
+    hover_control: Option<usize>,
     hover_amount: f32,
     game: Option<Game>,
     selected: Option<Square8>,
     operations: Option<Arc<OperationsModel>>,
+    config_path: Option<PathBuf>,
     tick: u8,
 }
 
@@ -54,6 +58,7 @@ fn wide(value: &str) -> Vec<u16> {
 pub(super) fn run(
     kind: SurfaceKind,
     operations: Option<Arc<OperationsModel>>,
+    config_path: Option<PathBuf>,
     start: Option<Box<dyn FnOnce() + Send>>,
 ) -> io::Result<()> {
     // SAFETY: this module is the sole platform leaf; every pointer comes from
@@ -90,13 +95,14 @@ pub(super) fn run(
         });
         let state = Box::into_raw(Box::new(WindowState {
             kind,
-            hover_target: false,
+            hover_control: None,
             hover_amount: 0.0,
             game: (kind == SurfaceKind::Chess)
                 .then(|| Game::from_fen(INITIAL_FEN, Variant::Standard).ok())
                 .flatten(),
             selected: None,
             operations,
+            config_path,
             tick: 0,
         }));
         let window = CreateWindowExW(
@@ -163,8 +169,15 @@ unsafe extern "system" fn window_proc(
             let y = ((lparam >> 16) as i16) as i32;
             let mut rect = Default::default();
             unsafe { GetClientRect(window, &mut rect) };
-            let hover = x >= rect.right - 240 && x <= rect.right - 32 && (82..=170).contains(&y);
-            unsafe { (*state).hover_target = hover };
+            let hover = if x >= rect.right - 240 && x <= rect.right - 32 {
+                (0..5).find(|index| {
+                    let top = 108 + i32::try_from(*index).unwrap_or(0) * 58;
+                    (top..=top + 46).contains(&y)
+                })
+            } else {
+                None
+            };
+            unsafe { (*state).hover_control = hover };
             0
         }
         WM_LBUTTONUP if !state.is_null() => {
@@ -172,18 +185,17 @@ unsafe extern "system" fn window_proc(
             let y = ((lparam >> 16) as i16) as i32;
             unsafe { board_click(window, &mut *state, x, y) };
             if unsafe { (*state).kind == SurfaceKind::Operations }
-                && unsafe { (*state).hover_target }
-                && let Some(model) = unsafe { &(*state).operations }
+                && let Some(control) = unsafe { (*state).hover_control }
             {
-                model.toggle_accepting();
+                unsafe { operations_click(&*state, control) };
             }
-            unsafe { (*state).hover_target = false };
+            unsafe { (*state).hover_control = None };
             unsafe { InvalidateRect(window, null(), 0) };
             0
         }
         WM_TIMER if !state.is_null() => {
             unsafe { (*state).tick = (*state).tick.wrapping_add(1) };
-            let target = if unsafe { (*state).hover_target } {
+            let target = if unsafe { (*state).hover_control.is_some() } {
                 1.0
             } else {
                 0.0
@@ -234,6 +246,7 @@ unsafe fn paint(window: HWND, state: &WindowState) {
         height,
         state.kind,
         state.hover_amount,
+        state.hover_control,
         state.game.as_ref().map(Game::position),
     ) {
         let mut bgra = surface.rgba().to_vec();
@@ -271,12 +284,16 @@ unsafe fn paint(window: HWND, state: &WindowState) {
         };
     }
     if state.kind == SurfaceKind::Operations {
-        unsafe { draw_operations(dc, state) };
+        unsafe { draw_operations(window, dc, state) };
     }
     unsafe { EndPaint(window, &paint_state) };
 }
 
-unsafe fn draw_operations(dc: windows_sys::Win32::Graphics::Gdi::HDC, state: &WindowState) {
+unsafe fn draw_operations(
+    window: HWND,
+    dc: windows_sys::Win32::Graphics::Gdi::HDC,
+    state: &WindowState,
+) {
     let snapshot = state
         .operations
         .as_ref()
@@ -303,7 +320,7 @@ unsafe fn draw_operations(dc: windows_sys::Win32::Graphics::Gdi::HDC, state: &Wi
             snapshot.wins, snapshot.draws, snapshot.losses
         ),
         format!("Protocol incidents: {}", snapshot.incidents),
-        "Click the green control to toggle challenge acceptance.".to_owned(),
+        "Controls remain local; diagnostics never include the token.".to_owned(),
     ];
     unsafe { SetBkMode(dc, 1) };
     unsafe { SetTextColor(dc, 0x00E8_E2D8) };
@@ -318,6 +335,74 @@ unsafe fn draw_operations(dc: windows_sys::Win32::Graphics::Gdi::HDC, state: &Wi
                 i32::try_from(text.len()).unwrap_or(0),
             )
         };
+    }
+    let labels = [
+        if snapshot.accepting {
+            "Stop accepting"
+        } else {
+            "Start accepting"
+        },
+        "Reconnect now",
+        "Configure",
+        "Copy diagnostics",
+        "Open log folder",
+    ];
+    for (index, label) in labels.iter().enumerate() {
+        let text: Vec<u16> = label.encode_utf16().collect();
+        let mut client = Default::default();
+        unsafe { GetClientRect(window, &mut client) };
+        unsafe {
+            TextOutW(
+                dc,
+                client.right - 218,
+                122 + i32::try_from(index).unwrap_or(0) * 58,
+                text.as_ptr(),
+                i32::try_from(text.len()).unwrap_or(0),
+            )
+        };
+    }
+}
+
+unsafe fn operations_click(state: &WindowState, control: usize) {
+    let Some(model) = &state.operations else {
+        return;
+    };
+    match control {
+        0 => model.toggle_accepting(),
+        1 => model.request_reconnect(),
+        2 => {
+            if let Some(path) = &state.config_path {
+                let _ = Command::new("notepad.exe").arg(path).spawn();
+            }
+        }
+        3 => {
+            let snapshot = model.snapshot();
+            let diagnostic = format!(
+                "Eloi Operations Center\r\nstate={}\r\naccepting={}\r\nW/D/L={}/{}/{}\r\nincidents={}\r\n",
+                snapshot.state,
+                snapshot.accepting,
+                snapshot.wins,
+                snapshot.draws,
+                snapshot.losses,
+                snapshot.incidents
+            );
+            if let Ok(mut child) = Command::new("clip.exe").stdin(Stdio::piped()).spawn() {
+                if let Some(mut input) = child.stdin.take() {
+                    let _ = input.write_all(diagnostic.as_bytes());
+                }
+            }
+        }
+        4 => {
+            if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+                let folder = PathBuf::from(local)
+                    .join("Eloi")
+                    .join("logs")
+                    .join("lichess");
+                let _ = std::fs::create_dir_all(&folder);
+                let _ = Command::new("explorer.exe").arg(folder).spawn();
+            }
+        }
+        _ => {}
     }
 }
 
