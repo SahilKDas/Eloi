@@ -1,0 +1,625 @@
+{
+  "dependencies": [
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "anstream",
+      "version": "1.0.0"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "anstyle",
+      "version": "1.0.14"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "anstyle-parse",
+      "version": "1.0.0"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "anstyle-query",
+      "version": "1.1.5"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "anstyle-wincon",
+      "version": "3.0.11"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "anyhow",
+      "version": "1.0.104"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "arrayvec",
+      "version": "0.7.8"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "block-buffer",
+      "version": "0.10.4"
+    },
+    {
+      "license": "Unlicense OR MIT",
+      "name": "byteorder",
+      "version": "1.5.0"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "cfg-if",
+      "version": "1.0.5"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "clap",
+      "version": "4.6.7"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "clap_builder",
+      "version": "4.6.7"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "clap_derive",
+      "version": "4.6.7"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "clap_lex",
+      "version": "1.1.1"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "colorchoice",
+      "version": "1.0.5"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "cpufeatures",
+      "version": "0.2.17"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "crypto-common",
+      "version": "0.1.7"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "digest",
+      "version": "0.10.7"
+    },
+    {
+      "license": "MIT",
+      "name": "eloi-viridithas-worker",
+      "version": "19.0.1"
+    },
+    {
+      "license": "Apache-2.0/MIT",
+      "name": "fxhash",
+      "version": "0.2.1"
+    },
+    {
+      "license": "MIT",
+      "name": "generic-array",
+      "version": "0.14.7"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "heck",
+      "version": "0.5.0"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "is_terminal_polyfill",
+      "version": "1.70.2"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "memmap2",
+      "version": "0.9.11"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "once_cell_polyfill",
+      "version": "1.70.2"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "proc-macro2",
+      "version": "1.0.107"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "quote",
+      "version": "1.0.47"
+    },
+    {
+      "license": "MIT",
+      "name": "ruzstd",
+      "version": "0.8.3"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "sha2",
+      "version": "0.10.9"
+    },
+    {
+      "license": "MIT",
+      "name": "strsim",
+      "version": "0.11.1"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "syn",
+      "version": "3.0.6"
+    },
+    {
+      "license": "MIT/Apache-2.0",
+      "name": "term_size",
+      "version": "0.3.2"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "thiserror",
+      "version": "2.0.21"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "thiserror-impl",
+      "version": "2.0.21"
+    },
+    {
+      "license": "MIT",
+      "name": "twox-hash",
+      "version": "2.1.4"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "typenum",
+      "version": "1.20.1"
+    },
+    {
+      "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "name": "unicode-ident",
+      "version": "1.0.26"
+    },
+    {
+      "license": "Apache-2.0 OR MIT",
+      "name": "utf8parse",
+      "version": "0.2.2"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "vec1",
+      "version": "1.12.1"
+    },
+    {
+      "license": "MIT/Apache-2.0",
+      "name": "version_check",
+      "version": "0.9.5"
+    },
+    {
+      "license": "MIT/Apache-2.0",
+      "name": "winapi",
+      "version": "0.3.9"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "windows-link",
+      "version": "0.2.1"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "windows-sys",
+      "version": "0.61.2"
+    }
+  ],
+  "external_c_sources_imported": false,
+  "imported_files": [
+    {
+      "path": "build.rs",
+      "sha256": "6cd86229c82f25b7f303f47021e411865f916912704eb09567372b6512787f65",
+      "upstream_sha256": "1d584da1712a168ebe2e2c9e62bb5fc1144572b55fb16e1f721d0cc951e1ccc4"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "3a5bcdc92ab6bd2f201e1ed603a6f5c48f0cf7e876fb2cc4219083748668d70a",
+      "upstream_sha256": null
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "fa163e9641db127a95abdc5f19a5c9bac189e0c1813462b76fb3e1b4a2e6fb87",
+      "upstream_sha256": "705f4ae1278378e5332709827e6fb9b0e29cbaa6e9021591e49398cd259897ea"
+    },
+    {
+      "path": "ELOI_IMPORT.md",
+      "sha256": "2eda9fd1974c014d1be82a1a4e856e495120964b6afd5172ade88d14bb2818e0",
+      "upstream_sha256": null
+    },
+    {
+      "path": "embeds/cuckoo_keys.bin",
+      "sha256": "06917c6bb6e811c734c53c1641a43919d516e9e59946c983c5c6b5c3e7bf1f6d",
+      "upstream_sha256": "06917c6bb6e811c734c53c1641a43919d516e9e59946c983c5c6b5c3e7bf1f6d"
+    },
+    {
+      "path": "embeds/cuckoo_moves.bin",
+      "sha256": "254f34ad03e6d5ecc52eeeb6ef2abb58056b211d82a55c35018905123f5195e7",
+      "upstream_sha256": "254f34ad03e6d5ecc52eeeb6ef2abb58056b211d82a55c35018905123f5195e7"
+    },
+    {
+      "path": "embeds/diagonal_attacks.bin",
+      "sha256": "ad2231db94aa8c5e2a5c7cb08d14355b4d1afdaf95c9a022d3791cf10d5a85eb",
+      "upstream_sha256": "ad2231db94aa8c5e2a5c7cb08d14355b4d1afdaf95c9a022d3791cf10d5a85eb"
+    },
+    {
+      "path": "embeds/orthogonal_attacks.bin",
+      "sha256": "6fd4d02d3e86da0018ff5b934da790882cba03ed926de42d7307df946211c197",
+      "upstream_sha256": "6fd4d02d3e86da0018ff5b934da790882cba03ed926de42d7307df946211c197"
+    },
+    {
+      "path": "embeds/test-vf.bin",
+      "sha256": "3366b281b439aacd52fa6dc1d0ba17b1cbc2754c1e89c64ec940b69364517761",
+      "upstream_sha256": "3366b281b439aacd52fa6dc1d0ba17b1cbc2754c1e89c64ec940b69364517761"
+    },
+    {
+      "path": "epds/arasan21.epd",
+      "sha256": "88c8bdb716ece6b4afa9186c63408c48ebb3b96fa7eb5855421870173fc0169a",
+      "upstream_sha256": "88c8bdb716ece6b4afa9186c63408c48ebb3b96fa7eb5855421870173fc0169a"
+    },
+    {
+      "path": "epds/bt2630.epd",
+      "sha256": "5a916afe0f30356ef96e89682abf884b32cced1dadec8f3f14bab8fa2de50714",
+      "upstream_sha256": "5a916afe0f30356ef96e89682abf884b32cced1dadec8f3f14bab8fa2de50714"
+    },
+    {
+      "path": "epds/ecmgcp.epd",
+      "sha256": "712a9633baf9bf637937a0f065af6d3fd488885817f2063a39f5c89b284c9e7b",
+      "upstream_sha256": "712a9633baf9bf637937a0f065af6d3fd488885817f2063a39f5c89b284c9e7b"
+    },
+    {
+      "path": "epds/eet.epd",
+      "sha256": "5f742bfb1f2bb19674c5bf8182c5baea7dee8af69c01bd5a3e52d562f63f3186",
+      "upstream_sha256": "5f742bfb1f2bb19674c5bf8182c5baea7dee8af69c01bd5a3e52d562f63f3186"
+    },
+    {
+      "path": "epds/frcperftsuite.epd",
+      "sha256": "05aa6e8d8e9b61e61cb90ae7c5934c976cf6373cf7b5682912a214bbea92e8da",
+      "upstream_sha256": "05aa6e8d8e9b61e61cb90ae7c5934c976cf6373cf7b5682912a214bbea92e8da"
+    },
+    {
+      "path": "epds/hardzugs.epd",
+      "sha256": "db7f7d55154c7b30a28fb2258b21195d0adca1fcc3d1dfee6ad76609cd5747c4",
+      "upstream_sha256": "db7f7d55154c7b30a28fb2258b21195d0adca1fcc3d1dfee6ad76609cd5747c4"
+    },
+    {
+      "path": "epds/iq4.epd",
+      "sha256": "96cf54a80fb7a2b603c05d27402ab0647bbe35bc20a26f3d9ecc31c27b6aab46",
+      "upstream_sha256": "96cf54a80fb7a2b603c05d27402ab0647bbe35bc20a26f3d9ecc31c27b6aab46"
+    },
+    {
+      "path": "epds/lapuce2.epd",
+      "sha256": "67ced6a4712c81a1ae463cb361897d3c1635403a503878198daab2b0c171a19b",
+      "upstream_sha256": "67ced6a4712c81a1ae463cb361897d3c1635403a503878198daab2b0c171a19b"
+    },
+    {
+      "path": "epds/perftsuite.epd",
+      "sha256": "b6997b76ae1939601c56e0b2dbdb1067a327e42d8d37003ad9e342a04ae2983c",
+      "upstream_sha256": "b6997b76ae1939601c56e0b2dbdb1067a327e42d8d37003ad9e342a04ae2983c"
+    },
+    {
+      "path": "epds/pet.epd",
+      "sha256": "dbc44a1205936901765ffb9c5a07d5b5737d60a307d74321a060521091af4db3",
+      "upstream_sha256": "dbc44a1205936901765ffb9c5a07d5b5737d60a307d74321a060521091af4db3"
+    },
+    {
+      "path": "epds/prof.epd",
+      "sha256": "f8198d17375bff6b0cc023a731a52d47571111fbc2effcef27b922ce7d547822",
+      "upstream_sha256": "f8198d17375bff6b0cc023a731a52d47571111fbc2effcef27b922ce7d547822"
+    },
+    {
+      "path": "epds/tbtest.epd",
+      "sha256": "f972940f64ac321f33fa585d460d284792d9014a13bdd8b14b1ef499600a644c",
+      "upstream_sha256": "f972940f64ac321f33fa585d460d284792d9014a13bdd8b14b1ef499600a644c"
+    },
+    {
+      "path": "epds/wac.epd",
+      "sha256": "816818661f7ce1a7304674fac4697a14fab2468809f482ece582ae774bd35edb",
+      "upstream_sha256": "816818661f7ce1a7304674fac4697a14fab2468809f482ece582ae774bd35edb"
+    },
+    {
+      "path": "epds/zugts.epd",
+      "sha256": "eecd7fea9984c452c75c6032e7dc89a482f330717a9fe4f1fdf687bce412df43",
+      "upstream_sha256": "eecd7fea9984c452c75c6032e7dc89a482f330717a9fe4f1fdf687bce412df43"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "7ee7d175d4d12aed856df5e2db1569c7877c577d31a724becd72fb02141c6df3",
+      "upstream_sha256": "7ee7d175d4d12aed856df5e2db1569c7877c577d31a724becd72fb02141c6df3"
+    },
+    {
+      "path": "src/bench.rs",
+      "sha256": "9a6b511ec16db01dc0fd8325fbf762350c845bf359d31e41de25703e99008788",
+      "upstream_sha256": "9a6b511ec16db01dc0fd8325fbf762350c845bf359d31e41de25703e99008788"
+    },
+    {
+      "path": "src/chess/board/mod.rs",
+      "sha256": "ac347af09bb49755a8c0f7da74bcc49022b47074d93b1c1ed85ab0a92bd672de",
+      "upstream_sha256": "ac347af09bb49755a8c0f7da74bcc49022b47074d93b1c1ed85ab0a92bd672de"
+    },
+    {
+      "path": "src/chess/board/movegen.rs",
+      "sha256": "a6a46b55be012c61670a0c6e587c253cc668fcd852811e2f8984657ed4856e83",
+      "upstream_sha256": "a6a46b55be012c61670a0c6e587c253cc668fcd852811e2f8984657ed4856e83"
+    },
+    {
+      "path": "src/chess/board/san.rs",
+      "sha256": "7e07c2150864386ebd2af11fcf571eac5f3039db93713c8ca3f0226abb32891a",
+      "upstream_sha256": "7e07c2150864386ebd2af11fcf571eac5f3039db93713c8ca3f0226abb32891a"
+    },
+    {
+      "path": "src/chess/board/validation.rs",
+      "sha256": "05b9962b93d01f7a187cbb991ec5ee2418bac329c3f85013b15154b4bd14d7a5",
+      "upstream_sha256": "05b9962b93d01f7a187cbb991ec5ee2418bac329c3f85013b15154b4bd14d7a5"
+    },
+    {
+      "path": "src/chess/chessmove.rs",
+      "sha256": "0ea448e47e2fb1e60617455b28a4d66b57825364258c299e679f604d086b827c",
+      "upstream_sha256": "0ea448e47e2fb1e60617455b28a4d66b57825364258c299e679f604d086b827c"
+    },
+    {
+      "path": "src/chess/fen.rs",
+      "sha256": "741f008f2181766058fec9bdeeb9321d2ea339a1d636f7be571a07935a7fe503",
+      "upstream_sha256": "741f008f2181766058fec9bdeeb9321d2ea339a1d636f7be571a07935a7fe503"
+    },
+    {
+      "path": "src/chess/magic.rs",
+      "sha256": "f2229970893b2b6cc2d507201d0e3f64d5f3689b1b93dc067caea3909f2ae31e",
+      "upstream_sha256": "f2229970893b2b6cc2d507201d0e3f64d5f3689b1b93dc067caea3909f2ae31e"
+    },
+    {
+      "path": "src/chess/mod.rs",
+      "sha256": "0e5e8446b8fb20f1ba1b1b1318e669674b58fc48e092579e2e0fa410ec1ccca2",
+      "upstream_sha256": "0e5e8446b8fb20f1ba1b1b1318e669674b58fc48e092579e2e0fa410ec1ccca2"
+    },
+    {
+      "path": "src/chess/piece.rs",
+      "sha256": "89d91275ab54bd418dab58e2d30851e516faee8a72933600ab1c92aed55969cb",
+      "upstream_sha256": "89d91275ab54bd418dab58e2d30851e516faee8a72933600ab1c92aed55969cb"
+    },
+    {
+      "path": "src/chess/piecelayout.rs",
+      "sha256": "7dffa3ecd4163b2dccbae65862da0e92e4a2624830781f3382aaf85446f9faf7",
+      "upstream_sha256": "7dffa3ecd4163b2dccbae65862da0e92e4a2624830781f3382aaf85446f9faf7"
+    },
+    {
+      "path": "src/chess/squareset.rs",
+      "sha256": "95ec0411acc51e02a9435e1b40cc80083a214bae930b88178746da2b89b5aebd",
+      "upstream_sha256": "95ec0411acc51e02a9435e1b40cc80083a214bae930b88178746da2b89b5aebd"
+    },
+    {
+      "path": "src/chess/types.rs",
+      "sha256": "47bf1f5b1c0a51987a147754c0af8deb9a8444a7b8faff84f395489081807356",
+      "upstream_sha256": "47bf1f5b1c0a51987a147754c0af8deb9a8444a7b8faff84f395489081807356"
+    },
+    {
+      "path": "src/cli.rs",
+      "sha256": "0224c4c0fe4ea69ca78e7379d13b4b14aaa135452ef343b4f1a3d7a4561d35f7",
+      "upstream_sha256": "0224c4c0fe4ea69ca78e7379d13b4b14aaa135452ef343b4f1a3d7a4561d35f7"
+    },
+    {
+      "path": "src/cuckoo.rs",
+      "sha256": "b20d794a112fbf850ad6debdc3ff24eb96b05bcd2052f669bf482e296e603e3d",
+      "upstream_sha256": "b20d794a112fbf850ad6debdc3ff24eb96b05bcd2052f669bf482e296e603e3d"
+    },
+    {
+      "path": "src/datagen/dataformat/marlinformat.rs",
+      "sha256": "6253c97f900b0a4f21c1caf3ef640baee97339863cbdc6b108e9c5e46c55384f",
+      "upstream_sha256": "6253c97f900b0a4f21c1caf3ef640baee97339863cbdc6b108e9c5e46c55384f"
+    },
+    {
+      "path": "src/datagen/dataformat.rs",
+      "sha256": "f2bfb2f500844222e2ecd05641a6ba816b6f120b49fd1aaee93b164e47f3c74e",
+      "upstream_sha256": "f2bfb2f500844222e2ecd05641a6ba816b6f120b49fd1aaee93b164e47f3c74e"
+    },
+    {
+      "path": "src/datagen/valid.sfens",
+      "sha256": "b4b83f8b84b5ca676568e23660dc3380e5d6137874bc055e2f1e1450202e1d77",
+      "upstream_sha256": "b4b83f8b84b5ca676568e23660dc3380e5d6137874bc055e2f1e1450202e1d77"
+    },
+    {
+      "path": "src/datagen.rs",
+      "sha256": "36fb3e7ea2a3f3791b308068de63e980d2481341e14176df2943d34bfe5936a1",
+      "upstream_sha256": "36fb3e7ea2a3f3791b308068de63e980d2481341e14176df2943d34bfe5936a1"
+    },
+    {
+      "path": "src/errors.rs",
+      "sha256": "3e480764635d98a893ffe39539bd7e48f6a8ade0e5aebc35535ab304ffbc4f5b",
+      "upstream_sha256": "3e480764635d98a893ffe39539bd7e48f6a8ade0e5aebc35535ab304ffbc4f5b"
+    },
+    {
+      "path": "src/evaluation.rs",
+      "sha256": "e23175849ee42a2eafb7a2a19803d4d7d1012e51d24d278213f065c26b9b5bc2",
+      "upstream_sha256": "e23175849ee42a2eafb7a2a19803d4d7d1012e51d24d278213f065c26b9b5bc2"
+    },
+    {
+      "path": "src/history.rs",
+      "sha256": "9304cd0a7ad9262f561b933aa42b3fb24f0f8718a4a9221c11b780947ca572b0",
+      "upstream_sha256": "9304cd0a7ad9262f561b933aa42b3fb24f0f8718a4a9221c11b780947ca572b0"
+    },
+    {
+      "path": "src/historytable.rs",
+      "sha256": "d68869188c79a90467241a1ea217cb21dc5df9693886d57e027a3e378f6629f9",
+      "upstream_sha256": "d68869188c79a90467241a1ea217cb21dc5df9693886d57e027a3e378f6629f9"
+    },
+    {
+      "path": "src/image.rs",
+      "sha256": "c45a70f47ab5fd44956c3064dc81ae56af7984b694e033fc4455fe2d5406061a",
+      "upstream_sha256": "c45a70f47ab5fd44956c3064dc81ae56af7984b694e033fc4455fe2d5406061a"
+    },
+    {
+      "path": "src/lookups.rs",
+      "sha256": "aff56b89a8a2eb6c1079286e14ad67aec995e35f17bb4bbc7564b286759b50b5",
+      "upstream_sha256": "aff56b89a8a2eb6c1079286e14ad67aec995e35f17bb4bbc7564b286759b50b5"
+    },
+    {
+      "path": "src/macros.rs",
+      "sha256": "473269df669bcfb036ed805d353d3fc8ed48a297eb3e5f51f0b6f107c1b07e39",
+      "upstream_sha256": "8d33ec106793dc2ecf7bf2fe331d6c4f79078414b0cc79dbcc0156321f2fef2b"
+    },
+    {
+      "path": "src/main.rs",
+      "sha256": "2fff828bc38cc691d57fd9174489ebccb6cac37827013e03b9c0857bc57c1864",
+      "upstream_sha256": "c15014649d3a811765214de38397f3c2d012c0c5522409aa1ad1972e6ff4bfb3"
+    },
+    {
+      "path": "src/movepicker.rs",
+      "sha256": "a9ae88d2de7bd2dc6a89f3d47d1f8fcd1efec1e50bb8381090b41e06e6c676c4",
+      "upstream_sha256": "a9ae88d2de7bd2dc6a89f3d47d1f8fcd1efec1e50bb8381090b41e06e6c676c4"
+    },
+    {
+      "path": "src/nnue/accumulator.rs",
+      "sha256": "622a86c7cbb9303bea420e76026c358a45df23951721aa9cfcce4737c114b466",
+      "upstream_sha256": "622a86c7cbb9303bea420e76026c358a45df23951721aa9cfcce4737c114b466"
+    },
+    {
+      "path": "src/nnue/mod.rs",
+      "sha256": "8a03e3a5bbd72defaa4db7df315d33b9289cd679db5fcc306df838b3cb3f3311",
+      "upstream_sha256": "8a03e3a5bbd72defaa4db7df315d33b9289cd679db5fcc306df838b3cb3f3311"
+    },
+    {
+      "path": "src/nnue/network/feature.rs",
+      "sha256": "11a84a327868d5dd8e6d6a849113b40685b5ab01c054bca0edb6efff8a8414c0",
+      "upstream_sha256": "11a84a327868d5dd8e6d6a849113b40685b5ab01c054bca0edb6efff8a8414c0"
+    },
+    {
+      "path": "src/nnue/network/layers.rs",
+      "sha256": "8fe0ff93692833b51fb6ab47647dd3fba79d576f6fcf90384eacdd24c092752a",
+      "upstream_sha256": "8fe0ff93692833b51fb6ab47647dd3fba79d576f6fcf90384eacdd24c092752a"
+    },
+    {
+      "path": "src/nnue/network.rs",
+      "sha256": "f8c68364af17e8be43f253f969042b4674cf84d340d712f0e8ab19c932e835ff",
+      "upstream_sha256": "017a444dc7bbfa25fea21c4e2cd02beb6a95b95270a582830bd3a83919d44e98"
+    },
+    {
+      "path": "src/nnue/simd.rs",
+      "sha256": "d7aa53fddef21ecb1ef841c254810db5c44895d6beb4010611d70e5cac9c38f3",
+      "upstream_sha256": "d7aa53fddef21ecb1ef841c254810db5c44895d6beb4010611d70e5cac9c38f3"
+    },
+    {
+      "path": "src/perft.rs",
+      "sha256": "6b7763398deb67ee3ab3abba3c7b5a66a6352e10623cb7e8ecbe3cc0c48201b8",
+      "upstream_sha256": "6b7763398deb67ee3ab3abba3c7b5a66a6352e10623cb7e8ecbe3cc0c48201b8"
+    },
+    {
+      "path": "src/rng.rs",
+      "sha256": "6a6fb387027d93284e9db188641cb0297b229a247797c7ae874b10f570ac35f1",
+      "upstream_sha256": "6a6fb387027d93284e9db188641cb0297b229a247797c7ae874b10f570ac35f1"
+    },
+    {
+      "path": "src/search/parameters.rs",
+      "sha256": "9d65f9a255aae64cbee289ce5e572aadae5d12011a34886d7f4b380d466facbc",
+      "upstream_sha256": "9d65f9a255aae64cbee289ce5e572aadae5d12011a34886d7f4b380d466facbc"
+    },
+    {
+      "path": "src/search/pv.rs",
+      "sha256": "5c5210e703abff91d3420b96b2701e4d08048440c8549e9936ae781b18b5d6ac",
+      "upstream_sha256": "5c5210e703abff91d3420b96b2701e4d08048440c8549e9936ae781b18b5d6ac"
+    },
+    {
+      "path": "src/search.rs",
+      "sha256": "3f3777dbb6c1ecd02f263cf630ae1b5ea4b4070c5165941bbf5aafc5ce783c31",
+      "upstream_sha256": "3f3777dbb6c1ecd02f263cf630ae1b5ea4b4070c5165941bbf5aafc5ce783c31"
+    },
+    {
+      "path": "src/searchinfo.rs",
+      "sha256": "7b51d1d91751bee6bd76ff4756fe8925da498155c7fca515d753ca5224f5834f",
+      "upstream_sha256": "7b51d1d91751bee6bd76ff4756fe8925da498155c7fca515d753ca5224f5834f"
+    },
+    {
+      "path": "src/stack.rs",
+      "sha256": "b5af7bcb0e25cf5b7d2c3733f9f3dbd69c2276bcfde629adf5b349a312fdcaf4",
+      "upstream_sha256": "b5af7bcb0e25cf5b7d2c3733f9f3dbd69c2276bcfde629adf5b349a312fdcaf4"
+    },
+    {
+      "path": "src/stats.rs",
+      "sha256": "e4043d3d29601a3e63e425ba9b260a4408ec4ffef83f4207a682d47711b38752",
+      "upstream_sha256": "e4043d3d29601a3e63e425ba9b260a4408ec4ffef83f4207a682d47711b38752"
+    },
+    {
+      "path": "src/tablebases/bindings.rs",
+      "sha256": "9c7890ec50fc845d5e0a8a3b894200827d690348807babff7d852fc649c7f7d8",
+      "upstream_sha256": "9c7890ec50fc845d5e0a8a3b894200827d690348807babff7d852fc649c7f7d8"
+    },
+    {
+      "path": "src/tablebases/ffi.rs",
+      "sha256": "2a60a8267ceafc6ddd3347277a5ccce52dc8947bcc8f3c55bc70bc68e70b73a1",
+      "upstream_sha256": "2a60a8267ceafc6ddd3347277a5ccce52dc8947bcc8f3c55bc70bc68e70b73a1"
+    },
+    {
+      "path": "src/tablebases/mod.rs",
+      "sha256": "e2731bc4108abc2f248596b17037a57c3c5cd193731b9841dca0adb604b5a141",
+      "upstream_sha256": "e2731bc4108abc2f248596b17037a57c3c5cd193731b9841dca0adb604b5a141"
+    },
+    {
+      "path": "src/tablebases/probe.rs",
+      "sha256": "b357e3d2f333433036200eec688ea33acedce23723ca4b7556c1fe1ce47a7997",
+      "upstream_sha256": "b357e3d2f333433036200eec688ea33acedce23723ca4b7556c1fe1ce47a7997"
+    },
+    {
+      "path": "src/term.rs",
+      "sha256": "29855ec45e75b3955d1dceb05d068d451244597455b27cc5d8149f05517e74ed",
+      "upstream_sha256": "29855ec45e75b3955d1dceb05d068d451244597455b27cc5d8149f05517e74ed"
+    },
+    {
+      "path": "src/threadlocal.rs",
+      "sha256": "f049b7a462084d8d72141d6f28e897f9a4755f63a5af4912b74002841d392692",
+      "upstream_sha256": "f049b7a462084d8d72141d6f28e897f9a4755f63a5af4912b74002841d392692"
+    },
+    {
+      "path": "src/threadpool.rs",
+      "sha256": "e044758c130378294b7e215c89d9319104c817079761e38d375f8ded06af9e60",
+      "upstream_sha256": "e044758c130378294b7e215c89d9319104c817079761e38d375f8ded06af9e60"
+    },
+    {
+      "path": "src/timemgmt.rs",
+      "sha256": "3a8fff9db622e3d0141a1749e3b41c67385c0b1b8fe953fb8428ef34d99dd728",
+      "upstream_sha256": "3a8fff9db622e3d0141a1749e3b41c67385c0b1b8fe953fb8428ef34d99dd728"
+    },
+    {
+      "path": "src/transpositiontable.rs",
+      "sha256": "8b9b70c6f5239716af31d1b76645da1868348aa131b45fa05e9e9e0ca636d8ab",
+      "upstream_sha256": "8b9b70c6f5239716af31d1b76645da1868348aa131b45fa05e9e9e0ca636d8ab"
+    },
+    {
+      "path": "src/uci/fmt.rs",
+      "sha256": "4cb014bda43ca8cc31abf35371da0f9784fcba7d17a867c06376b3df9b525dfe",
+      "upstream_sha256": "4cb014bda43ca8cc31abf35371da0f9784fcba7d17a867c06376b3df9b525dfe"
+    },
+    {
+      "path": "src/uci.rs",
+      "sha256": "bfa97e751902fae609659010514516a78665bf11aca18875efd57e249339d079",
+      "upstream_sha256": "7e6d87b59eb40d7d19a2b13cabb7c34a9c016d941d90aff0bd733a2f2a4fb993"
+    },
+    {
+      "path": "src/util.rs",
+      "sha256": "98473752b52a50f45a34418d81c9c43801f0ed4ad4b724aefc77089927bbfc04",
+      "upstream_sha256": "98473752b52a50f45a34418d81c9c43801f0ed4ad4b724aefc77089927bbfc04"
+    }
+  ],
+  "network_embedded_in_official_release_verified": true,
+  "network_license": "CC0-1.0",
+  "network_license_basis": "https://github.com/cosmobobak/viridithas-networks/blob/main/README.md",
+  "network_sha256": "05d552b0ae659938ef0933a06156762a8c94632740fabbbe119611c6439d2319",
+  "runtime_downloads": false,
+  "schema": 1,
+  "search_threads": 3,
+  "source_archive_sha256": "d82c1c1e1c9567f8985c58d4e04a850a7254bf8737582fe0fff64ccc4ad2d02c",
+  "source_commit": "77f4731ea4c319a68fc4bb3317459a3115073820",
+  "source_license": "MIT",
+  "source_license_sha256": "7ee7d175d4d12aed856df5e2db1569c7877c577d31a724becd72fb02141c6df3",
+  "strength_qualified": false,
+  "tag": "v19.0.1"
+}

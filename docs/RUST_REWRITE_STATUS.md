@@ -1,0 +1,187 @@
+# Rust rewrite implementation evidence
+
+Branch: `september-rewrite`. The persistent objective includes complete runtime
+migration, stronger Standard search, existing variants, Windows UI/Lichess,
+and package qualification. This file records completed implementation slices;
+it does not declare the rewrite or a release qualified.
+
+## Implemented and checked
+
+- Cargo, executable, UCI handshake, GUI titles, package staging names, README,
+  and current rewrite documentation now share the stable `3.9.0` identity.
+  The binary reports `Eloi 3.9.0`; retained C++ release history is explicitly
+  labeled historical rather than presented as current architecture.
+- Strict six-field FEN, Chess960 rook origins, Crazyhouse pockets and promoted
+  provenance, legal movement and state transitions for the two-player variants.
+- Standard perft depth four: **197,281**.
+- Existing independent Standard/Chess960/Horde differential validator:
+  **384/384** final positions, zero mismatches.
+- Independent Atomic/Antichess/Crazyhouse differential validator:
+  **384/384** final positions, zero mismatches.
+- Atomic position replacement, reversible game history, repetition and undo.
+- Pinned official Caissa 2.0 AVX2 donor from the MIT-licensed upstream release.
+  Its matching multilayer model is embedded in that executable; Eloi does not
+  fetch or package a loose model from Caissa-Nets. The maintainer explicitly
+  accepts the official tagged release asset as packageable and promotable; the
+  absence of a separate model-specific license statement remains disclosed in
+  `third_party/caissa20/PROVENANCE.md`.
+- Runtime SHA-256 and UCI identity checks, exactly three search threads, 32 MB
+  hash, real-budget stop, containment margin, and owned-process teardown.
+- Explicit donor integration test passed: bounded legal Standard search,
+  new-game reset, external stop, variant refusal and no remaining owned worker.
+- Eloi E4-10/KOTH/Atomic models exported without changing quantized values.
+  KOTH's production namespace rename is recorded separately from the frozen
+  original campaign header hash.
+- Rust scalar NNUE, incremental updates, reverse updates and model switching.
+- Runtime-dispatched AVX2 NNUE output dot product with an exact scalar fallback.
+  The sole intrinsic exception lives in the audited `eloi-simd` leaf crate;
+  every runtime/engine/protocol crate still forbids unsafe code. Randomized
+  scalar/AVX2 parity passed 4,096 vectors.
+- Independent Python/production-header arithmetic versus Rust:
+  **224/224** exact scores over Standard, Chess960, Horde, KOTH, Atomic,
+  Antichess and Crazyhouse sample positions.
+- Workspace tests and strict Clippy checks pass at each committed slice.
+- Conservative three-lane native alpha-beta with bounded nodes/time, cancellation,
+  legal iteration PVs and explicitly marked emergency answers.
+- Laboratory UCI runtime replaces the shell: transactional position history,
+  iteration telemetry, readiness during search, external stop and clean exit.
+  Independent Python lifecycle smoke passes, including clock-managed searches.
+- Production integer clock reserves and panic/emergency/pressure allocation
+  are ported. UCI clock fields select the actual side-to-move, retain the hard
+  deadline, and stop at soft limits only after completed iterations. Explicit
+  movetime takes precedence. Infinite, ponder, ponderhit, stop and option
+  compatibility are implemented and covered by lifecycle smoke tests.
+- Packaged-donor lifecycle testing caught and fixed premature `bestmove` output
+  during `go infinite` and pre-`ponderhit`. Caissa 2.0 now receives a genuine
+  infinite command, remains silent until external stop, and must answer inside
+  the containment margin. The real-donor integration test and a clean embedded
+  donor UCI lifecycle smoke both pass.
+- Horde retains its production material/advancement/king-pressure evaluation.
+- Orthodox dead material and current-position draw adjudication are variant-aware;
+  checkmate and hill wins precede fifty-move claims. Fairy material-draw rules
+  still require their separate parity gates.
+- Worker output is bounded before line allocation, rejects invalid UTF-8,
+  and retains owned-process teardown. The explicit donor integration test was
+  rerun successfully after this containment change.
+- Rust Operations Center reducer now covers session states, active-game reconnects,
+  HTTP retry/fatal classification, Retry-After, cancellation, one-time result
+  accounting and bounded redacted events. This is an offline controller, not
+  yet a live transport or dashboard.
+- Native public configuration template is parsed with credential-safe Debug/errors,
+  bounded input, exact HTTPS origin and seven Lichess variants, including Crazyhouse.
+  `--check-config --config PATH` works offline. Unknown settings and duplicate
+  keys fail explicitly rather than being silently ignored; YAML escapes remain
+  unsupported. Private settings have not been rewritten.
+- Bounded UTF-8 stream framing and full/cumulative Lichess game reconstruction
+  are tested offline across all seven supported Lichess variants. Account/variant gates,
+  idempotent snapshots, legal incremental history, terminal-status consistency
+  and transactional rejection are covered. Antichess now uses its own no-castling
+  start position through the shared UCI/Lichess selector.
+- JSON decoding pins cached `serde_json` 1.0.151; locked dependency metadata was
+  audited as permissive MIT/Apache/Unlicense/Unicode. No copyleft dependency added.
+- Injectable transport seam and offline supervisor authenticate bounded account
+  replies, classify HTTP failures, gate challenges, reserve exactly one owned
+  game, bind legal full histories and count explicit terminal results once.
+  Fake-transport tests cover fatal authentication, retry reentry, duplicate games,
+  cancellation, and aborted games without fabricated draws.
+- Native Windows Runtime HTTP adapter compiles with the workspace unsafe-code ban
+  intact. It fixes the HTTPS origin, disables redirects/UI/cookies, bounds bodies
+  and chunks, and polls cancellable OS asynchronous operations. Offline tests
+  cover path/header injection, pre-request cancellation and cancellation of a
+  pending async fixture. A read-only live smoke then authenticated the existing
+  `eloibot` account and cancelled a genuinely blocked control-stream read in
+  **5 ms**. It accepted no challenge, submitted no move, and sent no mutating
+  request. Legacy bridge credentials are read only from one bounded top-level
+  token scalar in memory and are never copied or printed.
+- The live supervisor now consumes control/game streams, performs challenge
+  actions, reconstructs legal histories, submits only validated legal moves,
+  honors clock increments, and routes Standard through the contained donor.
+  Donor failure reserves a fresh native fallback budget instead of reusing an
+  expired deadline. The complete loop has deterministic fake-transport coverage;
+  the real account authentication/cancellation smoke passes.
+- Native Win32 chess and Operations Center windows render through `tiny-skia`.
+  The chessboard accepts legal click-to-move input, pieces render from Eloi state,
+  hover animation is timer-driven, and the Operations Center acquires its named
+  mutex before starting the supervised bridge thread.
+- The Operations Center now exposes working Start/Stop accepting, Reconnect now,
+  Configure, Copy diagnostics and Open log folder controls. Manual reconnect
+  cancels a blocked `WinHTTP` operation, clears transient backoff, and preserves
+  an attached game's identity. Dashboard diagnostics contain only the explicit
+  token-free snapshot fields. The full Rust suite and strict Clippy pass, and a
+  release-mode native-window smoke remained responsive.
+- Dashboard and copied diagnostics now display the authenticated account,
+  HTTP/reconnect state, challenge totals, active game, variant, clocks, ply,
+  actual route and network hash, latest move, depth, score, nodes, elapsed time,
+  PV, stop reason, and latest redacted event. Search fields are published from
+  the actual donor/native result selected for the submitted legal move.
+- Live/headless bridge state is durably mirrored to token-free, parseable JSON
+  under `%LOCALAPPDATA%\Eloi\status\lichess.json` using same-directory atomic
+  replacement. Session event logs are capped at 1 MiB, startup rotation retains
+  at most ten files and reserves the 10 MiB aggregate ceiling, and tests prove
+  credentials are redacted before either output is written.
+- Crazyhouse has a pocket-aware board/pocket/drop-pressure evaluator instead of
+  applying the Standard NNUE to invisible pocket material. Its frozen 100-game,
+  250 ms qualification against the pre-change generic evaluator passed at
+  **40W/43D/17L (61.5/100)** with zero protocol failures and **100/100** replay
+  verification. Evidence lives under `tmp/rust-crazyhouse100-250ms`.
+
+## Strength evidence
+
+The first local Viridithas 19.0.1 versus Caissa 1.26 gate stopped at game 28,
+as frozen, when Viridithas returned `0000` at ply 43. Completed results were
+**4W/14D/9L (11.0/27, 40.7%)** with one protocol failure. This is a failed,
+incomplete qualification: Viridithas is not promoted and the evidence is not
+resumed, replaced, or pooled.
+
+Later Viridithas retries remained separate. The final r5 run was explicitly
+cancelled at the user's request after 44 games (13W/17D/14L, 21.5/44) with zero
+recorded protocol failures. Viridithas is rejected as the rewrite donor.
+
+The replacement candidate is official Caissa 2.0 AVX2, SHA-256
+`043C0925DF8C608D0D87B9E6B1C761240DDD1901EE8CBA49E346686B28816B97`.
+Upstream reports +40.41 ±4.85 Elo at LTC over 5,000 games and +29.15 ±4.59
+Elo at STC over 6,284 games against 1.26. The maintainer waived a redundant
+local strength gate and accepts this upstream evidence for donor promotion.
+The subsequently cancelled local smoke stopped after five games at 2W/1D/2L;
+it is preserved separately and is not presented as strength evidence.
+
+The conservative selective-search candidate was compared with exact pre-change
+commit `5e463b2` in a bounded 20-game, 250 ms mirrored preliminary screen. It
+scored **10W/7D/3L (67.5%)**. This supports retaining the selective mechanisms,
+but the screen reused persistent engine processes and is not a sealed release
+qualification; a fresh-process confirmation is still required.
+
+## Package evidence
+
+The r7 package pass performed four clean MSVC `/Brepro` builds after the static
+CRT and donor infinite/ponder fixes. It produced identical bytes within each
+package form, normalized Eloi PE timestamps to zero, audited exact contents and
+internal manifests, and ran the complete extracted UCI lifecycle—including
+infinite/stop and ponderhit—against both package forms:
+
+- standalone ZIP A/B: `B4EB9FAF291F3C82546A0A82D1B1721ECE8CED086C3085A965BB91CAFBC5FB08`;
+- Exoskeleton ZIP A/B: `AA336570396BD1A3F8ED1F44968F5012F3CAF339551AE1A1DAE6493B2EFAFA0F`.
+
+Both forms use the exact official Caissa 2.0 AVX2 asset and matching embedded
+evaluator accepted for packaging and promotion. Eloi executables have
+system-only imports. Earlier r4 and r6 evidence remains preserved but is
+superseded. The final packages will be rebuilt once from the reserved accepted
+source commit so their recorded source identity matches the release tag.
+
+## Still required
+
+Further native-search optimization and playable four-player chess remain
+future work rather than v3.9.0 release claims. The exact official Caissa 2.0
+binary is used directly, so there is no separately ported donor search requiring
+fixed-node implementation parity; adapter legality, reset, bounded/infinite
+stop, deadline, identity, and package-route gates pass.
+Reproducible package construction, naming, content audit, extracted UCI smoke,
+and security scanning pass; only the release-source freeze and one definitive
+post-freeze rebuild remain outstanding.
+Crazyhouse is qualified against the frozen generic-Eloi baseline; broader
+external-strength claims still require a separate opponent gate.
+Four-player currently has topology/action types; complete rules and its brain
+remain future work.
+
+The final accepted rewrite commit is reserved for
+`Legacy-Free, most 3.9 now (I think)` after the actual completion gates pass.

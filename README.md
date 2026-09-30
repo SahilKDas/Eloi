@@ -1,17 +1,21 @@
 # Eloi
 
-> A C++26 chess engine, native Windows chess application, reproducible
-> engineering project, and home of a crash-contained Caissa 1.25 Standard brain.
+> A Rust chess engine, native Windows application, reproducible engineering
+> project, and home of a crash-contained Caissa 2.0 Standard brain.
 
-Eloi is a UCI-compatible chess engine with a native Skia GUI, a native Lichess
-Bot API client, Standard chess, Chess960, Horde, an embedded opening repertoire,
-a compact incrementally updated NNUE, deterministic three-lane RootSplit
-search, and reproducible Windows packaging.
+The `september-rewrite` line is Eloi 3.9.0: a Rust 2024 UCI engine with a
+native `tiny-skia` GUI, visible Lichess Operations Center, seven supported
+Lichess variants, three-thread Eloi-native search, and deterministic Windows
+packaging. Standard uses the exact official Caissa 2.0 AVX2 donor behind
+Eloi-owned legality, deadlines, hash verification, and crash containment.
 
-**Eloi 3.6.0** marks one month since this GitHub repository was created on
-August 27, 2026. This release makes the independently trained **E4-Atomic**
-evaluator Eloi's flagship variant-native brain after it qualified exactly on
-the frozen line: 104/200 points (52.0%).
+The long historical sections below preserve the released C++ v1–v3.6 record.
+Statements inside those explicitly historical sections describe their named
+release, not the current Rust runtime.
+
+Eloi 3.9.0 preserves the qualified **E4-Atomic** evaluator (104/200 points,
+52.0%) and **E4-KOTH**, while adding a qualified pocket-aware Crazyhouse
+evaluator. Chess960, Horde, Antichess, and donor fallback remain Eloi-native.
 
 Eloi 3.4.4 fixes native-Lichess Standard searches whose legitimate Caissa
 allocation exceeded the old fixed worker watchdog. The watchdog now follows
@@ -19,19 +23,16 @@ the real hard search budget with a small containment margin; fallback receives
 the clock time that actually remains, and depth-zero fallback moves require
 explicit Eloi legality verification and emergency labeling.
 
-Standard UCI and native Lichess use the crash-contained **Caissa 1.25** brain.
-The native GUI now offers **Caissa 1.25** or Eloi's 64-unit **E4-10** brain
-for Standard games. Atomic uses the qualified 64-unit **E4-Atomic** evaluator.
-Chess960, Horde, Antichess, explicit native mode, and emergency fallback use
-E4-10 with exactly three RootSplit lanes.
+Standard UCI and native Lichess use crash-contained **Caissa 2.0**. Every
+non-Standard route remains Eloi-owned and Caissa is never asked to play a
+variant. Production search uses exactly three threads per engine.
 
 Official packages currently target **Windows x64**.
 
 Eloi is distributed under the **MIT License**.
 
-Current main contains the pinned Caissa 1.25 backend with Eloi-owned routing, legality, protocols, variants, GUI, and crash containment.
-
-Standard UCI play uses the embedded **Caissa 1.25 search directly**. The experimental two-brain arbiter remains available for development but is not the production default.
+The current rewrite branch pins the official Caissa 2.0 AVX2 release asset by
+SHA-256 and UCI identity. No runtime model download is permitted.
 
 Atomic uses E4-Atomic; KOTH uses E4-KOTH. Chess960, Horde, and Antichess use
 E4-10. Caissa remains Standard-only. See
@@ -68,27 +69,24 @@ E4-10. Caissa remains Standard-only. See
 
 | Item | Current status |
 | --- | --- |
-| Source version | 3.6.0 |
-| Latest tag | v3.6.0 |
-| Latest release | v3.6.0 |
-| Release commit | v3.6.0 tagged source commit |
-| Language | C++26 |
-| Build system | CMake |
-| Primary toolchain | MSYS2 UCRT64 GCC |
+| Source version | 3.9.0 |
+| Release status | Qualification in progress on `september-rewrite` |
+| Language | Rust 2024 |
+| Build system | Cargo |
+| Primary toolchain | Rust 1.98 / MSVC x64 |
 | Primary platform | Windows x64 |
-| GUI | Native Skia |
+| GUI | Native Win32 + `tiny-skia` |
 | Protocol | UCI |
 | Online client | Native Lichess Bot API |
-| Standard UCI/Lichess brain | Crash-contained Caissa 1.25 |
-| GUI Standard choice | Caissa 1.25 or Eloi E4-10 |
-| Chess960/Horde/Antichess/fallback brain | E4-10, 64 units, three RootSplit lanes |
-| Atomic brain | Dedicated E4-Atomic, 64 units, three RootSplit lanes |
-| King of the Hill brain | Dedicated E4-KOTH, 64 units, three RootSplit lanes |
-| Variants | Standard, Chess960, Horde, King of the Hill, Atomic, Antichess |
+| Standard UCI/Lichess brain | Hash-pinned crash-contained Caissa 2.0 AVX2 |
+| Eloi-native search | Three lanes, bounded time/nodes, legal best-so-far |
+| Atomic brain | Dedicated E4-Atomic evaluator |
+| King of the Hill brain | Dedicated E4-KOTH evaluator |
+| Crazyhouse brain | Pocket/drop-aware Eloi evaluator |
+| Variants | Standard, Chess960, Horde, KOTH, Atomic, Antichess, Crazyhouse |
 | Source license | MIT |
-| Caissa in current main | Yes, pinned v1.25 |
-| Standard search donor | Caissa 1.25 |
-| Donor commit | 0c01e79ea36ae492585e88cca9d03abae9b7a3d5 |
+| Standard search donor | Caissa 2.0 official AVX2 asset |
+| Donor tag commit | bb725799e9b19ebdaa0d584f5433fc1c3019e349 |
 | AGPL code accepted | No |
 
 Newer Caissa releases are tracked through a fail-closed, source-only laboratory
@@ -130,12 +128,11 @@ Experimental history remains evidence.
 
 ## Quick start
 
-To play locally:
+To build and play the Rust rewrite locally:
 
-1. Download the v3.4.3 standalone ZIP.
-2. Verify its SHA-256.
-3. Extract it.
-4. Double-click Eloi.exe.
+1. Install the locked Rust 1.98 MSVC toolchain.
+2. Run `cargo build --release --locked` from the repository root.
+3. Start `target\release\eloi-rs.exe --gui`.
 
 To use Eloi in another chess GUI:
 
@@ -143,13 +140,21 @@ To use Eloi in another chess GUI:
 2. Leave Threads at three.
 3. Configure Hash and variant options as needed.
 
+To verify an existing legacy Python-bridge credential without accepting a
+challenge or changing the account:
+
+`Eloi.exe --lichess-smoke --legacy-config --config C:\path\to\config.yml`
+
+The smoke authenticates, opens the control stream, proves blocked-read
+cancellation, and exits without sending a mutating API request.
+
 To develop:
 
 1. Read CONTRIBUTING.md.
 2. Read constraints_on_SahilKDas_device.md.
 3. Use the locked toolchain.
-4. Build with CMake and Ninja.
-5. Run the complete tests.
+4. Build with Cargo.
+5. Run `cargo test --workspace --locked` and strict Clippy.
 6. Freeze a baseline before changing the brain.
 
 Eloi values strength.
