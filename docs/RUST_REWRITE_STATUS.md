@@ -153,30 +153,20 @@ qualification; a fresh-process confirmation is still required.
 
 ## Package evidence
 
-The current r4 package pass performed four clean MSVC `/Brepro` builds and
-produced identical executable bytes within each package form. PE timestamps
-were normalized to zero before deterministic archive construction. The A/B
-archives match byte-for-byte:
+The r7 package pass performed four clean MSVC `/Brepro` builds after the static
+CRT and donor infinite/ponder fixes. It produced identical bytes within each
+package form, normalized Eloi PE timestamps to zero, audited exact contents and
+internal manifests, and ran the complete extracted UCI lifecycle—including
+infinite/stop and ponderhit—against both package forms:
 
-- standalone ZIP A/B: `06B31CB9C4F5FE12505CFC366D4687C659873F6D6E42764EB8EFC8B888E59DB9`;
-- Exoskeleton ZIP A/B: `72F1F14A9942991E4EE41D38477ED76FD931EC62D0FE29CB604C64343684037A`.
+- standalone ZIP A/B: `B4EB9FAF291F3C82546A0A82D1B1721ECE8CED086C3085A965BB91CAFBC5FB08`;
+- Exoskeleton ZIP A/B: `AA336570396BD1A3F8ED1F44968F5012F3CAF339551AE1A1DAE6493B2EFAFA0F`.
 
-Both staged executables validate the seven-variant config. The standalone
-materializes its embedded, hash-named donor with the exact published SHA-256;
-the Exoskeleton uses the adjacent exact donor plus its MIT notice. Both fresh
-extractions selected `d2d4` with the same +91 cp score in a non-book Standard
-smoke. Native GUI and Operations Center windows stayed responsive, and a second
-Operations Center instance exited cleanly after activating the existing one.
-Evidence is preserved under `dist/rust-rewrite-validation-r4` and
-`tmp/rust-package-validation-r4`.
-
-Later package audit found and fixed two issues rather than blessing stale
-artifacts: MSVC CRT imports were removed with static CRT linkage, and packaged
-donor UCI testing exposed premature `bestmove` during infinite search. The r6
-build proved deterministic static packages, system-only Eloi imports, internal
-manifests, zero Eloi PE timestamps, fresh extraction, and Defender scans, but
-is superseded by the UCI fix. Final packages must be rebuilt from the accepted
-source commit.
+Both forms use the exact official Caissa 2.0 AVX2 asset and matching embedded
+evaluator accepted for packaging and promotion. Eloi executables have
+system-only imports. Earlier r4 and r6 evidence remains preserved but is
+superseded. The final packages will be rebuilt once from the reserved accepted
+source commit so their recorded source identity matches the release tag.
 
 ## Still required
 
@@ -185,8 +175,9 @@ future work rather than v3.9.0 release claims. The exact official Caissa 2.0
 binary is used directly, so there is no separately ported donor search requiring
 fixed-node implementation parity; adapter legality, reset, bounded/infinite
 stop, deadline, identity, and package-route gates pass.
-Reproducible package construction now passes; final release naming, package
-content audit, security scan, and release-source freeze remain outstanding.
+Reproducible package construction, naming, content audit, extracted UCI smoke,
+and security scanning pass; only the release-source freeze and one definitive
+post-freeze rebuild remain outstanding.
 Crazyhouse is qualified against the frozen generic-Eloi baseline; broader
 external-strength claims still require a separate opponent gate.
 Four-player currently has topology/action types; complete rules and its brain
