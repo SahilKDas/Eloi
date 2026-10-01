@@ -37,6 +37,8 @@ Current v4 theme: four-player chess only.
   - `--four-player-smoke --mode ffa`
   - `--four-player-smoke --mode teams`
 - Kaggle training scaffold exists at `scripts/four_player_kaggle_pipeline.py`.
+- Kaggle local readiness checker exists at `scripts/kaggle_readiness_check.py`.
+- Kaggle procrastination guide exists at `docs/KAGGLE_PROCRASTINATION_READINESS.md`.
 - v4 scope doc exists at `docs/FOUR_PLAYER_V4.md`.
 
 ## Commits
@@ -52,6 +54,8 @@ Passed:
 ```powershell
 cargo test -p eloi-core -p eloi-engine -p eloi-protocol -p eloi-ui -p eloi-rs
 python scripts\test_four_player_kaggle_pipeline.py
+python scripts\test_kaggle_readiness_check.py
+python scripts\kaggle_readiness_check.py --dry-run-only
 cargo run -p eloi-rs -- --four-player-smoke --mode ffa
 cargo run -p eloi-rs -- --four-player-smoke --mode teams
 ```
@@ -115,6 +119,7 @@ Local dry run:
 ```powershell
 python scripts\four_player_kaggle_pipeline.py --mode ffa --dry-run
 python scripts\four_player_kaggle_pipeline.py --mode teams --dry-run
+python scripts\kaggle_readiness_check.py --dry-run-only
 ```
 
 Full Kaggle target, inside Kaggle only:

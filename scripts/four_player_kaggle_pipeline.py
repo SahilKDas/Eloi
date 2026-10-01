@@ -50,6 +50,7 @@ def deterministic_game_id(mode: str, seed: int, index: int) -> str:
 
 def synthetic_records(campaign: Campaign, count: int) -> Iterable[dict[str, object]]:
     rng = random.Random(campaign.seed)
+    positions_per_game = 4 if campaign.dry_run else 32
     categories = [
         "broad",
         "check",
@@ -60,7 +61,7 @@ def synthetic_records(campaign: Campaign, count: int) -> Iterable[dict[str, obje
         "king-safety",
     ]
     for index in range(count):
-        game_id = deterministic_game_id(campaign.mode, campaign.seed, index // 32)
+        game_id = deterministic_game_id(campaign.mode, campaign.seed, index // positions_per_game)
         category = categories[(index + rng.randrange(len(categories))) % len(categories)]
         yield {
             "schema": SCHEMA_VERSION,
@@ -142,6 +143,7 @@ def main() -> int:
         output=args.output,
         dry_run=args.dry_run,
     )
+    # Full campaigns belong inside Kaggle; procrastination is not a compute provider.
     if not campaign.dry_run and os.environ.get("KAGGLE_URL_BASE") is None:
         raise SystemExit("full campaign must run in Kaggle; use --dry-run locally")
     manifest = build_manifest(campaign)

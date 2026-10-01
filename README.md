@@ -6,7 +6,9 @@
 The `v4.0.0` branch is the four-player chess development line. It adds a
 separate 14x14 cross-board rules core, FFA and Teams state, a handcrafted
 three-thread baseline search, Kaggle-ready training scaffolding, and a native
-four-player GUI surface while preserving existing two-player routing.
+four-player GUI surface while preserving existing two-player routing. Kaggle
+setup readiness is tracked in
+[docs/KAGGLE_PROCRASTINATION_READINESS.md](docs/KAGGLE_PROCRASTINATION_READINESS.md).
 
 The `september-rewrite` line is Eloi 3.9.0: a Rust 2024 UCI engine with a
 native `tiny-skia` GUI, visible Lichess Operations Center, seven supported
