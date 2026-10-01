@@ -22,6 +22,7 @@ dist/
 /tmp/
 /.deps/
 /config.yml
+/.eloi-kaggle.json
 *.o
 *.obj
 *.a

@@ -10,7 +10,9 @@ from kaggle_readiness_check import collect_checks, validate_manifest
 
 class KaggleReadinessCheckTests(unittest.TestCase):
     def test_missing_identity_blocks_only_identity_in_dry_run_mode(self) -> None:
-        with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(os.environ, {}, clear=True), mock.patch(
+            "kaggle_readiness_check.kaggle_identity", return_value=None
+        ):
             checks = collect_checks(dry_run_only=True)
         local = [check for check in checks if check.name != "kaggle identity"]
         identity = next(check for check in checks if check.name == "kaggle identity")

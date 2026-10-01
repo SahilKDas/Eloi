@@ -36,7 +36,8 @@ Current v4 theme: four-player chess only.
   - `--four-player-gui`
   - `--four-player-smoke --mode ffa`
   - `--four-player-smoke --mode teams`
-- Kaggle training scaffold exists at `scripts/four_player_kaggle_pipeline.py`.
+- Kaggle training bootstrap exists at `scripts/four_player_kaggle_pipeline.py`.
+- Paste-safe Kaggle cell exporter exists at `scripts/export_kaggle_bootstrap.py`.
 - Kaggle local readiness checker exists at `scripts/kaggle_readiness_check.py`.
 - Kaggle procrastination guide exists at `docs/KAGGLE_PROCRASTINATION_READINESS.md`.
 - v4 scope doc exists at `docs/FOUR_PLAYER_V4.md`.
@@ -94,7 +95,7 @@ Remaining major gates:
   - pause/resign/undo;
   - move navigation;
   - copy/load four-player state.
-- Build real self-play shard generation.
+- Replace bootstrap record generation with real self-play shard generation.
 - Train `E4PC-FFA` and `E4PC-Teams` on Kaggle free compute.
 - Export deterministic non-pickle artifacts and quantized Rust headers.
 - Add Python/Rust inference parity.
@@ -113,25 +114,38 @@ Use Kaggle only for training, never for runtime.
 Do not use free Colab for this chess training.
 
 Create a private Kaggle notebook and private dataset. Run one mode at a time.
+The current bootstrap writes deterministic JSONL record shards plus manifests so
+Kaggle output wiring, hashing, split isolation, and resume paths can be tested.
+Those records are not final teacher labels and must not be used as model evidence.
 
 Local dry run:
 
 ```powershell
 python scripts\four_player_kaggle_pipeline.py --mode ffa --dry-run
 python scripts\four_player_kaggle_pipeline.py --mode teams --dry-run
+python scripts\export_kaggle_bootstrap.py
 python scripts\kaggle_readiness_check.py --dry-run-only
 ```
 
 Full Kaggle target, inside Kaggle only:
 
 ```bash
-python four_player_kaggle_pipeline.py --mode ffa
-python four_player_kaggle_pipeline.py --mode teams
+python four_player_kaggle_pipeline.py --mode ffa --output /kaggle/working/eloi-v4
+python four_player_kaggle_pipeline.py --mode teams --output /kaggle/working/eloi-v4
 ```
 
-The current Kaggle script is still a manifest/split scaffold. It must be extended
-with real self-play shard generation and PyTorch training before it can produce
-candidate models.
+Paste-safe Kaggle bootstrap cell:
+
+```powershell
+python scripts\export_kaggle_bootstrap.py
+```
+
+Paste the generated `tmp\kaggle\eloi_v4_bootstrap_cell.py` cell into Kaggle and
+run it. The cell writes `/kaggle/working/four_player_kaggle_pipeline.py`, runs
+FFA and Teams, and creates `/kaggle/working/eloi-v4-bootstrap-records.zip`.
+
+Next code task: replace the bootstrap records with real deterministic self-play,
+then add PyTorch training/export. Do not train on the bootstrap records.
 
 ## Safety Notes
 
