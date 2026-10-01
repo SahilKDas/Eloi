@@ -1,8 +1,9 @@
-"""Export a paste-safe Kaggle bootstrap cell for Eloi v4.
+"""Export a paste-safe Kaggle self-play/training cell for Eloi v4.
 
-The generated cell embeds four_player_kaggle_pipeline.py as base64 text, writes
-it into /kaggle/working, runs both bootstrap modes, and archives the output.
-This avoids fragile manual triple-quoted script pastes in the Kaggle editor.
+The generated cell embeds four_player_kaggle_real_pipeline.py as base64 text,
+writes it into /kaggle/working, runs FFA and Teams collection/training, and
+archives the output. This avoids fragile manual triple-quoted script pastes in
+the Kaggle editor.
 """
 
 from __future__ import annotations
@@ -12,13 +13,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PIPELINE = ROOT / "scripts" / "four_player_kaggle_pipeline.py"
+PIPELINE = ROOT / "scripts" / "four_player_kaggle_real_pipeline.py"
 OUTPUT = ROOT / "tmp" / "kaggle" / "eloi_v4_bootstrap_cell.py"
 
 
 def build_cell(source: bytes) -> str:
     encoded = base64.b64encode(source).decode("ascii")
-    return f'''# Eloi v4 Kaggle bootstrap cell.
+    return f'''# Eloi v4 Kaggle self-play/training cell.
 # Paste this entire cell into Kaggle and run it.
 from pathlib import Path
 import base64
@@ -27,7 +28,7 @@ import subprocess
 import sys
 
 WORK = Path("/kaggle/working/eloi-v4")
-SCRIPT = Path("/kaggle/working/four_player_kaggle_pipeline.py")
+SCRIPT = Path("/kaggle/working/four_player_kaggle_real_pipeline.py")
 SCRIPT.write_bytes(base64.b64decode("{encoded}"))
 
 for mode in ("ffa", "teams"):
@@ -36,11 +37,13 @@ for mode in ("ffa", "teams"):
         str(SCRIPT),
         "--mode",
         mode,
+        "--stage",
+        "all",
         "--output",
         str(WORK),
     ])
 
-archive = shutil.make_archive("/kaggle/working/eloi-v4-bootstrap-records", "zip", WORK)
+archive = shutil.make_archive("/kaggle/working/eloi-v4-selfplay-training", "zip", WORK)
 print("Wrote", SCRIPT)
 print("Wrote", archive)
 '''

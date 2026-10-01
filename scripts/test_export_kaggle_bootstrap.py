@@ -13,8 +13,9 @@ class ExportKaggleBootstrapTests(unittest.TestCase):
         self.assertIsNotNone(match)
         assert match is not None
         self.assertEqual(base64.b64decode(match.group(1)), source)
-        self.assertIn("/kaggle/working/four_player_kaggle_pipeline.py", cell)
-        self.assertIn("eloi-v4-bootstrap-records", cell)
+        self.assertIn("/kaggle/working/four_player_kaggle_real_pipeline.py", cell)
+        self.assertIn("eloi-v4-selfplay-training", cell)
+        self.assertIn('"all"', cell)
 
 
 if __name__ == "__main__":

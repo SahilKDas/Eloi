@@ -37,6 +37,7 @@ Current v4 theme: four-player chess only.
   - `--four-player-smoke --mode ffa`
   - `--four-player-smoke --mode teams`
 - Kaggle training bootstrap exists at `scripts/four_player_kaggle_pipeline.py`.
+- Kaggle self-play/teacher/training pipeline exists at `scripts/four_player_kaggle_real_pipeline.py`.
 - Paste-safe Kaggle cell exporter exists at `scripts/export_kaggle_bootstrap.py`.
 - Kaggle local readiness checker exists at `scripts/kaggle_readiness_check.py`.
 - Kaggle procrastination guide exists at `docs/KAGGLE_PROCRASTINATION_READINESS.md`.
@@ -95,8 +96,8 @@ Remaining major gates:
   - pause/resign/undo;
   - move navigation;
   - copy/load four-player state.
-- Replace bootstrap record generation with real self-play shard generation.
-- Train `E4PC-FFA` and `E4PC-Teams` on Kaggle free compute.
+- Replace the Python handcrafted teacher with Rust-parity four-player labels before release qualification.
+- Train `E4PC-FFA` and `E4PC-Teams` on Kaggle free compute from self-play shards.
 - Export deterministic non-pickle artifacts and quantized Rust headers.
 - Add Python/Rust inference parity.
 - Run model qualification:
@@ -114,15 +115,17 @@ Use Kaggle only for training, never for runtime.
 Do not use free Colab for this chess training.
 
 Create a private Kaggle notebook and private dataset. Run one mode at a time.
-The current bootstrap writes deterministic JSONL record shards plus manifests so
-Kaggle output wiring, hashing, split isolation, and resume paths can be tested.
-Those records are not final teacher labels and must not be used as model evidence.
+The real Kaggle pipeline writes deterministic JSONL self-play shards, handcrafted
+teacher policy/value labels, compact PyTorch artifacts, and manifests. These are
+research artifacts, not release-qualified models, until Rust parity and v4 gates
+pass.
 
 Local dry run:
 
 ```powershell
 python scripts\four_player_kaggle_pipeline.py --mode ffa --dry-run
 python scripts\four_player_kaggle_pipeline.py --mode teams --dry-run
+python scripts\four_player_kaggle_real_pipeline.py --mode ffa --stage all --dry-run --output tmp\four-player-real-smoke --epochs 1 --train-limit 256
 python scripts\export_kaggle_bootstrap.py
 python scripts\kaggle_readiness_check.py --dry-run-only
 ```
@@ -130,8 +133,8 @@ python scripts\kaggle_readiness_check.py --dry-run-only
 Full Kaggle target, inside Kaggle only:
 
 ```bash
-python four_player_kaggle_pipeline.py --mode ffa --output /kaggle/working/eloi-v4
-python four_player_kaggle_pipeline.py --mode teams --output /kaggle/working/eloi-v4
+python four_player_kaggle_real_pipeline.py --mode ffa --stage all --output /kaggle/working/eloi-v4
+python four_player_kaggle_real_pipeline.py --mode teams --stage all --output /kaggle/working/eloi-v4
 ```
 
 Paste-safe Kaggle bootstrap cell:
@@ -141,11 +144,12 @@ python scripts\export_kaggle_bootstrap.py
 ```
 
 Paste the generated `tmp\kaggle\eloi_v4_bootstrap_cell.py` cell into Kaggle and
-run it. The cell writes `/kaggle/working/four_player_kaggle_pipeline.py`, runs
-FFA and Teams, and creates `/kaggle/working/eloi-v4-bootstrap-records.zip`.
+run it. The cell writes `/kaggle/working/four_player_kaggle_real_pipeline.py`,
+runs FFA and Teams collection/training, and creates
+`/kaggle/working/eloi-v4-selfplay-training.zip`.
 
-Next code task: replace the bootstrap records with real deterministic self-play,
-then add PyTorch training/export. Do not train on the bootstrap records.
+Next code task: replace the Python handcrafted teacher with release-parity Rust
+labels and add deterministic Rust-header export.
 
 ## Safety Notes
 
