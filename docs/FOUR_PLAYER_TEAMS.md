@@ -2,7 +2,8 @@
 
 Eloi supplies all computer seats locally. No Kaggle, trained model, teacher,
 website account or network connection is required. The work is collected in
-one local commit on `v4.0.0`; publishing is a separate action.
+the published [v4.0.0 release](https://github.com/SahilKDas/Eloi/releases/tag/v4.0.0).
+Development is now paused; see [the hibernation record](HIBERNATION_V4_0_0.md).
 
 The selected four-player release brain is `HandcraftedTeams`, not a laboratory
 neural checkpoint. The Teams frame follows the retained v3.6 charcoal panels,
@@ -128,4 +129,6 @@ capture refusal, underpromotion, clocks, cancellation, basic tactical search,
 GUI state changes and protocol lifecycle. They do not establish a numerical
 Elo rating or that Eloi already beats a particular human. Human Teams playtests
 are the next strength evidence. No Chess.com integration, FFA completion,
-neural model, release package or public publication is part of this commit.
+neural model or demonstrated human-strength result is claimed. Both Windows
+package forms are published; the release record below supersedes the earlier
+revival-only package status.

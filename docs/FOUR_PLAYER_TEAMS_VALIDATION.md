@@ -1,5 +1,10 @@
 # Handcrafted Teams revival — local validation
 
+This is the dated initial-revival record, not the final release test count.
+The later v4.0.0 release passed 95 workspace tests plus the explicit donor
+integration test, 191 Python tests and independent package validation. See
+[the frozen release record](HIBERNATION_V4_0_0.md) for package hashes and limits.
+
 Validated on Windows x64, Rust 1.98.1/MSVC, 2026-10-18, for revival commit
 `262ab67`. Executable hashes below describe that validation build; later
 launcher/UI-identity fixes rebuild the executable and therefore change its hash.

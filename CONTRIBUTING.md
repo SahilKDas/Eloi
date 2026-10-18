@@ -1,5 +1,42 @@
 # Contributing to Eloi
 
+## Current Rust v4.0.0 workflow
+
+Development is paused, but EloiBot's Lichess service may remain active.
+Read [the hibernation/restart handoff](docs/HIBERNATION_V4_0_0.md) first.
+Use Rust 1.98.1 MSVC with `Cargo.lock`; do not upgrade dependencies or donor
+assets simply to make them newer. Preserve existing jobs, private config,
+active games and the published tag/packages.
+
+```powershell
+cargo fmt --all -- --check
+cargo test --workspace --locked --offline
+git diff --check
+```
+
+On this laptop use accessible workspace-local TEMP/TMP for snapshot tests.
+Python tooling tests require NumPy and python-chess; run affected tests first,
+and the full suite before a release. The explicit donor integration test
+requires the ignored pinned Caissa 2.0 fixture and is not exercised by public
+source-only CI. No test may launch a real Lichess game without authorization.
+
+Current invariants: three search threads; Standard UCI/Lichess on isolated
+Caissa 2.0; variants remain Eloi-owned; local Teams uses handcrafted team
+search with Red/Yellow allied against Blue/Green. Keep cancellation, legality,
+network identity, scalar/SIMD parity and emergency fallback containment intact.
+Ordinary UCI supports infinite/ponder; the separate Teams endpoint explicitly
+rejects unsupported commands. No runtime model download is allowed.
+
+For packaging follow [REPRODUCING.md](REPRODUCING.md), not the historical CMake
+recipe below. Low-risk documentation, diagnostics and focused regression
+tests remain welcome; no strength claim follows from maintenance alone.
+
+## Historical C++ contributor policy
+
+The remainder documents the retained C++ implementation and old package
+layout. Its CMake, RootSplit-option, backend and release-file requirements do
+not override the Rust workflow above.
+
 Keep Eloi a fixed-three-thread C++26 engine with a native Windows GUI, UCI
 compatibility and two reproducible Windows packages. Keep search, training,
 GUI and packaging changes independently reviewable.

@@ -4,6 +4,11 @@
 > project, and home of a crash-contained Caissa 2.0 Standard brain.
 
 **Eloi v4.0.0 is the handcrafted four-player Teams release.**
+
+Development is **hibernating at v4.0.0**, not abandoned. EloiBot may continue
+playing on Lichess independently; hibernation does not stop its bridge or jobs.
+Read [the frozen state and restart checklist](docs/HIBERNATION_V4_0_0.md)
+before changing source, dependencies, models, or release assets.
 Red/Yellow play Blue/Green on the 160-square cross board, using Eloi's own
 evaluation and three-thread team alpha-beta search. Play through the native
 GUI with `eloi-rs.exe --four-player-gui`, or use the explicit
@@ -109,7 +114,7 @@ E4-10. Caissa remains Standard-only. See
 | Atomic brain | Dedicated E4-Atomic evaluator |
 | King of the Hill brain | Dedicated E4-KOTH evaluator |
 | Crazyhouse brain | Pocket/drop-aware Eloi evaluator |
-| Variants | Standard, Chess960, Horde, KOTH, Atomic, Antichess, Crazyhouse; four-player Teams in development |
+| Variants | Standard, Chess960, Horde, KOTH, Atomic, Antichess, Crazyhouse; local four-player Teams released |
 | Source license | MIT |
 | Standard search donor | Caissa 2.0 official AVX2 asset |
 | Donor tag commit | bb725799e9b19ebdaa0d584f5433fc1c3019e349 |
@@ -121,14 +126,14 @@ models at build time or runtime, mix evaluator generations, or promote donor
 code without a matching licensed model and complete qualification evidence.
 
 The completed Eloi-native policy/value successor experiments remain available
-in Git history. They are laboratory-only and do not control v3.6.0
+in Git history. They are laboratory-only and do not control v4.0.0
 playing behavior.
 
 Native Lichess can now write token-free completed-game journals for the
 separate headless autopsy worker. Those reports identify the exact playing
 binary and remain production/legacy diagnostics unless EPV2 actually played.
 
-Current main selects **E4-10** as the conservative Eloi-native successor.
+Historically, v3.2.2 selected **E4-10** as the conservative Eloi-native successor.
 Its 400-game direct comparison against E4-20 finished 205.5/400 (51.375%)
 from E4-10's perspective with zero protocol failures and complete legal
 replay. See [data/nnue_e4_results.json](data/nnue_e4_results.json). This does not alter already
@@ -211,7 +216,15 @@ Reproducibility comes before release claims.
 
 ---
 
-## What ships today
+## Historical C++ v1–v3.6 record
+
+Everything from this heading onward is retained release history, including
+its older version numbers, CMake commands, package layouts and "current"
+language. For current Rust v4.0.0 use the opening status/quick start,
+[CONTRIBUTING.md](CONTRIBUTING.md), and
+[hibernation handoff](docs/HIBERNATION_V4_0_0.md).
+
+## What shipped in v3.6.0
 
 One month after the GitHub repository was created, Eloi 3.6.0 ships Eloi legal
 authority plus a crash-contained Caissa 1.25

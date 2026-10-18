@@ -1,5 +1,11 @@
 # Tracking upstream Caissa
 
+> Historical C++ Caissa 1.25/1.26 laboratory policy below. Current Rust
+> v4.0.0 Standard UCI/Lichess uses the pinned official **Caissa 2.0 AVX2**
+> executable; see [its provenance](third_party/caissa20/PROVENANCE.md).
+> No donor auto-update is authorized during
+> [codebase hibernation](docs/HIBERNATION_V4_0_0.md).
+
 Eloi treats Caissa as its long-term Standard-chess search foundation, but it
 does not auto-update donor code or models. Production remains the coherent,
 qualified Caissa 1.25 source and `eval-71` CReLU network first used by Eloi

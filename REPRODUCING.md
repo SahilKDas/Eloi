@@ -1,5 +1,30 @@
 # Reproducing Eloi releases
 
+## Current Rust v4.0.0 release
+
+Freeze checkout at `refs/tags/v4.0.0`, commit
+`158aad3542bd1700a71833bc65d05054c64f0f02`; later maintenance commits are
+not the published package source. Use `rust-toolchain.toml` (1.98.1 MSVC),
+`Cargo.lock`, the pinned Caissa 2.0 AVX2 worker and
+`scripts/build-rust-rewrite-packages.ps1`. The script requires clean tracked
+source, verifies the donor, and performs independent builds/package checks.
+Do not run a heavy rebuild alongside live play without a resource preflight.
+
+```powershell
+pwsh -File scripts/build-rust-rewrite-packages.ps1 -Worker .deps/caissa-2.0/caissa-2.0-x64-avx2.exe -RunId v400-reproduction
+```
+
+Use an unused run ID/output; never overwrite the golden release. Exact ZIP
+hashes and validation limits are retained in
+[the hibernation record](docs/HIBERNATION_V4_0_0.md). Both package forms include
+notices, configuration and launchers; Exoskeleton also carries the separate
+Caissa worker. The old two-executable/PNG layout below is not the Rust layout.
+
+## Historical C++ reproduction instructions
+
+Everything below describes the named older releases and their locked inputs,
+not the current Cargo build or packaging layout.
+
 ## Source identity comes first
 
 The verified v2.5.0 artifacts were built from commit

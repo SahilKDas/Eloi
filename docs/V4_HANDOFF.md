@@ -1,5 +1,10 @@
 # Eloi revive handoff — current scope
 
+**v4.0.0 is published and development is hibernating.** Start with
+[HIBERNATION_V4_0_0.md](HIBERNATION_V4_0_0.md) for release identities,
+remaining limitations and the restart checklist. Existing jobs and EloiBot's
+live Lichess operation are not paused by this codebase status.
+
 **The Kaggle campaign has been retired.** The current `v4.0.0` scope is
 handcrafted four-player Teams, native GUI play and a dedicated Teams UCI
 extension. Read [FOUR_PLAYER_TEAMS.md](FOUR_PLAYER_TEAMS.md) for the current
