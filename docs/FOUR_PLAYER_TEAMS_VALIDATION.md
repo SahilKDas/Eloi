@@ -1,6 +1,8 @@
 # Handcrafted Teams revival — local validation
 
-Validated on Windows x64, Rust 1.98.1/MSVC, 2026-10-18.
+Validated on Windows x64, Rust 1.98.1/MSVC, 2026-10-18, for revival commit
+`262ab67`. Executable hashes below describe that validation build; later
+launcher/UI-identity fixes rebuild the executable and therefore change its hash.
 
 ## Completed checks
 

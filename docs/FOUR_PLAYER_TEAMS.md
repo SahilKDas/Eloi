@@ -6,6 +6,21 @@ one local commit on `v4.0.0`; publishing is a separate action.
 
 ## Play
 
+Double-click `Open-Eloi-Teams.cmd` in the repository root. The separate
+`Open-Eloi-OperationsCenter.cmd` opens the current Rust bridge with a
+hash-verified Caissa 2.0 worker; it refuses while another Eloi bridge is open.
+An old `Eloi-v3.6.0-live/EloiLichess.exe` remains an old installation and does
+not acquire Teams support from new source commits. Leave an active old bridge
+alone until its game finishes, close it manually, then use the new launcher.
+Lichess does not support four-player Teams; the Teams GUI is a separate local game.
+
+The bridge launcher reuses the valid native config under
+`.deps/lichess-bot/engines/Eloi-v3.6.0-live/config.yml` without modifying it.
+You may supply another native config with
+`powershell -File scripts/start-eloi.ps1 -Mode Operations -Config <path>`.
+The Python lichess-bot configuration has a different schema. Offline validation:
+`powershell -File scripts/start-eloi.ps1 -Mode Operations -Check`.
+
 ```powershell
 cargo build --release -p eloi-rs --offline
 & .\target\release\eloi-rs.exe --four-player-gui

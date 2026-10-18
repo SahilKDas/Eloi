@@ -15,6 +15,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() -> io::Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
+        None => eloi_ui::run(eloi_ui::SurfaceKind::FourPlayer)?,
         Some("--version" | "-v") => println!("Eloi {VERSION}"),
         Some("--uci") => {
             let worker = donor_path(&args)?;

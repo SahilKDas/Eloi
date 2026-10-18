@@ -92,11 +92,12 @@ pub(super) fn run(
         if RegisterClassW(&registration) == 0 && GetLastError() != 1410 {
             return Err(io::Error::last_os_error());
         }
-        let title = wide(match kind {
-            SurfaceKind::Chess => "Eloi 3.9 — Native Chess",
-            SurfaceKind::FourPlayer => "Eloi 4.0 — Four-Player Chess",
-            SurfaceKind::Operations => "Eloi 3.9 — Lichess Operations Center",
-        });
+        let name = match kind {
+            SurfaceKind::Chess => "Native Chess",
+            SurfaceKind::FourPlayer => "Four-Player Teams",
+            SurfaceKind::Operations => "Lichess Operations Center",
+        };
+        let title = wide(&format!("Eloi {} — {name}", env!("CARGO_PKG_VERSION")));
         let state = Box::into_raw(Box::new(WindowState {
             kind,
             hover_control: None,
@@ -335,7 +336,10 @@ unsafe fn draw_operations(
         _ => "Stopped",
     };
     let lines = [
-        "Eloi Lichess Operations Center".to_owned(),
+        format!(
+            "Eloi {} Lichess Operations Center",
+            env!("CARGO_PKG_VERSION")
+        ),
         format!("State: {state_name}"),
         format!(
             "Account: {}  HTTP: {}  reconnects: {}  next retry: {}s",

@@ -12,6 +12,12 @@ GUI with `eloi-rs.exe --four-player-gui`, or use the explicit
 Kaggle training is retired; FFA remains historical development code and is
 outside this revival's playable scope. No neural training is needed.
 
+Local launchers: **Open-Eloi-Teams.cmd** opens Teams play;
+**Open-Eloi-OperationsCenter.cmd** opens the Rust Lichess bridge with verified
+Caissa 2.0. The latter refuses to overlap an existing bridge. Finish an active
+game and close its old bridge before switching. Four-player Teams is local;
+it is not a Lichess variant.
+
 The `september-rewrite` line is Eloi 3.9.0: a Rust 2024 UCI engine with a
 native `tiny-skia` GUI, visible Lichess Operations Center, seven supported
 Lichess variants, three-thread Eloi-native search, and deterministic Windows
