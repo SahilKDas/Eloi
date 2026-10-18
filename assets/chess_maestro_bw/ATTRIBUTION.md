@@ -10,6 +10,10 @@ conversions of the
 - License: [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
 - Changes to the artwork: converted from SVG to PNG without visual alterations
 
+The Rust four-player renderer tints the white-piece images Red, Blue, Yellow,
+and Green at runtime and generates area-averaged mip levels for smooth resizing.
+The source PNG files remain unchanged.
+
 Eloi's board, highlights, panels, buttons, labels, and other interface graphics
 are generated in code. Only these twelve piece PNGs are used from the upstream
 asset repository.

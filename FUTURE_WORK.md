@@ -1,4 +1,21 @@
-# Work after Eloi v2.5.0
+# Eloi future work
+
+## Current state: v4.0.0 hibernation
+
+The published Rust release provides handcrafted local four-player Teams.
+Standard UCI/Lichess uses pinned Caissa 2.0; EloiBot can continue playing while
+development sleeps. No new campaign is running merely because it is listed
+here. See [the restart checklist](docs/HIBERNATION_V4_0_0.md).
+
+Future work, only with fresh authorization: human Teams playtesting; larger
+independent rules differential coverage; separately frozen strength tests;
+and fixes supported by token-free live-game diagnostics. FFA and neural
+four-player training are not promised release features.
+
+## Historical work after v2.5.0
+
+The remainder is an archived research backlog. Its production/default and
+"next work" statements describe the C++ era, not current policy.
 
 This is an index of unresolved work, not a running campaign or authorization
 to train, benchmark, publish or replace a user's installation.

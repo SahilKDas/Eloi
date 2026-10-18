@@ -3,6 +3,7 @@
 use std::io;
 
 mod embedded_donor;
+mod four_player_uci;
 mod lichess_runtime;
 mod uci_runtime;
 
@@ -14,6 +15,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() -> io::Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
+        None => eloi_ui::run(eloi_ui::SurfaceKind::FourPlayer)?,
         Some("--version" | "-v") => println!("Eloi {VERSION}"),
         Some("--uci") => {
             let worker = donor_path(&args)?;
@@ -25,8 +27,12 @@ fn main() -> io::Result<()> {
         Some("--perft") => perft(&args)?,
         Some("--donor-probe") => donor_probe(&args)?,
         Some("--nnue") => nnue_probe(&args)?,
+        Some("--four-player-smoke") => four_player_smoke(&args)?,
         Some("--check-config") => check_config(&args)?,
         Some("--gui") => eloi_ui::run(eloi_ui::SurfaceKind::Chess)?,
+        Some("--four-player-gui") => eloi_ui::run(eloi_ui::SurfaceKind::FourPlayer)?,
+        Some("--operations-preview") => eloi_ui::run(eloi_ui::SurfaceKind::Operations)?,
+        Some("--four-player-uci") => four_player_uci::run()?,
         Some("--operations-center") => {
             let config = args
                 .iter()
@@ -67,9 +73,60 @@ fn main() -> io::Result<()> {
                 args.iter().any(|arg| arg == "--legacy-config"),
             )?;
         }
-        _ => println!("Eloi {VERSION} — use --gui, --uci, --lichess, or --operations-center"),
+        _ => println!(
+            "Eloi {VERSION} — use --gui, --four-player-gui, --four-player-uci, --uci, --lichess, or --operations-center"
+        ),
     }
     Ok(())
+}
+
+fn four_player_smoke(args: &[String]) -> io::Result<()> {
+    let value = |key: &str| {
+        args.iter()
+            .position(|a| a == key)
+            .and_then(|i| args.get(i + 1))
+    };
+    let mode = match value("--mode").map_or("teams", String::as_str) {
+        "ffa" => eloi_core::four_player::FourMode::Ffa,
+        "teams" => eloi_core::four_player::FourMode::Teams,
+        _ => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "mode must be ffa or teams",
+            ));
+        }
+    };
+    let mut session = eloi_protocol::four_player::FourPlayerSession::new(
+        mode,
+        eloi_protocol::four_player::FourPlayerPreset::AllEngineDemo,
+        60_000,
+        0,
+    );
+    let played = session
+        .step_engine_once(
+            std::time::Duration::from_millis(250),
+            1,
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+        .map_err(io::Error::other)?;
+    let snapshot = session.snapshot();
+    println!(
+        "four-player-smoke mode={:?} move={} turn={:?} state_hash={:016X}",
+        mode,
+        played.map_or_else(|| "-".into(), |mv| mv.notation()),
+        snapshot.turn,
+        stable_hash(snapshot.state.as_bytes())
+    );
+    Ok(())
+}
+
+fn stable_hash(bytes: &[u8]) -> u64 {
+    let mut key = 0xcbf2_9ce4_8422_2325_u64;
+    for byte in bytes {
+        key ^= u64::from(*byte);
+        key = key.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    key
 }
 
 fn donor_path(args: &[String]) -> io::Result<Option<std::path::PathBuf>> {

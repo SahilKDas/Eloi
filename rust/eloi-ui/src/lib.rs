@@ -5,6 +5,8 @@ use std::sync::{Arc, RwLock};
 
 const RECONNECT: u8 = 1;
 
+mod four_player;
+mod operations_view;
 mod render;
 
 #[cfg(windows)]
@@ -49,6 +51,7 @@ struct OperationsDetails {
     nodes: u64,
     elapsed_ms: u64,
     latest_event: String,
+    events: Vec<String>,
 }
 
 /// Session-local dashboard values safe to display or copy.
@@ -87,6 +90,8 @@ pub struct OperationsSnapshot {
     pub nodes: u64,
     pub elapsed_ms: u64,
     pub latest_event: String,
+    /// Bounded, already-redacted supervisor timeline.
+    pub events: Vec<String>,
 }
 
 impl OperationsModel {
@@ -109,6 +114,8 @@ impl OperationsModel {
             details.account = snapshot.account;
             details.game = snapshot.game;
             details.latest_event = snapshot.latest_event;
+            details.events = snapshot.events.into_iter().rev().take(128).collect();
+            details.events.reverse();
         }
     }
 
@@ -147,6 +154,7 @@ impl OperationsModel {
             nodes: details.nodes,
             elapsed_ms: details.elapsed_ms,
             latest_event: details.latest_event,
+            events: details.events,
         }
     }
 

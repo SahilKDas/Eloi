@@ -1,5 +1,10 @@
 # Rust rewrite implementation evidence
 
+> Historical v3.9 rewrite-stage record. v3.9 and v4.0.0 have since shipped;
+> the pending freeze/rebuild/final-commit language below records that earlier
+> stage, not current release blockers. Current Teams, package identities and
+> development status: [v4.0.0 hibernation handoff](HIBERNATION_V4_0_0.md).
+
 Branch: `september-rewrite`. The persistent objective includes complete runtime
 migration, stronger Standard search, existing variants, Windows UI/Lichess,
 and package qualification. This file records completed implementation slices;

@@ -4,6 +4,7 @@ use eloi_core::Variant;
 
 pub mod bridge;
 pub mod config;
+pub mod four_player;
 pub mod lichess;
 pub mod operations_store;
 pub mod transport;
