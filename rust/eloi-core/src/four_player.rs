@@ -154,6 +154,10 @@ pub struct FourPosition {
     pub halfmove: u16,
     /// Ply count.
     pub ply: u32,
+    /// Per-seat castling rights: low-file rook = 1, high-file rook = 2.
+    pub castling: [u8; 4],
+    /// Double-pushed pawn and passed square, valid until that owner's next turn.
+    pub en_passant: [Option<(Square14, Square14)>; 4],
 }
 
 /// Local four-player game with reversible history and local terminal actions.
@@ -166,6 +170,16 @@ pub struct FourGame {
 }
 
 impl FourGame {
+    /// Begin local history at an explicitly loaded rule state.
+    #[must_use]
+    pub fn from_position(position: FourPosition) -> Self {
+        Self {
+            position,
+            history: Vec::new(),
+            resignation: None,
+            timeout: None,
+        }
+    }
     /// Create a local game from the standard four-player initial setup.
     #[must_use]
     pub fn new(mode: FourMode) -> Self {
@@ -241,6 +255,18 @@ impl FourGame {
         if let Some(seat) = self.resignation.or(self.timeout) {
             return Some(self.forfeit_outcome(seat));
         }
+        if self.position.mode == FourMode::Teams {
+            let identity = self.position.identity_key();
+            if self
+                .history
+                .iter()
+                .filter(|(p, _)| p.identity_key() == identity)
+                .count()
+                >= 2
+            {
+                return Some(FourOutcome::Draw);
+            }
+        }
         self.position.outcome()
     }
 
@@ -265,6 +291,165 @@ impl FourGame {
 }
 
 impl FourPosition {
+    /// Parse Eloi's complete four-player state. Malformed rule state is rejected.
+    pub fn from_state(text: &str) -> Result<Self, &'static str> {
+        let fields: Vec<_> = text.split_whitespace().collect();
+        if fields.len() != 9 {
+            return Err("expected complete four-player state");
+        }
+        let mode = match fields[0] {
+            "4pc-teams" => FourMode::Teams,
+            "4pc-ffa" => FourMode::Ffa,
+            _ => return Err("unknown mode"),
+        };
+        let mut p = Self::initial(mode);
+        p.cells = [None; 196];
+        p.turn = FourSeat::ORDER
+            .into_iter()
+            .find(|s| s.key().to_string() == fields[1])
+            .ok_or("invalid turn")?;
+        let ranks: Vec<_> = fields[2].split('/').collect();
+        if ranks.len() != 14 {
+            return Err("expected fourteen ranks");
+        }
+        for (row, rank) in ranks.into_iter().enumerate() {
+            let mut chars = rank.chars().peekable();
+            let mut file = 0u8;
+            while let Some(c) = chars.next() {
+                if c.is_ascii_digit() {
+                    let mut digits = c.to_string();
+                    while chars.peek().is_some_and(char::is_ascii_digit) {
+                        digits.push(chars.next().unwrap());
+                    }
+                    let count = digits.parse::<u8>().map_err(|_| "invalid empty count")?;
+                    if count == 0 {
+                        return Err("zero empty run");
+                    }
+                    for _ in 0..count {
+                        if Square14::new(file, 13 - row as u8).is_none() {
+                            return Err("empty run crosses corner");
+                        }
+                        file = file.checked_add(1).ok_or("rank overflow")?;
+                    }
+                } else if c == 'x' {
+                    if file >= 14 || Square14::new(file, 13 - row as u8).is_some() {
+                        return Err("invalid corner");
+                    }
+                    file += 1;
+                } else {
+                    let owner = FourSeat::ORDER
+                        .into_iter()
+                        .find(|s| piece_owner(*s) == c)
+                        .ok_or("invalid owner")?;
+                    let kind = match chars.next() {
+                        Some('p') => PieceKind::Pawn,
+                        Some('n') => PieceKind::Knight,
+                        Some('b') => PieceKind::Bishop,
+                        Some('r') => PieceKind::Rook,
+                        Some('q') => PieceKind::Queen,
+                        Some('k') => PieceKind::King,
+                        _ => return Err("invalid piece"),
+                    };
+                    let square =
+                        Square14::new(file, 13 - row as u8).ok_or("piece outside board")?;
+                    p.set(square, Some(FourPiece { owner, kind }));
+                    file += 1;
+                }
+            }
+            if file != 14 {
+                return Err("rank length");
+            }
+        }
+        let value = |index: usize, prefix: &str| {
+            fields[index]
+                .strip_prefix(prefix)
+                .ok_or("missing state field")
+        };
+        let active = value(3, "active=")?.as_bytes();
+        let castle = value(7, "castle=")?.as_bytes();
+        if active.len() != 4 || castle.len() != 4 {
+            return Err("invalid seat state");
+        }
+        for i in 0..4 {
+            p.active[i] = match active[i] {
+                b'1' => true,
+                b'0' => false,
+                _ => return Err("invalid active flag"),
+            };
+            p.castling[i] = match castle[i] {
+                b'0'..=b'3' => castle[i] - b'0',
+                _ => return Err("invalid castle flag"),
+            };
+        }
+        let scores: Vec<_> = value(4, "scores=")?.split(',').collect();
+        let ep: Vec<_> = value(8, "ep=")?.split(',').collect();
+        if scores.len() != 4 || ep.len() != 4 {
+            return Err("invalid seat arrays");
+        }
+        for i in 0..4 {
+            p.scores[i] = scores[i].parse().map_err(|_| "invalid score")?;
+            p.en_passant[i] = if ep[i] == "-" {
+                None
+            } else {
+                let bytes = ep[i].as_bytes();
+                if bytes.len() != 4 || !ep[i].is_ascii() {
+                    return Err("invalid en passant");
+                }
+                let square = |start| -> Result<Square14, &'static str> {
+                    let f = (bytes[start] as char).to_digit(16).ok_or("ep file")? as u8;
+                    let r = (bytes[start + 1] as char).to_digit(16).ok_or("ep rank")? as u8;
+                    Square14::new(f, r).ok_or("ep corner")
+                };
+                let pawn = square(0)?;
+                let passed = square(2)?;
+                let seat = FourSeat::ORDER[i];
+                let (df, dr) = seat.pawn_step();
+                if p.at(pawn)
+                    != Some(FourPiece {
+                        owner: seat,
+                        kind: PieceKind::Pawn,
+                    })
+                    || offset(passed, df, dr) != Some(pawn)
+                    || p.at(passed).is_some()
+                    || seat == p.turn
+                {
+                    return Err("inconsistent en passant");
+                }
+                Some((pawn, passed))
+            };
+        }
+        p.halfmove = value(5, "half=")?.parse().map_err(|_| "invalid halfmove")?;
+        p.ply = value(6, "ply=")?.parse().map_err(|_| "invalid ply")?;
+        for seat in FourSeat::ORDER {
+            if p.cells
+                .iter()
+                .flatten()
+                .filter(|piece| piece.owner == seat && piece.kind == PieceKind::King)
+                .count()
+                != 1
+            {
+                return Err("expected one king per seat");
+            }
+            let (king, rooks, _) = castle_geometry(seat);
+            for side in 0..2 {
+                if p.castling[seat.index()] & (1 << side) != 0
+                    && (p.at(king)
+                        != Some(FourPiece {
+                            owner: seat,
+                            kind: PieceKind::King,
+                        })
+                        || p.at(rooks[side])
+                            != Some(FourPiece {
+                                owner: seat,
+                                kind: PieceKind::Rook,
+                            }))
+                {
+                    return Err("inconsistent castling rights");
+                }
+            }
+        }
+        Ok(p)
+    }
     /// Construct the standard 160-square initial setup.
     #[must_use]
     pub fn initial(mode: FourMode) -> Self {
@@ -276,6 +461,8 @@ impl FourPosition {
             scores: [0; 4],
             halfmove: 0,
             ply: 0,
+            castling: [3; 4],
+            en_passant: [None; 4],
         };
         position.place_back_rank(FourSeat::Red);
         position.place_back_rank(FourSeat::Blue);
@@ -364,17 +551,32 @@ impl FourPosition {
     /// Generate legal moves for the side to move.
     #[must_use]
     pub fn legal_moves(&self) -> Vec<FourMove> {
-        if self.outcome().is_some() || !self.active[self.turn.index()] {
+        if !self.active[self.turn.index()] {
             return Vec::new();
         }
-        let mut moves = self.pseudo_moves(self.turn);
-        moves.retain(|&mv| {
-            let Some(next) = self.apply_unchecked(mv) else {
-                return false;
-            };
-            !next.king_attacked(self.turn)
-        });
-        moves
+        self.moves_for_turn()
+    }
+
+    fn moves_for_turn(&self) -> Vec<FourMove> {
+        self.legal_successors()
+            .into_iter()
+            .map(|(mv, _)| mv)
+            .collect()
+    }
+
+    /// Generate each legal child exactly once for search, retaining legality ownership here.
+    #[must_use]
+    pub fn legal_successors(&self) -> Vec<(FourMove, Self)> {
+        if !self.active[self.turn.index()] || self.outcome().is_some() {
+            return Vec::new();
+        }
+        self.pseudo_moves(self.turn)
+            .into_iter()
+            .filter_map(|mv| {
+                let next = self.apply_unchecked(mv)?;
+                (!next.king_attacked(self.turn)).then_some((mv, next))
+            })
+            .collect()
     }
 
     /// Resolve exact compact move notation through the legal move list.
@@ -407,6 +609,7 @@ impl FourPosition {
                     for (df, dr) in KING {
                         self.append_step(from, df, dr, seat, None, &mut moves);
                     }
+                    self.append_castling(from, seat, &mut moves);
                 }
                 PieceKind::Bishop => self.append_sliders(from, seat, &BISHOP, &mut moves),
                 PieceKind::Rook => self.append_sliders(from, seat, &ROOK, &mut moves),
@@ -423,6 +626,15 @@ impl FourPosition {
         let (df, dr) = seat.pawn_step();
         if let Some(to) = offset(from, df, dr).filter(|&to| self.at(to).is_none()) {
             self.append_promotion_aware(from, to, moves);
+            let home = match seat {
+                FourSeat::Red => from.rank() == 1,
+                FourSeat::Blue => from.file() == 1,
+                FourSeat::Yellow => from.rank() == 12,
+                FourSeat::Green => from.file() == 12,
+            };
+            if home && let Some(end) = offset(to, df, dr).filter(|&end| self.at(end).is_none()) {
+                self.append_promotion_aware(from, end, moves);
+            }
         }
         let captures = if df == 0 {
             [(-1, dr), (1, dr)]
@@ -431,11 +643,70 @@ impl FourPosition {
         };
         for (cdf, cdr) in captures {
             if let Some(to) = offset(from, cdf, cdr)
-                && self.at(to).is_some_and(|piece| {
+                && (self.at(to).is_some_and(|piece| {
                     !self.allied(seat, piece.owner) && piece.kind != PieceKind::King
-                })
+                }) || (self.at(to).is_none()
+                    && self.en_passant.iter().flatten().any(|&(pawn, passed)| {
+                        passed == to
+                            && self.at(pawn).is_some_and(|p| {
+                                p.kind == PieceKind::Pawn && !self.allied(seat, p.owner)
+                            })
+                    })))
             {
                 self.append_promotion_aware(from, to, moves);
+            }
+        }
+    }
+
+    fn append_castling(&self, from: Square14, seat: FourSeat, moves: &mut Vec<FourMove>) {
+        let (king, rooks, axis) = castle_geometry(seat);
+        if from != king || self.king_attacked(seat) {
+            return;
+        }
+        for (side, rook) in rooks.into_iter().enumerate() {
+            if self.castling[seat.index()] & (1 << side) == 0
+                || self.at(rook)
+                    != Some(FourPiece {
+                        owner: seat,
+                        kind: PieceKind::Rook,
+                    })
+            {
+                continue;
+            }
+            let sign = if side == 0 { -1 } else { 1 };
+            let (df, dr) = (axis.0 * sign, axis.1 * sign);
+            let mut cursor = offset(from, df, dr);
+            let mut clear = true;
+            while let Some(square) = cursor {
+                if square == rook {
+                    break;
+                }
+                if self.at(square).is_some() {
+                    clear = false;
+                    break;
+                }
+                cursor = offset(square, df, dr);
+            }
+            if !clear {
+                continue;
+            }
+            let transit = offset(from, df, dr).expect("home transit");
+            let to = offset(transit, df, dr).expect("home destination");
+            let mut probe = self.clone();
+            probe.set(from, None);
+            probe.set(
+                transit,
+                Some(FourPiece {
+                    owner: seat,
+                    kind: PieceKind::King,
+                }),
+            );
+            if !probe.king_attacked(seat) {
+                moves.push(FourMove {
+                    from,
+                    to,
+                    promotion: None,
+                });
             }
         }
     }
@@ -539,12 +810,51 @@ impl FourPosition {
     /// Geometric attack detection for the four-player board.
     #[must_use]
     pub fn attacks_square(&self, attacker: FourSeat, target: Square14) -> bool {
-        for from in playable_squares() {
-            let Some(piece) = self.at(from).filter(|piece| piece.owner == attacker) else {
-                continue;
-            };
-            if piece_attacks(self, piece, from, target) {
+        let has = |square: Option<Square14>, kind| {
+            square
+                .and_then(|sq| self.at(sq))
+                .is_some_and(|p| p.owner == attacker && p.kind == kind)
+        };
+        for (df, dr) in KNIGHT {
+            if has(offset(target, df, dr), PieceKind::Knight) {
                 return true;
+            }
+        }
+        for (df, dr) in KING {
+            if has(offset(target, df, dr), PieceKind::King) {
+                return true;
+            }
+        }
+        let (pf, pr) = attacker.pawn_step();
+        let captures = if pf == 0 {
+            [(-1, pr), (1, pr)]
+        } else {
+            [(pf, -1), (pf, 1)]
+        };
+        for (df, dr) in captures {
+            if has(offset(target, -df, -dr), PieceKind::Pawn) {
+                return true;
+            }
+        }
+        for (df, dr) in KING {
+            let diagonal = df != 0 && dr != 0;
+            let mut cursor = offset(target, df, dr);
+            while let Some(square) = cursor {
+                if let Some(piece) = self.at(square) {
+                    if piece.owner == attacker
+                        && (piece.kind == PieceKind::Queen
+                            || piece.kind
+                                == if diagonal {
+                                    PieceKind::Bishop
+                                } else {
+                                    PieceKind::Rook
+                                })
+                    {
+                        return true;
+                    }
+                    break;
+                }
+                cursor = offset(square, df, dr);
             }
         }
         false
@@ -565,7 +875,52 @@ impl FourPosition {
         if moving.owner != self.turn {
             return None;
         }
-        if let Some(captured) = self.at(mv.to) {
+        let capture_square = if moving.kind == PieceKind::Pawn && self.at(mv.to).is_none() {
+            self.en_passant
+                .iter()
+                .flatten()
+                .find_map(|&(pawn, passed)| {
+                    (passed == mv.to
+                        && self
+                            .at(pawn)
+                            .is_some_and(|p| !self.allied(moving.owner, p.owner)))
+                    .then_some(pawn)
+                })
+                .unwrap_or(mv.to)
+        } else {
+            mv.to
+        };
+        for seat in FourSeat::ORDER {
+            let (_, rooks, _) = castle_geometry(seat);
+            for (side, rook) in rooks.into_iter().enumerate() {
+                if mv.from == rook || capture_square == rook {
+                    next.castling[seat.index()] &= !(1 << side);
+                }
+            }
+        }
+        if moving.kind == PieceKind::King {
+            next.castling[moving.owner.index()] = 0;
+            let distance = (i16::from(mv.from.file()) - i16::from(mv.to.file())).abs()
+                + (i16::from(mv.from.rank()) - i16::from(mv.to.rank())).abs();
+            if distance == 2 {
+                let (_, rooks, axis) = castle_geometry(moving.owner);
+                let sign = if mv.to.file() < mv.from.file() || mv.to.rank() < mv.from.rank() {
+                    -1
+                } else {
+                    1
+                };
+                let rook = rooks[usize::from(sign > 0)];
+                next.set(rook, None);
+                next.set(
+                    offset(mv.from, axis.0 * sign, axis.1 * sign)?,
+                    Some(FourPiece {
+                        owner: moving.owner,
+                        kind: PieceKind::Rook,
+                    }),
+                );
+            }
+        }
+        if let Some(captured) = self.at(capture_square) {
             if self.allied(moving.owner, captured.owner) || captured.kind == PieceKind::King {
                 return None;
             }
@@ -573,6 +928,7 @@ impl FourPosition {
                 next.scores[moving.owner.index()] += capture_value(captured.kind);
             }
         }
+        next.set(capture_square, None);
         next.set(mv.from, None);
         next.set(
             mv.to,
@@ -587,7 +943,15 @@ impl FourPosition {
             next.halfmove.saturating_add(1)
         };
         next.ply = next.ply.saturating_add(1);
+        next.en_passant[moving.owner.index()] = None;
+        if moving.kind == PieceKind::Pawn {
+            let (df, dr) = moving.owner.pawn_step();
+            if offset(mv.from, df * 2, dr * 2) == Some(mv.to) {
+                next.en_passant[moving.owner.index()] = Some((mv.to, offset(mv.from, df, dr)?));
+            }
+        }
         next.advance_turn();
+        next.en_passant[next.turn.index()] = None;
         next.resolve_eliminations();
         Some(next)
     }
@@ -659,7 +1023,32 @@ impl FourPosition {
                 let green_alive = self.king(FourSeat::Green).is_some();
                 if red_alive || yellow_alive {
                     if blue_alive || green_alive {
-                        None
+                        let mobile = self.pseudo_moves(self.turn).into_iter().any(|mv| {
+                            self.apply_unchecked(mv)
+                                .is_some_and(|next| !next.king_attacked(self.turn))
+                        });
+                        if !mobile {
+                            if self.king_attacked(self.turn) {
+                                Some(FourOutcome::TeamWin {
+                                    red_yellow: !matches!(
+                                        self.turn,
+                                        FourSeat::Red | FourSeat::Yellow
+                                    ),
+                                })
+                            } else {
+                                Some(FourOutcome::Draw)
+                            }
+                        } else if self.halfmove >= 200
+                            || self
+                                .cells
+                                .iter()
+                                .flatten()
+                                .all(|p| p.kind == PieceKind::King)
+                        {
+                            Some(FourOutcome::Draw)
+                        } else {
+                            None
+                        }
                     } else {
                         Some(FourOutcome::TeamWin { red_yellow: true })
                     }
@@ -685,6 +1074,14 @@ impl FourPosition {
             FourMode::Teams => 2,
         });
         add(self.turn.index() as u64);
+        for rights in self.castling {
+            add(u64::from(rights));
+        }
+        for ep in self.en_passant {
+            add(ep.map_or(0, |(pawn, passed)| {
+                1 + square_index(pawn) as u64 * 196 + square_index(passed) as u64
+            }));
+        }
         for cell in self.cells {
             add(cell.map_or(0, |piece| {
                 1 + piece.kind as u64 * 4 + piece.owner.index() as u64
@@ -740,7 +1137,7 @@ impl FourPosition {
         }
         write!(
             out,
-            " active={}{}{}{} scores={},{},{},{} half={} ply={}",
+            " active={}{}{}{} scores={},{},{},{} half={} ply={} castle={}{}{}{} ep={}",
             u8::from(self.active[0]),
             u8::from(self.active[1]),
             u8::from(self.active[2]),
@@ -750,13 +1147,41 @@ impl FourPosition {
             self.scores[2],
             self.scores[3],
             self.halfmove,
-            self.ply
+            self.ply,
+            self.castling[0],
+            self.castling[1],
+            self.castling[2],
+            self.castling[3],
+            self.en_passant
+                .map(|ep| ep.map_or_else(
+                    || "-".into(),
+                    |(pawn, passed)| format!("{}{}", square_name(pawn), square_name(passed))
+                ))
+                .join(",")
         )
         .expect("String write");
         out
     }
 }
 
+fn castle_geometry(seat: FourSeat) -> (Square14, [Square14; 2], (i8, i8)) {
+    let (king, a, b, axis) = match seat {
+        FourSeat::Red => ((7, 0), (3, 0), (10, 0), (1, 0)),
+        FourSeat::Blue => ((0, 7), (0, 3), (0, 10), (0, 1)),
+        FourSeat::Yellow => ((6, 13), (3, 13), (10, 13), (1, 0)),
+        FourSeat::Green => ((13, 6), (13, 3), (13, 10), (0, 1)),
+    };
+    (
+        Square14::new(king.0, king.1).unwrap(),
+        [
+            Square14::new(a.0, a.1).unwrap(),
+            Square14::new(b.0, b.1).unwrap(),
+        ],
+        axis,
+    )
+}
+
+#[cfg(test)]
 fn piece_attacks(
     position: &FourPosition,
     piece: FourPiece,
@@ -785,6 +1210,7 @@ fn piece_attacks(
     }
 }
 
+#[cfg(test)]
 fn clear_slider(
     position: &FourPosition,
     from: Square14,
@@ -903,6 +1329,215 @@ impl fmt::Display for FourMove {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn teams_fixture() -> FourPosition {
+        let mut p = FourPosition::initial(FourMode::Teams);
+        p.cells = [None; 196];
+        p.castling = [0; 4];
+        for (seat, (f, r)) in FourSeat::ORDER
+            .into_iter()
+            .zip([(7, 0), (0, 7), (6, 13), (13, 6)])
+        {
+            p.set(
+                Square14::new(f, r).unwrap(),
+                Some(FourPiece {
+                    owner: seat,
+                    kind: PieceKind::King,
+                }),
+            );
+        }
+        p
+    }
+    fn put(p: &mut FourPosition, f: u8, r: u8, seat: FourSeat, kind: PieceKind) {
+        p.set(
+            Square14::new(f, r).unwrap(),
+            Some(FourPiece { owner: seat, kind }),
+        );
+    }
+
+    #[test]
+    fn teams_initial_state_and_special_state_roundtrip() {
+        let mut p = FourPosition::initial(FourMode::Teams);
+        assert_eq!(FourPosition::from_state(&p.to_state()).unwrap(), p);
+        let mv = p
+            .legal_moves()
+            .into_iter()
+            .find(|mv| {
+                mv.from == Square14::new(6, 1).unwrap() && mv.to == Square14::new(6, 3).unwrap()
+            })
+            .unwrap();
+        p = p.play(mv).unwrap();
+        assert!(p.en_passant[0].is_some());
+        assert_eq!(FourPosition::from_state(&p.to_state()).unwrap(), p);
+        assert!(FourPosition::from_state("4pc-teams malformed").is_err());
+    }
+    #[test]
+    fn teams_repetition_draw_preserves_complete_round_history() {
+        let mut game = FourGame::new(FourMode::Teams);
+        let cycle = [
+            "4052", "0425", "9d8b", "d9b8", "5240", "2504", "8b9d", "b8d9",
+        ];
+        for text in cycle {
+            assert!(game.push_notation(text));
+        }
+        assert_eq!(game.outcome(), None);
+        for text in cycle {
+            assert!(game.push_notation(text));
+        }
+        assert_eq!(game.outcome(), Some(FourOutcome::Draw));
+        assert!(!game.push_notation("4052"));
+    }
+    #[test]
+    fn teams_stalemate_draws_instead_of_winning_for_enemy() {
+        let mut p = teams_fixture();
+        put(&mut p, 6, 2, FourSeat::Blue, PieceKind::Rook);
+        put(&mut p, 8, 2, FourSeat::Blue, PieceKind::Rook);
+        put(&mut p, 5, 2, FourSeat::Blue, PieceKind::Knight);
+        assert!(!p.king_attacked(FourSeat::Red));
+        assert_eq!(p.outcome(), Some(FourOutcome::Draw));
+        assert!(p.legal_moves().is_empty());
+    }
+    #[test]
+    fn attack_lookup_matches_slow_piece_scan_through_seeded_game() {
+        let mut p = FourPosition::initial(FourMode::Teams);
+        let mut seed = 0x4e10u64;
+        for _ in 0..32 {
+            for target in playable_squares() {
+                for seat in FourSeat::ORDER {
+                    let expected = playable_squares().any(|from| {
+                        p.at(from).is_some_and(|piece| {
+                            piece.owner == seat && piece_attacks(&p, piece, from, target)
+                        })
+                    });
+                    assert_eq!(
+                        p.attacks_square(seat, target),
+                        expected,
+                        "{seat:?} {target:?}"
+                    );
+                }
+            }
+            let children = p.legal_successors();
+            if children.is_empty() || p.outcome().is_some() {
+                break;
+            }
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            p = children[seed as usize % children.len()].1.clone();
+        }
+    }
+    #[test]
+    fn all_four_seats_can_castle_and_rights_are_irreversible() {
+        for seat in FourSeat::ORDER {
+            for side in 0..2 {
+                let mut p = teams_fixture();
+                p.turn = seat;
+                p.castling[seat.index()] = 3;
+                let (king, rooks, axis) = castle_geometry(seat);
+                for rook in rooks {
+                    p.set(
+                        rook,
+                        Some(FourPiece {
+                            owner: seat,
+                            kind: PieceKind::Rook,
+                        }),
+                    );
+                }
+                let sign = if side == 0 { -1 } else { 1 };
+                let target = offset(king, axis.0 * sign * 2, axis.1 * sign * 2).unwrap();
+                let mv = p
+                    .legal_moves()
+                    .into_iter()
+                    .find(|mv| mv.from == king && mv.to == target)
+                    .unwrap();
+                let next = p.play(mv).unwrap();
+                assert_eq!(next.at(target).unwrap().kind, PieceKind::King);
+                assert!(next.at(rooks[side]).is_none());
+                assert_eq!(
+                    next.at(offset(king, axis.0 * sign, axis.1 * sign).unwrap())
+                        .unwrap()
+                        .kind,
+                    PieceKind::Rook
+                );
+                assert_eq!(next.castling[seat.index()], 0);
+                assert_ne!(next.identity_key(), p.identity_key());
+            }
+        }
+    }
+    #[test]
+    fn castling_cannot_cross_attacked_square() {
+        let mut p = teams_fixture();
+        p.castling[0] = 3;
+        put(&mut p, 3, 0, FourSeat::Red, PieceKind::Rook);
+        put(&mut p, 10, 0, FourSeat::Red, PieceKind::Rook);
+        put(&mut p, 8, 5, FourSeat::Blue, PieceKind::Rook);
+        let king = p.king(FourSeat::Red).unwrap();
+        assert!(
+            !p.legal_moves()
+                .iter()
+                .any(|mv| mv.from == king && mv.to == Square14::new(9, 0).unwrap())
+        );
+    }
+    #[test]
+    fn en_passant_capture_removes_only_enemy_pawn() {
+        let mut p = teams_fixture();
+        put(&mut p, 4, 1, FourSeat::Red, PieceKind::Pawn);
+        put(&mut p, 3, 1, FourSeat::Blue, PieceKind::Pawn);
+        let mv = p.parse_move("4143").unwrap();
+        let p = p.play(mv).unwrap();
+        let mv = p.parse_move("3142").unwrap();
+        let next = p.play(mv).unwrap();
+        assert!(next.at(Square14::new(4, 3).unwrap()).is_none());
+        assert_eq!(
+            next.at(Square14::new(4, 2).unwrap()).unwrap().owner,
+            FourSeat::Blue
+        );
+    }
+    #[test]
+    fn mate_is_adjudicated_only_when_victims_turn_arrives() {
+        let mut p = teams_fixture();
+        // Red's king cannot move out of a rook battery on its home strip.
+        put(&mut p, 7, 2, FourSeat::Blue, PieceKind::Rook);
+        put(&mut p, 6, 2, FourSeat::Blue, PieceKind::Rook);
+        put(&mut p, 8, 2, FourSeat::Blue, PieceKind::Rook);
+        assert!(p.king_attacked(FourSeat::Red));
+        assert!(p.legal_moves().is_empty());
+        assert_eq!(
+            p.outcome(),
+            Some(FourOutcome::TeamWin { red_yellow: false })
+        );
+        p.turn = FourSeat::Yellow;
+        assert_eq!(p.outcome(), None);
+    }
+    #[test]
+    fn pinned_piece_cannot_expose_own_king() {
+        let mut p = teams_fixture();
+        put(&mut p, 7, 1, FourSeat::Red, PieceKind::Rook);
+        put(&mut p, 7, 5, FourSeat::Blue, PieceKind::Rook);
+        assert!(
+            !p.legal_moves()
+                .iter()
+                .any(|mv| mv.from == Square14::new(7, 1).unwrap()
+                    && mv.to == Square14::new(8, 1).unwrap())
+        );
+    }
+    #[test]
+    fn teams_underpromotions_and_replay_keep_partner_safe() {
+        let mut p = teams_fixture();
+        put(&mut p, 5, 9, FourSeat::Red, PieceKind::Pawn);
+        let promotions: Vec<_> = p
+            .legal_moves()
+            .into_iter()
+            .filter(|mv| mv.from == Square14::new(5, 9).unwrap())
+            .collect();
+        assert_eq!(promotions.len(), 4);
+        for mv in promotions {
+            assert_eq!(
+                p.play(mv).unwrap().at(mv.to).unwrap().kind,
+                mv.promotion.unwrap()
+            );
+        }
+    }
 
     #[test]
     fn cross_board_has_160_playable_squares() {

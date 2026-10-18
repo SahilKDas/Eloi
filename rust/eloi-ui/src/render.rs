@@ -27,6 +27,83 @@ pub struct Surface {
 }
 
 impl Surface {
+    /// Render authoritative Teams state rather than the old board preview.
+    pub fn render_four(
+        width: u32,
+        height: u32,
+        position: &eloi_core::four_player::FourPosition,
+        selected: Option<eloi_core::Square14>,
+    ) -> Option<Self> {
+        let mut surface = Self::render(width, height, SurfaceKind::FourPlayer, 0.0, None, None)?;
+        let mut header = Paint::default();
+        header.set_color_rgba8(24, 42, 64, 255);
+        fill(
+            &mut surface.pixmap,
+            38.0,
+            82.0,
+            width as f32 - 76.0,
+            92.0,
+            &header,
+        );
+        four_player_board(&mut surface.pixmap, width, height);
+        header.set_color_rgba8(32, 77, 86, 255);
+        for i in 0..8 {
+            fill(
+                &mut surface.pixmap,
+                width as f32 - 240.0,
+                196.0 + i as f32 * 48.0,
+                208.0,
+                40.0,
+                &header,
+            );
+        }
+        let size = (width.min(height).saturating_sub(180) as f32).max(210.0);
+        let square = size / 14.0;
+        let legal = selected
+            .map(|from| {
+                position
+                    .legal_moves()
+                    .into_iter()
+                    .filter(|mv| mv.from == from)
+                    .map(|mv| mv.to)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let mut paint = Paint::default();
+        for rank in 0..14 {
+            for file in 0..14 {
+                let Some(sq) = eloi_core::Square14::new(file, rank) else {
+                    continue;
+                };
+                let x = 44.0 + file as f32 * square;
+                let y = 156.0 + (13 - rank) as f32 * square;
+                if selected == Some(sq) || legal.contains(&sq) {
+                    paint.set_color_rgba8(80, 190, 140, 255);
+                    fill(&mut surface.pixmap, x, y, square, square, &paint);
+                }
+                if let Some(piece) = position.at(sq) {
+                    let image = four_piece_image(piece);
+                    let scale = square * 0.92 / image.width() as f32;
+                    surface.pixmap.draw_pixmap(
+                        0,
+                        0,
+                        image.as_ref(),
+                        &tiny_skia::PixmapPaint::default(),
+                        Transform::from_row(
+                            scale,
+                            0.0,
+                            0.0,
+                            scale,
+                            x + square * 0.04,
+                            y + square * 0.04,
+                        ),
+                        None,
+                    );
+                }
+            }
+        }
+        Some(surface)
+    }
     /// Render a deterministic responsive frame.
     #[must_use]
     pub fn render(
@@ -85,6 +162,45 @@ impl Surface {
     pub fn rgba(&self) -> &[u8] {
         self.pixmap.data()
     }
+}
+
+fn four_piece_image(piece: eloi_core::four_player::FourPiece) -> &'static Pixmap {
+    static IMAGES: std::sync::OnceLock<[Pixmap; 24]> = std::sync::OnceLock::new();
+    let images = IMAGES.get_or_init(|| {
+        let sources: [&[u8]; 6] = [
+            include_bytes!("../../../assets/chess_maestro_bw/wP.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/wN.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/wB.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/wR.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/wQ.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/wK.png"),
+        ];
+        let colors = [
+            (245u16, 95u16, 95u16),
+            (100, 165, 255),
+            (250, 221, 95),
+            (100, 224, 148),
+        ];
+        std::array::from_fn(|i| {
+            let mut image = Pixmap::decode_png(sources[i % 6]).expect("embedded Maestro asset");
+            let (r, g, b) = colors[i / 6];
+            for pixel in image.data_mut().chunks_exact_mut(4) {
+                pixel[0] = (u16::from(pixel[0]) * r / 255) as u8;
+                pixel[1] = (u16::from(pixel[1]) * g / 255) as u8;
+                pixel[2] = (u16::from(pixel[2]) * b / 255) as u8;
+            }
+            image
+        })
+    });
+    let kind = match piece.kind {
+        PieceKind::Pawn => 0,
+        PieceKind::Knight => 1,
+        PieceKind::Bishop => 2,
+        PieceKind::Rook => 3,
+        PieceKind::Queen => 4,
+        PieceKind::King => 5,
+    };
+    &images[piece.owner.index() * 6 + kind]
 }
 
 fn fill(pixmap: &mut Pixmap, x: f32, y: f32, width: f32, height: f32, paint: &Paint) {
@@ -213,28 +329,6 @@ fn four_player_board(pixmap: &mut Pixmap, width: u32, height: u32) {
             );
         }
     }
-    let seats = [
-        (6.5, 0.8, (226, 68, 68)),
-        (0.8, 6.5, (68, 132, 226)),
-        (6.5, 12.2, (230, 206, 80)),
-        (12.2, 6.5, (65, 190, 117)),
-    ];
-    for (file, rank, (r, g, b)) in seats {
-        paint.set_color_rgba8(r, g, b, 255);
-        if let Some(path) = PathBuilder::from_circle(
-            origin_x + file as f32 * square,
-            origin_y + (13.0 - rank as f32) * square,
-            square * 0.34,
-        ) {
-            pixmap.fill_path(
-                &path,
-                &paint,
-                tiny_skia::FillRule::Winding,
-                Transform::identity(),
-                None,
-            );
-        }
-    }
 }
 
 #[cfg(test)]
@@ -254,5 +348,26 @@ mod tests {
             assert_eq!(normal.rgba(), again.rgba());
             assert_ne!(normal.rgba(), hover.rgba());
         }
+    }
+    #[test]
+    fn teams_surface_contains_embedded_pieces_and_tracks_moves() {
+        use eloi_core::four_player::{FourMode, FourPosition};
+        let p = FourPosition::initial(FourMode::Teams);
+        let normal = Surface::render_four(1040, 780, &p, None).unwrap();
+        if let Some(path) = std::env::var_os("ELOI_TEST_FOUR_FRAME") {
+            normal.pixmap.save_png(path).unwrap();
+        }
+        let mv = p.legal_moves()[0];
+        let next = p.play(mv).unwrap();
+        assert_ne!(
+            normal.rgba(),
+            Surface::render_four(1040, 780, &next, None).unwrap().rgba()
+        );
+        assert_ne!(
+            normal.rgba(),
+            Surface::render_four(1040, 780, &p, Some(mv.from))
+                .unwrap()
+                .rgba()
+        );
     }
 }

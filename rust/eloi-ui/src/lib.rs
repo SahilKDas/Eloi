@@ -5,6 +5,7 @@ use std::sync::{Arc, RwLock};
 
 const RECONNECT: u8 = 1;
 
+mod four_player;
 mod render;
 
 #[cfg(windows)]

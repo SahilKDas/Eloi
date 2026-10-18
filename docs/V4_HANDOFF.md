@@ -1,4 +1,29 @@
-# Eloi v4.0.0 Handoff
+# Eloi revive handoff — current scope
+
+**The Kaggle campaign has been retired.** The current `v4.0.0` scope is
+handcrafted four-player Teams, native GUI play and a dedicated Teams UCI
+extension. Read [FOUR_PLAYER_TEAMS.md](FOUR_PLAYER_TEAMS.md) for the current
+commands, rules, controls, protocol and remaining strength evidence.
+
+```powershell
+cargo build --release -p eloi-rs --offline
+& .\target\release\eloi-rs.exe --four-player-gui
+```
+
+You play Red with Eloi as Yellow; Blue and Green are the opposing Elois.
+Beating Sahil is a human playtest goal, not an established strength claim.
+Historical Kaggle output is not imported into the engine. The Python training
+prototype used incomplete rules and colliding policy buckets; those labels
+must not be treated as qualified chess data. Full training and bootstrap
+export now refuse to start.
+
+Everything below is the **superseded historical FFA/Kaggle handoff**,
+retained for audit. Its unfinished FFA/training requirements do not apply to
+the Teams revival. Follow the guide above rather than those old instructions.
+
+---
+
+# Historical Eloi v4.0.0 handoff
 
 Branch: `v4.0.0`
 

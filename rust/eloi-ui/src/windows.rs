@@ -29,10 +29,11 @@ use windows_sys::Win32::System::Threading::CreateMutexW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CREATESTRUCTW, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, CreateWindowExW, DefWindowProcW,
     DestroyWindow, DispatchMessageW, FindWindowW, GWLP_USERDATA, GetClientRect, GetMessageW,
-    GetWindowLongPtrW, IDC_ARROW, KillTimer, LoadCursorW, MSG, PostQuitMessage, RegisterClassW,
-    SW_RESTORE, SW_SHOW, SetForegroundWindow, SetTimer, SetWindowLongPtrW, ShowWindow,
-    TranslateMessage, WM_CLOSE, WM_DESTROY, WM_ERASEBKGND, WM_LBUTTONUP, WM_MOUSEMOVE, WM_NCCREATE,
-    WM_PAINT, WM_TIMER, WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+    GetWindowLongPtrW, IDC_ARROW, KillTimer, LoadCursorW, MINMAXINFO, MSG, PostQuitMessage,
+    RegisterClassW, SW_RESTORE, SW_SHOW, SetForegroundWindow, SetTimer, SetWindowLongPtrW,
+    ShowWindow, TranslateMessage, WM_CLOSE, WM_DESTROY, WM_ERASEBKGND, WM_GETMINMAXINFO,
+    WM_LBUTTONUP, WM_MOUSEMOVE, WM_NCCREATE, WM_PAINT, WM_TIMER, WNDCLASSW, WS_OVERLAPPEDWINDOW,
+    WS_VISIBLE,
 };
 
 use crate::{OperationsModel, Surface, SurfaceKind};
@@ -50,6 +51,7 @@ struct WindowState {
     operations: Option<Arc<OperationsModel>>,
     config_path: Option<PathBuf>,
     tick: u8,
+    four: Option<crate::four_player::FourTable>,
 }
 
 fn wide(value: &str) -> Vec<u16> {
@@ -106,6 +108,7 @@ pub(super) fn run(
             operations,
             config_path,
             tick: 0,
+            four: (kind == SurfaceKind::FourPlayer).then(crate::four_player::FourTable::new),
         }));
         let window = CreateWindowExW(
             0,
@@ -162,6 +165,14 @@ unsafe extern "system" fn window_proc(
     }
     let state = unsafe { GetWindowLongPtrW(window, GWLP_USERDATA) as *mut WindowState };
     match message {
+        WM_GETMINMAXINFO
+            if !state.is_null() && unsafe { (*state).kind == SurfaceKind::FourPlayer } =>
+        {
+            let sizing = unsafe { &mut *(lparam as *mut MINMAXINFO) };
+            sizing.ptMinTrackSize.x = 900;
+            sizing.ptMinTrackSize.y = 760;
+            0
+        }
         WM_PAINT if !state.is_null() => {
             unsafe { paint(window, &*state) };
             0
@@ -196,6 +207,11 @@ unsafe extern "system" fn window_proc(
             0
         }
         WM_TIMER if !state.is_null() => {
+            if let Some(table) = unsafe { &mut (*state).four } {
+                if table.tick() || unsafe { (*state).tick % 60 == 0 } {
+                    unsafe { InvalidateRect(window, null(), 0) };
+                }
+            }
             unsafe { (*state).tick = (*state).tick.wrapping_add(1) };
             let target = if unsafe { (*state).hover_control.is_some() } {
                 1.0
@@ -243,14 +259,19 @@ unsafe fn paint(window: HWND, state: &WindowState) {
     unsafe { GetClientRect(window, &mut client) };
     let width = u32::try_from(client.right.max(1)).unwrap_or(1);
     let height = u32::try_from(client.bottom.max(1)).unwrap_or(1);
-    if let Some(surface) = Surface::render(
-        width,
-        height,
-        state.kind,
-        state.hover_amount,
-        state.hover_control,
-        state.game.as_ref().map(Game::position),
-    ) {
+    let surface = if let Some(table) = &state.four {
+        Surface::render_four(width, height, table.session.position(), table.selected)
+    } else {
+        Surface::render(
+            width,
+            height,
+            state.kind,
+            state.hover_amount,
+            state.hover_control,
+            state.game.as_ref().map(Game::position),
+        )
+    };
+    if let Some(surface) = surface {
         let mut bgra = surface.rgba().to_vec();
         for pixel in bgra.chunks_exact_mut(4) {
             pixel.swap(0, 2);
@@ -287,6 +308,9 @@ unsafe fn paint(window: HWND, state: &WindowState) {
     }
     if state.kind == SurfaceKind::Operations {
         unsafe { draw_operations(window, dc, state) };
+    }
+    if let Some(table) = &state.four {
+        unsafe { draw_four(dc, width, height, table) };
     }
     unsafe { EndPaint(window, &paint_state) };
 }
@@ -474,6 +498,25 @@ unsafe fn operations_click(state: &WindowState, control: usize) {
 }
 
 unsafe fn board_click(window: HWND, state: &mut WindowState, x: i32, y: i32) {
+    if let Some(table) = &mut state.four {
+        let mut client = Default::default();
+        unsafe { GetClientRect(window, &mut client) };
+        if x >= client.right - 240 && x <= client.right - 32 {
+            if (196..196 + 8 * 48).contains(&y) {
+                table.control(((y - 196) / 48) as usize);
+            }
+            return;
+        }
+        let size = (client.right.min(client.bottom).saturating_sub(180) as f32).max(210.0);
+        let file = ((x as f32 - 44.0) / (size / 14.0)).floor() as i32;
+        let row = ((y as f32 - 156.0) / (size / 14.0)).floor() as i32;
+        if (0..14).contains(&file) && (0..14).contains(&row) {
+            if let Some(sq) = eloi_core::Square14::new(file as u8, (13 - row) as u8) {
+                table.click(sq);
+            }
+        }
+        return;
+    }
     let Some(game) = state.game.as_mut() else {
         return;
     };
@@ -507,4 +550,73 @@ unsafe fn board_click(window: HWND, state: &mut WindowState, x: i32, y: i32) {
     {
         state.selected = Some(square);
     }
+}
+
+unsafe fn draw_four(
+    dc: windows_sys::Win32::Graphics::Gdi::HDC,
+    width: u32,
+    height: u32,
+    table: &crate::four_player::FourTable,
+) {
+    unsafe {
+        SetBkMode(dc, 1);
+        SetTextColor(dc, 0x00E8_E2D8);
+    }
+    let text = |x: i32, y: i32, value: &str| {
+        let wide: Vec<_> = value.encode_utf16().collect();
+        unsafe { TextOutW(dc, x, y, wide.as_ptr(), wide.len() as i32) };
+    };
+    let snapshot = table.session.snapshot();
+    text(44, 35, "Eloi revive - Four-player Teams");
+    text(
+        44,
+        60,
+        "Red + Yellow versus Blue + Green | Handcrafted team alpha-beta | 3 search threads",
+    );
+    text(
+        44,
+        98,
+        &format!(
+            "Turn: {:?} | Ply {} | {:?}",
+            snapshot.turn,
+            table.session.position().ply,
+            snapshot.outcome
+        ),
+    );
+    text(44, 123, &table.message);
+    let labels = [
+        "New: You + Eloi",
+        "Pause / Resume",
+        "Undo to your turn",
+        "Resign Red",
+        "Four humans",
+        "All Eloi demo",
+        "Think: 1s / 3s",
+        "Promotion: Q / R / B / N",
+    ];
+    for (i, label) in labels.into_iter().enumerate() {
+        text(width as i32 - 230, 207 + i as i32 * 48, label);
+    }
+    text(
+        width as i32 - 230,
+        590,
+        &format!("Budget: {} ms", table.budget_ms),
+    );
+    text(
+        width as i32 - 230,
+        614,
+        &format!("Promote to {:?}", table.promotion),
+    );
+    text(width as i32 - 230, 638, "Select piece, then target.");
+    text(
+        44,
+        height as i32 - 22,
+        &format!(
+            "Clocks R {}s | B {}s | Y {}s | G {}s",
+            snapshot.clocks[0].remaining_ms / 1000,
+            snapshot.clocks[1].remaining_ms / 1000,
+            snapshot.clocks[2].remaining_ms / 1000,
+            snapshot.clocks[3].remaining_ms / 1000
+        ),
+    );
 }

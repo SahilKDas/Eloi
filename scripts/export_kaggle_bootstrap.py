@@ -1,4 +1,4 @@
-"""Export a paste-safe Kaggle self-play/training cell for Eloi v4.
+"""Retired Kaggle exporter, preserved for historical audit/tests only.
 
 The generated cell embeds four_player_kaggle_real_pipeline.py as base64 text,
 writes it into /kaggle/working, runs FFA and Teams collection/training, and
@@ -50,11 +50,7 @@ print("Wrote", archive)
 
 
 def main() -> int:
-    source = PIPELINE.read_bytes()
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(build_cell(source), encoding="utf-8", newline="\n")
-    print(OUTPUT)
-    return 0
+    raise SystemExit("Kaggle campaign retired. Use cargo run --release -p eloi-rs -- --four-player-gui for handcrafted Teams play. Historical exporter retained for evidence only.")
 
 
 if __name__ == "__main__":

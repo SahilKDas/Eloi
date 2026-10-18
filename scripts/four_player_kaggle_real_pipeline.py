@@ -544,6 +544,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if not args.dry_run:
+        raise SystemExit("Kaggle campaign retired: Eloi revive uses handcrafted Teams search. Historical Python labels are not rules-qualified and must not train a playing model.")
     if args.target_positions != TARGET_POSITIONS:
         raise SystemExit("v4 protocol requires exactly 500000 target positions per mode")
     if not args.dry_run and os.environ.get("KAGGLE_URL_BASE") is None:

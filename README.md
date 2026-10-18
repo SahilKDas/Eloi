@@ -3,12 +3,14 @@
 > A Rust chess engine, native Windows application, reproducible engineering
 > project, and home of a crash-contained Caissa 2.0 Standard brain.
 
-The `v4.0.0` branch is the four-player chess development line. It adds a
-separate 14x14 cross-board rules core, FFA and Teams state, a handcrafted
-three-thread baseline search, Kaggle-ready training scaffolding, and a native
-four-player GUI surface while preserving existing two-player routing. Kaggle
-setup readiness is tracked in
-[docs/KAGGLE_PROCRASTINATION_READINESS.md](docs/KAGGLE_PROCRASTINATION_READINESS.md).
+The `v4.0.0` branch is the **Eloi revive: handcrafted four-player Teams**.
+Red/Yellow play Blue/Green on the 160-square cross board, using Eloi's own
+evaluation and three-thread team alpha-beta search. Play through the native
+GUI with `eloi-rs.exe --four-player-gui`, or use the explicit
+`--four-player-uci` Teams protocol extension. See the
+[Teams guide](docs/FOUR_PLAYER_TEAMS.md) for controls, notation and validation.
+Kaggle training is retired; FFA remains historical development code and is
+outside this revival's playable scope. No neural training is needed.
 
 The `september-rewrite` line is Eloi 3.9.0: a Rust 2024 UCI engine with a
 native `tiny-skia` GUI, visible Lichess Operations Center, seven supported
@@ -77,7 +79,7 @@ E4-10. Caissa remains Standard-only. See
 | Item | Current status |
 | --- | --- |
 | Source version | 4.0.0 |
-| Release status | Four-player FFA/Teams development on `v4.0.0` |
+| Release status | Handcrafted four-player Teams development on `v4.0.0` |
 | Language | Rust 2024 |
 | Build system | Cargo |
 | Primary toolchain | Rust 1.98 / MSVC x64 |
@@ -90,7 +92,7 @@ E4-10. Caissa remains Standard-only. See
 | Atomic brain | Dedicated E4-Atomic evaluator |
 | King of the Hill brain | Dedicated E4-KOTH evaluator |
 | Crazyhouse brain | Pocket/drop-aware Eloi evaluator |
-| Variants | Standard, Chess960, Horde, KOTH, Atomic, Antichess, Crazyhouse; Four-player FFA/Teams in development |
+| Variants | Standard, Chess960, Horde, KOTH, Atomic, Antichess, Crazyhouse; four-player Teams in development |
 | Source license | MIT |
 | Standard search donor | Caissa 2.0 official AVX2 asset |
 | Donor tag commit | bb725799e9b19ebdaa0d584f5433fc1c3019e349 |

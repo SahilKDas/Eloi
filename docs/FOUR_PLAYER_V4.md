@@ -1,4 +1,7 @@
-# Eloi v4.0.0 Four-Player Chess
+# Historical Eloi v4.0.0 Four-Player Chess
+
+This original FFA/Kaggle plan is superseded by the handcrafted Teams revival.
+See [FOUR_PLAYER_TEAMS.md](FOUR_PLAYER_TEAMS.md) for current scope and commands.
 
 v4.0.0 is scoped to local four-player chess. It does not add Chess.com login,
 scraping, browser automation, private endpoints, or Chess.com affiliation.

@@ -9,7 +9,9 @@ authors.workspace = true
 
 [dependencies]
 eloi-core = { path = "../eloi-core" }
-tiny-skia = { version = "=0.12.0", default-features = false, features = ["std"] }
+eloi-engine = { path = "../eloi-engine" }
+eloi-protocol = { path = "../eloi-protocol" }
+tiny-skia = { version = "=0.12.0", default-features = false, features = ["std", "png-format"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "=0.61.2", features = [

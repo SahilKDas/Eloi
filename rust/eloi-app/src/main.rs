@@ -3,6 +3,7 @@
 use std::io;
 
 mod embedded_donor;
+mod four_player_uci;
 mod lichess_runtime;
 mod uci_runtime;
 
@@ -29,6 +30,7 @@ fn main() -> io::Result<()> {
         Some("--check-config") => check_config(&args)?,
         Some("--gui") => eloi_ui::run(eloi_ui::SurfaceKind::Chess)?,
         Some("--four-player-gui") => eloi_ui::run(eloi_ui::SurfaceKind::FourPlayer)?,
+        Some("--four-player-uci") => four_player_uci::run()?,
         Some("--operations-center") => {
             let config = args
                 .iter()
@@ -70,7 +72,7 @@ fn main() -> io::Result<()> {
             )?;
         }
         _ => println!(
-            "Eloi {VERSION} — use --gui, --four-player-gui, --uci, --lichess, or --operations-center"
+            "Eloi {VERSION} — use --gui, --four-player-gui, --four-player-uci, --uci, --lichess, or --operations-center"
         ),
     }
     Ok(())
@@ -82,7 +84,7 @@ fn four_player_smoke(args: &[String]) -> io::Result<()> {
             .position(|a| a == key)
             .and_then(|i| args.get(i + 1))
     };
-    let mode = match value("--mode").map_or("ffa", String::as_str) {
+    let mode = match value("--mode").map_or("teams", String::as_str) {
         "ffa" => eloi_core::four_player::FourMode::Ffa,
         "teams" => eloi_core::four_player::FourMode::Teams,
         _ => {
