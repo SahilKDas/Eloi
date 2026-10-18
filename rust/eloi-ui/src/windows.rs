@@ -21,8 +21,10 @@ use windows_sys::Win32::Foundation::{
     ERROR_ALREADY_EXISTS, GetLastError, HWND, LPARAM, LRESULT, WPARAM,
 };
 use windows_sys::Win32::Graphics::Gdi::{
-    BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BeginPaint, DIB_RGB_COLORS, EndPaint, InvalidateRect,
-    PAINTSTRUCT, SRCCOPY, SetBkMode, SetTextColor, StretchDIBits, TextOutW, UpdateWindow,
+    BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BeginPaint, CLEARTYPE_QUALITY, CreateFontW,
+    DEFAULT_CHARSET, DIB_RGB_COLORS, DeleteObject, EndPaint, FW_NORMAL, InvalidateRect,
+    PAINTSTRUCT, SRCCOPY, SelectObject, SetBkMode, SetTextColor, StretchDIBits, TextOutW,
+    UpdateWindow,
 };
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Threading::CreateMutexW;
@@ -562,6 +564,30 @@ unsafe fn draw_four(
     height: u32,
     table: &crate::four_player::FourTable,
 ) {
+    let face = wide("Segoe UI");
+    let font = unsafe {
+        CreateFontW(
+            -17,
+            0,
+            0,
+            0,
+            FW_NORMAL as i32,
+            0,
+            0,
+            0,
+            DEFAULT_CHARSET as u32,
+            0,
+            0,
+            CLEARTYPE_QUALITY as u32,
+            0,
+            face.as_ptr(),
+        )
+    };
+    let previous = if font.is_null() {
+        null_mut()
+    } else {
+        unsafe { SelectObject(dc, font) }
+    };
     unsafe {
         SetBkMode(dc, 1);
         SetTextColor(dc, 0x00E8_E2D8);
@@ -575,24 +601,33 @@ unsafe fn draw_four(
     text(
         44,
         60,
-        "Red + Yellow versus Blue + Green | Handcrafted team alpha-beta | 3 search threads",
+        "YOUR TEAM: Red + Yellow     |     ELOI TEAM: Blue + Green",
     );
     text(
         44,
         98,
         &format!(
-            "Turn: {:?} | Ply {} | {:?}",
+            "Turn: {:?} | Ply {} | {}",
             snapshot.turn,
             table.session.position().ply,
-            snapshot.outcome
+            snapshot
+                .outcome
+                .as_ref()
+                .map_or("Playing".to_owned(), |outcome| match outcome {
+                    eloi_core::four_player::FourOutcome::TeamWin { red_yellow: true } =>
+                        "Red + Yellow win".into(),
+                    eloi_core::four_player::FourOutcome::TeamWin { red_yellow: false } =>
+                        "Blue + Green win".into(),
+                    _ => "Draw".into(),
+                })
         ),
     );
     text(44, 123, &table.message);
     let labels = [
-        "New: You + Eloi",
+        "New: Red + Yellow",
         "Pause / Resume",
         "Undo to your turn",
-        "Resign Red",
+        "Resign your team",
         "Four humans",
         "All Eloi demo",
         "Think: 1s / 3s",
@@ -623,4 +658,10 @@ unsafe fn draw_four(
             snapshot.clocks[3].remaining_ms / 1000
         ),
     );
+    if !font.is_null() {
+        unsafe {
+            SelectObject(dc, previous);
+            DeleteObject(font);
+        }
+    }
 }

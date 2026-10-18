@@ -82,13 +82,16 @@ impl Surface {
                     fill(&mut surface.pixmap, x, y, square, square, &paint);
                 }
                 if let Some(piece) = position.at(sq) {
-                    let image = four_piece_image(piece);
+                    let image = four_piece_image(piece, square * 0.92);
                     let scale = square * 0.92 / image.width() as f32;
                     surface.pixmap.draw_pixmap(
                         0,
                         0,
                         image.as_ref(),
-                        &tiny_skia::PixmapPaint::default(),
+                        &tiny_skia::PixmapPaint {
+                            quality: tiny_skia::FilterQuality::Bicubic,
+                            ..Default::default()
+                        },
                         Transform::from_row(
                             scale,
                             0.0,
@@ -164,8 +167,8 @@ impl Surface {
     }
 }
 
-fn four_piece_image(piece: eloi_core::four_player::FourPiece) -> &'static Pixmap {
-    static IMAGES: std::sync::OnceLock<[Pixmap; 24]> = std::sync::OnceLock::new();
+fn four_piece_image(piece: eloi_core::four_player::FourPiece, pixels: f32) -> &'static Pixmap {
+    static IMAGES: std::sync::OnceLock<[Vec<Pixmap>; 24]> = std::sync::OnceLock::new();
     let images = IMAGES.get_or_init(|| {
         let sources: [&[u8]; 6] = [
             include_bytes!("../../../assets/chess_maestro_bw/wP.png"),
@@ -189,7 +192,37 @@ fn four_piece_image(piece: eloi_core::four_player::FourPiece) -> &'static Pixmap
                 pixel[1] = (u16::from(pixel[1]) * g / 255) as u8;
                 pixel[2] = (u16::from(pixel[2]) * b / 255) as u8;
             }
-            image
+            // Area-average premultiplied pixels before large reductions. Sampling
+            // a 512px outline directly into a 40px square aliases even with bicubic.
+            let mut levels = vec![image];
+            while levels.last().unwrap().width() > 16 {
+                let source = levels.last().unwrap();
+                let w = source.width() / 2;
+                let h = source.height() / 2;
+                let mut reduced = Pixmap::new(w, h).expect("embedded piece mip level");
+                for y in 0..h as usize {
+                    for x in 0..w as usize {
+                        for channel in 0..4 {
+                            let mut sum = 0u16;
+                            for dy in 0..2 {
+                                for dx in 0..2 {
+                                    sum += u16::from(
+                                        source.data()[((y * 2 + dy) * source.width() as usize
+                                            + x * 2
+                                            + dx)
+                                            * 4
+                                            + channel],
+                                    );
+                                }
+                            }
+                            reduced.data_mut()[(y * w as usize + x) * 4 + channel] =
+                                ((sum + 2) / 4) as u8;
+                        }
+                    }
+                }
+                levels.push(reduced);
+            }
+            levels
         })
     });
     let kind = match piece.kind {
@@ -200,7 +233,12 @@ fn four_piece_image(piece: eloi_core::four_player::FourPiece) -> &'static Pixmap
         PieceKind::Queen => 4,
         PieceKind::King => 5,
     };
-    &images[piece.owner.index() * 6 + kind]
+    let levels = &images[piece.owner.index() * 6 + kind];
+    levels
+        .iter()
+        .rev()
+        .find(|image| image.width() as f32 >= pixels)
+        .unwrap_or(&levels[0])
 }
 
 fn fill(pixmap: &mut Pixmap, x: f32, y: f32, width: f32, height: f32, paint: &Paint) {

@@ -27,12 +27,12 @@ cargo build --release -p eloi-rs --offline
 ```
 
 Red moves first, followed by Blue, Yellow, Green. Red/Yellow form one team;
-Blue/Green form the other. Default: you control Red and Eloi controls all other
-seats, including your Yellow teammate. Distinctly colored, embedded Maestro
+Blue/Green form the other. Default: you control **both Red and Yellow**, while
+Eloi controls **both Blue and Green**. Distinctly colored, embedded Maestro
 piece artwork needs no external asset directory. Click your piece and a
 highlighted destination. Castling uses the king's destination.
 
-Controls offer a fresh human/Eloi game, pause/resume, undo to Red's turn,
+Controls offer a fresh human/Eloi Teams game, pause/resume, undo to your team's turn,
 Red resignation, four-human pass-and-play, all-engine demonstration, 1/3-second
 thinking time, and Queen/Rook/Bishop/Knight promotion selection. Sessions start
 with ten minutes per seat and no increment. Pausing suspends clocks and cancels

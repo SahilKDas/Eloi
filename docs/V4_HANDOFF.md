@@ -10,7 +10,7 @@ cargo build --release -p eloi-rs --offline
 & .\target\release\eloi-rs.exe --four-player-gui
 ```
 
-You play Red with Eloi as Yellow; Blue and Green are the opposing Elois.
+You control Red and Yellow; Blue and Green are the opposing Elois.
 Beating Sahil is a human playtest goal, not an established strength claim.
 Historical Kaggle output is not imported into the engine. The Python training
 prototype used incomplete rules and colliding policy buckets; those labels

@@ -30,13 +30,13 @@ impl FourTable {
         Self {
             session: FourPlayerSession::new(
                 FourMode::Teams,
-                FourPlayerPreset::OneHumanTeams,
+                FourPlayerPreset::HumanTeamRedYellow,
                 600_000,
                 0,
             ),
             selected: None,
             paused: false,
-            message: "You are Red; Yellow is your Eloi teammate.".into(),
+            message: "You control Red + Yellow. Eloi controls Blue + Green.".into(),
             budget_ms: 1000,
             promotion: PieceKind::Queen,
             worker: None,
@@ -160,7 +160,10 @@ impl FourTable {
             }
             2 => {
                 self.session.undo();
-                while self.session.snapshot().turn != FourSeat::Red && self.session.undo() {}
+                while self.session.snapshot().seats[self.session.snapshot().turn.index()].controller
+                    != SeatController::Human
+                    && self.session.undo()
+                {}
                 self.paused = false;
             }
             3 => {
@@ -208,6 +211,25 @@ impl Drop for FourTable {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn default_controllers_are_complete_opposing_teams() {
+        let table = FourTable::new();
+        let snapshot = table.session.snapshot();
+        for seat in [FourSeat::Red, FourSeat::Yellow] {
+            assert_eq!(
+                snapshot.seats[seat.index()].controller,
+                SeatController::Human
+            );
+            assert!(table.session.position().allied(FourSeat::Red, seat));
+        }
+        for seat in [FourSeat::Blue, FourSeat::Green] {
+            assert_eq!(
+                snapshot.seats[seat.index()].controller,
+                SeatController::Eloi
+            );
+            assert!(!table.session.position().allied(FourSeat::Red, seat));
+        }
+    }
     #[test]
     fn human_move_is_legal_and_undo_restores_turn() {
         let mut table = FourTable::new();

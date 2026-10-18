@@ -287,6 +287,8 @@ impl From<FourMove> for FourMoveIndex {
 /// Presets expected by the local GUI.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FourPlayerPreset {
+    /// Human Red/Yellow team versus Eloi Blue/Green team.
+    HumanTeamRedYellow,
     /// Human Red with Eloi Yellow against Eloi Blue/Green.
     OneHumanTeams,
     /// One human, three Eloi seats.
@@ -304,6 +306,12 @@ impl FourPlayerPreset {
     #[must_use]
     pub const fn controllers(self) -> [SeatController; 4] {
         match self {
+            Self::HumanTeamRedYellow => [
+                SeatController::Human,
+                SeatController::Eloi,
+                SeatController::Human,
+                SeatController::Eloi,
+            ],
             Self::OneHumanFfa | Self::OneHumanTeams => [
                 SeatController::Human,
                 SeatController::Eloi,
