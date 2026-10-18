@@ -3,7 +3,7 @@
 > A Rust chess engine, native Windows application, reproducible engineering
 > project, and home of a crash-contained Caissa 2.0 Standard brain.
 
-The `v4.0.0` branch is the **Eloi revive: handcrafted four-player Teams**.
+**Eloi v4.0.0 is the handcrafted four-player Teams release.**
 Red/Yellow play Blue/Green on the 160-square cross board, using Eloi's own
 evaluation and three-thread team alpha-beta search. Play through the native
 GUI with `eloi-rs.exe --four-player-gui`, or use the explicit
@@ -11,6 +11,10 @@ GUI with `eloi-rs.exe --four-player-gui`, or use the explicit
 [Teams guide](docs/FOUR_PLAYER_TEAMS.md) for controls, notation and validation.
 Kaggle training is retired; FFA remains historical development code and is
 outside this revival's playable scope. No neural training is needed.
+
+[Release notes](RELEASE_V4_0_0.md) ·
+[Windows downloads](https://github.com/SahilKDas/Eloi/releases/tag/v4.0.0) ·
+[Packaged quick start](packaging/V4_QUICK_START.md)
 
 The v4 four-player release route is **HandcraftedTeams**: Eloi's own evaluator
 and team search, with you controlling Red/Yellow against Eloi Blue/Green.
@@ -92,7 +96,7 @@ E4-10. Caissa remains Standard-only. See
 | Item | Current status |
 | --- | --- |
 | Source version | 4.0.0 |
-| Release status | Handcrafted four-player Teams development on `v4.0.0` |
+| Release status | v4.0.0 — Handcrafted Four-Player Teams |
 | Language | Rust 2024 |
 | Build system | Cargo |
 | Primary toolchain | Rust 1.98 / MSVC x64 |
