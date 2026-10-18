@@ -12,6 +12,13 @@ GUI with `eloi-rs.exe --four-player-gui`, or use the explicit
 Kaggle training is retired; FFA remains historical development code and is
 outside this revival's playable scope. No neural training is needed.
 
+The v4 four-player release route is **HandcraftedTeams**: Eloi's own evaluator
+and team search, with you controlling Red/Yellow against Eloi Blue/Green.
+Its window uses the retained v3.6 charcoal/purple styling and Segoe UI text.
+The Operations Center restores the retained six-button, card-and-timeline
+composition; Teams remains a separate surface and does not replace the
+two-player board or Lichess search routing.
+
 Local launchers: **Open-Eloi-Teams.cmd** opens Teams play;
 **Open-Eloi-OperationsCenter.cmd** opens the Rust Lichess bridge with verified
 Caissa 2.0. The latter refuses to overlap an existing bridge. Finish an active

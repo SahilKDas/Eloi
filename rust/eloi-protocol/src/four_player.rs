@@ -22,6 +22,8 @@ pub enum SeatController {
 /// Stable brain route shown to the GUI and logs.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FourBrainRoute {
+    /// Handcrafted Eloi Teams release brain; no neural model or donor.
+    HandcraftedTeams,
     /// Handcrafted Max-N / team alpha-beta baseline.
     HandcraftedBaseline,
     /// Qualified FFA neural policy/value model.
@@ -129,7 +131,11 @@ impl FourPlayerSession {
                 remaining_ms: base_clock_ms,
                 increment_ms,
             }; 4],
-            route: FourBrainRoute::HandcraftedBaseline,
+            route: if mode == FourMode::Teams {
+                FourBrainRoute::HandcraftedTeams
+            } else {
+                FourBrainRoute::HandcraftedBaseline
+            },
             last_move: None,
             clock_history: Vec::new(),
             last_search: None,

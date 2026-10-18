@@ -215,6 +215,10 @@ mod tests {
     fn default_controllers_are_complete_opposing_teams() {
         let table = FourTable::new();
         let snapshot = table.session.snapshot();
+        assert_eq!(
+            snapshot.route,
+            eloi_protocol::four_player::FourBrainRoute::HandcraftedTeams
+        );
         for seat in [FourSeat::Red, FourSeat::Yellow] {
             assert_eq!(
                 snapshot.seats[seat.index()].controller,

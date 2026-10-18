@@ -4,6 +4,20 @@ Eloi supplies all computer seats locally. No Kaggle, trained model, teacher,
 website account or network connection is required. The work is collected in
 one local commit on `v4.0.0`; publishing is a separate action.
 
+The selected four-player release brain is `HandcraftedTeams`, not a laboratory
+neural checkpoint. The Teams frame follows the retained v3.6 charcoal panels,
+purple accents, rounded controls and smooth hover lift, with Segoe UI typography
+and filtered Maestro pieces. Board geometry, colors and seat positions are
+unchanged. The Operations Center separately restores the retained dashboard
+composition from `src/lichess_operations.cpp`, including its status banner,
+active-game/search cards, session strip, timeline and six bottom actions.
+The small Rust dashboard in the original v3.9 source was a different renderer;
+restoration here means porting the retained composition, not claiming that a
+version-label revert recovered it. Caissa 2.0 and bridge search budgets stay unchanged.
+
+`eloi-rs.exe --operations-preview` opens the restored dashboard offline, labeled
+Preview. It neither connects nor holds the live bridge's single-instance mutex.
+
 ## Play
 
 Double-click `Open-Eloi-Teams.cmd` in the repository root. The separate

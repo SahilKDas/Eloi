@@ -1,8 +1,7 @@
-//! Handcrafted four-player baseline search.
+//! Handcrafted Eloi four-player Teams release search and legacy FFA baseline.
 //!
-//! This is the required pre-training opponent and fallback. It is intentionally
-//! compact and deterministic: trained evaluators may replace ordering and leaf
-//! evaluation later, but not legality.
+//! Teams uses Eloi's own material/positional evaluator and team alpha-beta.
+//! No training campaign or donor evaluator is required for its release route.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};

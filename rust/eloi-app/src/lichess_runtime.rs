@@ -324,6 +324,7 @@ fn publish(
             account: supervisor.account().unwrap_or_default().to_owned(),
             game: snapshot.game.clone().unwrap_or_default(),
             latest_event: snapshot.events.back().cloned().unwrap_or_default(),
+            events: snapshot.events.iter().cloned().collect(),
             ..eloi_ui::OperationsSnapshot::default()
         });
     }

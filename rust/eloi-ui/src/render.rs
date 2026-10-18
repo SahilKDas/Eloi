@@ -27,6 +27,18 @@ pub struct Surface {
 }
 
 impl Surface {
+    /// Render the retained Operations Center composition independently of chess surfaces.
+    pub fn render_operations(
+        width: u32,
+        height: u32,
+        hover: f32,
+        control: Option<usize>,
+        state: u8,
+    ) -> Option<Self> {
+        Some(Self {
+            pixmap: crate::operations_view::background(width, height, hover, control, state)?,
+        })
+    }
     /// Render authoritative Teams state rather than the old board preview.
     pub fn render_four(
         width: u32,
@@ -34,29 +46,21 @@ impl Surface {
         position: &eloi_core::four_player::FourPosition,
         selected: Option<eloi_core::Square14>,
     ) -> Option<Self> {
-        let mut surface = Self::render(width, height, SurfaceKind::FourPlayer, 0.0, None, None)?;
-        let mut header = Paint::default();
-        header.set_color_rgba8(24, 42, 64, 255);
-        fill(
-            &mut surface.pixmap,
-            38.0,
-            82.0,
-            width as f32 - 76.0,
-            92.0,
-            &header,
-        );
+        Self::render_four_hover(width, height, position, selected, 0.0, None)
+    }
+    /// Teams frame with the retained purple/charcoal palette and gentle control motion.
+    pub fn render_four_hover(
+        width: u32,
+        height: u32,
+        position: &eloi_core::four_player::FourPosition,
+        selected: Option<eloi_core::Square14>,
+        hover: f32,
+        control: Option<usize>,
+    ) -> Option<Self> {
+        let mut surface = Self {
+            pixmap: crate::operations_view::teams_background(width, height, hover, control)?,
+        };
         four_player_board(&mut surface.pixmap, width, height);
-        header.set_color_rgba8(32, 77, 86, 255);
-        for i in 0..8 {
-            fill(
-                &mut surface.pixmap,
-                width as f32 - 240.0,
-                196.0 + i as f32 * 48.0,
-                208.0,
-                40.0,
-                &header,
-            );
-        }
         let size = (width.min(height).saturating_sub(180) as f32).max(210.0);
         let square = size / 14.0;
         let legal = selected
@@ -117,6 +121,9 @@ impl Surface {
         hover_control: Option<usize>,
         position: Option<&Position>,
     ) -> Option<Self> {
+        if kind == SurfaceKind::Operations {
+            return Self::render_operations(width, height, hover, hover_control, 0);
+        }
         let mut pixmap = Pixmap::new(width.max(1), height.max(1))?;
         pixmap.fill(Color::from_rgba8(8, 15, 27, 255));
         let mut paint = Paint::default();
@@ -394,6 +401,13 @@ mod tests {
         let normal = Surface::render_four(1040, 780, &p, None).unwrap();
         if let Some(path) = std::env::var_os("ELOI_TEST_FOUR_FRAME") {
             normal.pixmap.save_png(path).unwrap();
+        }
+        if let Some(path) = std::env::var_os("ELOI_TEST_OPERATIONS_FRAME") {
+            Surface::render_operations(1120, 820, 0.0, None, 2)
+                .unwrap()
+                .pixmap
+                .save_png(path)
+                .unwrap();
         }
         let mv = p.legal_moves()[0];
         let next = p.play(mv).unwrap();

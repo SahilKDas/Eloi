@@ -31,6 +31,7 @@ fn main() -> io::Result<()> {
         Some("--check-config") => check_config(&args)?,
         Some("--gui") => eloi_ui::run(eloi_ui::SurfaceKind::Chess)?,
         Some("--four-player-gui") => eloi_ui::run(eloi_ui::SurfaceKind::FourPlayer)?,
+        Some("--operations-preview") => eloi_ui::run(eloi_ui::SurfaceKind::Operations)?,
         Some("--four-player-uci") => four_player_uci::run()?,
         Some("--operations-center") => {
             let config = args
