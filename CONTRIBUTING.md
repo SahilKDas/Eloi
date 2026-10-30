@@ -1,9 +1,9 @@
 # Contributing to Eloi
 
-## Current Rust v4.0.0 workflow
+## Current Rust v4.0.1 workflow
 
 Development is paused, but EloiBot's Lichess service may remain active.
-Read [the hibernation/restart handoff](docs/HIBERNATION_V4_0_0.md) first.
+Read [the hibernation/restart handoff](docs/HIBERNATION_V4_0_1.md) first.
 Use Rust 1.98.1 MSVC with `Cargo.lock`; do not upgrade dependencies or donor
 assets simply to make them newer. Preserve existing jobs, private config,
 active games and the published tag/packages.

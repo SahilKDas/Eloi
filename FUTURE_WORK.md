@@ -1,11 +1,12 @@
 # Eloi future work
 
-## Current state: v4.0.0 hibernation
+## Current state: v4.0.1 hibernation
 
-The published Rust release provides handcrafted local four-player Teams.
+The published Rust release provides handcrafted local four-player Teams,
+Watch Eloi Think telemetry, and restored classic two-player play/navigation.
 Standard UCI/Lichess uses pinned Caissa 2.0; EloiBot can continue playing while
 development sleeps. No new campaign is running merely because it is listed
-here. See [the restart checklist](docs/HIBERNATION_V4_0_0.md).
+here. See [the restart checklist](docs/HIBERNATION_V4_0_1.md).
 
 Future work, only with fresh authorization: human Teams playtesting; larger
 independent rules differential coverage; separately frozen strength tests;

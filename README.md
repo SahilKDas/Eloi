@@ -15,10 +15,10 @@ setup, legal targets, seven variants, Caissa 2.0/Eloi choice, promotions,
 Crazyhouse pockets, undo/flip/side controls, and local analysis diagnostics.
 It does not claim to restore the old automatic previous-version tournament UI.
 
-Development temporarily resumes for this anniversary patch, then returns to
+The anniversary patch is published; development has returned to codebase
 hibernation. EloiBot may continue
 playing on Lichess independently; hibernation does not stop its bridge or jobs.
-Read [the frozen state and restart checklist](docs/HIBERNATION_V4_0_0.md)
+Read [the frozen state and restart checklist](docs/HIBERNATION_V4_0_1.md)
 before changing source, dependencies, models, or release assets.
 Red/Yellow play Blue/Green on the 160-square cross board, using Eloi's own
 evaluation and three-thread team alpha-beta search. Play through the native
@@ -76,8 +76,8 @@ Eloi is distributed under the **MIT License**.
 The current rewrite branch pins the official Caissa 2.0 AVX2 release asset by
 SHA-256 and UCI identity. No runtime model download is permitted.
 
-Atomic uses E4-Atomic; KOTH uses E4-KOTH. Chess960, Horde, and Antichess use
-E4-10. Caissa remains Standard-only. See
+Atomic uses E4-Atomic; KOTH uses E4-KOTH. Chess960 and Antichess use E4-10;
+Horde uses its native material evaluation. Caissa remains Standard-only. See
 [the variant-native campaign report](docs/VARIANT_NATIVE_BRAINS.md).
 
 ---
@@ -231,9 +231,9 @@ Reproducibility comes before release claims.
 
 Everything from this heading onward is retained release history, including
 its older version numbers, CMake commands, package layouts and "current"
-language. For current Rust v4.0.0 use the opening status/quick start,
+language. For current Rust v4.0.1 use the opening status/quick start,
 [CONTRIBUTING.md](CONTRIBUTING.md), and
-[hibernation handoff](docs/HIBERNATION_V4_0_0.md).
+[hibernation handoff](docs/HIBERNATION_V4_0_1.md).
 
 ## What shipped in v3.6.0
 

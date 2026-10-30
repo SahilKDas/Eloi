@@ -1,5 +1,9 @@
 # Eloi v4.0.0 — codebase hibernation
 
+The anniversary exception has completed. See the current
+[v4.0.1 hibernation handoff](HIBERNATION_V4_0_1.md). The v4.0.0 identities and
+historical evidence below remain unchanged.
+
 Recorded 2026-10-18. Development is paused, not abandoned. **EloiBot may keep
 playing on Lichess for a long time.** This status does not stop, restart,
 reconfigure or upgrade any bridge, job, monitor or keep-awake process. It is
