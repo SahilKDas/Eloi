@@ -60,7 +60,13 @@ def gh(*args: str) -> str:
 
 
 def fetch_release() -> dict:
-    return json.loads(gh("api", f"repos/{REPO}/releases/tags/{TAG}"))
+    # GitHub's release-by-tag endpoint hides unpublished drafts. Authenticated
+    # release listing includes drafts and remains valid after publication.
+    pages = json.loads(gh("api", f"repos/{REPO}/releases?per_page=100", "--paginate", "--slurp"))
+    matches = [release for page in pages for release in page if release.get("tag_name") == TAG]
+    if len(matches) != 1:
+        raise ValueError("Expected exactly one matching draft/published release")
+    return matches[0]
 
 
 def main() -> None:

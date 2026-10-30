@@ -28,6 +28,17 @@ class PublicationGateTests(unittest.TestCase):
     def test_complete_exact_source_proof(self):
         self.assertEqual(validate_release(self.release, self.commit), self.proof)
 
+    def test_draft_lookup_uses_authenticated_paginated_listing(self):
+        for pages, valid in [([[{"tag_name": "old"}], [self.release]], True),
+                             ([[self.release, self.release]], False), ([[]], False)]:
+            with patch.object(publisher, "gh", return_value=json.dumps(pages)) as call:
+                if valid:
+                    self.assertEqual(publisher.fetch_release(), self.release)
+                else:
+                    with self.assertRaises(ValueError):
+                        publisher.fetch_release()
+                self.assertIn("--slurp", call.call_args.args)
+
     def test_each_missing_or_failed_gate_blocks(self):
         for gate in GATES:
             for value in [False, "true", None]:
