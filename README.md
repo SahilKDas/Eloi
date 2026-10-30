@@ -8,6 +8,8 @@ The Teams GUI shows completed depth, team-relative score, nodes, time and a
 seat-labelled PV during search. **Show suggestion** toggles a legal-move
 arrow without playing it. Completed, cancelled and emergency results are
 labelled explicitly. No playing-strength improvement is claimed.
+The top-right mode button switches between two-player chess and Teams without
+discarding either board; Teams pauses while hidden.
 
 Development temporarily resumes for this anniversary patch, then returns to
 hibernation. EloiBot may continue

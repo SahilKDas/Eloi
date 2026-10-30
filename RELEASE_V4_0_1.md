@@ -13,6 +13,9 @@ handcrafted four-player Teams brain's completed search work visible.
   move states. Final metrics are explicitly previous-search information.
 - Bounded latest-only telemetry with stale generation/root rejection. Search
   does not wait for painting, and final results retain their reliable channel.
+- Two-way in-window navigation between two-player chess and Teams, preserving
+  both local boards. Teams pauses while hidden; no hidden search or clock
+  continues. Operations Center/Lichess remains separate and unchanged.
 
 Retains Segoe UI and the charcoal/purple Teams styling. No rule changes,
 training, donor upgrades or strength claims. Search remains three lanes with

@@ -37,9 +37,9 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     DestroyWindow, DispatchMessageW, FindWindowW, GWLP_USERDATA, GetClientRect, GetMessageW,
     GetWindowLongPtrW, IDC_ARROW, IDYES, KillTimer, LoadCursorW, MB_ICONWARNING, MB_YESNO,
     MINMAXINFO, MSG, MessageBoxW, PostMessageW, PostQuitMessage, RegisterClassW, SW_RESTORE,
-    SW_SHOW, SetForegroundWindow, SetTimer, SetWindowLongPtrW, ShowWindow, TranslateMessage,
-    WM_CLOSE, WM_DESTROY, WM_ERASEBKGND, WM_GETMINMAXINFO, WM_LBUTTONUP, WM_MOUSEMOVE, WM_NCCREATE,
-    WM_PAINT, WM_TIMER, WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+    SW_SHOW, SetForegroundWindow, SetTimer, SetWindowLongPtrW, SetWindowTextW, ShowWindow,
+    TranslateMessage, WM_CLOSE, WM_DESTROY, WM_ERASEBKGND, WM_GETMINMAXINFO, WM_LBUTTONUP,
+    WM_MOUSEMOVE, WM_NCCREATE, WM_PAINT, WM_TIMER, WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
 };
 
 use crate::{OperationsModel, Surface, SurfaceKind};
@@ -59,6 +59,33 @@ struct WindowState {
     tick: u8,
     four: Option<crate::four_player::FourTable>,
     started: std::time::Instant,
+}
+
+impl WindowState {
+    fn switch_chess_surface(&mut self) -> bool {
+        if self.kind == SurfaceKind::Operations {
+            return false;
+        }
+        if self.kind == SurfaceKind::FourPlayer {
+            if let Some(table) = &mut self.four {
+                table.suspend_for_navigation();
+            }
+            if self.game.is_none() {
+                self.game = Game::from_fen(INITIAL_FEN, Variant::Standard).ok();
+            }
+            self.kind = SurfaceKind::Chess;
+        } else {
+            let table = self
+                .four
+                .get_or_insert_with(crate::four_player::FourTable::new);
+            table.suspend_for_navigation();
+            self.kind = SurfaceKind::FourPlayer;
+        }
+        self.selected = None;
+        self.hover_control = None;
+        self.hover_amount = 0.0;
+        true
+    }
 }
 
 fn wide(value: &str) -> Vec<u16> {
@@ -192,7 +219,7 @@ unsafe extern "system" fn window_proc(
     let state = unsafe { GetWindowLongPtrW(window, GWLP_USERDATA) as *mut WindowState };
     match message {
         WM_GETMINMAXINFO
-            if !state.is_null() && unsafe { (*state).kind == SurfaceKind::FourPlayer } =>
+            if !state.is_null() && unsafe { (*state).kind != SurfaceKind::Operations } =>
         {
             let sizing = unsafe { &mut *(lparam as *mut MINMAXINFO) };
             sizing.ptMinTrackSize.x = 900;
@@ -225,7 +252,11 @@ unsafe extern "system" fn window_proc(
             let y = ((lparam >> 16) as i16) as i32;
             let mut rect = Default::default();
             unsafe { GetClientRect(window, &mut rect) };
-            let hover = if unsafe { (*state).kind == SurfaceKind::Operations } {
+            let hover = if unsafe { (*state).kind != SurfaceKind::Operations }
+                && crate::render::mode_switch_hit(rect.right as u32, x, y)
+            {
+                Some(crate::render::MODE_SWITCH_CONTROL)
+            } else if unsafe { (*state).kind == SurfaceKind::Operations } {
                 crate::operations_view::hit(rect.right as u32, rect.bottom as u32, x, y)
             } else if unsafe { (*state).kind == SurfaceKind::FourPlayer } {
                 if x >= rect.right - 240 && x <= rect.right - 32 {
@@ -276,7 +307,9 @@ unsafe extern "system" fn window_proc(
             0
         }
         WM_TIMER if !state.is_null() => {
-            if let Some(table) = unsafe { &mut (*state).four } {
+            if unsafe { (*state).kind == SurfaceKind::FourPlayer }
+                && let Some(table) = unsafe { &mut (*state).four }
+            {
                 if table.tick() || unsafe { (*state).tick % 60 == 0 } {
                     unsafe { InvalidateRect(window, null(), 0) };
                 }
@@ -346,7 +379,11 @@ unsafe fn paint(window: HWND, state: &WindowState) {
                 .as_ref()
                 .map_or(0, |model| model.snapshot().state),
         )
-    } else if let Some(table) = &state.four {
+    } else if let Some(table) = state
+        .four
+        .as_ref()
+        .filter(|_| state.kind == SurfaceKind::FourPlayer)
+    {
         Surface::render_four_hover(
             width,
             height,
@@ -366,6 +403,20 @@ unsafe fn paint(window: HWND, state: &WindowState) {
             state.game.as_ref().map(Game::position),
         )
     };
+    let surface = surface.map(|surface| {
+        if state.kind == SurfaceKind::Operations {
+            surface
+        } else {
+            surface.with_mode_switch(
+                width,
+                if state.hover_control == Some(crate::render::MODE_SWITCH_CONTROL) {
+                    state.hover_amount
+                } else {
+                    0.0
+                },
+            )
+        }
+    });
     if let Some(surface) = surface {
         let mut bgra = surface.rgba().to_vec();
         for pixel in bgra.chunks_exact_mut(4) {
@@ -404,8 +455,47 @@ unsafe fn paint(window: HWND, state: &WindowState) {
     if state.kind == SurfaceKind::Operations {
         unsafe { draw_operations(window, dc, state) };
     }
-    if let Some(table) = &state.four {
+    if let Some(table) = state
+        .four
+        .as_ref()
+        .filter(|_| state.kind == SurfaceKind::FourPlayer)
+    {
         unsafe { draw_four(dc, width, height, table) };
+    }
+    if state.kind != SurfaceKind::Operations {
+        unsafe {
+            ui_text(
+                dc,
+                if state.kind == SurfaceKind::FourPlayer {
+                    "TWO-PLAYER CHESS"
+                } else {
+                    "FOUR-PLAYER TEAMS"
+                },
+                crate::render::mode_switch_bounds(width),
+                13,
+                (235, 239, 248),
+                true,
+                true,
+            )
+        };
+    }
+    if state.kind == SurfaceKind::Chess {
+        unsafe {
+            ui_text(
+                dc,
+                "ELOI  |  TWO-PLAYER CHESS",
+                crate::operations_view::Bounds {
+                    x: 44.0,
+                    y: 24.0,
+                    w: 430.0,
+                    h: 40.0,
+                },
+                24,
+                (235, 239, 248),
+                true,
+                false,
+            )
+        };
     }
     unsafe { EndPaint(window, &paint_state) };
 }
@@ -872,7 +962,26 @@ unsafe fn operations_click(state: &WindowState, control: usize) {
 }
 
 unsafe fn board_click(window: HWND, state: &mut WindowState, x: i32, y: i32) {
-    if let Some(table) = &mut state.four {
+    let mut bounds = Default::default();
+    unsafe { GetClientRect(window, &mut bounds) };
+    if state.kind != SurfaceKind::Operations
+        && crate::render::mode_switch_hit(bounds.right as u32, x, y)
+        && state.switch_chess_surface()
+    {
+        let name = if state.kind == SurfaceKind::FourPlayer {
+            "Four-Player Teams"
+        } else {
+            "Native Chess"
+        };
+        let title = wide(&format!("Eloi {} — {name}", env!("CARGO_PKG_VERSION")));
+        unsafe { SetWindowTextW(window, title.as_ptr()) };
+        return;
+    }
+    if let Some(table) = state
+        .four
+        .as_mut()
+        .filter(|_| state.kind == SurfaceKind::FourPlayer)
+    {
         let mut client = Default::default();
         unsafe { GetClientRect(window, &mut client) };
         if x >= client.right - 240 && x <= client.right - 32 {
@@ -1092,4 +1201,64 @@ unsafe fn draw_four(
         ink,
         true,
     );
+}
+
+#[cfg(test)]
+mod navigation_tests {
+    use super::*;
+    fn state(kind: SurfaceKind) -> WindowState {
+        WindowState {
+            kind,
+            hover_control: None,
+            hover_amount: 0.0,
+            game: None,
+            selected: None,
+            operations: None,
+            config_path: None,
+            tick: 0,
+            four: (kind == SurfaceKind::FourPlayer).then(crate::four_player::FourTable::new),
+            started: std::time::Instant::now(),
+        }
+    }
+    #[test]
+    fn switching_preserves_both_boards_and_suspends_hidden_teams() {
+        let mut view = state(SurfaceKind::FourPlayer);
+        let table = view.four.as_mut().unwrap();
+        let mv = table.session.position().legal_moves()[0];
+        assert!(table.session.push_notation(&mv.notation()));
+        let teams_state = table.session.snapshot().state;
+        table.tick();
+        assert!(table.busy());
+        assert!(view.switch_chess_surface());
+        assert_eq!(view.kind, SurfaceKind::Chess);
+        assert!(view.four.as_ref().unwrap().paused);
+        assert!(!view.four.as_ref().unwrap().busy());
+        let game = view.game.as_mut().unwrap();
+        let mv = game.position().legal_moves()[0];
+        assert!(game.push(mv));
+        let chess_state = game.position().clone();
+        for _ in 0..3 {
+            assert!(view.switch_chess_surface());
+            assert_eq!(view.kind, SurfaceKind::FourPlayer);
+            assert_eq!(
+                view.four.as_ref().unwrap().session.snapshot().state,
+                teams_state
+            );
+            assert!(view.four.as_ref().unwrap().paused);
+            assert!(view.switch_chess_surface());
+            assert_eq!(view.game.as_ref().unwrap().position(), &chess_state);
+        }
+    }
+    #[test]
+    fn standard_first_launch_can_open_teams_but_operations_cannot_switch() {
+        let mut chess = state(SurfaceKind::Chess);
+        assert!(chess.switch_chess_surface());
+        assert_eq!(chess.kind, SurfaceKind::FourPlayer);
+        assert!(chess.four.as_ref().unwrap().paused);
+        let mut operations = state(SurfaceKind::Operations);
+        assert!(!operations.switch_chess_surface());
+        assert_eq!(operations.kind, SurfaceKind::Operations);
+        assert!(operations.four.is_none());
+        assert!(operations.game.is_none());
+    }
 }

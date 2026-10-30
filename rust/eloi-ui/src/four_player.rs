@@ -96,6 +96,13 @@ impl FourTable {
     pub fn busy(&self) -> bool {
         self.worker.is_some()
     }
+    pub fn suspend_for_navigation(&mut self) {
+        self.cancel();
+        self.paused = true;
+        self.selected = None;
+        self.last_tick = Instant::now();
+        self.message = "Teams paused while switching views. Resume to continue.".into();
+    }
     pub fn tick(&mut self) -> bool {
         let elapsed = self.last_tick.elapsed();
         self.last_tick = Instant::now();

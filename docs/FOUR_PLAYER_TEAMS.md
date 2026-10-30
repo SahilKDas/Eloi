@@ -86,11 +86,17 @@ by these Teams interfaces.
 
 ### Watch Eloi Think (v4.0.1 GUI)
 
+The top-right **TWO-PLAYER CHESS** / **FOUR-PLAYER TEAMS** button switches
+between the existing two-player board and Teams in the same window, retaining
+both boards. Teams pauses and cancels search when switching; Resume continues
+the local game on return. It does not navigate or interrupt the Operations Center.
+
 The sidebar displays completed iteration depth, score, nodes, elapsed time and
 up to six seat-labelled moves from the actual searched principal variation.
 Positive scores favor the named searching team. Before the first iteration,
 the panel says **Preparing search** rather than presenting depth zero as an
 evaluation. **Show suggestion** overlays a legal root arrow without playing it.
+It displays Eloi's search on Eloi turns; it does not start a hint search on human turns.
 The display distinguishes Thinking, Move chosen, Cancelled and Emergency legal
 move; retained final metrics are labelled previous search. Undo, new game,
 pause, resignation and position changes invalidate active suggestions. The

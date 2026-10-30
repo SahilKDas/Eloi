@@ -21,12 +21,33 @@ pub enum SurfaceKind {
     Operations,
 }
 
+pub(crate) const MODE_SWITCH_CONTROL: usize = 100;
+
+pub(crate) fn mode_switch_bounds(width: u32) -> crate::operations_view::Bounds {
+    crate::operations_view::Bounds {
+        x: width as f32 - 240.0,
+        y: 24.0,
+        w: 208.0,
+        h: 40.0,
+    }
+}
+
+pub(crate) fn mode_switch_hit(width: u32, x: i32, y: i32) -> bool {
+    mode_switch_bounds(width).contains(x as f32, y as f32)
+}
+
 /// Rendered premultiplied RGBA surface.
 pub struct Surface {
     pixmap: Pixmap,
 }
 
 impl Surface {
+    pub(crate) fn with_mode_switch(mut self, width: u32, hover: f32) -> Self {
+        let mut bounds = mode_switch_bounds(width);
+        bounds.y -= hover.clamp(0.0, 1.0) * 2.0;
+        crate::operations_view::round(&mut self.pixmap, bounds, 12.0, (94, 77, 190, 255));
+        self
+    }
     /// Render the retained Operations Center composition independently of chess surfaces.
     pub fn render_operations(
         width: u32,
@@ -430,6 +451,34 @@ fn four_player_board(pixmap: &mut Pixmap, width: u32, height: u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn mode_switch_control_hit_testing_tracks_both_window_sizes() {
+        for width in [900, 1040, 1920] {
+            let b = mode_switch_bounds(width);
+            assert!(mode_switch_hit(width, (b.x + b.w / 2.0) as i32, 44));
+            assert!(!mode_switch_hit(width, 44, 200));
+            let frame = Surface::render_four(
+                width,
+                780,
+                &eloi_core::four_player::FourPosition::initial(
+                    eloi_core::four_player::FourMode::Teams,
+                ),
+                None,
+            )
+            .unwrap();
+            let decorated = Surface::render_four(
+                width,
+                780,
+                &eloi_core::four_player::FourPosition::initial(
+                    eloi_core::four_player::FourMode::Teams,
+                ),
+                None,
+            )
+            .unwrap()
+            .with_mode_switch(width, 0.0);
+            assert_ne!(frame.rgba(), decorated.rgba());
+        }
+    }
     #[test]
     fn suggestion_arrow_tracks_square_centers_without_mutating_position() {
         use eloi_core::four_player::{FourMode, FourPosition};
