@@ -526,6 +526,33 @@ mod tests {
         }
     }
     #[test]
+    fn real_worker_delivers_a_visible_live_suggestion_before_playing() {
+        let mut table = FourTable::new();
+        table.control(5); // All-Eloi demo, exactly the manual smoke path.
+        table.control(8);
+        table.budget_ms = 1500;
+        let root = table.session.position().identity_key();
+        assert!(table.show_suggestion);
+        assert!(table.tick());
+        let deadline = Instant::now() + Duration::from_secs(4);
+        let mut visible = false;
+        while Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+            table.tick();
+            if table.phase == ThinkPhase::Thinking && table.progress.is_some() {
+                assert_eq!(table.session.position().identity_key(), root);
+                assert!(table.suggestion().is_some());
+                visible = true;
+                break;
+            }
+            if table.phase == ThinkPhase::Chosen || table.phase == ThinkPhase::Emergency {
+                break;
+            }
+        }
+        table.cancel();
+        assert!(visible, "real GUI worker never exposed a live suggestion");
+    }
+    #[test]
     fn default_controllers_are_complete_opposing_teams() {
         let table = FourTable::new();
         let snapshot = table.session.snapshot();
