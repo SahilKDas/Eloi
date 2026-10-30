@@ -27,6 +27,19 @@ Suggestions appear on Eloi's turns, not as hints during your own turn.
 Before any depth completes the panel says **Preparing search**. Final metrics
 are labelled **previous search**; cancelled and emergency answers are explicit.
 
+## Classic two-player play
+
+Use **TWO-PLAYER CHESS** at the top right, or run `Eloi.exe --gui`.
+The restored interface includes Maestro pieces, legal targets, check/last-move
+highlights, clocks, material/evaluation, smooth moves, undo, flipping and side
+selection. New Game configures base time, increment, variant and brain.
+Caissa 2.0 is Standard-only; other variants use the corresponding Eloi evaluator.
+Use the promotion picker; Crazyhouse pocket buttons select legal drops.
+Engine Lab pauses local play and offers explicit position analysis plus
+copy/export of diagnostics. It is not the old automatic version tournament UI.
+Fast donor responses can omit telemetry: "depth not reported" is not an invented
+depth or an Eloi fallback. Actual fallback identity is always displayed.
+
 ## Lichess Operations Center
 
 Close any older bridge after its current game finishes. Edit the included

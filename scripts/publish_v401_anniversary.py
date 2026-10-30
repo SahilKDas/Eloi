@@ -72,11 +72,15 @@ def fetch_release() -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--commit", required=True)
+    parser.add_argument("--allow-late", action="store_true",
+                        help="Maintainer-authorized quality-first late publication; never backdates")
     args = parser.parse_args()
-    if dt.datetime.now(dt.timezone.utc) >= TARGET:
+    if dt.datetime.now(dt.timezone.utc) >= TARGET and not args.allow_late:
         raise SystemExit("Missed pre-deadline setup; refusing late/backdated publication")
     release = fetch_release()
     proof = validate_release(release, args.commit)
+    if args.allow_late and proof.get("late_release_authorized") is not True:
+        raise SystemExit("Late mode requires an explicit maintainer-authorization proof")
     snapshot = [(a["id"], a["name"], a["digest"], a["updated_at"]) for a in release["assets"]]
     with tempfile.TemporaryDirectory(prefix="eloi-v401-verify-") as folder:
         gh("release", "download", TAG, "--repo", REPO, "--dir", folder, "--pattern", "*.zip")
@@ -84,7 +88,7 @@ def main() -> None:
             actual = hashlib.sha256((pathlib.Path(folder) / name).read_bytes()).hexdigest()
             if actual != expected.lower():
                 raise SystemExit(f"Downloaded asset hash mismatch: {name}")
-    if dt.datetime.now(dt.timezone.utc) >= TARGET:
+    if dt.datetime.now(dt.timezone.utc) >= TARGET and not args.allow_late:
         raise SystemExit("Verification missed the deadline; refusing late publication")
     print("All gates and downloaded hashes verified; waiting for 05:00 UTC", flush=True)
     while (remaining := (TARGET - dt.datetime.now(dt.timezone.utc)).total_seconds()) > 0:
@@ -95,7 +99,7 @@ def main() -> None:
         (a["id"], a["name"], a["digest"], a["updated_at"]) for a in fresh["assets"]
     ] or fresh["body"] != release["body"]:
         raise SystemExit("Draft changed after verification; publication blocked")
-    if dt.datetime.now(dt.timezone.utc) > TARGET + dt.timedelta(seconds=60):
+    if dt.datetime.now(dt.timezone.utc) > TARGET + dt.timedelta(seconds=60) and not args.allow_late:
         raise SystemExit("Publication runner missed its target window; refusing backdating")
     gh("release", "edit", TAG, "--repo", REPO, "--draft=false", "--latest")
     final = fetch_release()

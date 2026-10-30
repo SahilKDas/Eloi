@@ -42,6 +42,17 @@ pub struct Surface {
 }
 
 impl Surface {
+    pub(crate) fn render_chess(
+        width: u32,
+        height: u32,
+        table: &crate::chess::ChessTable,
+        hover: f32,
+        control: Option<usize>,
+    ) -> Option<Self> {
+        Some(Self {
+            pixmap: crate::chess_view::render(width, height, table, hover, control)?,
+        })
+    }
     pub(crate) fn with_mode_switch(mut self, width: u32, hover: f32) -> Self {
         let mut bounds = mode_switch_bounds(width);
         bounds.y -= hover.clamp(0.0, 1.0) * 2.0;
@@ -196,6 +207,15 @@ impl Surface {
         if kind == SurfaceKind::Operations {
             return Self::render_operations(width, height, hover, hover_control, 0);
         }
+        if kind == SurfaceKind::Chess {
+            let mut table = crate::chess::ChessTable::new(None);
+            if let Some(position) = position {
+                table.game =
+                    eloi_core::game::Game::from_fen(&position.to_fen(), position.variant).ok()?;
+                table.settings.variant = position.variant;
+            }
+            return Self::render_chess(width, height, &table, hover, hover_control);
+        }
         let mut pixmap = Pixmap::new(width.max(1), height.max(1))?;
         pixmap.fill(Color::from_rgba8(8, 15, 27, 255));
         let mut paint = Paint::default();
@@ -212,7 +232,7 @@ impl Surface {
         paint.set_color_rgba8(24, 42, 64, 255);
         fill(&mut pixmap, 38.0, 82.0, width as f32 - 76.0, 92.0, &paint);
         match kind {
-            SurfaceKind::Chess => board(&mut pixmap, width, height, position),
+            SurfaceKind::Chess => {}
             SurfaceKind::FourPlayer => four_player_board(&mut pixmap, width, height),
             SurfaceKind::Operations => cards(&mut pixmap, width, height),
         }
@@ -244,6 +264,74 @@ impl Surface {
     pub fn rgba(&self) -> &[u8] {
         self.pixmap.data()
     }
+}
+
+pub(crate) fn classic_piece_image(
+    piece: eloi_core::position::Piece,
+    pixels: f32,
+) -> &'static Pixmap {
+    static IMAGES: std::sync::OnceLock<[Vec<Pixmap>; 12]> = std::sync::OnceLock::new();
+    let images = IMAGES.get_or_init(|| {
+        let sources: [&[u8]; 12] = [
+            include_bytes!("../../../assets/chess_maestro_bw/wP.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/wN.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/wB.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/wR.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/wQ.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/wK.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/bP.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/bN.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/bB.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/bR.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/bQ.png"),
+            include_bytes!("../../../assets/chess_maestro_bw/bK.png"),
+        ];
+        std::array::from_fn(|i| {
+            let mut levels = vec![Pixmap::decode_png(sources[i]).expect("embedded Maestro asset")];
+            while levels.last().unwrap().width() > 16 {
+                let source = levels.last().unwrap();
+                let w = source.width() / 2;
+                let h = source.height() / 2;
+                let mut reduced = Pixmap::new(w, h).expect("embedded piece mip level");
+                for y in 0..h as usize {
+                    for x in 0..w as usize {
+                        for c in 0..4 {
+                            let mut sum = 0u16;
+                            for dy in 0..2 {
+                                for dx in 0..2 {
+                                    sum += u16::from(
+                                        source.data()[((y * 2 + dy) * source.width() as usize
+                                            + x * 2
+                                            + dx)
+                                            * 4
+                                            + c],
+                                    );
+                                }
+                            }
+                            reduced.data_mut()[(y * w as usize + x) * 4 + c] =
+                                ((sum + 2) / 4) as u8;
+                        }
+                    }
+                }
+                levels.push(reduced);
+            }
+            levels
+        })
+    });
+    let kind = match piece.kind {
+        PieceKind::Pawn => 0,
+        PieceKind::Knight => 1,
+        PieceKind::Bishop => 2,
+        PieceKind::Rook => 3,
+        PieceKind::Queen => 4,
+        PieceKind::King => 5,
+    };
+    let levels = &images[kind + if piece.owner == Player::White { 0 } else { 6 }];
+    levels
+        .iter()
+        .rev()
+        .find(|p| p.width() as f32 >= pixels)
+        .unwrap_or(&levels[0])
 }
 
 fn four_piece_image(piece: eloi_core::four_player::FourPiece, pixels: f32) -> &'static Pixmap {
@@ -323,77 +411,6 @@ fn four_piece_image(piece: eloi_core::four_player::FourPiece, pixels: f32) -> &'
 fn fill(pixmap: &mut Pixmap, x: f32, y: f32, width: f32, height: f32, paint: &Paint) {
     if let Some(rect) = Rect::from_xywh(x, y, width.max(1.0), height.max(1.0)) {
         pixmap.fill_rect(rect, paint, Transform::identity(), None);
-    }
-}
-
-fn board(pixmap: &mut Pixmap, width: u32, height: u32, position: Option<&Position>) {
-    let size = (width.min(height).saturating_sub(230) as f32).max(160.0);
-    let origin_x = 44.0;
-    let origin_y = 196.0;
-    let square = size / 8.0;
-    let mut paint = Paint::default();
-    for rank in 0..8 {
-        for file in 0..8 {
-            let light = (rank + file) % 2 == 0;
-            paint.set_color_rgba8(
-                if light { 210 } else { 89 },
-                if light { 220 } else { 117 },
-                if light { 202 } else { 129 },
-                255,
-            );
-            fill(
-                pixmap,
-                origin_x + file as f32 * square,
-                origin_y + rank as f32 * square,
-                square,
-                square,
-                &paint,
-            );
-        }
-    }
-    if let Some(position) = position {
-        for (index, piece) in position.cells.iter().enumerate() {
-            let Some(piece) = piece else { continue };
-            let file = index % 8;
-            let rank = index / 8;
-            let cx = origin_x + (file as f32 + 0.5) * square;
-            let cy = origin_y + ((7 - rank) as f32 + 0.5) * square;
-            let radius = square
-                * match piece.kind {
-                    PieceKind::Pawn => 0.22,
-                    PieceKind::Knight | PieceKind::Bishop => 0.27,
-                    PieceKind::Rook => 0.29,
-                    PieceKind::Queen | PieceKind::King => 0.32,
-                };
-            let mut piece_paint = Paint::default();
-            if piece.owner == Player::White {
-                piece_paint.set_color_rgba8(242, 244, 235, 255);
-            } else {
-                piece_paint.set_color_rgba8(24, 31, 42, 255);
-            }
-            if let Some(path) = PathBuilder::from_circle(cx, cy, radius) {
-                pixmap.fill_path(
-                    &path,
-                    &piece_paint,
-                    tiny_skia::FillRule::Winding,
-                    Transform::identity(),
-                    None,
-                );
-            }
-            if matches!(
-                piece.kind,
-                PieceKind::Rook | PieceKind::Queen | PieceKind::King
-            ) {
-                fill(
-                    pixmap,
-                    cx - radius,
-                    cy - radius,
-                    radius * 2.0,
-                    (radius * 0.52).max(2.0),
-                    &piece_paint,
-                );
-            }
-        }
     }
 }
 

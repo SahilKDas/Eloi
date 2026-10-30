@@ -31,4 +31,6 @@ jobs:
       - name: Verify golden assets, wait, and publish once
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python scripts/publish_v401_anniversary.py --commit "$GITHUB_SHA"
+        # Maintainer explicitly prioritized restoring the real GUI over the
+        # original deadline. All gates/hashes still apply; no early publication.
+        run: python scripts/publish_v401_anniversary.py --commit "$GITHUB_SHA" --allow-late

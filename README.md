@@ -10,6 +10,10 @@ arrow without playing it. Completed, cancelled and emergency results are
 labelled explicitly. No playing-strength improvement is claimed.
 The top-right mode button switches between two-player chess and Teams without
 discarding either board; Teams pauses while hidden.
+Two-player play restores the classic Maestro/Segoe UI interface, clocked
+setup, legal targets, seven variants, Caissa 2.0/Eloi choice, promotions,
+Crazyhouse pockets, undo/flip/side controls, and local analysis diagnostics.
+It does not claim to restore the old automatic previous-version tournament UI.
 
 Development temporarily resumes for this anniversary patch, then returns to
 hibernation. EloiBot may continue

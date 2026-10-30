@@ -12,6 +12,10 @@ remains immutable. After this bounded patch, development returns to hibernation;
 existing bridges, jobs and keep-awake processes remain untouched. No training,
 donor upgrade or new strength campaign is part of this exception. See
 [v4.0.1 notes](../RELEASE_V4_0_1.md) for the feature and publication target.
+On 2026-10-29 the maintainer explicitly prioritized restoring the real
+two-player GUI over meeting the original clock time. A late v4.0.1 release is
+authorized only after all validation/package gates pass; it must never be
+published early or backdated. Existing live services remain untouched.
 
 ## Frozen release
 

@@ -264,6 +264,24 @@ impl DonorWorker {
         budget: Duration,
         stopped: &AtomicBool,
     ) -> io::Result<SearchReport> {
+        self.search_with_depth(game, budget, None, stopped)
+    }
+
+    /// Standard GUI search with an optional completed-depth ceiling.
+    /// Existing UCI/Lichess callers retain the unchanged clock-only wrapper.
+    ///
+    /// # Errors
+    /// Same containment/legality failures as [`Self::search`], or invalid depth.
+    pub fn search_with_depth(
+        &mut self,
+        game: &Game,
+        budget: Duration,
+        depth_limit: Option<u8>,
+        stopped: &AtomicBool,
+    ) -> io::Result<SearchReport> {
+        if depth_limit.is_some_and(|d| d == 0 || d > 40) {
+            return Err(invalid("GUI donor depth outside 1..40"));
+        }
         if game.position().variant != Variant::Standard {
             return Err(invalid("Standard-only donor refused variant"));
         }
@@ -283,7 +301,15 @@ impl DonorWorker {
         let start = Instant::now();
         let stop_deadline = start + budget;
         let deadline = stop_deadline + Duration::from_millis(150);
-        self.send(&format!("go movetime {}", budget.as_millis().max(1)))?;
+        // A fixed-depth GUI search is bounded by this owner's watchdog rather
+        // than a donor movetime token. Caissa suppresses <5ms PV reports when
+        // maxTime is set, so combining movetime/depth can hide completed d1/d2.
+        // Ordinary UCI/Lichess calls still send exactly their old movetime command.
+        let command = depth_limit.map_or_else(
+            || format!("go movetime {}", budget.as_millis().max(1)),
+            |depth| format!("go depth {depth}"),
+        );
+        self.send(&command)?;
         let mut depth = 0;
         let mut score_cp = None;
         let mut mate = None;

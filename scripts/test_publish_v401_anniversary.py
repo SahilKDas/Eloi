@@ -110,6 +110,21 @@ class PublicationGateTests(unittest.TestCase):
              patch("sys.argv", ["publish", "--commit", self.commit]):
             publisher.main()
         self.assertEqual(sum(args[:2] == ("release", "edit") for args in calls), 1)
+        # The maintainer may explicitly prioritize quality over the clock.
+        # This permits late publication, never early or without the same gates.
+        self.proof["late_release_authorized"] = True
+        self.update_body()
+        final = copy.deepcopy(self.release)
+        final.update(draft=False, html_url="https://github.com/SahilKDas/Eloi/releases/tag/v4.0.1")
+        Clock.current = TARGET + dt.timedelta(minutes=2)
+        calls.clear()
+        with patch.object(publisher.dt,"datetime",Clock), \
+             patch.object(publisher.time,"sleep",advance), \
+             patch.object(publisher,"fetch_release",side_effect=[self.release,self.release,final]), \
+             patch.object(publisher,"gh",side_effect=fake_gh), \
+             patch("sys.argv",["publish","--commit",self.commit,"--allow-late"]):
+            publisher.main()
+        self.assertEqual(sum(args[:2] == ("release", "edit") for args in calls), 1)
 
     def test_late_start_never_contacts_github(self):
         class Clock(dt.datetime):
@@ -120,6 +135,19 @@ class PublicationGateTests(unittest.TestCase):
         with patch.object(publisher.dt, "datetime", Clock), \
              patch.object(publisher, "gh") as call, \
              patch("sys.argv", ["publish", "--commit", self.commit]):
+            with self.assertRaises(SystemExit):
+                publisher.main()
+            call.assert_not_called()
+
+    def test_late_override_requires_explicit_proof_before_any_asset_download(self):
+        class Clock(dt.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return TARGET + dt.timedelta(minutes=2)
+        with patch.object(publisher.dt,"datetime",Clock), \
+             patch.object(publisher,"fetch_release",return_value=self.release), \
+             patch.object(publisher,"gh") as call, \
+             patch("sys.argv",["publish","--commit",self.commit,"--allow-late"]):
             with self.assertRaises(SystemExit):
                 publisher.main()
             call.assert_not_called()

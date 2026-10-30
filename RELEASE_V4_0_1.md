@@ -16,6 +16,13 @@ handcrafted four-player Teams brain's completed search work visible.
 - Two-way in-window navigation between two-player chess and Teams, preserving
   both local boards. Teams pauses while hidden; no hidden search or clock
   continues. Operations Center/Lichess remains separate and unchanged.
+- Replaces the two-player circle-piece shell with the restored classic play
+  interface: original Maestro artwork, Segoe UI, clocked setup, seven variants,
+  Caissa 2.0/Eloi selection, side choice, undo, flip, pause, resignation,
+  promotions, Crazyhouse pockets, move animation and evaluation display.
+- Engine Lab supports explicit local position analysis and copy/export of
+  diagnostics. The old automatic previous-version tournament UI is not claimed
+  as restored or used as release strength evidence.
 
 Retains Segoe UI and the charcoal/purple Teams styling. No rule changes,
 training, donor upgrades or strength claims. Search remains three lanes with
@@ -30,5 +37,6 @@ Extract either complete Windows x64 ZIP and start `Open-Teams.cmd`:
 
 The anniversary publication target is October 29, 2026, 10:00 PM UTC−7
 (October 30, 05:00 UTC). Publication is blocked unless all validation and
-downloaded golden-asset checks pass beforehand; network/GitHub latency can
-delay public visibility. No release is backdated.
+downloaded golden-asset checks pass. The maintainer explicitly authorized a
+late release if needed to restore the real two-player GUI. Publication never
+occurs early; GitHub's actual publication timestamp is preserved, never backdated.

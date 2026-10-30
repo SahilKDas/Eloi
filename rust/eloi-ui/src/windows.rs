@@ -43,17 +43,13 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::{OperationsModel, Surface, SurfaceKind};
-use eloi_core::Square8;
-use eloi_core::Variant;
-use eloi_core::game::Game;
-use eloi_core::position::INITIAL_FEN;
 
 struct WindowState {
     kind: SurfaceKind,
     hover_control: Option<usize>,
     hover_amount: f32,
-    game: Option<Game>,
-    selected: Option<Square8>,
+    chess: Option<crate::chess::ChessTable>,
+    donor_path: Option<PathBuf>,
     operations: Option<Arc<OperationsModel>>,
     config_path: Option<PathBuf>,
     tick: u8,
@@ -70,18 +66,20 @@ impl WindowState {
             if let Some(table) = &mut self.four {
                 table.suspend_for_navigation();
             }
-            if self.game.is_none() {
-                self.game = Game::from_fen(INITIAL_FEN, Variant::Standard).ok();
+            if self.chess.is_none() {
+                self.chess = Some(crate::chess::ChessTable::new(self.donor_path.clone()));
             }
             self.kind = SurfaceKind::Chess;
         } else {
+            if let Some(table) = &mut self.chess {
+                table.suspend();
+            }
             let table = self
                 .four
                 .get_or_insert_with(crate::four_player::FourTable::new);
             table.suspend_for_navigation();
             self.kind = SurfaceKind::FourPlayer;
         }
-        self.selected = None;
         self.hover_control = None;
         self.hover_amount = 0.0;
         true
@@ -97,6 +95,7 @@ pub(super) fn run(
     operations: Option<Arc<OperationsModel>>,
     config_path: Option<PathBuf>,
     start: Option<Box<dyn FnOnce() + Send>>,
+    donor_path: Option<PathBuf>,
 ) -> io::Result<()> {
     // SAFETY: this module is the sole platform leaf; every pointer comes from
     // Win32 or a Box retained until WM_DESTROY, and all strings are NUL-terminated.
@@ -145,10 +144,9 @@ pub(super) fn run(
             kind,
             hover_control: None,
             hover_amount: 0.0,
-            game: (kind == SurfaceKind::Chess)
-                .then(|| Game::from_fen(INITIAL_FEN, Variant::Standard).ok())
-                .flatten(),
-            selected: None,
+            chess: (kind == SurfaceKind::Chess)
+                .then(|| crate::chess::ChessTable::new(donor_path.clone())),
+            donor_path,
             operations,
             config_path,
             tick: 0,
@@ -267,6 +265,8 @@ unsafe extern "system" fn window_proc(
                 } else {
                     None
                 }
+            } else if let Some(table) = unsafe { &(*state).chess } {
+                crate::chess_view::hit(rect.right as u32, rect.bottom as u32, table, x, y)
             } else if x >= rect.right - 240 && x <= rect.right - 32 {
                 (0..5).find(|index| {
                     let top = 108 + i32::try_from(*index).unwrap_or(0) * 58;
@@ -307,7 +307,15 @@ unsafe extern "system" fn window_proc(
             0
         }
         WM_TIMER if !state.is_null() => {
+            let mut chess_busy = false;
+            if let Some(table) = unsafe { &mut (*state).chess } {
+                if table.tick(unsafe { (*state).kind == SurfaceKind::Chess }) {
+                    unsafe { InvalidateRect(window, null(), 0) };
+                }
+                chess_busy = table.busy();
+            }
             if unsafe { (*state).kind == SurfaceKind::FourPlayer }
+                && !chess_busy
                 && let Some(table) = unsafe { &mut (*state).four }
             {
                 if table.tick() || unsafe { (*state).tick % 60 == 0 } {
@@ -393,6 +401,18 @@ unsafe fn paint(window: HWND, state: &WindowState) {
             state.hover_control,
         )
         .map(|surface| surface.with_four_suggestion(width, height, table.suggestion()))
+    } else if let Some(table) = state
+        .chess
+        .as_ref()
+        .filter(|_| state.kind == SurfaceKind::Chess)
+    {
+        Surface::render_chess(
+            width,
+            height,
+            table,
+            state.hover_amount,
+            state.hover_control,
+        )
     } else {
         Surface::render(
             width,
@@ -400,7 +420,7 @@ unsafe fn paint(window: HWND, state: &WindowState) {
             state.kind,
             state.hover_amount,
             state.hover_control,
-            state.game.as_ref().map(Game::position),
+            state.chess.as_ref().map(|t| t.game.position()),
         )
     };
     let surface = surface.map(|surface| {
@@ -480,22 +500,21 @@ unsafe fn paint(window: HWND, state: &WindowState) {
         };
     }
     if state.kind == SurfaceKind::Chess {
-        unsafe {
-            ui_text(
-                dc,
-                "ELOI  |  TWO-PLAYER CHESS",
-                crate::operations_view::Bounds {
-                    x: 44.0,
-                    y: 24.0,
-                    w: 430.0,
-                    h: 40.0,
-                },
-                24,
-                (235, 239, 248),
-                true,
-                false,
-            )
-        };
+        if let Some(table) = &state.chess {
+            for label in crate::chess_view::labels(width, height, table) {
+                unsafe {
+                    ui_text(
+                        dc,
+                        &label.text,
+                        label.bounds,
+                        label.size,
+                        label.color,
+                        label.bold,
+                        label.center,
+                    )
+                };
+            }
+        }
     }
     unsafe { EndPaint(window, &paint_state) };
 }
@@ -1000,38 +1019,32 @@ unsafe fn board_click(window: HWND, state: &mut WindowState, x: i32, y: i32) {
         }
         return;
     }
-    let Some(game) = state.game.as_mut() else {
-        return;
-    };
-    let mut client = Default::default();
-    unsafe { GetClientRect(window, &mut client) };
-    let size = (client.right.min(client.bottom).saturating_sub(230) as f32).max(160.0);
-    let file = ((x as f32 - 44.0) / (size / 8.0)).floor() as i32;
-    let row = ((y as f32 - 196.0) / (size / 8.0)).floor() as i32;
-    if !(0..8).contains(&file) || !(0..8).contains(&row) {
-        state.selected = None;
-        return;
-    }
-    let index = (7 - row) * 8 + file;
-    let Some(square) = u8::try_from(index).ok().and_then(Square8::new) else {
-        return;
-    };
-    if let Some(from) = state.selected.take() {
-        if let Some(mv) = game.position().legal_moves().into_iter().find(|mv| {
-            mv.from == Some(from)
-                && mv.to == square
-                && (mv.promotion.is_none() || mv.promotion == Some(eloi_core::PieceKind::Queen))
-        }) {
-            let _ = game.push(mv);
-            return;
-        }
-    }
-    if game
-        .position()
-        .at(square)
-        .is_some_and(|piece| piece.owner == game.position().turn)
+    if state.kind == SurfaceKind::Chess
+        && let Some(table) = &mut state.chess
     {
-        state.selected = Some(square);
+        if let Some(id) =
+            crate::chess_view::hit(bounds.right as u32, bounds.bottom as u32, table, x, y)
+        {
+            if id == 81 {
+                if let Ok(mut child) = Command::new("clip.exe").stdin(Stdio::piped()).spawn() {
+                    if let Some(mut input) = child.stdin.take() {
+                        let _ = input.write_all(table.diagnostics().as_bytes());
+                    }
+                    let _ = child.wait();
+                    table.message = "Copied token-free local analysis diagnostics".into();
+                }
+            } else {
+                table.control(id);
+            }
+        } else if let Some(square) = crate::chess_view::square_at(
+            crate::chess_view::layout(bounds.right as u32, bounds.bottom as u32).board,
+            x,
+            y,
+            table.flipped,
+        ) {
+            table.click(square);
+        }
+        return;
     }
 }
 
@@ -1211,8 +1224,8 @@ mod navigation_tests {
             kind,
             hover_control: None,
             hover_amount: 0.0,
-            game: None,
-            selected: None,
+            chess: None,
+            donor_path: None,
             operations: None,
             config_path: None,
             tick: 0,
@@ -1233,7 +1246,7 @@ mod navigation_tests {
         assert_eq!(view.kind, SurfaceKind::Chess);
         assert!(view.four.as_ref().unwrap().paused);
         assert!(!view.four.as_ref().unwrap().busy());
-        let game = view.game.as_mut().unwrap();
+        let game = &mut view.chess.as_mut().unwrap().game;
         let mv = game.position().legal_moves()[0];
         assert!(game.push(mv));
         let chess_state = game.position().clone();
@@ -1246,7 +1259,7 @@ mod navigation_tests {
             );
             assert!(view.four.as_ref().unwrap().paused);
             assert!(view.switch_chess_surface());
-            assert_eq!(view.game.as_ref().unwrap().position(), &chess_state);
+            assert_eq!(view.chess.as_ref().unwrap().game.position(), &chess_state);
         }
     }
     #[test]
@@ -1259,6 +1272,6 @@ mod navigation_tests {
         assert!(!operations.switch_chess_surface());
         assert_eq!(operations.kind, SurfaceKind::Operations);
         assert!(operations.four.is_none());
-        assert!(operations.game.is_none());
+        assert!(operations.chess.is_none());
     }
 }

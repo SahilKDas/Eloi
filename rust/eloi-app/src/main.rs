@@ -15,7 +15,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() -> io::Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
-        None => eloi_ui::run(eloi_ui::SurfaceKind::FourPlayer)?,
+        None => eloi_ui::run_with_worker(eloi_ui::SurfaceKind::FourPlayer, donor_path(&args)?)?,
         Some("--version" | "-v") => println!("Eloi {VERSION}"),
         Some("--uci") => {
             let worker = donor_path(&args)?;
@@ -29,8 +29,10 @@ fn main() -> io::Result<()> {
         Some("--nnue") => nnue_probe(&args)?,
         Some("--four-player-smoke") => four_player_smoke(&args)?,
         Some("--check-config") => check_config(&args)?,
-        Some("--gui") => eloi_ui::run(eloi_ui::SurfaceKind::Chess)?,
-        Some("--four-player-gui") => eloi_ui::run(eloi_ui::SurfaceKind::FourPlayer)?,
+        Some("--gui") => eloi_ui::run_with_worker(eloi_ui::SurfaceKind::Chess, donor_path(&args)?)?,
+        Some("--four-player-gui") => {
+            eloi_ui::run_with_worker(eloi_ui::SurfaceKind::FourPlayer, donor_path(&args)?)?
+        }
         Some("--operations-preview") => eloi_ui::run(eloi_ui::SurfaceKind::Operations)?,
         Some("--four-player-uci") => four_player_uci::run()?,
         Some("--operations-center") => {

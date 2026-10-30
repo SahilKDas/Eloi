@@ -5,6 +5,8 @@ use std::sync::{Arc, RwLock};
 
 const RECONNECT: u8 = 1;
 
+mod chess;
+mod chess_view;
 mod four_player;
 mod operations_view;
 mod render;
@@ -234,7 +236,29 @@ pub struct SearchTelemetry {
 /// Returns an OS initialization or rendering failure.
 #[cfg(windows)]
 pub fn run(kind: SurfaceKind) -> std::io::Result<()> {
-    windows::run(kind, None, None, None)
+    windows::run(kind, None, None, None, None)
+}
+
+/// Open a local chess/Teams window with the package's verified donor location.
+///
+/// # Errors
+/// Returns an OS initialization/rendering failure. Worker validation happens
+/// only when Standard actually requests donor search.
+#[cfg(windows)]
+pub fn run_with_worker(
+    kind: SurfaceKind,
+    worker: Option<std::path::PathBuf>,
+) -> std::io::Result<()> {
+    windows::run(kind, None, None, None, worker)
+}
+
+/// Native UI requires Windows.
+///
+/// # Errors
+/// Always returns unsupported on other platforms.
+#[cfg(not(windows))]
+pub fn run_with_worker(_: SurfaceKind, _: Option<std::path::PathBuf>) -> std::io::Result<()> {
+    Err(std::io::Error::other("native Eloi UI requires Windows"))
 }
 
 /// Open the single-instance Operations Center and start its supervised worker
@@ -253,6 +277,7 @@ pub fn run_supervised(
         Some(Arc::clone(&model)),
         Some(config_path),
         Some(Box::new(move || start(model))),
+        None,
     )
 }
 
