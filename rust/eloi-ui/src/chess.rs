@@ -210,6 +210,7 @@ impl ChessTable {
             "Caissa 2.0 · isolated"
         } else {
             match self.settings.variant {
+                Variant::Horde => "Eloi · Horde material",
                 Variant::KingOfTheHill => "Eloi E4-KOTH",
                 Variant::Atomic => "Eloi E4-Atomic",
                 Variant::Crazyhouse => "Eloi · pocket-aware Crazyhouse",
@@ -226,6 +227,9 @@ impl ChessTable {
         self.clocks[i] =
             self.clocks[i].saturating_sub(u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX));
         if self.clocks[i] == 0 {
+            self.promotion.clear();
+            self.drop_piece = None;
+            self.selected = None;
             self.finished = Some(format!("{:?} wins on time", opponent(mover)));
             self.cancel();
         }
@@ -529,6 +533,14 @@ impl ChessTable {
                 .find(|m| m.kind == MoveKind::Drop(kind) && m.to == square)
             {
                 self.commit(*mv);
+            } else if self
+                .game
+                .position()
+                .at(square)
+                .is_some_and(|p| p.owner == self.human)
+            {
+                self.drop_piece = None;
+                self.selected = Some(square);
             }
             return;
         }
@@ -702,15 +714,18 @@ impl ChessTable {
             }
             20..=24 => {
                 if self.settings.variant == Variant::Crazyhouse {
-                    self.drop_piece = Some(
-                        [
-                            PieceKind::Pawn,
-                            PieceKind::Knight,
-                            PieceKind::Bishop,
-                            PieceKind::Rook,
-                            PieceKind::Queen,
-                        ][id - 20],
-                    );
+                    let kind = [
+                        PieceKind::Pawn,
+                        PieceKind::Knight,
+                        PieceKind::Bishop,
+                        PieceKind::Rook,
+                        PieceKind::Queen,
+                    ][id - 20];
+                    self.drop_piece = if self.drop_piece == Some(kind) {
+                        None
+                    } else {
+                        Some(kind)
+                    };
                     self.selected = None;
                 }
             }
@@ -926,6 +941,33 @@ mod tests {
                 .kind,
             PieceKind::Knight
         );
+    }
+    #[test]
+    fn pocket_selection_can_be_cancelled_and_flag_fall_clears_promotion() {
+        let mut t = ChessTable::new(None);
+        t.start_game(Setup {
+            variant: Variant::Crazyhouse,
+            caissa: false,
+            ..Default::default()
+        });
+        t.control(20);
+        assert_eq!(t.drop_piece, Some(PieceKind::Pawn));
+        t.control(20);
+        assert!(t.drop_piece.is_none());
+        t.control(21);
+        let own = parse_square("e2").unwrap();
+        t.click(own);
+        assert!(t.drop_piece.is_none());
+        assert_eq!(t.selected, Some(own));
+        t.start_game(Setup::default());
+        t.game = Game::from_fen("7k/P7/8/8/8/8/8/7K w - - 0 1", Variant::Standard).unwrap();
+        t.click(parse_square("a7").unwrap());
+        t.click(parse_square("a8").unwrap());
+        assert_eq!(t.promotion.len(), 4);
+        t.clocks[0] = 1;
+        t.charge(Duration::from_millis(2));
+        assert!(t.promotion.is_empty());
+        assert!(t.outcome().unwrap().contains("time"));
     }
     #[test]
     fn native_gui_play_analysis_and_cancellation_do_not_share_game_authority() {
