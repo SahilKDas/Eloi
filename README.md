@@ -3,9 +3,14 @@
 > A Rust chess engine, native Windows application, reproducible engineering
 > project, and home of a crash-contained Caissa 2.0 Standard brain.
 
-**Eloi v4.0.0 is the handcrafted four-player Teams release.**
+**Eloi v4.0.1 celebrates two months of Eloi with Watch Eloi Think.**
+The Teams GUI shows completed depth, team-relative score, nodes, time and a
+seat-labelled PV during search. **Show suggestion** toggles a legal-move
+arrow without playing it. Completed, cancelled and emergency results are
+labelled explicitly. No playing-strength improvement is claimed.
 
-Development is **hibernating at v4.0.0**, not abandoned. EloiBot may continue
+Development temporarily resumes for this anniversary patch, then returns to
+hibernation. EloiBot may continue
 playing on Lichess independently; hibernation does not stop its bridge or jobs.
 Read [the frozen state and restart checklist](docs/HIBERNATION_V4_0_0.md)
 before changing source, dependencies, models, or release assets.
@@ -17,8 +22,8 @@ GUI with `eloi-rs.exe --four-player-gui`, or use the explicit
 Kaggle training is retired; FFA remains historical development code and is
 outside this revival's playable scope. No neural training is needed.
 
-[Release notes](RELEASE_V4_0_0.md) ·
-[Windows downloads](https://github.com/SahilKDas/Eloi/releases/tag/v4.0.0) ·
+[Release notes](RELEASE_V4_0_1.md) ·
+[Windows downloads](https://github.com/SahilKDas/Eloi/releases/tag/v4.0.1) ·
 [Packaged quick start](packaging/V4_QUICK_START.md)
 
 The v4 four-player release route is **HandcraftedTeams**: Eloi's own evaluator
@@ -100,8 +105,8 @@ E4-10. Caissa remains Standard-only. See
 
 | Item | Current status |
 | --- | --- |
-| Source version | 4.0.0 |
-| Release status | v4.0.0 — Handcrafted Four-Player Teams |
+| Source version | 4.0.1 |
+| Release status | v4.0.1 — Watch Eloi Think, two-month anniversary patch |
 | Language | Rust 2024 |
 | Build system | Cargo |
 | Primary toolchain | Rust 1.98 / MSVC x64 |

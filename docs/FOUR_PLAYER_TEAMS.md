@@ -84,6 +84,20 @@ by these Teams interfaces.
 
 ## Four-player UCI extension
 
+### Watch Eloi Think (v4.0.1 GUI)
+
+The sidebar displays completed iteration depth, score, nodes, elapsed time and
+up to six seat-labelled moves from the actual searched principal variation.
+Positive scores favor the named searching team. Before the first iteration,
+the panel says **Preparing search** rather than presenting depth zero as an
+evaluation. **Show suggestion** overlays a legal root arrow without playing it.
+The display distinguishes Thinking, Move chosen, Cancelled and Emergency legal
+move; retained final metrics are labelled previous search. Undo, new game,
+pause, resignation and position changes invalidate active suggestions. The
+telemetry does not change search budgets or route Teams into Caissa.
+
+### Protocol commands
+
 ```powershell
 & .\target\release\eloi-rs.exe --four-player-uci
 ```

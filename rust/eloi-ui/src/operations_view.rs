@@ -105,7 +105,7 @@ pub(crate) fn teams_background(
         17.0,
         (31, 35, 52, 255),
     );
-    for i in 0..8 {
+    for i in 0..9 {
         let amount = if control == Some(i) {
             hover.clamp(0.0, 1.0)
         } else {
@@ -113,9 +113,9 @@ pub(crate) fn teams_background(
         };
         let b = Bounds {
             x: width as f32 - 240.0 - amount * 2.0,
-            y: 196.0 + i as f32 * 48.0 - amount * 2.5,
+            y: 196.0 + i as f32 * 40.0 - amount * 2.5,
             w: 208.0 + amount * 4.0,
-            h: 40.0 + amount * 4.0,
+            h: 34.0 + amount * 4.0,
         };
         round(
             &mut pixmap,

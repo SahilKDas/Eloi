@@ -111,6 +111,57 @@ impl Surface {
         }
         Some(surface)
     }
+    /// Overlay the current suggestion without altering board state or hit testing.
+    pub(crate) fn with_four_suggestion(
+        mut self,
+        width: u32,
+        height: u32,
+        suggestion: Option<eloi_core::four_player::FourMove>,
+    ) -> Self {
+        if let Some(mv) = suggestion {
+            let square = (width.min(height).saturating_sub(180) as f32).max(210.0) / 14.0;
+            let center = |sq: eloi_core::Square14| {
+                (
+                    44.0 + (f32::from(sq.file()) + 0.5) * square,
+                    156.0 + (13.5 - f32::from(sq.rank())) * square,
+                )
+            };
+            let (x, y) = center(mv.from);
+            let (tx, ty) = center(mv.to);
+            let dx = tx - x;
+            let dy = ty - y;
+            let length = dx.hypot(dy);
+            if length > 0.0 {
+                let (ux, uy) = (dx / length, dy / length);
+                let head = square * 0.32;
+                let shaft = square * 0.085;
+                let (bx, by) = (tx - ux * head, ty - uy * head);
+                let mut path = PathBuilder::new();
+                path.move_to(x - uy * shaft, y + ux * shaft);
+                path.line_to(bx - uy * shaft, by + ux * shaft);
+                path.line_to(bx - uy * head, by + ux * head);
+                path.line_to(tx, ty);
+                path.line_to(bx + uy * head, by - ux * head);
+                path.line_to(bx + uy * shaft, by - ux * shaft);
+                path.line_to(x + uy * shaft, y - ux * shaft);
+                path.close();
+                if let Some(path) = path.finish() {
+                    let mut paint = Paint::default();
+                    paint.anti_alias = true;
+                    paint.set_color_rgba8(171, 143, 255, 205);
+                    self.pixmap.fill_path(
+                        &path,
+                        &paint,
+                        tiny_skia::FillRule::Winding,
+                        Transform::identity(),
+                        None,
+                    );
+                }
+            }
+        }
+        self
+    }
+
     /// Render a deterministic responsive frame.
     #[must_use]
     pub fn render(
@@ -379,6 +430,30 @@ fn four_player_board(pixmap: &mut Pixmap, width: u32, height: u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn suggestion_arrow_tracks_square_centers_without_mutating_position() {
+        use eloi_core::four_player::{FourMode, FourPosition};
+        let position = FourPosition::initial(FourMode::Teams);
+        let identity = position.identity_key();
+        for (width, height) in [(1040, 780), (1280, 900)] {
+            let mv = position.legal_moves()[0];
+            let normal = Surface::render_four(width, height, &position, None).unwrap();
+            let arrow = Surface::render_four(width, height, &position, None)
+                .unwrap()
+                .with_four_suggestion(width, height, Some(mv));
+            assert_ne!(normal.rgba(), arrow.rgba());
+            let empty = Surface::render_four(width, height, &position, None)
+                .unwrap()
+                .with_four_suggestion(width, height, None);
+            assert_eq!(normal.rgba(), empty.rgba());
+            let square = (width.min(height) - 180) as f32 / 14.0;
+            let x = (44.0 + (f32::from(mv.from.file()) + 0.5) * square) as usize;
+            let y = (156.0 + (13.5 - f32::from(mv.from.rank())) * square) as usize;
+            let at = (y * width as usize + x) * 4;
+            assert_ne!(&normal.rgba()[at..at + 4], &arrow.rgba()[at..at + 4]);
+        }
+        assert_eq!(position.identity_key(), identity);
+    }
 
     #[test]
     fn both_surfaces_render_deterministically_and_hover_changes_pixels() {

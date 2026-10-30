@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory=$true)][string]$Worker,
-  [ValidatePattern('^[a-z0-9-]+$')][string]$RunId = 'v400-r1',
+  [ValidatePattern('^[a-z0-9-]+$')][string]$RunId = 'v401-r1',
   [string]$Output = '',
   [int64]$Epoch = 0
 )
@@ -9,6 +9,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $versionMatch = Select-String -LiteralPath (Join-Path $root 'Cargo.toml') -Pattern '^version = "([^"]+)"$' | Select-Object -First 1
 if (-not $versionMatch) { throw 'Workspace version is missing' }
 $version = $versionMatch.Matches[0].Groups[1].Value
+$releaseNotes = 'RELEASE_V' + $version.Replace('.', '_') + '.md'
 $env:CARGO_BUILD_JOBS = '2'
 $trackedDirty = & git -C $root status --porcelain --untracked-files=no
 if ($LASTEXITCODE -ne 0 -or $trackedDirty) {
@@ -82,7 +83,7 @@ function Stage([string]$Name, [string]$Executable, [bool]$Split) {
   Copy-Item -LiteralPath (Join-Path $root 'assets\chess_maestro_bw\ATTRIBUTION.md') -Destination (Join-Path $folder 'CHESS_PIECES_ATTRIBUTION.md')
   Copy-Item -LiteralPath $dependencyNotices -Destination $folder
   Copy-Item -LiteralPath (Join-Path $root 'packaging\V4_QUICK_START.md') -Destination (Join-Path $folder 'QUICK_START.md')
-  Copy-Item -LiteralPath (Join-Path $root 'RELEASE_V4_0_0.md') -Destination $folder
+  Copy-Item -LiteralPath (Join-Path $root $releaseNotes) -Destination $folder
   [IO.File]::WriteAllText((Join-Path $folder 'Open-Teams.cmd'),"@echo off`r`ncd /d `"%~dp0`"`r`n`"%~dp0Eloi.exe`" --four-player-gui`r`n",[Text.UTF8Encoding]::new($false))
   [IO.File]::WriteAllText((Join-Path $folder 'Open-OperationsCenter.cmd'),"@echo off`r`ncd /d `"%~dp0`"`r`n`"%~dp0Eloi.exe`" --operations-center --config `"%~dp0config.yml`"`r`n",[Text.UTF8Encoding]::new($false))
   [IO.File]::WriteAllText(
@@ -101,7 +102,7 @@ function Stage([string]$Name, [string]$Executable, [bool]$Split) {
     [Text.UTF8Encoding]::new($false))
   $expected = @('config.yml','Eloi.exe','LICENSE','README.md','SHA256SUMS.txt',
     'SOURCE_COMMIT.txt','THIRD_PARTY_NOTICES.md','CAISSA_LICENSE.txt','CHESS_PIECES_ATTRIBUTION.md',
-    'RUST_DEPENDENCY_LICENSES.txt','QUICK_START.md','RELEASE_V4_0_0.md','Open-Teams.cmd','Open-OperationsCenter.cmd')
+    'RUST_DEPENDENCY_LICENSES.txt','QUICK_START.md',$releaseNotes,'Open-Teams.cmd','Open-OperationsCenter.cmd')
   if ($Split) { $expected += @('eloi-caissa-2.0.exe') }
   $actual = @(Get-ChildItem -LiteralPath $folder -File | ForEach-Object Name | Sort-Object)
   $expected = @($expected | Sort-Object)

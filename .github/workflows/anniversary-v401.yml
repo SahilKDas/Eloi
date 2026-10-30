@@ -1,0 +1,34 @@
+name: Publish v4.0.1 at the anniversary instant
+
+on:
+  push:
+    tags: [v4.0.1]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eloi-v401-anniversary-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'SahilKDas/Eloi'
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify annotated tag source
+        shell: bash
+        run: |
+          test "$(git cat-file -t refs/tags/v4.0.1)" = tag
+          test "$(git rev-parse 'refs/tags/v4.0.1^{commit}')" = "$GITHUB_SHA"
+      - name: Verify golden assets, wait, and publish once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/publish_v401_anniversary.py --commit "$GITHUB_SHA"

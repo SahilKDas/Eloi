@@ -5,6 +5,14 @@ playing on Lichess for a long time.** This status does not stop, restart,
 reconfigure or upgrade any bridge, job, monitor or keep-awake process. It is
 not a promise of unattended uptime; fatal errors still require human action.
 
+## Anniversary maintenance exception — 2026-10-29
+
+v4.0.1 adds **Watch Eloi Think** to local Teams only. The v4.0.0 release below
+remains immutable. After this bounded patch, development returns to hibernation;
+existing bridges, jobs and keep-awake processes remain untouched. No training,
+donor upgrade or new strength campaign is part of this exception. See
+[v4.0.1 notes](../RELEASE_V4_0_1.md) for the feature and publication target.
+
 ## Frozen release
 
 - Release: [Eloi v4.0.0](https://github.com/SahilKDas/Eloi/releases/tag/v4.0.0).

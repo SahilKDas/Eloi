@@ -1,4 +1,4 @@
-//! Temporary executable shell for the staged Rust rewrite.
+//! Eloi Windows application, Teams GUI, protocols and contained Standard donor.
 
 use std::io;
 

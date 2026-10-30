@@ -6,7 +6,7 @@
 
 use eloi_core::PieceKind;
 use eloi_core::four_player::{FourGame, FourMode, FourMove, FourOutcome, FourPosition, FourSeat};
-use eloi_engine::four_player::{FourSearchLimits, FourSearchResult, search_four_player};
+use eloi_engine::four_player::{FourSearchLimits, FourSearchResult, search_four_player_observed};
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
@@ -226,11 +226,25 @@ impl FourPlayerSession {
         depth: u8,
         stopped: &AtomicBool,
     ) -> Result<Option<FourMove>, &'static str> {
+        self.step_engine_once_observed(movetime, depth, stopped, &mut |_| {})
+    }
+
+    /// Search/play with completed-iteration telemetry; observer must not block.
+    ///
+    /// # Errors
+    /// Returns the same search or move-rejection error as [`Self::step_engine_once`].
+    pub fn step_engine_once_observed(
+        &mut self,
+        movetime: Duration,
+        depth: u8,
+        stopped: &AtomicBool,
+        observer: &mut dyn FnMut(&FourSearchResult),
+    ) -> Result<Option<FourMove>, &'static str> {
         let seat = self.game.position().turn;
         if self.controllers[seat.index()] != SeatController::Eloi || self.game.outcome().is_some() {
             return Ok(None);
         }
-        let result = search_four_player(
+        let result = search_four_player_observed(
             self.game.position(),
             FourSearchLimits {
                 movetime: movetime.min(Duration::from_millis(
@@ -243,6 +257,7 @@ impl FourPlayerSession {
                 nodes: None,
             },
             stopped,
+            observer,
         )?;
         if stopped.load(std::sync::atomic::Ordering::Relaxed) {
             return Ok(None);

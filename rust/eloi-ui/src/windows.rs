@@ -229,9 +229,9 @@ unsafe extern "system" fn window_proc(
                 crate::operations_view::hit(rect.right as u32, rect.bottom as u32, x, y)
             } else if unsafe { (*state).kind == SurfaceKind::FourPlayer } {
                 if x >= rect.right - 240 && x <= rect.right - 32 {
-                    (0..8).find(|i| {
-                        let top = 196 + *i as i32 * 48;
-                        (top..top + 40).contains(&y)
+                    (0..9).find(|i| {
+                        let top = 196 + *i as i32 * 40;
+                        (top..top + 34).contains(&y)
                     })
                 } else {
                     None
@@ -355,6 +355,7 @@ unsafe fn paint(window: HWND, state: &WindowState) {
             state.hover_amount,
             state.hover_control,
         )
+        .map(|surface| surface.with_four_suggestion(width, height, table.suggestion()))
     } else {
         Surface::render(
             width,
@@ -875,8 +876,8 @@ unsafe fn board_click(window: HWND, state: &mut WindowState, x: i32, y: i32) {
         let mut client = Default::default();
         unsafe { GetClientRect(window, &mut client) };
         if x >= client.right - 240 && x <= client.right - 32 {
-            if (196..196 + 8 * 48).contains(&y) {
-                table.control(((y - 196) / 48) as usize);
+            if (196..196 + 9 * 40).contains(&y) && (y - 196) % 40 < 34 {
+                table.control(((y - 196) / 40) as usize);
             }
             return;
         }
@@ -1007,6 +1008,8 @@ unsafe fn draw_four(
         muted,
         false,
     );
+    let think_label = format!("THINK: {} ms", table.budget_ms);
+    let promotion_label = format!("PROMOTION: {:?}", table.promotion);
     let labels = [
         "NEW TEAM GAME",
         "PAUSE / RESUME",
@@ -1014,8 +1017,13 @@ unsafe fn draw_four(
         "RESIGN YOUR TEAM",
         "FOUR HUMANS",
         "ALL ELOI DEMO",
-        "THINK: 1s / 3s",
-        "PROMOTION: Q / R / B / N",
+        &think_label,
+        &promotion_label,
+        if table.show_suggestion {
+            "SHOW SUGGESTION: ON"
+        } else {
+            "SHOW SUGGESTION: OFF"
+        },
     ];
     text(
         "HANDCRAFTED TEAMS",
@@ -1033,9 +1041,9 @@ unsafe fn draw_four(
                 label,
                 Bounds {
                     x: width as f32 - 240.0,
-                    y: 196.0 + i as f32 * 48.0,
+                    y: 196.0 + i as f32 * 40.0,
                     w: 208.0,
-                    h: 40.0,
+                    h: 34.0,
                 },
                 13,
                 ink,
@@ -1045,32 +1053,26 @@ unsafe fn draw_four(
         };
     }
     text(
-        &format!("Think budget  {} ms", table.budget_ms),
+        "WATCH ELOI THINK",
         width as f32 - 234.0,
-        588.0,
+        560.0,
         212.0,
         15,
-        muted,
-        false,
+        (177, 163, 255),
+        true,
     );
-    text(
-        &format!("Promotion  {:?}", table.promotion),
-        width as f32 - 234.0,
-        613.0,
-        212.0,
-        15,
-        muted,
-        false,
-    );
-    text(
-        "Select piece, then target.",
-        width as f32 - 234.0,
-        638.0,
-        212.0,
-        14,
-        muted,
-        false,
-    );
+    let line_gap = ((height as f32 - 634.0) / 7.0).clamp(12.0, 19.0);
+    for (index, line) in table.think_lines().iter().enumerate() {
+        text(
+            line,
+            width as f32 - 234.0,
+            588.0 + index as f32 * line_gap,
+            212.0,
+            12,
+            if index == 0 { ink } else { muted },
+            index == 0,
+        );
+    }
     let clock = |i: usize| {
         let s = snapshot.clocks[i].remaining_ms / 1000;
         format!("{:02}:{:02}", s / 60, s % 60)
